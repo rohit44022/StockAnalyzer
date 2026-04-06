@@ -1,0 +1,2144 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📈 Bollinger Band Strategy Dashboard — All 4 Methods</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bs-body-bg: #0d1117;
+            --bs-body-color: #c9d1d9;
+            --card-bg: #161b22;
+            --card-border: #30363d;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+            --accent-blue: #58a6ff;
+            --accent-purple: #bc8cff;
+            --accent-orange: #f0883e;
+            --accent-cyan: #39d2c0;
+            --m1-color: #58a6ff;
+            --m1-glow: rgba(88,166,255,0.15);
+            --m2-color: #3fb950;
+            --m2-glow: rgba(63,185,80,0.15);
+            --m3-color: #bc8cff;
+            --m3-glow: rgba(188,140,255,0.15);
+            --m4-color: #f0883e;
+            --m4-glow: rgba(240,136,62,0.15);
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bs-body-bg); }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* ── Cards ── */
+        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; }
+        .card-header { background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--card-border); }
+
+        /* ── Hero ── */
+        .hero-section {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1f2b 100%);
+            border-bottom: 1px solid var(--card-border);
+            padding: 2.5rem 0 2rem;
+        }
+        .hero-title {
+            font-size: 2.5rem; font-weight: 800;
+            background: linear-gradient(135deg, #58a6ff, #bc8cff, #f0883e);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .search-box { max-width: 600px; margin: 1.5rem auto 0; }
+        .search-box .form-control {
+            background: var(--card-bg); border: 2px solid var(--card-border);
+            color: #fff; font-size: 1.1rem; padding: 0.7rem 1.2rem;
+            border-radius: 12px 0 0 12px;
+        }
+        .search-box .form-control:focus {
+            border-color: var(--accent-blue); box-shadow: 0 0 0 0.2rem rgba(88,166,255,0.15);
+        }
+        .search-box .btn {
+            border-radius: 0 12px 12px 0; font-weight: 600; padding: 0.7rem 1.5rem;
+        }
+
+        /* ── Autocomplete ── */
+        .autocomplete-list {
+            position: absolute; z-index: 1000; background: var(--card-bg);
+            border: 1px solid var(--card-border); border-radius: 0 0 12px 12px;
+            max-height: 250px; overflow-y: auto; width: 100%; left: 0;
+        }
+        .autocomplete-item {
+            padding: 8px 16px; cursor: pointer; color: var(--bs-body-color);
+            font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
+        }
+        .autocomplete-item:hover, .autocomplete-item.active {
+            background: rgba(88,166,255,0.1); color: var(--accent-blue);
+        }
+
+        /* ── Quick picks ── */
+        .quick-pick { cursor: pointer; transition: all 0.2s; }
+        .quick-pick:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+
+        /* ── Strategy Cards ── */
+        .strat-hero {
+            border-radius: 16px; padding: 1.8rem;
+            transition: all 0.3s ease; position: relative; overflow: hidden;
+            border: 2px solid transparent;
+        }
+        .strat-hero:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+        }
+        .strat-hero > * { position: relative; z-index: 1; }
+        .strat-hero::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 14px; opacity: 0.06;
+            pointer-events: none;
+        }
+        .strat-m1 { background: var(--card-bg); border-color: var(--m1-color); }
+        .strat-m1::before { background: var(--m1-color); }
+        .strat-m1:hover { box-shadow: 0 8px 32px var(--m1-glow); border-color: var(--m1-color); }
+        .strat-m2 { background: var(--card-bg); border-color: var(--m2-color); }
+        .strat-m2::before { background: var(--m2-color); }
+        .strat-m2:hover { box-shadow: 0 8px 32px var(--m2-glow); border-color: var(--m2-color); }
+        .strat-m3 { background: var(--card-bg); border-color: var(--m3-color); }
+        .strat-m3::before { background: var(--m3-color); }
+        .strat-m3:hover { box-shadow: 0 8px 32px var(--m3-glow); border-color: var(--m3-color); }
+        .strat-m4 { background: var(--card-bg); border-color: var(--m4-color); }
+        .strat-m4::before { background: var(--m4-color); }
+        .strat-m4:hover { box-shadow: 0 8px 32px var(--m4-glow); border-color: var(--m4-color); }
+
+        .strat-icon {
+            width: 56px; height: 56px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem; margin-bottom: 0.8rem;
+        }
+        .strat-m1 .strat-icon { background: var(--m1-glow); color: var(--m1-color); }
+        .strat-m2 .strat-icon { background: var(--m2-glow); color: var(--m2-color); }
+        .strat-m3 .strat-icon { background: var(--m3-glow); color: var(--m3-color); }
+        .strat-m4 .strat-icon { background: var(--m4-glow); color: var(--m4-color); }
+
+        .strat-method-tag {
+            font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; padding: 3px 10px; border-radius: 20px;
+            display: inline-block; margin-bottom: 0.5rem;
+        }
+        .strat-m1 .strat-method-tag { background: var(--m1-glow); color: var(--m1-color); }
+        .strat-m2 .strat-method-tag { background: var(--m2-glow); color: var(--m2-color); }
+        .strat-m3 .strat-method-tag { background: var(--m3-glow); color: var(--m3-color); }
+        .strat-m4 .strat-method-tag { background: var(--m4-glow); color: var(--m4-color); }
+
+        /* Strategy performance rating badge */
+        .strat-rating {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 5px 14px; border-radius: 8px; font-size: 0.72rem;
+            font-weight: 600; margin-bottom: 0.6rem; line-height: 1.3;
+        }
+        .strat-rating-stars { font-size: 0.8rem; letter-spacing: 1px; }
+        .strat-rating-rank { font-weight: 800; font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; margin-right: 4px; }
+        .strat-rating-1 { background: rgba(63,185,80,0.12); color: #3fb950; border: 1px solid rgba(63,185,80,0.25); }
+        .strat-rating-1 .strat-rating-rank { background: #3fb950; color: #000; }
+        .strat-rating-2 { background: rgba(88,166,255,0.12); color: #58a6ff; border: 1px solid rgba(88,166,255,0.25); }
+        .strat-rating-2 .strat-rating-rank { background: #58a6ff; color: #000; }
+        .strat-rating-3 { background: rgba(210,153,34,0.12); color: #d29922; border: 1px solid rgba(210,153,34,0.25); }
+        .strat-rating-3 .strat-rating-rank { background: #d29922; color: #000; }
+        .strat-rating-4 { background: rgba(139,148,158,0.12); color: #8b949e; border: 1px solid rgba(139,148,158,0.25); }
+        .strat-rating-4 .strat-rating-rank { background: #8b949e; color: #000; }
+
+        .strat-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.6rem; }
+        .strat-m1 .strat-title { color: var(--m1-color); }
+        .strat-m2 .strat-title { color: var(--m2-color); }
+        .strat-m3 .strat-title { color: var(--m3-color); }
+        .strat-m4 .strat-title { color: var(--m4-color); }
+
+        .strat-desc {
+            font-size: 0.85rem; color: #8b949e; line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        /* ── Book quotes ── */
+        .book-quote {
+            font-size: 0.8rem; padding: 0.7rem 1rem; border-radius: 10px;
+            background: rgba(188,140,255,0.06); border-left: 3px solid var(--accent-purple);
+            color: #b392d6; font-style: italic; margin: 0.8rem 0;
+            line-height: 1.55;
+        }
+        .book-quote .quote-src { font-style: normal; font-size: 0.68rem; color: #6e5494; display: block; margin-top: 4px; }
+
+        /* ── Key Concept callout ── */
+        .key-concept {
+            font-size: 0.78rem; padding: 0.7rem 0.9rem; border-radius: 10px;
+            background: rgba(57,210,192,0.06); border: 1px solid rgba(57,210,192,0.15);
+            margin: 0.7rem 0; line-height: 1.5;
+        }
+        .key-concept .kc-label { font-weight: 700; font-size: 0.7rem; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--accent-cyan); margin-bottom: 2px; }
+
+        /* ── Step-by-step ── */
+        .steps-list { list-style: none; padding: 0; margin: 0.5rem 0; }
+        .steps-list li {
+            position: relative; padding-left: 26px; font-size: 0.76rem;
+            color: #8b949e; margin: 5px 0; line-height: 1.5;
+        }
+        .steps-list li::before {
+            content: attr(data-step); position: absolute; left: 0; top: 0;
+            width: 18px; height: 18px; border-radius: 50%; font-size: 0.6rem;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700;
+        }
+        .steps-buy li::before { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+        .steps-sell li::before { background: rgba(248,81,73,0.15); color: var(--accent-red); }
+
+        /* ── Inline signal color helpers ── */
+        .sig-buy { color: var(--accent-green); font-weight: 600; }
+        .sig-sell { color: var(--accent-red); font-weight: 600; }
+        .sig-warn { color: var(--accent-yellow); font-weight: 600; }
+        .sig-info { color: var(--accent-blue); font-weight: 600; }
+        .sig-purple { color: var(--accent-purple); font-weight: 600; }
+        .sig-orange { color: var(--accent-orange); font-weight: 600; }
+        .sig-cyan { color: var(--accent-cyan); font-weight: 600; }
+
+        /* ── Mistake callout ── */
+        .mistake-box {
+            font-size: 0.76rem; padding: 0.6rem 0.9rem; border-radius: 10px;
+            background: rgba(248,81,73,0.05); border: 1px solid rgba(248,81,73,0.12);
+            margin: 0.7rem 0; line-height: 1.5; color: #b3524c;
+        }
+        .mistake-box .mb-label { font-weight: 700; font-size: 0.68rem; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--accent-red); margin-bottom: 2px; }
+
+        /* ── Pro tip ── */
+        .pro-tip {
+            font-size: 0.76rem; padding: 0.6rem 0.9rem; border-radius: 10px;
+            background: rgba(63,185,80,0.05); border: 1px solid rgba(63,185,80,0.12);
+            margin: 0.7rem 0; line-height: 1.5;
+        }
+        .pro-tip .pt-label { font-weight: 700; font-size: 0.68rem; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--accent-green); margin-bottom: 2px; }
+
+        /* ── Expanded indicator pills with color ── */
+        .pill-buy { border-color: rgba(63,185,80,0.25); color: var(--accent-green); background: rgba(63,185,80,0.06); }
+        .pill-sell { border-color: rgba(248,81,73,0.25); color: var(--accent-red); background: rgba(248,81,73,0.06); }
+        .pill-info { border-color: rgba(88,166,255,0.25); color: var(--accent-blue); background: rgba(88,166,255,0.06); }
+        .pill-warn { border-color: rgba(210,153,34,0.25); color: var(--accent-yellow); background: rgba(210,153,34,0.06); }
+        .pill-purple { border-color: rgba(188,140,255,0.25); color: var(--accent-purple); background: rgba(188,140,255,0.06); }
+
+        /* ── Indicator pills ── */
+        .indicator-pill {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 0.72rem; font-weight: 600; padding: 4px 10px;
+            border-radius: 20px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #8b949e; margin: 2px;
+        }
+        .indicator-pill i { font-size: 0.7rem; }
+
+        /* ── How it works ── */
+        .how-works {
+            font-size: 0.78rem; padding: 0.8rem; border-radius: 10px;
+            background: rgba(255,255,255,0.025); border-left: 3px solid;
+            margin-top: 0.8rem;
+        }
+        .strat-m1 .how-works { border-left-color: var(--m1-color); }
+        .strat-m2 .how-works { border-left-color: var(--m2-color); }
+        .strat-m3 .how-works { border-left-color: var(--m3-color); }
+        .strat-m4 .how-works { border-left-color: var(--m4-color); }
+        .how-works .hw-title { font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .strat-m1 .hw-title { color: var(--m1-color); }
+        .strat-m2 .hw-title { color: var(--m2-color); }
+        .strat-m3 .hw-title { color: var(--m3-color); }
+        .strat-m4 .hw-title { color: var(--m4-color); }
+
+        .signal-rule {
+            display: flex; align-items: flex-start; gap: 6px;
+            font-size: 0.75rem; color: #8b949e; margin: 3px 0;
+        }
+        .signal-rule .arrow-buy  { color: var(--accent-green); font-weight: 700; }
+        .signal-rule .arrow-sell { color: var(--accent-red); font-weight: 700; }
+
+        /* ── Scan buttons ── */
+        .strat-scan-btns { display: flex; gap: 8px; margin-top: 1rem; flex-wrap: wrap; position: relative; z-index: 2; }
+        .strat-scan-btn {
+            flex: 1; min-width: 80px; padding: 6px 12px; border-radius: 8px;
+            font-size: 0.78rem; font-weight: 600; cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+            color: #c9d1d9; transition: all 0.2s; text-align: center;
+            user-select: none;
+        }
+        .strat-scan-btn:hover { background: rgba(255,255,255,0.08); transform: translateY(-1px); }
+        .strat-scan-btn.btn-buy { border-color: rgba(63,185,80,0.3); color: var(--accent-green); }
+        .strat-scan-btn.btn-buy:hover { background: rgba(63,185,80,0.1); }
+        .strat-scan-btn.btn-sell { border-color: rgba(248,81,73,0.3); color: var(--accent-red); }
+        .strat-scan-btn.btn-sell:hover { background: rgba(248,81,73,0.1); }
+        .strat-scan-btn.btn-all { border-color: rgba(210,153,34,0.3); color: var(--accent-yellow); }
+        .strat-scan-btn.btn-all:hover { background: rgba(210,153,34,0.1); }
+
+        /* ── Book reference ── */
+        .book-ref {
+            font-size: 0.7rem; color: #484f58; font-style: italic; margin-top: 0.6rem;
+        }
+        .book-ref i { color: var(--accent-purple); }
+
+        /* ── Legacy scan cards (M1 sub-buttons) ── */
+        .scan-card { transition: all 0.2s; cursor: pointer; }
+        .scan-card:hover { border-color: var(--accent-blue); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+
+        /* ── Common text classes ── */
+        .text-green { color: var(--accent-green) !important; }
+        .text-red { color: var(--accent-red) !important; }
+        .text-yellow { color: var(--accent-yellow) !important; }
+        .text-accent-blue { color: var(--accent-blue) !important; }
+        .text-accent-purple { color: var(--accent-purple) !important; }
+        .text-accent-orange { color: var(--accent-orange) !important; }
+        .badge-buy { background: var(--accent-green); color: #000; }
+        .badge-sell { background: var(--accent-red); }
+        .badge-wait { background: var(--accent-yellow); color: #000; }
+        .badge-squeeze { background: var(--accent-blue); }
+        .badge-none { background: rgba(255,255,255,0.08); color: #8b949e; }
+
+        /* ── Results table ── */
+        #scanResults table { font-size: 0.82rem; }
+        .spinner-border { width: 1.2rem; height: 1.2rem; }
+
+        /* ── Sort / Filter for scan modal ── */
+        #scanFilterBar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+        #scanFilterBar input { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+            color:#c9d1d9; border-radius:6px; padding:5px 10px; font-size:0.8rem; width:220px; }
+        #scanFilterBar input::placeholder { color:#6e7681; }
+        #scanFilterBar select { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+            color:#c9d1d9; border-radius:6px; padding:5px 8px; font-size:0.78rem; }
+        #scanHead th { cursor:pointer; user-select:none; white-space:nowrap; position:relative; padding-right:18px !important; }
+        #scanHead th:hover { color:var(--accent-blue); }
+        #scanHead th .sort-arrow { font-size:0.65rem; position:absolute; right:4px; top:50%; transform:translateY(-50%); opacity:0.3; }
+        #scanHead th.sort-asc .sort-arrow, #scanHead th.sort-desc .sort-arrow { opacity:1; color:var(--accent-blue); }
+        .scan-result-count { font-size:0.75rem; color:#8b949e; margin-left:auto; white-space:nowrap; }
+
+        /* ── Top 5 Picks buttons (BUY = green-purple, SELL = red-purple) ── */
+        .strat-scan-btn.btn-top5-buy  { border-color:rgba(63,185,80,0.5); color:#56d364; background:rgba(63,185,80,0.06); font-weight:600; }
+        .strat-scan-btn.btn-top5-buy:hover  { background:rgba(63,185,80,0.15); box-shadow:0 0 12px rgba(63,185,80,0.25); }
+        .strat-scan-btn.btn-top5-sell { border-color:rgba(248,81,73,0.5); color:#ff7b72; background:rgba(248,81,73,0.06); font-weight:600; }
+        .strat-scan-btn.btn-top5-sell:hover { background:rgba(248,81,73,0.15); box-shadow:0 0 12px rgba(248,81,73,0.25); }
+
+        /* ── Top Picks Modal ── */
+        #topPicksModal .modal-content { background:var(--card-bg); border:1px solid var(--card-border); }
+
+        /* Progress bar inside Top Picks */
+        .tp-progress { padding:2rem 1rem; text-align:center; }
+        .tp-progress-bar { width:100%; height:8px; border-radius:4px; background:rgba(255,255,255,0.08); margin:12px 0; overflow:hidden; }
+        .tp-progress-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,#a371f7,#58a6ff); transition:width 0.3s; }
+        .tp-progress-text { font-size:0.82rem; color:#8b949e; }
+        .tp-phase-text { font-size:0.9rem; color:#c9d1d9; font-weight:600; margin-bottom:4px; }
+
+        /* Top pick cards */
+        .tp-picks-container { display:flex; flex-direction:column; gap:16px; }
+        .tp-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px; transition:all 0.2s; }
+        .tp-card:hover { border-color:rgba(136,85,255,0.4); background:rgba(136,85,255,0.04); }
+        .tp-card-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+        .tp-rank { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                   font-weight:800; font-size:0.95rem; flex-shrink:0; }
+        .tp-rank-1 { background:linear-gradient(135deg,#ffd700,#ffaa00); color:#000; }
+        .tp-rank-2 { background:linear-gradient(135deg,#c0c0c0,#a0a0a0); color:#000; }
+        .tp-rank-3 { background:linear-gradient(135deg,#cd7f32,#a0522d); color:#fff; }
+        .tp-rank-4,.tp-rank-5 { background:rgba(255,255,255,0.1); color:#c9d1d9; }
+        .tp-ticker { font-family:'JetBrains Mono',monospace; font-size:1.1rem; font-weight:700; color:#e6edf3; }
+        .tp-price { font-size:0.85rem; color:#8b949e; }
+        .tp-score-badge { margin-left:auto; display:flex; align-items:center; gap:6px; }
+        .tp-score { font-size:1.4rem; font-weight:800; }
+        .tp-grade { font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:4px; cursor:help; }
+        .tp-score-badge { position:relative; }
+        .tp-score-legend { font-size:0.6rem; color:#8b949e; text-align:right; margin-top:2px; line-height:1.2; }
+        .tp-grade-a-plus { background:#3fb950; color:#000; }
+        .tp-grade-a { background:#56d364; color:#000; }
+        .tp-grade-b-plus { background:#58a6ff; color:#000; }
+        .tp-grade-b { background:#79c0ff; color:#000; }
+        .tp-grade-c { background:#d29922; color:#000; }
+        .tp-grade-d,.tp-grade-f { background:#f85149; color:#fff; }
+
+        /* Score components gauge */
+        .tp-components { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:10px 0; }
+        @media(max-width:768px){ .tp-components { grid-template-columns:repeat(2,1fr); } }
+        .tp-comp { background:rgba(255,255,255,0.03); border-radius:6px; padding:8px 10px; }
+        .tp-comp-name { font-size:0.68rem; text-transform:uppercase; color:#8b949e; letter-spacing:0.5px; margin-bottom:2px; }
+        .tp-comp-bar { height:4px; border-radius:2px; background:rgba(255,255,255,0.08); margin:4px 0; }
+        .tp-comp-fill { height:100%; border-radius:2px; }
+        .tp-comp-val { font-size:0.78rem; font-weight:600; }
+        .tp-comp-hint { font-size:0.62rem; color:#6e7681; line-height:1.2; margin-top:3px; }
+
+        /* Reasons & Warnings */
+        .tp-reasons { margin:10px 0 6px; }
+        .tp-reason { font-size:0.78rem; color:#56d364; padding:2px 0; }
+        .tp-reason::before { content:'✅ '; }
+        .tp-warning { font-size:0.78rem; color:#d29922; padding:2px 0; }
+        .tp-warning::before { content:'⚠️ '; }
+
+        /* Verdict row */
+        .tp-verdicts { display:flex; gap:12px; flex-wrap:wrap; margin:8px 0; font-size:0.78rem; }
+        .tp-verdict-item { background:rgba(255,255,255,0.04); padding:4px 10px; border-radius:6px; display:flex; gap:4px; align-items:center; }
+        .tp-verdict-label { color:#8b949e; }
+        .tp-verdict-value { font-weight:600; }
+
+        /* Action items */
+        .tp-actions { margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06); }
+        .tp-action { font-size:0.75rem; color:#79c0ff; padding:1px 0; }
+        .tp-action::before { content:'→ '; color:#484f58; }
+
+        /* Analyze link */
+        .tp-analyze-link { display:inline-block; margin-top:8px; font-size:0.78rem; color:#a371f7; cursor:pointer; text-decoration:none; }
+        .tp-analyze-link:hover { text-decoration:underline; color:#c699ff; }
+
+        /* Summary stats bar */
+        .tp-summary { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px; font-size:0.82rem; }
+        .tp-summary-item { color:#8b949e; }
+        .tp-summary-item strong { color:#c9d1d9; }
+
+        /* No picks message */
+        .tp-no-picks { text-align:center; padding:3rem 1rem; color:#8b949e; }
+        .tp-no-picks i { font-size:2.5rem; display:block; margin-bottom:12px; opacity:0.4; }
+
+        .footer { border-top: 1px solid var(--card-border); padding: 1.5rem 0; margin-top: 3rem; }
+
+        /* ── Section dividers ── */
+        .section-title {
+            font-size: 1rem; font-weight: 700; display: flex;
+            align-items: center; gap: 8px; margin-bottom: 1rem;
+        }
+        .section-title .line { flex: 1; height: 1px; background: var(--card-border); }
+
+        /* ── Learn callout ── */
+        .learn-callout {
+            background: linear-gradient(135deg, rgba(88,166,255,0.05), rgba(188,140,255,0.05));
+            border: 1px solid rgba(88,166,255,0.15); border-radius: 12px;
+            padding: 1.2rem 1.5rem; margin-bottom: 2rem;
+        }
+        .learn-callout h6 { color: var(--accent-blue); font-weight: 700; }
+
+        /* ── Download modal ── */
+        .dl-stat { text-align: center; padding: 0.5rem; }
+        .dl-stat .dl-num { font-size: 1.5rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .dl-stat .dl-label { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
+        .dl-progress-ring { width: 100%; height: 8px; background: var(--card-border); border-radius: 4px; overflow: hidden; }
+        .dl-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-green)); border-radius: 4px; transition: width 0.3s ease; }
+        .dl-log { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #8b949e;
+                  max-height: 140px; overflow-y: auto; background: #0d1117; border-radius: 8px;
+                  padding: 0.5rem 0.75rem; border: 1px solid var(--card-border); }
+    </style>
+</head>
+<body>
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!--  HERO                                                         -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section class="hero-section text-center">
+        <div class="container">
+            <h1 class="hero-title mb-2"><i class="bi bi-graph-up-arrow"></i> Bollinger Band Strategy Dashboard</h1>
+            <p class="text-secondary mb-0">All 4 Methods from <em>Bollinger on Bollinger Bands</em> — John Bollinger CFA CMT</p>
+            <p class="text-secondary small">NSE &amp; BSE Equity · Volatility Breakout · Trend Following · Reversals · Band Walking</p>
+
+            <!-- Search -->
+            <form class="search-box d-flex position-relative" id="searchForm" autocomplete="off">
+                <div class="flex-grow-1 position-relative">
+                    <input type="text" class="form-control" id="tickerInput"
+                           placeholder="Enter ticker — RELIANCE, TCS, HDFC ..." autofocus>
+                    <div class="autocomplete-list" id="autocompleteList" style="display:none;"></div>
+                </div>
+                <button class="btn btn-primary" type="submit" id="analyzeBtn">
+                    <i class="bi bi-search"></i> Analyze
+                </button>
+            </form>
+
+            <!-- Download Historical Data Button -->
+            <div class="mt-3">
+                <button class="btn btn-outline-info btn-sm" id="downloadDataBtn" data-bs-toggle="modal" data-bs-target="#downloadModal">
+                    <i class="bi bi-cloud-arrow-down me-1"></i> Download / Update Historical Data
+                </button>
+                <a href="/trades" class="btn btn-outline-success btn-sm ms-2">
+                    <i class="bi bi-cash-stack me-1"></i> Trade P&L & Tax Calculator
+                </a>
+                <a href="/portfolio" class="btn btn-outline-warning btn-sm ms-2">
+                    <i class="bi bi-briefcase-fill me-1"></i> Portfolio Tracker
+                </a>
+                <a href="/ta" class="btn btn-outline-info btn-sm ms-2">
+                    <i class="bi bi-bar-chart-line me-1"></i> Technical Analysis
+                </a>
+                <a href="/hybrid" class="btn btn-outline-secondary btn-sm ms-2" style="border-color:#7c4dff;color:#7c4dff">
+                    <i class="bi bi-lightning-charge-fill me-1"></i> Hybrid BB+TA Engine
+                </a>
+                <a href="/pa" class="btn btn-outline-secondary btn-sm ms-2" style="border-color:#f0883e;color:#f0883e">
+                    <i class="bi bi-candlestick-chart me-1"></i> Price Action (Al Brooks)
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ Download Modal ═══════════ -->
+    <div class="modal fade" id="downloadModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border);">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-bold"><i class="bi bi-cloud-arrow-down me-2 text-info"></i>Download Historical Data</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <!-- Before start -->
+            <div id="dlBeforeStart">
+              <!-- Ticker list info -->
+              <div class="d-flex align-items-center justify-content-between mb-3 p-2 rounded" style="background:rgba(255,255,255,0.03);border:1px solid var(--card-border);">
+                <div>
+                  <span class="small text-secondary">Ticker List:</span>
+                  <span class="fw-bold text-info" id="dlTickerCount">—</span>
+                  <span class="small text-secondary ms-2">stocks</span>
+                  <span class="small text-secondary ms-2" id="dlTickerSource"></span>
+                </div>
+                <button class="btn btn-outline-warning btn-sm" id="dlRefreshBtn" onclick="refreshTickers()">
+                  <i class="bi bi-arrow-repeat me-1"></i> Update from NSE
+                </button>
+              </div>
+              <p class="text-secondary small mb-3">
+                Downloads OHLCV data for all NSE-listed stocks from Yahoo Finance.
+                Stale files (older than 4 days) are automatically refreshed. Fresh files are skipped.
+              </p>
+              <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="dlForceCheck">
+                  <label class="form-check-label small" for="dlForceCheck">Force re-download all (ignore cache)</label>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <label class="small text-secondary" for="dlThreads">Threads:</label>
+                  <select class="form-select form-select-sm" id="dlThreads" style="width:70px;background:var(--card-bg);color:var(--bs-body-color);border-color:var(--card-border);">
+                    <option value="4">4</option>
+                    <option value="8" selected>8</option>
+                    <option value="12">12</option>
+                    <option value="16">16</option>
+                    <option value="20">20</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-info fw-bold w-100" id="dlStartBtn" onclick="startDownload()">
+                <i class="bi bi-download me-1"></i> Start Download
+              </button>
+            </div>
+
+            <!-- Progress -->
+            <div id="dlProgress" style="display:none;">
+              <div class="row g-2 mb-3">
+                <div class="col"><div class="dl-stat"><div class="dl-num text-info" id="dlDone">0</div><div class="dl-label">Done</div></div></div>
+                <div class="col"><div class="dl-stat"><div class="dl-num" id="dlTotal">0</div><div class="dl-label">Total</div></div></div>
+                <div class="col"><div class="dl-stat"><div class="dl-num text-success" id="dlSaved">0</div><div class="dl-label">Saved</div></div></div>
+                <div class="col"><div class="dl-stat"><div class="dl-num text-secondary" id="dlSkipped">0</div><div class="dl-label">Skipped</div></div></div>
+                <div class="col"><div class="dl-stat"><div class="dl-num text-danger" id="dlFailed">0</div><div class="dl-label">Failed</div></div></div>
+              </div>
+              <div class="dl-progress-ring mb-2">
+                <div class="dl-progress-fill" id="dlBar" style="width:0%;"></div>
+              </div>
+              <div class="d-flex justify-content-between small text-secondary mb-3">
+                <span id="dlPct">0%</span>
+                <span id="dlElapsed">0s</span>
+                <span id="dlEta">ETA: --</span>
+              </div>
+              <div class="dl-log" id="dlLog">Waiting to start…</div>
+            </div>
+
+            <!-- Finished -->
+            <div id="dlFinished" style="display:none;">
+              <div class="text-center py-3">
+                <i class="bi bi-check-circle-fill text-success" style="font-size:3rem;"></i>
+                <h5 class="mt-2 fw-bold text-success">Download Complete!</h5>
+                <div id="dlSummary" class="small text-secondary"></div>
+              </div>
+              <button class="btn btn-outline-secondary w-100 mt-2" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container mt-4">
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!--  QUICK PICKS                                              -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <h6 class="text-secondary mb-3"><i class="bi bi-lightning-charge-fill text-yellow"></i> Quick Picks</h6>
+        <div class="row g-2 mb-4" id="quickPicks"><!-- filled by JS --></div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!--  LEARN CALLOUT                                            -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div class="learn-callout">
+            <h6><i class="bi bi-mortarboard-fill"></i> Learn &amp; Scan — 4 Bollinger Band Strategies from the Book</h6>
+            <p class="small text-secondary mb-2">
+                Each card below is a complete strategy guide based on <em>Bollinger on Bollinger Bands</em> by John Bollinger.
+                Read the descriptions, study the <span class="sig-buy">green BUY rules</span> and <span class="sig-sell">red SELL rules</span>,
+                understand the book quotes, then click the scan buttons to find stocks matching that strategy <em>right now</em>.
+            </p>
+            <div class="d-flex flex-wrap gap-2 small">
+                <span><span class="sig-buy">● Green text</span> = Buy / Bullish signals</span>
+                <span><span class="sig-sell">● Red text</span> = Sell / Bearish signals</span>
+                <span><span class="sig-warn">● Yellow text</span> = Warning / Caution</span>
+                <span><span class="sig-info">● Blue text</span> = Key levels &amp; thresholds</span>
+                <span><span class="sig-purple">● Purple text</span> = Book quotes &amp; references</span>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!--  STRATEGY CARDS — 2×2 GRID                                -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div class="section-title">
+            <i class="bi bi-book-half text-accent-purple"></i>
+            <span>Bollinger Band Strategies</span>
+            <span class="line"></span>
+        </div>
+
+        <!-- BUY-ONLY MODE TOGGLE -->
+        <div id="buyOnlyBar" style="background:rgba(63,185,80,0.08); border:1px solid rgba(63,185,80,0.25); border-radius:10px; padding:0.6rem 1rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="buyOnlyToggle" checked
+                           style="width:2.5em; height:1.3em; cursor:pointer;">
+                    <label class="form-check-label fw-bold" for="buyOnlyToggle" style="cursor:pointer; color:#3fb950; font-size:0.85rem;">
+                        <i class="bi bi-shield-fill-check"></i> BUY-Only Mode
+                    </label>
+                </div>
+            </div>
+            <span id="buyOnlyDesc" style="font-size:0.75rem; color:#8b949e; flex:1;">
+                Backtested on 2,262 stocks: BUY signals = 42% WR (profitable), SELL = 30% WR (losing).
+                SELL scan buttons are hidden. Core indicators &amp; book rules remain strict and unchanged.
+            </span>
+            <span id="buyOnlyBadge" class="badge" style="background:#3fb950; color:#0d1117; font-size:0.72rem;">LONGS ONLY</span>
+        </div>
+
+        <div style="font-size:0.78rem; color:#8b949e; margin:-0.5rem 0 1rem 0; padding-left:2px; line-height:1.5;">
+            <i class="bi bi-bar-chart-line-fill" style="color:#58a6ff"></i>
+            Strategies are ranked by backtested accuracy across 2,262 NSE stocks over 2 years of bull, bear &amp; sideways markets.
+            <span style="color:#3fb950">#1 = highest accuracy</span>,
+            <span style="color:#8b949e">#4 = least frequent signals</span>.
+            All methods follow John Bollinger's book rules exactly as written.
+        </div>
+
+        <div class="row g-4 mb-4">
+
+            <!-- ════ METHOD II — TREND FOLLOWING (RANK #1 — Best Accuracy) ════ -->
+            <div class="col-12">
+                <div class="strat-hero strat-m2">
+                    <div class="strat-icon"><i class="bi bi-arrow-up-right-circle-fill"></i></div>
+                    <span class="strat-method-tag">Method II · Chapter 16</span>
+                    <div class="strat-rating strat-rating-1">
+                        <span class="strat-rating-rank">#1</span>
+                        <span class="strat-rating-stars">★★★★★</span>
+                        <span>Best Accuracy — 63.4% SELL accuracy, strongest trend confirmation with %b + MFI dual validation</span>
+                    </div>
+                    <div class="strat-title">Trend Following — %b + MFI Confirmation</div>
+
+                    <div class="strat-desc">
+                        Bollinger's <em>"trust but verify"</em> approach. <strong class="sig-buy">%b</strong> tells you
+                        <em>where</em> price sits within the bands (<span class="sig-sell">0 = lower band</span>,
+                        <span class="sig-buy">1 = upper band</span>). <strong class="sig-info">MFI</strong> (Money Flow Index)
+                        tells you if <em>real money</em> is behind the move. When both agree, the trend is
+                        <span class="sig-buy">genuine</span>. When they <span class="sig-warn">diverge</span> — price is high
+                        but money flow is weak — the trend is a lie about to fail. This is how you separate
+                        <span class="sig-buy">real breakouts</span> from <span class="sig-sell">fake rallies</span>.
+                    </div>
+
+                    <div class="book-quote">
+                        "Use %b to clarify trading patterns generated by price action. Use indicators to confirm.
+                        %b tells you where you are within the bands; MFI confirms if there is enough money flowing
+                        in to sustain a move. The combination is remarkably powerful."
+                        <span class="quote-src">— John Bollinger, Chapter 16: Method II</span>
+                    </div>
+
+                    <div class="key-concept">
+                        <div class="kc-label"><i class="bi bi-lightbulb-fill"></i> Understanding %b</div>
+                        <span class="sig-buy">%b = 1.0</span> → price is exactly AT the upper band.
+                        <span class="sig-sell">%b = 0.0</span> → price is at the lower band.
+                        <span class="sig-buy">%b &gt; 1.0</span> → price is ABOVE upper band (strong breakout).
+                        <span class="sig-sell">%b &lt; 0.0</span> → price is BELOW lower band (extreme weakness).
+                        <span class="sig-info">%b = 0.5</span> → price is at the middle band (neutral zone).
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        <span class="indicator-pill pill-buy"><i class="bi bi-percent"></i> %b &gt; 0.8 = bullish zone</span>
+                        <span class="indicator-pill pill-sell"><i class="bi bi-percent"></i> %b &lt; 0.2 = bearish zone</span>
+                        <span class="indicator-pill pill-buy"><i class="bi bi-water"></i> MFI &gt; 60 = strong inflow</span>
+                        <span class="indicator-pill pill-sell"><i class="bi bi-water"></i> MFI &lt; 40 = weak outflow</span>
+                        <span class="indicator-pill pill-warn"><i class="bi bi-shuffle"></i> Divergence = danger</span>
+                    </div>
+
+                    <div class="how-works">
+                        <div class="hw-title"><i class="bi bi-lightbulb-fill"></i> How it Works — Step by Step</div>
+                        <div class="signal-rule"><span class="arrow-buy">▲ BUY — Confirmed Uptrend:</span></div>
+                        <ol class="steps-list steps-buy">
+                            <li data-step="1"><span class="sig-buy">%b &gt; 0.8</span> — price is in the upper 20% of the bands (strong position)</li>
+                            <li data-step="2"><span class="sig-buy">MFI &gt; 60</span> — money is actively flowing into the stock (institutional support)</li>
+                            <li data-step="3">Both <span class="sig-buy">rising together</span> — %b trending up AND MFI trending up = confirmed trend</li>
+                        </ol>
+                        <div class="signal-rule mt-2"><span class="arrow-sell">▼ SELL — Confirmed Downtrend:</span></div>
+                        <ol class="steps-list steps-sell">
+                            <li data-step="1"><span class="sig-sell">%b &lt; 0.2</span> — price is in the lower 20% of bands (weak position)</li>
+                            <li data-step="2"><span class="sig-sell">MFI &lt; 40</span> — money is flowing OUT of the stock (distribution)</li>
+                            <li data-step="3">Both <span class="sig-sell">falling together</span> — %b down AND MFI down = confirmed downtrend</li>
+                        </ol>
+                        <div class="signal-rule mt-2"><span class="sig-warn">⚠ DIVERGENCE — Trend Exhaustion Warning:</span></div>
+                        <ol class="steps-list" style="--step-bg: rgba(210,153,34,0.15); --step-color: var(--accent-yellow);">
+                            <li data-step="!" style="color: var(--accent-yellow);"><span class="sig-warn">%b HIGH but MFI LOW</span> — price is rising but money isn't behind it → rally will fail</li>
+                            <li data-step="!" style="color: var(--accent-yellow);"><span class="sig-warn">%b LOW but MFI HIGH</span> — price is falling but money is flowing in → selloff may reverse</li>
+                        </ol>
+                    </div>
+
+                    <div class="pro-tip">
+                        <div class="pt-label"><i class="bi bi-star-fill"></i> Pro Tip from the Book</div>
+                        Bollinger says this method works best when <em>combined</em> with Method I. After a squeeze breakout,
+                        use <span class="sig-buy">%b + MFI</span> to confirm whether the breakout has <span class="sig-buy">real money</span>
+                        behind it or is a <span class="sig-sell">head fake</span>. Also watch for <span class="sig-info">volume confirmation</span>
+                        — moves on above-average volume are far more reliable.
+                    </div>
+
+                    <div class="mistake-box">
+                        <div class="mb-label"><i class="bi bi-exclamation-triangle-fill"></i> Common Mistake</div>
+                        Don't <span class="sig-sell">sell just because %b is high</span>. A %b of 0.95 doesn't mean "overbought" —
+                        it means the stock is <span class="sig-buy">strong</span>. Only sell when MFI <span class="sig-sell">diverges</span>
+                        (MFI falling while %b stays high). "High %b with high MFI is bullish, not bearish."
+                    </div>
+
+                    <div class="strat-scan-btns">
+                        <button type="button" class="strat-scan-btn btn-buy" onclick="event.stopPropagation(); runStrategyScan('M2','BUY')"><i class="bi bi-rocket-takeoff-fill"></i> Scan BUY</button>
+                        <button type="button" class="strat-scan-btn btn-sell" onclick="event.stopPropagation(); runStrategyScan('M2','SELL')"><i class="bi bi-sign-stop-fill"></i> Scan SELL</button>
+                        <button type="button" class="strat-scan-btn btn-all" onclick="event.stopPropagation(); runStrategyScan('M2','ALL')"><i class="bi bi-grid-3x3-gap-fill"></i> All Signals</button>
+                        <button type="button" class="strat-scan-btn btn-top5-buy" onclick="event.stopPropagation(); runTopPicks('M2','BUY')" title="Deep-analyze ALL scanned stocks and pick the best 5 to BUY"><i class="bi bi-trophy-fill"></i> Top 5 BUY</button>
+                        <button type="button" class="strat-scan-btn btn-top5-sell" onclick="event.stopPropagation(); runTopPicks('M2','SELL')" title="Deep-analyze ALL scanned stocks and pick the best 5 to SELL/SHORT"><i class="bi bi-trophy-fill"></i> Top 5 SELL</button>
+                    </div>
+                    <div class="book-ref"><i class="bi bi-bookmark-fill"></i> Bollinger on Bollinger Bands — Ch. 16 "Method II: Trend Following" · %b formula on p. 51</div>
+                </div>
+            </div>
+
+            <!-- ════ METHOD I — SQUEEZE (RANK #2 — Most Signals) ════ -->
+            <div class="col-12">
+                <div class="strat-hero strat-m1">
+                    <div class="strat-icon"><i class="bi bi-bullseye"></i></div>
+                    <span class="strat-method-tag">Method I · Chapters 15–16</span>
+                    <div class="strat-rating strat-rating-2">
+                        <span class="strat-rating-rank">#2</span>
+                        <span class="strat-rating-stars">★★★★☆</span>
+                        <span>Most Signals — 57.5% SELL accuracy, generates the most signals (2,600+ in backtest), cornerstone of the system</span>
+                    </div>
+                    <div class="strat-title">Volatility Breakout — The Squeeze</div>
+
+                    <div class="strat-desc">
+                        The <strong>squeeze play</strong> is the cornerstone of Bollinger's system. When Bollinger Bands narrow
+                        to their tightest point (BandWidth at a <span class="sig-info">6-month low</span>), volatility has
+                        compressed like a <em>loaded spring</em>. Bollinger's central thesis:
+                        <strong class="sig-info">low volatility begets high volatility</strong> — the tighter the squeeze,
+                        the more explosive the breakout. The stock <em>will</em> make a big move; your job is to determine the direction.
+                    </div>
+
+                    <div class="book-quote">
+                        "Periods of low volatility are often followed by periods of high volatility. When the bands narrow, a sharp
+                        price move in either direction is likely. This is the single most useful feature of Bollinger Bands."
+                        <span class="quote-src">— John Bollinger, Chapter 15: The Squeeze</span>
+                    </div>
+
+                    <div class="key-concept">
+                        <div class="kc-label"><i class="bi bi-lightbulb-fill"></i> Core Concept — Volatility Cycle</div>
+                        Markets alternate between <span class="sig-info">contraction</span> (quiet, range-bound) and
+                        <span class="sig-orange">expansion</span> (trending, volatile). The squeeze catches the exact
+                        transition point. BandWidth = (Upper − Lower) / Middle. When it hits a <span class="sig-info">6-month low</span>,
+                        the spring is fully loaded.
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        <span class="indicator-pill pill-info"><i class="bi bi-arrows-collapse"></i> BandWidth at 6mo Low</span>
+                        <span class="indicator-pill pill-info"><i class="bi bi-percent"></i> %b &gt; 1.0 = breakout</span>
+                        <span class="indicator-pill pill-buy"><i class="bi bi-water"></i> CMF &gt; 0 = buying pressure</span>
+                        <span class="indicator-pill pill-buy"><i class="bi bi-bar-chart-fill"></i> MFI &gt; 50 = strong flow</span>
+                        <span class="indicator-pill pill-warn"><i class="bi bi-bar-chart-steps"></i> Volume Surge</span>
+                    </div>
+
+                    <div class="how-works">
+                        <div class="hw-title"><i class="bi bi-lightbulb-fill"></i> How it Works — Step by Step</div>
+                        <div class="signal-rule"><span class="arrow-buy">▲ BUY SIGNAL — All 5 conditions must be TRUE:</span></div>
+                        <ol class="steps-list steps-buy">
+                            <li data-step="1"><span class="sig-buy">Squeeze active</span> — BandWidth at 6-month low (bands are the tightest they've been)</li>
+                            <li data-step="2"><span class="sig-buy">Breakout confirmed</span> — Price closes above the upper Bollinger Band (%b &gt; 1.0)</li>
+                            <li data-step="3"><span class="sig-buy">Money flowing IN</span> — CMF &gt; 0 (Chaikin Money Flow positive = institutional buying)</li>
+                            <li data-step="4"><span class="sig-buy">Volume-weighted confirmation</span> — MFI &gt; 50 (Money Flow Index shows money entering the stock)</li>
+                            <li data-step="5"><span class="sig-buy">Volume surge</span> — Today's volume &gt; 50-day average (smart money is active)</li>
+                        </ol>
+                        <div class="signal-rule mt-2"><span class="arrow-sell">▼ SELL / EXIT — any of these triggers:</span></div>
+                        <ol class="steps-list steps-sell">
+                            <li data-step="1"><span class="sig-sell">SAR Flip</span> — Parabolic SAR flips above price (trend reversal signal)</li>
+                            <li data-step="2"><span class="sig-sell">Lower band tag</span> — Price touches/crosses the lower Bollinger Band</li>
+                            <li data-step="3"><span class="sig-sell">Double negative</span> — CMF &lt; 0 AND MFI &lt; 50 simultaneously (money leaving)</li>
+                        </ol>
+                    </div>
+
+                    <div class="mistake-box">
+                        <div class="mb-label"><i class="bi bi-exclamation-triangle-fill"></i> Common Mistake — The Head Fake</div>
+                        Bollinger warns that <span class="sig-sell">head fakes</span> are common: price breaks above the band but
+                        immediately reverses. Always confirm with <span class="sig-buy">CMF + MFI + Volume</span>. If the breakout
+                        happens on <em>declining</em> volume, it's likely a fake-out. "The head fake is actually the most
+                        common outcome of a squeeze."
+                    </div>
+
+                    <div class="pro-tip">
+                        <div class="pt-label"><i class="bi bi-star-fill"></i> Pro Tip</div>
+                        Count the <span class="sig-info">squeeze days</span> — the longer the squeeze persists, the more powerful
+                        the eventual breakout. A squeeze lasting 15+ days often produces <span class="sig-buy">multi-week moves</span>.
+                        Use the <span class="sig-warn">direction lean</span> (Bullish/Bearish/Neutral) to anticipate which way.
+                    </div>
+
+                    <div class="strat-scan-btns">
+                        <button type="button" class="strat-scan-btn btn-buy" onclick="event.stopPropagation(); runScan('BUY')"><i class="bi bi-rocket-takeoff-fill"></i> Scan BUY</button>
+                        <button type="button" class="strat-scan-btn btn-sell" onclick="event.stopPropagation(); runScan('SELL')"><i class="bi bi-sign-stop-fill"></i> Scan SELL</button>
+                        <button type="button" class="strat-scan-btn" onclick="event.stopPropagation(); runScan('SQUEEZE')"><i class="bi bi-bullseye"></i> In Squeeze</button>
+                        <button type="button" class="strat-scan-btn btn-all" onclick="event.stopPropagation(); runScan('ALL')"><i class="bi bi-grid-3x3-gap-fill"></i> All</button>
+                        <button type="button" class="strat-scan-btn btn-top5-buy" onclick="event.stopPropagation(); runTopPicks('M1','BUY')" title="Deep-analyze ALL scanned stocks and pick the best 5 to BUY"><i class="bi bi-trophy-fill"></i> Top 5 BUY</button>
+                        <button type="button" class="strat-scan-btn btn-top5-sell" onclick="event.stopPropagation(); runTopPicks('M1','SELL')" title="Deep-analyze ALL scanned stocks and pick the best 5 to SELL/SHORT"><i class="bi bi-trophy-fill"></i> Top 5 SELL</button>
+                    </div>
+                    <div class="book-ref"><i class="bi bi-bookmark-fill"></i> Bollinger on Bollinger Bands — Ch. 15 "The Squeeze" &amp; Ch. 16 "Method I: Volatility Breakout"</div>
+                </div>
+            </div>
+
+            <!-- ════ METHOD III — REVERSALS ════ -->
+            <div class="col-12">
+                <div class="strat-hero strat-m3">
+                    <div class="strat-icon"><i class="bi bi-arrow-repeat"></i></div>
+                    <span class="strat-method-tag">Method III · Chapter 17</span>
+                    <div class="strat-rating strat-rating-3">
+                        <span class="strat-rating-rank">#3</span>
+                        <span class="strat-rating-stars">★★★☆☆</span>
+                        <span>High Precision, Rare — 75% confidence when found, detects W-Bottoms &amp; M-Tops but strict pattern rules mean fewer signals</span>
+                    </div>
+                    <div class="strat-title">Reversals — W-Bottoms &amp; M-Tops</div>
+
+                    <div class="strat-desc">
+                        The most powerful <em>pattern-based</em> strategy in Bollinger's toolbox. Built on Arthur Merrill's research
+                        into 16 variations of W and M patterns. The breakthrough insight:
+                        <strong>use %b to define the pattern</strong>, not price alone. A <span class="sig-buy">W-Bottom</span>
+                        (double bottom) where the second low has <span class="sig-buy">higher %b than the first</span> is a
+                        classic <span class="sig-buy">buy signal</span>. An <span class="sig-sell">M-Top</span>
+                        (double top) where the second high has <span class="sig-sell">lower %b</span> is a
+                        <span class="sig-sell">sell signal</span>. The key rule from the book:
+                        <em>"The first touch can be outside the band, but the second touch MUST be inside."</em>
+                    </div>
+
+                    <div class="book-quote">
+                        "W bottoms were identified by Arthur Merrill. Bollinger Bands provide an ideal tool for identifying them.
+                        A W bottom is made when a reaction low is formed near or below the lower band. The stock then
+                        pulls back toward the middle band and makes a new price low. Crucially, this new low holds above
+                        the lower band. The relative strength shown by the second low being above the band is the signal."
+                        <span class="quote-src">— John Bollinger, Chapter 17: Method III — Reversals</span>
+                    </div>
+
+                    <div class="key-concept">
+                        <div class="kc-label"><i class="bi bi-lightbulb-fill"></i> The Golden Rule of W-Bottoms &amp; M-Tops</div>
+                        <span class="sig-buy">W-Bottom (BUY)</span>: 1st low has <span class="sig-sell">%b ≤ 0</span>
+                        (at or below lower band) → bounce → 2nd low has <span class="sig-buy">%b &gt; 0.2</span>
+                        (ABOVE lower band). The price is the same or lower, but %b is HIGHER = strength building.<br>
+                        <span class="sig-sell">M-Top (SELL)</span>: 1st high has <span class="sig-buy">%b ≥ 1.0</span>
+                        (at or above upper band) → pullback → 2nd high has <span class="sig-sell">%b &lt; 0.8</span>
+                        (BELOW upper band). Price is similar, but %b is LOWER = momentum fading.
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        <span class="indicator-pill pill-buy"><i class="bi bi-chevron-double-down"></i> W-Bottom = BUY</span>
+                        <span class="indicator-pill pill-sell"><i class="bi bi-chevron-double-up"></i> M-Top = SELL</span>
+                        <span class="indicator-pill pill-purple"><i class="bi bi-percent"></i> %b Divergence</span>
+                        <span class="indicator-pill pill-info"><i class="bi bi-water"></i> MFI Confirms</span>
+                        <span class="indicator-pill pill-warn"><i class="bi bi-calendar-range"></i> 5–25 day spacing</span>
+                    </div>
+
+                    <div class="how-works">
+                        <div class="hw-title"><i class="bi bi-lightbulb-fill"></i> How it Works — Step by Step</div>
+                        <div class="signal-rule"><span class="arrow-buy">▲ BUY — W-Bottom Pattern (Double Bottom Reversal):</span></div>
+                        <ol class="steps-list steps-buy">
+                            <li data-step="1"><span class="sig-sell">First low tags/breaks lower band</span> — %b ≤ 0 (price hits bottom of bands, extreme weakness)</li>
+                            <li data-step="2"><span class="sig-info">Bounce toward middle band</span> — price recovers, showing some buying interest</li>
+                            <li data-step="3"><span class="sig-buy">Second low STAYS ABOVE lower band</span> — %b &gt; 0.2 (this is the KEY: strength is building underneath)</li>
+                            <li data-step="4"><span class="sig-buy">MFI divergence confirms</span> — MFI is higher at the 2nd low than the 1st (money flowing in despite price retest)</li>
+                            <li data-step="5"><span class="sig-buy">BUY on the break above the middle band</span> — pattern confirmed, enter the trade</li>
+                        </ol>
+                        <div class="signal-rule mt-2"><span class="arrow-sell">▼ SELL — M-Top Pattern (Double Top Reversal):</span></div>
+                        <ol class="steps-list steps-sell">
+                            <li data-step="1"><span class="sig-buy">First high tags/breaks upper band</span> — %b ≥ 1.0 (price is at the top, euphoria)</li>
+                            <li data-step="2"><span class="sig-info">Pullback toward middle band</span> — profit-taking begins</li>
+                            <li data-step="3"><span class="sig-sell">Second high FAILS to reach upper band</span> — %b &lt; 0.8 (this is the KEY: momentum is dying)</li>
+                            <li data-step="4"><span class="sig-sell">MFI divergence confirms</span> — MFI is lower at 2nd high (smart money leaving despite price rally)</li>
+                            <li data-step="5"><span class="sig-sell">SELL on the break below the middle band</span> — distribution confirmed, exit the trade</li>
+                        </ol>
+                    </div>
+
+                    <div class="book-quote">
+                        "M tops are more complex and dangerous. The key diagnostic element is that the second high is lower
+                        than the first on a %b basis even if it is higher in price. This is a failure of momentum — the most
+                        important technical diagnostic tool available."
+                        <span class="quote-src">— John Bollinger, Chapter 17: M-Tops</span>
+                    </div>
+
+                    <div class="pro-tip">
+                        <div class="pt-label"><i class="bi bi-star-fill"></i> Pro Tip — Merrill's 16 Variations</div>
+                        Not all W-Bottoms look the same. Arthur Merrill catalogued <span class="sig-purple">16 different W-shapes</span>.
+                        The scanner looks for the most common ones where the 2nd low is within <span class="sig-info">3% of the 1st low</span>
+                        in price, but with <span class="sig-buy">significantly higher %b</span>. Spacing between lows should
+                        be <span class="sig-info">5–25 trading days</span> apart.
+                    </div>
+
+                    <div class="mistake-box">
+                        <div class="mb-label"><i class="bi bi-exclamation-triangle-fill"></i> Common Mistake</div>
+                        Don't <span class="sig-sell">buy at the first low</span> just because price hit the lower band.
+                        Bollinger says: <em>"The first touch of the lower band in a W bottom is a reaction low. Wait for
+                        the second test."</em> The <span class="sig-buy">confirmation comes from the 2nd low holding above the band</span>.
+                    </div>
+
+                    <div class="strat-scan-btns">
+                        <button type="button" class="strat-scan-btn btn-buy" onclick="event.stopPropagation(); runStrategyScan('M3','BUY')"><i class="bi bi-rocket-takeoff-fill"></i> W-Bottom BUY</button>
+                        <button type="button" class="strat-scan-btn btn-sell" onclick="event.stopPropagation(); runStrategyScan('M3','SELL')"><i class="bi bi-sign-stop-fill"></i> M-Top SELL</button>
+                        <button type="button" class="strat-scan-btn btn-all" onclick="event.stopPropagation(); runStrategyScan('M3','ALL')"><i class="bi bi-grid-3x3-gap-fill"></i> All Patterns</button>
+                        <button type="button" class="strat-scan-btn btn-top5-buy" onclick="event.stopPropagation(); runTopPicks('M3','BUY')" title="Deep-analyze ALL scanned stocks and pick the best 5 to BUY"><i class="bi bi-trophy-fill"></i> Top 5 BUY</button>
+                        <button type="button" class="strat-scan-btn btn-top5-sell" onclick="event.stopPropagation(); runTopPicks('M3','SELL')" title="Deep-analyze ALL scanned stocks and pick the best 5 to SELL/SHORT"><i class="bi bi-trophy-fill"></i> Top 5 SELL</button>
+                    </div>
+                    <div class="book-ref"><i class="bi bi-bookmark-fill"></i> Bollinger on Bollinger Bands — Ch. 17 "Method III: Reversals" · Arthur Merrill's 16 W variations · %b divergence analysis</div>
+                </div>
+            </div>
+
+            <!-- ════ METHOD IV — WALKING THE BANDS ════ -->
+            <div class="col-12">
+                <div class="strat-hero strat-m4">
+                    <div class="strat-icon"><i class="bi bi-signpost-split-fill"></i></div>
+                    <span class="strat-method-tag">Method IV · Chapter 18</span>
+                    <div class="strat-rating strat-rating-4">
+                        <span class="strat-rating-rank">#4</span>
+                        <span class="strat-rating-stars">★★☆☆☆</span>
+                        <span>Trend Management — Best used as a holding tool after entry, confirms existing trends rather than generating new entries</span>
+                    </div>
+                    <div class="strat-title">Walking the Bands — Trend Confirmation</div>
+
+                    <div class="strat-desc">
+                        This is the strategy that separates amateurs from professionals. Most traders see price hitting
+                        the upper band and think <span class="sig-sell">"overbought — sell!"</span>. Bollinger says that's
+                        <strong>exactly wrong</strong>. In strong trends, price <span class="sig-buy">walks along the upper band</span>,
+                        repeatedly tagging it. Each tag is NOT a sell signal — it's a <span class="sig-buy">confirmation that the
+                        trend is alive</span>. Similarly, in a downtrend, price <span class="sig-sell">walks the lower band</span>
+                        — each touch confirms the <span class="sig-sell">selling pressure</span>. The walk ends only when price
+                        pulls back to the middle band and <em>fails to resume</em>.
+                    </div>
+
+                    <div class="book-quote">
+                        "Tags of the bands are just that — tags, not signals. A tag of the upper Bollinger Band is NOT in
+                        and of itself a sell signal. A tag of the lower Bollinger Band is NOT in and of itself a buy signal.
+                        Price can and does 'walk the band.' In strong uptrends, closes repeatedly at or near the upper band
+                        are a sign of strength, not weakness."
+                        <span class="quote-src">— John Bollinger, Chapter 18: Walking the Bands</span>
+                    </div>
+
+                    <div class="key-concept">
+                        <div class="kc-label"><i class="bi bi-lightbulb-fill"></i> The Counter-Intuitive Truth</div>
+                        <span class="sig-buy">Upper band walk = BULLISH</span> — price tagging the upper band 3+ times in 10 days
+                        means institutional buying is relentless. DO NOT SELL.<br>
+                        <span class="sig-sell">Lower band walk = BEARISH</span> — price tagging the lower band 3+ times in 10 days
+                        means selling pressure is overwhelming. DO NOT BUY.<br>
+                        <span class="sig-warn">Exit signal</span> — only when price pulls back to the middle band (20-day SMA)
+                        and fails to bounce back to the band it was walking.
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        <span class="indicator-pill pill-buy"><i class="bi bi-arrow-up"></i> Upper Walk = Stay Long</span>
+                        <span class="indicator-pill pill-sell"><i class="bi bi-arrow-down"></i> Lower Walk = Stay Short</span>
+                        <span class="indicator-pill pill-info"><i class="bi bi-hand-index-thumb"></i> ≥ 3 touches in 10 bars</span>
+                        <span class="indicator-pill pill-buy"><i class="bi bi-percent"></i> %b &gt; 0.85 sustained</span>
+                        <span class="indicator-pill pill-sell"><i class="bi bi-percent"></i> %b &lt; 0.15 sustained</span>
+                        <span class="indicator-pill pill-warn"><i class="bi bi-sign-turn-right"></i> Mid-band = exit zone</span>
+                    </div>
+
+                    <div class="how-works">
+                        <div class="hw-title"><i class="bi bi-lightbulb-fill"></i> How it Works — Step by Step</div>
+                        <div class="signal-rule"><span class="arrow-buy">▲ BUY — Upper Band Walk (Strong Uptrend):</span></div>
+                        <ol class="steps-list steps-buy">
+                            <li data-step="1"><span class="sig-buy">Price tags upper band ≥ 3 times</span> in the last 10 trading days (within 0.5% of band = "touch")</li>
+                            <li data-step="2"><span class="sig-buy">%b stays above 0.85</span> consistently — price is camped in the upper zone of the bands</li>
+                            <li data-step="3"><span class="sig-buy">Pullbacks stop at the middle band</span> — the 20-day SMA acts as support; buyers step in on every dip</li>
+                            <li data-step="4"><span class="sig-buy">Stay long / buy dips to middle band</span> — each touch of the upper band CONFIRMS strength</li>
+                        </ol>
+                        <div class="signal-rule mt-2"><span class="arrow-sell">▼ SELL — Lower Band Walk (Strong Downtrend):</span></div>
+                        <ol class="steps-list steps-sell">
+                            <li data-step="1"><span class="sig-sell">Price tags lower band ≥ 3 times</span> in the last 10 trading days (persistent selling)</li>
+                            <li data-step="2"><span class="sig-sell">%b stays below 0.15</span> consistently — price is pinned to the bottom of the bands</li>
+                            <li data-step="3"><span class="sig-sell">Bounces fail at the middle band</span> — 20-day SMA now acts as resistance; sellers return on every rally</li>
+                            <li data-step="4"><span class="sig-sell">Stay short / sell rallies to middle band</span> — do NOT buy thinking "it's cheap"</li>
+                        </ol>
+                    </div>
+
+                    <div class="book-quote">
+                        "In a strong uptrend, the close will repeatedly be at or near the upper band. In fact, dips to the
+                        middle band provide buying opportunities. The inverse is true for a downtrend. The most common
+                        mistake in applying Bollinger Bands is selling at the upper band and buying at the lower band."
+                        <span class="quote-src">— John Bollinger, Chapter 18</span>
+                    </div>
+
+                    <div class="mistake-box">
+                        <div class="mb-label"><i class="bi bi-exclamation-triangle-fill"></i> The #1 Bollinger Band Mistake</div>
+                        <span class="sig-sell">Selling at the upper band</span> or <span class="sig-buy">buying at the lower band</span>
+                        mechanically is WRONG. Bollinger wrote an entire chapter to combat this myth. The bands are NOT
+                        overbought/oversold lines. A stock touching the upper band in a walk is <span class="sig-buy">showing strength</span>,
+                        and a stock touching the lower band in a walk is <span class="sig-sell">showing weakness</span>.
+                        "The bands are NOT targets. They are indications of trend strength."
+                    </div>
+
+                    <div class="pro-tip">
+                        <div class="pt-label"><i class="bi bi-star-fill"></i> Pro Tip — Combining Methods</div>
+                        After a <span class="sig-info">Method I squeeze breakout</span>, the stock often enters a
+                        <span class="sig-buy">Method IV upper band walk</span>. This combination is extremely powerful —
+                        the squeeze provides the entry, and the walk tells you to <span class="sig-buy">hold on and let profits run</span>.
+                        Exit only when the walk ends (price fails to bounce off the middle band) or when
+                        <span class="sig-warn">Method II divergence</span> appears (MFI falling while %b stays high).
+                    </div>
+
+                    <div class="strat-scan-btns">
+                        <button type="button" class="strat-scan-btn btn-buy" onclick="event.stopPropagation(); runStrategyScan('M4','BUY')"><i class="bi bi-rocket-takeoff-fill"></i> Upper Walk</button>
+                        <button type="button" class="strat-scan-btn btn-sell" onclick="event.stopPropagation(); runStrategyScan('M4','SELL')"><i class="bi bi-sign-stop-fill"></i> Lower Walk</button>
+                        <button type="button" class="strat-scan-btn btn-all" onclick="event.stopPropagation(); runStrategyScan('M4','ALL')"><i class="bi bi-grid-3x3-gap-fill"></i> All Walks</button>
+                        <button type="button" class="strat-scan-btn btn-top5-buy" onclick="event.stopPropagation(); runTopPicks('M4','BUY')" title="Deep-analyze ALL scanned stocks and pick the best 5 to BUY"><i class="bi bi-trophy-fill"></i> Top 5 BUY</button>
+                        <button type="button" class="strat-scan-btn btn-top5-sell" onclick="event.stopPropagation(); runTopPicks('M4','SELL')" title="Deep-analyze ALL scanned stocks and pick the best 5 to SELL/SHORT"><i class="bi bi-trophy-fill"></i> Top 5 SELL</button>
+                    </div>
+                    <div class="book-ref"><i class="bi bi-bookmark-fill"></i> Bollinger on Bollinger Bands — Ch. 18 "Method IV: Walking the Bands" · "Tags are NOT signals" · Trend confirmation technique</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!--  SCAN RESULTS MODAL                                       -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div class="modal fade" id="scanModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border);">
+              <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="scanTitle"><i class="bi bi-search me-2 text-info"></i>Scan Results</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <!-- Loading state -->
+                <div id="scanLoading" style="display:none;" class="text-center py-5">
+                  <div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem;"></div>
+                  <p class="text-secondary mt-3" id="scanLoadingText">Scanning all stocks...</p>
+                </div>
+                <!-- Results -->
+                <div id="scanResults" style="display:none;">
+                  <div id="scanFilterBar">
+                    <input type="text" id="scanSearchInput" placeholder="🔍 Search ticker or keyword…" autocomplete="off">
+                    <select id="scanSignalFilter">
+                      <option value="">All Signals</option>
+                      <option value="BUY">BUY</option>
+                      <option value="SELL">SELL</option>
+                      <option value="HOLD">HOLD</option>
+                      <option value="WAIT">WAIT</option>
+                    </select>
+                    <span class="scan-result-count" id="scanVisibleCount"></span>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-dark table-hover table-sm mb-0" id="scanTable">
+                      <thead id="scanHead">
+                        <tr>
+                          <th>Ticker</th><th>Price</th><th>Signal</th><th>Conf.</th>
+                          <th>Phase</th><th>BBW</th><th>CMF</th><th>MFI</th>
+                          <th>%b</th><th>Lean</th><th>Sqz Days</th>
+                        </tr>
+                      </thead>
+                      <tbody id="scanBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer border-0 pt-0">
+                <small class="text-secondary" id="scanFooter"></small>
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!--  TOP 5 PICKS MODAL                                            -->
+    <!--  Completely isolated from the scan modal above.               -->
+    <!--  Shows detailed analysis cards for the best stocks.           -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div class="modal fade" id="topPicksModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-content" style="background:var(--card-bg);border:1px solid rgba(136,85,255,0.3);">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-bold" id="tpTitle"><i class="bi bi-trophy-fill me-2" style="color:#a371f7"></i>Top 5 Best Picks</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="tpAbort()"></button>
+          </div>
+          <div class="modal-body">
+            <!-- Progress state (shown while analyzing) -->
+            <div id="tpProgress" class="tp-progress">
+              <div class="tp-phase-text" id="tpPhaseText">Initializing...</div>
+              <div class="tp-progress-bar"><div class="tp-progress-fill" id="tpProgressFill" style="width:0%"></div></div>
+              <div class="tp-progress-text" id="tpProgressText">Connecting...</div>
+              <p class="text-secondary mt-3" style="font-size:0.78rem;">
+                <i class="bi bi-info-circle me-1"></i>
+                This runs a <strong>full deep analysis</strong> on every qualifying stock: BB pattern + Murphy's TA (6 categories)
+                + Hybrid cross-validation + Risk/Reward assessment. This takes a moment because quality analysis cannot be rushed.
+              </p>
+            </div>
+            <!-- Results (shown after analysis completes) -->
+            <div id="tpResults" style="display:none;">
+              <div class="tp-summary" id="tpSummary"></div>
+              <div class="tp-picks-container" id="tpPicksList"></div>
+            </div>
+          </div>
+          <div class="modal-footer border-0 pt-0">
+            <small class="text-secondary" id="tpFooter"></small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!--  FOOTER                                                       -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <footer class="footer text-center text-secondary small">
+        <div class="container">
+            Bollinger Band Strategy Dashboard — All 4 Methods from <em>Bollinger on Bollinger Bands</em>, John Bollinger CFA CMT
+            · Indicators verified against TradingView &amp; <code>ta</code> library
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    /* ═══════════════════════════════════════════════════════════════
+       DATA & INIT
+       ═══════════════════════════════════════════════════════════════ */
+    const QUICK = ['TCS.NS','RELIANCE.NS','HDFCBANK.NS','INFY.NS','ICICIBANK.NS',
+                    'BAJFINANCE.NS','ITC.NS','LT.NS','SBIN.NS','TITAN.NS',
+                    'SUNPHARMA.NS','BHARTIARTL.NS','MARUTI.NS','TATAMOTORS.NS','WIPRO.NS'];
+    let allTickers = [];
+
+    // ── Quick pick chips ──
+    const qp = document.getElementById('quickPicks');
+    QUICK.forEach(t => {
+        const col = document.createElement('div');
+        col.className = 'col-auto';
+        col.innerHTML = `<span class="badge bg-secondary quick-pick px-3 py-2" onclick="goAnalyze('${t}')">${t.replace('.NS','')}</span>`;
+        qp.appendChild(col);
+    });
+
+    // ── Load ticker list for autocomplete ──
+    fetch('/api/tickers').then(r=>r.json()).then(data => { allTickers = data; });
+
+    // ── Autocomplete ──
+    const input = document.getElementById('tickerInput');
+    const acList = document.getElementById('autocompleteList');
+    input.addEventListener('input', () => {
+        const q = input.value.trim().toUpperCase();
+        acList.innerHTML = '';
+        if (q.length < 1) { acList.style.display='none'; return; }
+        const matches = allTickers.filter(t=>t.toUpperCase().startsWith(q)).slice(0,12);
+        if (matches.length===0) { acList.style.display='none'; return; }
+        matches.forEach(t => {
+            const d = document.createElement('div');
+            d.className = 'autocomplete-item';
+            d.textContent = t;
+            d.onclick = () => { input.value = t; acList.style.display='none'; goAnalyze(t); };
+            acList.appendChild(d);
+        });
+        acList.style.display = 'block';
+    });
+    document.addEventListener('click', e => { if (!e.target.closest('.search-box')) acList.style.display='none'; });
+
+    // ── Search form submit ──
+    document.getElementById('searchForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const t = input.value.trim();
+        if (t) goAnalyze(t);
+    });
+
+    function goAnalyze(ticker, method) {
+        ticker = ticker.trim().toUpperCase();
+        if (!ticker.includes('.')) ticker += '.NS';
+        let url = '/analyze/' + encodeURIComponent(ticker);
+        if (method) url += '?method=' + method;
+        window.location.href = url;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       BUY-ONLY MODE — Trade decision filter (does NOT change core logic)
+       All engines (BB I-IV, TA, Hybrid, Quant, PA) still compute fully.
+       This only controls which scan results are SHOWN to the user.
+       ═══════════════════════════════════════════════════════════════ */
+    const buyOnlyToggle = document.getElementById('buyOnlyToggle');
+    const buyOnlyDesc = document.getElementById('buyOnlyDesc');
+    const buyOnlyBadge = document.getElementById('buyOnlyBadge');
+
+    function isBuyOnly() { return buyOnlyToggle && buyOnlyToggle.checked; }
+
+    function applyBuyOnlyMode() {
+        const on = isBuyOnly();
+        // Show/hide SELL scan buttons and Top 5 SELL buttons across all strategy cards
+        document.querySelectorAll('.strat-scan-btn.btn-sell, .strat-scan-btn.btn-top5-sell').forEach(btn => {
+            btn.style.display = on ? 'none' : '';
+        });
+        // Update visual indicators
+        if (buyOnlyBadge) {
+            buyOnlyBadge.textContent = on ? 'LONGS ONLY' : 'ALL DIRECTIONS';
+            buyOnlyBadge.style.background = on ? '#3fb950' : '#8b949e';
+        }
+        if (buyOnlyDesc) {
+            buyOnlyDesc.textContent = on
+                ? 'Backtested on 2,262 stocks: BUY signals = 42% WR (profitable), SELL = 30% WR (losing). SELL scan buttons are hidden. Core indicators & book rules remain strict and unchanged.'
+                : 'All scan modes available. Note: SELL direction has 30% WR in backtesting — use with caution.';
+        }
+        // Update the scan modal filter dropdown when BUY-only is active
+        const sigFilter = document.getElementById('scanSignalFilter');
+        if (sigFilter) {
+            const sellOpt = sigFilter.querySelector('option[value="SELL"]');
+            if (sellOpt) sellOpt.style.display = on ? 'none' : '';
+        }
+        // Save preference
+        try { localStorage.setItem('buyOnlyMode', on ? '1' : '0'); } catch(e) {}
+    }
+
+    // Initialize from saved preference (default: ON)
+    try {
+        const saved = localStorage.getItem('buyOnlyMode');
+        if (saved === '0') buyOnlyToggle.checked = false;
+    } catch(e) {}
+    buyOnlyToggle.addEventListener('change', applyBuyOnlyMode);
+    applyBuyOnlyMode();
+
+    /* ═══════════════════════════════════════════════════════════════
+       METHOD I SCANNER (existing /api/scan)
+       ═══════════════════════════════════════════════════════════════ */
+    async function runScan(mode) {
+        // If BUY-only mode is on and user somehow triggers a SELL scan, redirect to BUY
+        if (isBuyOnly() && mode === 'SELL') mode = 'BUY';
+        showLoading('Scanning all stocks with Method I (Squeeze)...');
+        try {
+            const resp = await fetch('/api/scan');
+            const data = await resp.json();
+            showM1ScanResults(data, mode);
+        } catch(e) {
+            alert('Scan failed: ' + e.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SCAN TABLE MANAGER — sort, filter, re-render
+       ═══════════════════════════════════════════════════════════════ */
+    const _scan = {
+        rows: [],          // current dataset (array of flat objects)
+        columns: [],       // {key, label, type:'num'|'str'|'badge'}
+        renderRow: null,   // fn(rowObj) => HTML string
+        sortKey: null,
+        sortAsc: true,
+        totalScanned: 0,
+        method: 'M1',
+    };
+
+    // Wire up filter controls once
+    document.getElementById('scanSearchInput').addEventListener('input', _scanApplyFilters);
+    document.getElementById('scanSignalFilter').addEventListener('change', _scanApplyFilters);
+
+    function _scanApplyFilters() {
+        const q = document.getElementById('scanSearchInput').value.trim().toUpperCase();
+        const sigF = document.getElementById('scanSignalFilter').value;
+        let rows = _scan.rows;
+        if (q) rows = rows.filter(r => (r._searchText || '').includes(q));
+        if (sigF) rows = rows.filter(r => r._signalType === sigF);
+        if (_scan.sortKey) {
+            const k = _scan.sortKey, asc = _scan.sortAsc;
+            rows = [...rows].sort((a,b) => {
+                let va = a[k], vb = b[k];
+                if (va == null) va = asc ? Infinity : -Infinity;
+                if (vb == null) vb = asc ? Infinity : -Infinity;
+                if (typeof va === 'string') return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+                return asc ? va - vb : vb - va;
+            });
+        }
+        _scanRenderRows(rows);
+    }
+
+    function _scanRenderRows(rows) {
+        const tbody = document.getElementById('scanBody');
+        if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${_scan.columns.length}" class="text-center text-secondary py-4">
+                <i class="bi bi-emoji-neutral fs-3 d-block mb-2"></i>No matching results</td></tr>`;
+        } else {
+            tbody.innerHTML = rows.map(_scan.renderRow).join('');
+        }
+        document.getElementById('scanVisibleCount').textContent = `${rows.length} of ${_scan.rows.length} shown`;
+        document.getElementById('scanFooter').textContent = `${_scan.rows.length} results from ${_scan.totalScanned} stocks scanned`;
+    }
+
+    function _scanSetupHeaders() {
+        const tr = document.createElement('tr');
+        _scan.columns.forEach(col => {
+            const th = document.createElement('th');
+            th.innerHTML = `${col.label} <span class="sort-arrow">▲▼</span>`;
+            th.dataset.key = col.key;
+            if (_scan.sortKey === col.key) {
+                th.classList.add(_scan.sortAsc ? 'sort-asc' : 'sort-desc');
+                th.querySelector('.sort-arrow').textContent = _scan.sortAsc ? '▲' : '▼';
+            }
+            th.addEventListener('click', () => {
+                if (_scan.sortKey === col.key) { _scan.sortAsc = !_scan.sortAsc; }
+                else { _scan.sortKey = col.key; _scan.sortAsc = col.type === 'str'; }
+                _scanSetupHeaders();
+                _scanApplyFilters();
+            });
+            tr.appendChild(th);
+        });
+        document.getElementById('scanHead').innerHTML = '';
+        document.getElementById('scanHead').appendChild(tr);
+    }
+
+    function _scanResetControls() {
+        document.getElementById('scanSearchInput').value = '';
+        document.getElementById('scanSignalFilter').value = '';
+    }
+
+    function showM1ScanResults(data, mode) {
+        let filtered = data;
+        const titles = {
+            BUY:     '🚀 Method I BUY — Volatility Breakout Signals',
+            SELL:    '🔴 Method I SELL / EXIT Signals',
+            SQUEEZE: '🔵 Stocks in Active Squeeze — Spring Coiling',
+            ALL:     '📊 Method I — Full Scan Results'
+        };
+        if (mode==='BUY')     filtered = data.filter(s => s.buy_signal);
+        if (mode==='SELL')    filtered = data.filter(s => s.sell_signal);
+        if (mode==='SQUEEZE') filtered = data.filter(s => s.cond1 && !s.buy_signal);
+
+        // Prepare flat rows with sort keys and search text
+        _scan.rows = filtered.map(s => {
+            const sig = s.buy_signal ? 'BUY' : s.sell_signal ? 'SELL' : s.hold_signal ? 'HOLD' : s.wait_signal ? 'WAIT' : s.head_fake ? 'FAKE' : 'MONITOR';
+            return {
+                ticker: s.ticker.replace('.NS',''),
+                _ticker_raw: s.ticker,
+                price: s.current_price,
+                _signalType: sig,
+                confidence: s.confidence,
+                phase: s.phase,
+                bbw: s.bbw,
+                cmf: s.cmf,
+                mfi: s.mfi,
+                percent_b: s.percent_b,
+                direction_lean: s.direction_lean,
+                squeeze_days: s.squeeze_days || 0,
+                _searchText: `${s.ticker} ${sig} ${s.phase} ${s.direction_lean||''}`.toUpperCase(),
+            };
+        });
+        _scan.totalScanned = data.length;
+        _scan.method = 'M1';
+        _scan.sortKey = 'confidence'; _scan.sortAsc = false;
+        _scan.columns = [
+            {key:'ticker',label:'Ticker',type:'str'}, {key:'price',label:'Price',type:'num'},
+            {key:'_signalType',label:'Signal',type:'str'}, {key:'confidence',label:'Conf.',type:'num'},
+            {key:'phase',label:'Phase',type:'str'}, {key:'bbw',label:'BBW',type:'num'},
+            {key:'cmf',label:'CMF',type:'num'}, {key:'mfi',label:'MFI',type:'num'},
+            {key:'percent_b',label:'%b',type:'num'}, {key:'direction_lean',label:'Lean',type:'str'},
+            {key:'squeeze_days',label:'Sqz Days',type:'num'},
+        ];
+        _scan.renderRow = (r) => {
+            let sigBadge = '<span class="badge bg-secondary">Monitor</span>';
+            if (r._signalType==='BUY') sigBadge = '<span class="badge badge-buy">🚀 BUY</span>';
+            else if (r._signalType==='SELL') sigBadge = '<span class="badge badge-sell">🔴 SELL</span>';
+            else if (r._signalType==='HOLD') sigBadge = '<span class="badge bg-info text-dark">🟢 HOLD</span>';
+            else if (r._signalType==='WAIT') sigBadge = '<span class="badge badge-wait">⏳ WAIT</span>';
+            else if (r._signalType==='FAKE') sigBadge = '<span class="badge bg-warning text-dark">⚠️ FAKE</span>';
+            const lean = {BULLISH:'<span class="text-green">▲ Bull</span>',BEARISH:'<span class="text-red">▼ Bear</span>',NEUTRAL:'<span class="text-secondary">◆ Neut</span>'}[r.direction_lean]||'—';
+            const cmfC = r.cmf>0?'text-green':'text-red';
+            const mfiC = r.mfi>50?'text-green':'text-red';
+            return `<tr style="cursor:pointer" onclick="goAnalyze('${r._ticker_raw}', 'M1')">
+                <td class="font-mono fw-bold">${r.ticker}</td>
+                <td>₹${r.price}</td>
+                <td>${sigBadge}</td>
+                <td><span class="${r.confidence>=80?'text-green':r.confidence>=50?'text-yellow':'text-red'}">${r.confidence}</span></td>
+                <td class="small">${r.phase}</td>
+                <td class="font-mono small">${r.bbw}</td>
+                <td class="font-mono ${cmfC}">${r.cmf}</td>
+                <td class="font-mono ${mfiC}">${r.mfi}</td>
+                <td class="font-mono">${r.percent_b}</td>
+                <td>${lean}</td>
+                <td>${r.squeeze_days||'—'}</td>
+            </tr>`;
+        };
+
+        document.getElementById('scanTitle').innerHTML = '<i class="bi bi-search me-2 text-info"></i>' + (titles[mode] || 'Results');
+        _scanResetControls();
+        _scanSetupHeaders();
+        _scanApplyFilters();
+        document.getElementById('scanResults').style.display = 'block';
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       METHODS II, III, IV SCANNER (new /api/scan/strategies)
+       ═══════════════════════════════════════════════════════════════ */
+    let strategyScanCache = null;  // cache to avoid re-scanning
+
+    async function runStrategyScan(method, mode) {
+        // Respect BUY-only mode
+        if (isBuyOnly() && mode === 'SELL') mode = 'BUY';
+        showLoading(`Scanning all stocks with ${methodLabel(method)}... this may take a minute.`);
+        try {
+            if (!strategyScanCache) {
+                const resp = await fetch('/api/scan/strategies');
+                strategyScanCache = await resp.json();
+                // Cache expires after 5 minutes
+                setTimeout(() => { strategyScanCache = null; }, 5 * 60 * 1000);
+            }
+            showStrategyScanResults(strategyScanCache, method, mode);
+        } catch(e) {
+            alert('Strategy scan failed: ' + e.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    function methodLabel(code) {
+        const labels = {
+            M2: 'Method II — Trend Following',
+            M3: 'Method III — Reversals',
+            M4: 'Method IV — Walking the Bands',
+        };
+        return labels[code] || code;
+    }
+
+    function methodColor(code) {
+        return { M2:'var(--m2-color)', M3:'var(--m3-color)', M4:'var(--m4-color)' }[code] || '#fff';
+    }
+
+    function showStrategyScanResults(data, method, mode) {
+        // Extract matching strategy for each stock
+        const rawRows = [];
+        data.forEach(stock => {
+            const strat = stock.strategies.find(s => s.code === method);
+            if (!strat) return;
+            const sig = strat.signal || {};
+            rawRows.push({
+                ticker: stock.ticker,
+                price:  stock.price,
+                signal_type: sig.type || 'NONE',
+                strength: sig.strength || 'NONE',
+                confidence: sig.confidence || 0,
+                reason: sig.reason || '—',
+                indicators: strat.indicators || {},
+                patterns: strat.patterns || [],
+                pct_b:  (stock.m1 && stock.m1.percent_b) || 0,
+                mfi:    (stock.m1 && stock.m1.mfi) || 0,
+            });
+        });
+
+        // Filter by mode
+        let filtered = rawRows;
+        let title = '';
+        if (mode === 'BUY') {
+            filtered = rawRows.filter(r => r.signal_type === 'BUY');
+            title = `🚀 ${methodLabel(method)} — BUY Signals`;
+        } else if (mode === 'SELL') {
+            filtered = rawRows.filter(r => r.signal_type === 'SELL');
+            title = `🔴 ${methodLabel(method)} — SELL Signals`;
+        } else {
+            filtered = rawRows.filter(r => r.signal_type !== 'NONE');
+            title = `📊 ${methodLabel(method)} — All Active Signals`;
+        }
+
+        // Build flat rows with sort keys
+        _scan.rows = filtered.map(r => {
+            const walkType = r.reason.includes('upper') ? 'Upper Walk' : r.reason.includes('lower') ? 'Lower Walk' : '—';
+            const patternStr = r.patterns.length > 0 ? r.patterns.map(p => p.name).join(', ') : '—';
+            return {
+                ...r,
+                _ticker_display: r.ticker.replace('.NS',''),
+                _signalType: r.signal_type === 'NONE' ? '' : r.signal_type,
+                _walkType: walkType,
+                _patternStr: patternStr,
+                _pctB: r.indicators.pct_b !== undefined ? r.indicators.pct_b : r.pct_b,
+                _mfi: r.indicators.mfi !== undefined ? r.indicators.mfi : r.mfi,
+                _searchText: `${r.ticker} ${r.signal_type} ${r.strength} ${r.reason} ${patternStr}`.toUpperCase(),
+            };
+        });
+        _scan.totalScanned = data.length;
+        _scan.method = method;
+        _scan.sortKey = 'confidence'; _scan.sortAsc = false;
+
+        // Columns differ by method
+        if (method === 'M2') {
+            _scan.columns = [
+                {key:'_ticker_display',label:'Ticker',type:'str'}, {key:'price',label:'Price',type:'num'},
+                {key:'_signalType',label:'Signal',type:'str'}, {key:'strength',label:'Strength',type:'str'},
+                {key:'confidence',label:'Conf.',type:'num'}, {key:'_pctB',label:'%b',type:'num'},
+                {key:'_mfi',label:'MFI',type:'num'}, {key:'reason',label:'Reason',type:'str'},
+            ];
+        } else if (method === 'M3') {
+            _scan.columns = [
+                {key:'_ticker_display',label:'Ticker',type:'str'}, {key:'price',label:'Price',type:'num'},
+                {key:'_signalType',label:'Signal',type:'str'}, {key:'strength',label:'Strength',type:'str'},
+                {key:'confidence',label:'Conf.',type:'num'}, {key:'_patternStr',label:'Pattern',type:'str'},
+                {key:'reason',label:'Reason',type:'str'},
+            ];
+        } else {
+            _scan.columns = [
+                {key:'_ticker_display',label:'Ticker',type:'str'}, {key:'price',label:'Price',type:'num'},
+                {key:'_signalType',label:'Signal',type:'str'}, {key:'strength',label:'Strength',type:'str'},
+                {key:'confidence',label:'Conf.',type:'num'}, {key:'_walkType',label:'Walk Type',type:'str'},
+                {key:'reason',label:'Reason',type:'str'},
+            ];
+        }
+
+        _scan.renderRow = (r) => {
+            const sigBadge = makeSigBadge(r.signal_type);
+            const strBadge = makeStrengthBadge(r.strength);
+            const confClass = r.confidence >= 80 ? 'text-green' : r.confidence >= 50 ? 'text-yellow' : 'text-red';
+            let extraCols = '';
+            if (method === 'M2') {
+                const pctB = typeof r._pctB === 'number' ? r._pctB.toFixed(3) : r._pctB;
+                const mfi = typeof r._mfi === 'number' ? r._mfi.toFixed(1) : r._mfi;
+                const mfiC = parseFloat(mfi) > 50 ? 'text-green' : 'text-red';
+                extraCols = `<td class="font-mono">${pctB}</td><td class="font-mono ${mfiC}">${mfi}</td>`;
+            } else if (method === 'M3') {
+                const pat = r.patterns.length > 0 ? r.patterns.map(p => `<span class="badge bg-secondary me-1" style="font-size:0.68rem">${p.name}</span>`).join('') : '—';
+                extraCols = `<td>${pat}</td>`;
+            } else if (method === 'M4') {
+                const wt = r._walkType;
+                const wtHtml = wt.includes('Upper') ? '<span class="text-green">▲ Upper Walk</span>' :
+                               wt.includes('Lower') ? '<span class="text-red">▼ Lower Walk</span>' : '—';
+                extraCols = `<td>${wtHtml}</td>`;
+            }
+            const reasonShort = r.reason.length > 60 ? r.reason.substring(0,57) + '...' : r.reason;
+            return `<tr style="cursor:pointer" onclick="goAnalyze('${r.ticker}', '${method}')">
+                <td class="font-mono fw-bold">${r._ticker_display}</td>
+                <td>₹${r.price}</td>
+                <td>${sigBadge}</td>
+                <td>${strBadge}</td>
+                <td><span class="${confClass}">${r.confidence}%</span></td>
+                ${extraCols}
+                <td class="small text-secondary" title="${r.reason}">${reasonShort}</td>
+            </tr>`;
+        };
+
+        document.getElementById('scanTitle').innerHTML = '<i class="bi bi-search me-2 text-info"></i>' + title;
+        _scanResetControls();
+        _scanSetupHeaders();
+        _scanApplyFilters();
+        document.getElementById('scanResults').style.display = 'block';
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       HELPERS
+       ═══════════════════════════════════════════════════════════════ */
+    function makeSigBadge(type) {
+        if (type === 'BUY')  return '<span class="badge badge-buy">🚀 BUY</span>';
+        if (type === 'SELL') return '<span class="badge badge-sell">🔴 SELL</span>';
+        return '<span class="badge badge-none">— NONE</span>';
+    }
+
+    function makeStrengthBadge(s) {
+        if (s === 'STRONG')   return '<span class="badge" style="background:#3fb950;color:#000">STRONG</span>';
+        if (s === 'MODERATE') return '<span class="badge" style="background:#d29922;color:#000">MODERATE</span>';
+        if (s === 'WEAK')     return '<span class="badge" style="background:#484f58">WEAK</span>';
+        return '<span class="badge badge-none">—</span>';
+    }
+
+    let _scanModal = null;
+    function _getScanModal() {
+        if (!_scanModal) _scanModal = new bootstrap.Modal(document.getElementById('scanModal'));
+        return _scanModal;
+    }
+
+    function showLoading(msg) {
+        document.getElementById('scanLoadingText').textContent = msg || 'Scanning all stocks...';
+        document.getElementById('scanLoading').style.display = 'block';
+        document.getElementById('scanResults').style.display = 'none';
+        document.getElementById('scanFooter').textContent = '';
+        document.getElementById('scanTitle').innerHTML = '<i class="bi bi-search me-2 text-info"></i>Scanning…';
+        _getScanModal().show();
+    }
+
+    function hideLoading() {
+        document.getElementById('scanLoading').style.display = 'none';
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TOP 5 PICKS ENGINE — Frontend Logic
+       ═══════════════════════════════════════════════════════════════
+       HOW THIS WORKS:
+       1. User clicks "Top 5 Picks" button on any method card
+       2. We open the Top Picks modal and connect to a Server-Sent Events stream
+       3. The server scans ALL stocks, pre-filters by BB confidence, then
+          runs deep analysis (full TA + Hybrid Engine) on each qualifying stock
+       4. We show live progress: "Analyzing 25/80 stocks..."
+       5. When done, we render 5 detailed cards ranked by Composite Score
+       ═══════════════════════════════════════════════════════════════ */
+
+    let _tpModal = null;
+    let _tpEventSource = null;
+
+    function _getTopPicksModal() {
+        if (!_tpModal) _tpModal = new bootstrap.Modal(document.getElementById('topPicksModal'));
+        return _tpModal;
+    }
+
+    /** Abort any in-progress analysis (called when modal is closed) */
+    function tpAbort() {
+        if (_tpEventSource) {
+            _tpEventSource.close();
+            _tpEventSource = null;
+        }
+    }
+
+    /** Method names for display */
+    function tpMethodName(m) {
+        return {
+            M1: 'Method I — Volatility Squeeze',
+            M2: 'Method II — Trend Following',
+            M3: 'Method III — Reversals',
+            M4: 'Method IV — Walking the Bands',
+        }[m] || m;
+    }
+
+    /**
+     * Main entry point — called when user clicks "Top 5 Picks" button.
+     *
+     * WHAT HAPPENS STEP BY STEP:
+     *   1. Open modal → show progress bar
+     *   2. Connect to SSE stream: /api/top-picks/stream/<method>?filter=BUY
+     *   3. Receive "phase" events (scanning... analyzing...)
+     *   4. Receive "progress" events (done 5/80, done 10/80, ...)
+     *   5. Receive "result" event → render the top picks cards
+     *
+     * @param {string} method — M1, M2, M3, or M4
+     * @param {string} filter — BUY or SELL (which direction to rank)
+     */
+    function runTopPicks(method, filter) {
+        // Respect BUY-only mode
+        if (isBuyOnly() && filter === 'SELL') filter = 'BUY';
+        // Reset modal state
+        const isBuy = filter === 'BUY';
+        const dirIcon = isBuy ? 'bi-rocket-takeoff-fill' : 'bi-sign-stop-fill';
+        const dirColor = isBuy ? '#56d364' : '#ff7b72';
+        const dirLabel = isBuy ? 'BUY' : 'SELL';
+
+        document.getElementById('tpProgress').style.display = '';
+        document.getElementById('tpResults').style.display = 'none';
+        document.getElementById('tpPhaseText').textContent = 'Initializing...';
+        document.getElementById('tpProgressFill').style.width = '0%';
+        document.getElementById('tpProgressFill').style.background = isBuy
+            ? 'linear-gradient(90deg,#238636,#56d364)' : 'linear-gradient(90deg,#da3633,#ff7b72)';
+        document.getElementById('tpProgressText').textContent = 'Connecting to analysis engine...';
+        document.getElementById('tpTitle').innerHTML =
+            `<i class="bi ${dirIcon} me-2" style="color:${dirColor}"></i>Top 5 ${dirLabel} Picks — ${tpMethodName(method)}`;
+        document.getElementById('tpFooter').textContent = '';
+
+        _getTopPicksModal().show();
+
+        // Close any previous SSE connection
+        tpAbort();
+
+        // Connect to the streaming API
+        const url = `/api/top-picks/stream/${method}?filter=${filter}`;
+        _tpEventSource = new EventSource(url);
+
+        _tpEventSource.onmessage = function(ev) {
+            const msg = JSON.parse(ev.data);
+
+            if (msg.type === 'phase') {
+                // Server is reporting a phase change (scanning → analyzing)
+                document.getElementById('tpPhaseText').textContent = msg.message || msg.phase;
+                if (msg.phase === 'scanning') {
+                    document.getElementById('tpProgressText').textContent = 'Scanning ~2,000+ stocks...';
+                    document.getElementById('tpProgressFill').style.width = '5%';
+                }
+            }
+            else if (msg.type === 'progress') {
+                // Server is reporting per-stock progress during deep analysis
+                const pct = msg.pct || 0;
+                document.getElementById('tpProgressFill').style.width = pct + '%';
+                document.getElementById('tpProgressText').textContent =
+                    `Deep-analyzing ${msg.done} of ${msg.total} stocks... (${msg.ticker.replace('.NS','')})`;
+                document.getElementById('tpPhaseText').textContent =
+                    'Running full Technical Analysis + Hybrid BB+TA Engine on each stock...';
+            }
+            else if (msg.type === 'result') {
+                // Analysis complete — render results
+                _tpEventSource.close();
+                _tpEventSource = null;
+                document.getElementById('tpProgress').style.display = 'none';
+                tpRenderResults(msg.data, method, filter);
+            }
+            else if (msg.type === 'error') {
+                _tpEventSource.close();
+                _tpEventSource = null;
+                document.getElementById('tpPhaseText').textContent = 'Analysis failed';
+                document.getElementById('tpProgressText').textContent = msg.message || 'Unknown error';
+                document.getElementById('tpProgressFill').style.width = '0%';
+            }
+        };
+
+        _tpEventSource.onerror = function() {
+            _tpEventSource.close();
+            _tpEventSource = null;
+            document.getElementById('tpPhaseText').textContent = 'Connection lost';
+            document.getElementById('tpProgressText').textContent = 'Server connection was interrupted. Please try again.';
+        };
+    }
+
+    /**
+     * Render the Top Picks results — the main display function.
+     *
+     * WHAT GETS DISPLAYED:
+     *   - Summary bar (total scanned, qualified, analyzed)
+     *   - Up to 5 detailed pick cards, each showing:
+     *     · Rank badge (🥇🥈🥉 etc.) + Ticker + Price
+     *     · Composite Score + Letter Grade
+     *     · 6 component score bars with explanations
+     *     · Key reasons (why this stock was picked)
+     *     · Warnings (red flags to watch out for)
+     *     · BB/TA/Hybrid verdicts side by side
+     *     · Target prices and stop-loss levels
+     *     · Action items (what to actually DO)
+     *     · Click-through link to full analysis page
+     */
+    function tpRenderResults(data, method, filter) {
+        const results = document.getElementById('tpResults');
+        results.style.display = '';
+
+        // Summary bar
+        const summaryEl = document.getElementById('tpSummary');
+        summaryEl.innerHTML = `
+            <span class="tp-summary-item"><strong>${data.total_scanned || 0}</strong> stocks scanned</span>
+            <span class="tp-summary-item"><strong>${data.total_signals || 0}</strong> had ${filter} signals</span>
+            <span class="tp-summary-item"><strong>${data.total_qualified || 0}</strong> qualified for deep analysis</span>
+            <span class="tp-summary-item"><strong>${data.total_analyzed || 0}</strong> successfully analyzed</span>
+            <span class="tp-summary-item"><strong>${(data.picks||[]).length}</strong> top picks found</span>
+        `;
+
+        const picksList = document.getElementById('tpPicksList');
+        const picks = data.picks || [];
+
+        if (picks.length === 0) {
+            picksList.innerHTML = `
+                <div class="tp-no-picks">
+                    <i class="bi bi-emoji-neutral"></i>
+                    <h5>No qualifying picks found</h5>
+                    <p>${data.message || 'No stocks scored high enough across all analysis layers (BB + TA + Hybrid + Risk/Reward). This is actually normal — the system has very high standards. Try a different method or wait for better market conditions.'}</p>
+                </div>
+            `;
+            document.getElementById('tpFooter').textContent = 'Analysis complete — no stocks met the quality threshold.';
+            return;
+        }
+
+        // Render each pick card
+        picksList.innerHTML = picks.map(pick => tpRenderCard(pick, method)).join('');
+        document.getElementById('tpFooter').textContent =
+            `Analysis complete · ${picks.length} top pick${picks.length>1?'s':''} from ${data.total_analyzed} analyzed stocks`;
+    }
+
+    /**
+     * Render a single Top Pick card.
+     *
+     * CARD ANATOMY:
+     * ┌─────────────────────────────────────────┐
+     * │ 🥇  RELIANCE   ₹2,450   Score: 87 [A]  │  ← Header: rank, ticker, price, score
+     * ├─────────────────────────────────────────┤
+     * │ BB Strategy ████████░░ 85     (25%)     │  ← 6 score component bars
+     * │ TA Score    ██████░░░░ 72     (25%)     │     Each shows: name, bar, value, weight
+     * │ Hybrid      ███████░░░ 78     (20%)     │     Plus a "hint" explaining what it means
+     * │ Risk/Reward ██████████ 90     (15%)     │
+     * │ Agreement   ████████░░ 80     (10%)     │
+     * │ Data Quality████████░░ 85      (5%)     │
+     * ├─────────────────────────────────────────┤
+     * │ ✅ Strong M2 pattern (85% conf)         │  ← Reasons (green — why it's good)
+     * │ ✅ Technical Analysis BULLISH (+60)      │
+     * │ ✅ All engines agree — high conviction   │
+     * │ ⚠️ Data is 3 days old                   │  ← Warnings (yellow — caveats)
+     * ├─────────────────────────────────────────┤
+     * │ BB: 🚀 BUY  │ TA: STRONG BUY │ Hybrid: │  ← Verdict badges
+     * │              │                │ BUY     │
+     * ├─────────────────────────────────────────┤
+     * │ Target: ₹2,650 (+8.2%) | SL: ₹2,320   │  ← Price targets & stop loss
+     * │ R:R = 1:3.2                             │
+     * ├─────────────────────────────────────────┤
+     * │ → Consider entry near ₹2,420-2,450     │  ← Action items
+     * │ → Set stop-loss at ₹2,320              │
+     * │ → First target at ₹2,580               │
+     * ├─────────────────────────────────────────┤
+     * │ 🔍 Open Full Analysis →                │  ← Link to detailed page
+     * └─────────────────────────────────────────┘
+     */
+    function tpRenderCard(pick, method) {
+        const rank = pick.rank || 1;
+        const rankClass = `tp-rank-${Math.min(rank, 5)}`;
+        const rankEmoji = ['🥇','🥈','🥉','4th','5th'][rank-1] || rank;
+
+        // Score color based on value
+        const score = pick.composite_score || 0;
+        const scoreColor = score >= 80 ? '#3fb950' : score >= 60 ? '#58a6ff' : score >= 45 ? '#d29922' : '#f85149';
+
+        // Grade badge class
+        const gradeMap = {'A+':'tp-grade-a-plus','A':'tp-grade-a','B+':'tp-grade-b-plus','B':'tp-grade-b','C':'tp-grade-c','D':'tp-grade-d','F':'tp-grade-f'};
+        const gradeClass = gradeMap[pick.grade] || 'tp-grade-c';
+
+        // Grade explanation tooltips
+        const gradeDesc = {
+            'A+': 'A+ (90-100): Exceptional pick — extremely rare, all signals strongly aligned',
+            'A':  'A (80-89): Excellent pick — high confidence, strong multi-method agreement',
+            'B+': 'B+ (70-79): Good pick — solid case with most indicators confirming',
+            'B':  'B (60-69): Decent pick — worth considering, some mixed signals',
+            'C':  'C (50-59): Mediocre — mixed signals, proceed with caution',
+            'D':  'D (40-49): Weak — conflicting signals, high risk',
+            'F':  'F (0-39): Failing — do not recommend, signals mostly against'
+        };
+        const gradeTooltip = gradeDesc[pick.grade] || 'Composite grade based on all analysis engines';
+        const scoreTooltip = `Composite Score: ${score.toFixed(1)}/100\nWeighted: BB (20%) + TA (20%) + Hybrid (15%) + Price Action (15%) + R/R (15%) + Agreement (10%) + Data (5%)`;
+
+        // Short grade label for legend
+        const gradeLegend = {
+            'A+': 'Exceptional', 'A': 'Excellent', 'B+': 'Good pick',
+            'B': 'Decent', 'C': 'Mediocre', 'D': 'Weak', 'F': 'Avoid'
+        };
+
+        // Build component bars
+        const comps = pick.components || {};
+        const compOrder = ['bb_strategy','ta_score','hybrid_score','pa_score','risk_reward','signal_agreement','data_quality'];
+        const compLabels = {
+            bb_strategy: 'BB Strategy',
+            ta_score: 'TA Score',
+            hybrid_score: 'Hybrid Score',
+            pa_score: 'Price Action',
+            risk_reward: 'Risk/Reward',
+            signal_agreement: 'Agreement',
+            data_quality: 'Data Quality',
+        };
+        const compBarsHtml = compOrder.map(key => {
+            const c = comps[key] || {};
+            const val = c.score || 0;
+            const weight = ((c.weight || 0) * 100).toFixed(0);
+            const barColor = val >= 70 ? '#3fb950' : val >= 50 ? '#58a6ff' : val >= 35 ? '#d29922' : '#f85149';
+            const hint = c.hint || '';
+            const detail = c.detail || '';
+            return `
+                <div class="tp-comp" title="${detail}">
+                    <div class="tp-comp-name">${compLabels[key] || key} <span style="color:#484f58">(${weight}%)</span></div>
+                    <div class="tp-comp-bar"><div class="tp-comp-fill" style="width:${val}%;background:${barColor}"></div></div>
+                    <div class="tp-comp-val" style="color:${barColor}">${val.toFixed?val.toFixed(0):val}/100</div>
+                    <div class="tp-comp-hint">${hint}</div>
+                </div>
+            `;
+        }).join('');
+
+        // Build reasons list
+        const reasonsHtml = (pick.reasons || []).map(r => `<div class="tp-reason">${r}</div>`).join('');
+        const warningsHtml = (pick.warnings || []).map(w => `<div class="tp-warning">${w}</div>`).join('');
+
+        // Build verdict badges
+        const bbSig = pick.bb_signal_type || '—';
+        const taVerdict = pick.ta_verdict || '—';
+        const hybridVerdict = pick.hybrid_verdict || '—';
+
+        function verdictColor(v) {
+            if (!v) return '#8b949e';
+            const u = v.toUpperCase();
+            if (u.includes('STRONG BUY') || u.includes('SUPER STRONG BUY')) return '#3fb950';
+            if (u.includes('BUY')) return '#56d364';
+            if (u.includes('STRONG SELL') || u.includes('SUPER STRONG SELL')) return '#f85149';
+            if (u.includes('SELL')) return '#ff7b72';
+            return '#d29922';
+        }
+
+        // Build targets section
+        let targetHtml = '';
+        if (pick.target_upside || pick.stop_loss) {
+            const parts = [];
+            if (pick.target_upside)
+                parts.push(`<span style="color:#3fb950">Target: ₹${Number(pick.target_upside).toLocaleString('en-IN')} ${pick.target_upside_pct ? '(+'+pick.target_upside_pct.toFixed(1)+'%)' : ''}</span>`);
+            if (pick.stop_loss)
+                parts.push(`<span style="color:#f85149">Stop-Loss: ₹${Number(pick.stop_loss).toLocaleString('en-IN')}</span>`);
+            if (pick.rr_ratio)
+                parts.push(`<span style="color:#58a6ff">R:R = 1:${Number(pick.rr_ratio).toFixed(1)}</span>`);
+            targetHtml = `<div class="tp-verdicts">${parts.map(p => `<div class="tp-verdict-item">${p}</div>`).join('')}</div>`;
+        }
+
+        // Build action items
+        const actionsHtml = (pick.ta_action_items || []).length > 0
+            ? `<div class="tp-actions">${pick.ta_action_items.map(a => `<div class="tp-action">${a}</div>`).join('')}</div>`
+            : '';
+
+        // Freshness badge
+        const stale = pick.data_freshness ? pick.data_freshness.trading_days_stale : null;
+        const freshnessHtml = stale !== null
+            ? `<span style="font-size:0.7rem;color:${stale<=2?'#3fb950':stale<=5?'#d29922':'#f85149'};margin-left:8px">📅 ${stale}d old</span>`
+            : '';
+
+        return `
+        <div class="tp-card">
+            <!-- HEADER: Rank + Ticker + Price + Score -->
+            <div class="tp-card-header">
+                <div class="tp-rank ${rankClass}">${rank}</div>
+                <div>
+                    <div class="tp-ticker">${pick.ticker_display || pick.ticker}${freshnessHtml}</div>
+                    <div class="tp-price">₹${pick.current_price ? Number(pick.current_price).toLocaleString('en-IN') : '—'} · ${pick.bb_phase || ''} ${pick.bb_squeeze_on ? '🔵 Squeeze' : ''}</div>
+                </div>
+                <div class="tp-score-badge">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span class="tp-score" style="color:${scoreColor}" title="${scoreTooltip}">${score.toFixed(1)}</span>
+                        <span class="tp-grade ${gradeClass}" title="${gradeTooltip}">${pick.grade}</span>
+                    </div>
+                    <div class="tp-score-legend">${gradeLegend[pick.grade] || ''} · Score out of 100</div>
+                </div>
+            </div>
+
+            <!-- SCORE COMPONENTS: 6 bars with explanations -->
+            <div class="tp-components">${compBarsHtml}</div>
+
+            <!-- REASONS & WARNINGS -->
+            <div class="tp-reasons">${reasonsHtml}${warningsHtml}</div>
+
+            <!-- VERDICT BADGES: BB / TA / Hybrid / PA side by side -->
+            <div class="tp-verdicts">
+                <div class="tp-verdict-item">
+                    <span class="tp-verdict-label">BB ${method}:</span>
+                    <span class="tp-verdict-value" style="color:${verdictColor(bbSig)}">${bbSig} (${pick.bb_confidence||0}%)</span>
+                </div>
+                <div class="tp-verdict-item">
+                    <span class="tp-verdict-label">TA Murphy:</span>
+                    <span class="tp-verdict-value" style="color:${verdictColor(taVerdict)}">${taVerdict} (${pick.ta_score >= 0 ? '+' : ''}${pick.ta_score||0})</span>
+                </div>
+                <div class="tp-verdict-item">
+                    <span class="tp-verdict-label">Hybrid:</span>
+                    <span class="tp-verdict-value" style="color:${verdictColor(hybridVerdict)}">${hybridVerdict} (${pick.hybrid_combined_score >= 0 ? '+' : ''}${pick.hybrid_combined_score||0}/245)</span>
+                </div>
+                ${pick.pa_data && pick.pa_data.success ? `
+                <div class="tp-verdict-item">
+                    <span class="tp-verdict-label">Price Action:</span>
+                    <span class="tp-verdict-value" style="color:${verdictColor(pick.pa_data.signal_type)}">${pick.pa_data.pa_verdict || pick.pa_data.signal_type || '—'} (${pick.pa_data.confidence||0}%)</span>
+                </div>
+                ` : ''}
+            </div>
+
+            <!-- PRICE ACTION (Al Brooks) DETAILS -->
+            ${(function(){
+                const pa = pick.pa_data;
+                if (!pa || !pa.success) return '';
+                // Setup type
+                const setupLabel = (pa.setup_type || '').replace(/_/g, ' ');
+                // Always-in direction
+                const aiDir = pa.always_in || 'FLAT';
+                const aiColor = aiDir === 'LONG' ? '#3fb950' : aiDir === 'SHORT' ? '#f85149' : '#8b949e';
+                // Patterns
+                const pats = (pa.patterns || []).slice(0, 5).map(p => p.replace(/_/g, ' ')).join(', ') || 'None';
+                // Trend
+                const tDir = pa.trend_direction || '—';
+                const tPhase = pa.trend_phase || '—';
+                // Breakout
+                const bk = pa.breakout || {};
+                const bkLabel = bk.in_breakout ? `${bk.direction || '—'} BREAKOUT` : 'No breakout';
+                // Last bar
+                const lb = pa.last_bar || {};
+                const lbDesc = lb.description || '—';
+                const lbSignal = lb.is_signal ? ' ⚡ Signal Bar' : '';
+                // Cross system
+                const cs = pa.cross_system || {};
+                const csVerdict = cs.combined_verdict || '';
+                const csConf = cs.combined_confidence || 0;
+                // Reasons
+                const paReasons = (pa.reasons || []).slice(0, 3).map(r => `<div style="font-size:0.72rem;color:#8b949e;padding:1px 0">📌 ${r}</div>`).join('');
+                // Price levels
+                const pl = pa.price_levels || {};
+                let plHtml = '';
+                if (pl.entry || pl.target_1) {
+                    const parts = [];
+                    if (pl.entry) parts.push(`<span style="color:#58a6ff">Entry: ₹${Number(pl.entry).toLocaleString('en-IN')}</span>`);
+                    if (pl.target_1) parts.push(`<span style="color:#3fb950">T1: ₹${Number(pl.target_1).toLocaleString('en-IN')}</span>`);
+                    if (pl.target_2) parts.push(`<span style="color:#56d364">T2: ₹${Number(pl.target_2).toLocaleString('en-IN')}</span>`);
+                    if (pl.stop_loss) parts.push(`<span style="color:#f85149">SL: ₹${Number(pl.stop_loss).toLocaleString('en-IN')}</span>`);
+                    if (pl.risk_reward) parts.push(`<span style="color:#d29922">R:R 1:${Number(pl.risk_reward).toFixed(1)}</span>`);
+                    plHtml = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">${parts.join('')}</div>`;
+                }
+                return `
+                <div class="tp-pa-section" style="border:1px solid #30363d;border-radius:8px;padding:10px 12px;margin:8px 0;background:#161b22">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                        <span style="font-size:0.85rem;font-weight:600;color:#c9d1d9">📊 Al Brooks Price Action</span>
+                        <span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:${aiColor}22;color:${aiColor};font-weight:600">Always-In: ${aiDir}</span>
+                        ${pa.signal_strength ? `<span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:#30363d;color:#c9d1d9">${pa.signal_strength}</span>` : ''}
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:0.75rem;color:#8b949e">
+                        <div><span style="color:#484f58">Setup:</span> <span style="color:#c9d1d9">${setupLabel || '—'}</span></div>
+                        <div><span style="color:#484f58">Trend:</span> <span style="color:#c9d1d9">${tDir} · ${tPhase}</span></div>
+                        <div><span style="color:#484f58">Patterns:</span> <span style="color:#c9d1d9">${pats}</span></div>
+                        <div><span style="color:#484f58">Breakout:</span> <span style="color:${bk.in_breakout?'#d29922':'#8b949e'}">${bkLabel}</span></div>
+                        <div style="grid-column:1/3"><span style="color:#484f58">Last Bar:</span> <span style="color:#c9d1d9">${lbDesc}${lbSignal}</span></div>
+                    </div>
+                    ${plHtml}
+                    ${paReasons}
+                    ${pa.al_brooks_context ? `<div style="margin-top:4px;font-size:0.72rem;color:#58a6ff;font-style:italic">"${pa.al_brooks_context}"</div>` : ''}
+                    ${csVerdict ? `<div style="margin-top:4px;font-size:0.72rem;color:#d29922">Cross-System: ${csVerdict} (${csConf}%)</div>` : ''}
+                </div>
+                `;
+            })()}
+
+            <!-- TARGET PRICES & STOP LOSS -->
+            ${targetHtml}
+
+            <!-- ACTION ITEMS from TA engine -->
+            ${actionsHtml}
+
+            <!-- LINK to full analysis page -->
+            <a class="tp-analyze-link" onclick="goAnalyze('${pick.ticker}', '${method}')">
+                🔍 Open Full Analysis for ${pick.ticker_display || pick.ticker} →
+            </a>
+        </div>
+        `;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       HISTORICAL DATA DOWNLOAD
+       ═══════════════════════════════════════════════════════════════ */
+    let _dlEvtSrc = null;
+
+    // Load ticker info on page load
+    async function loadTickerInfo() {
+        try {
+            const r = await fetch('/api/tickers/info');
+            const info = await r.json();
+            document.getElementById('dlTickerCount').textContent = info.count || '—';
+            const src = info.fetched_at
+                ? 'Updated: ' + info.fetched_at
+                : '(hardcoded fallback)';
+            document.getElementById('dlTickerSource').textContent = src;
+        } catch(e) {}
+    }
+    loadTickerInfo();
+
+    async function refreshTickers() {
+        const btn = document.getElementById('dlRefreshBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Fetching…';
+        try {
+            const r = await fetch('/api/tickers/refresh', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
+            const data = await r.json();
+            if (data.error) {
+                alert('Failed: ' + data.error);
+            } else {
+                document.getElementById('dlTickerCount').textContent = data.count;
+                document.getElementById('dlTickerSource').textContent = 'Updated: ' + data.fetched_at;
+            }
+        } catch(e) {
+            alert('Failed to fetch from NSE: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Update from NSE';
+        }
+    }
+
+    // Reset modal to initial state when re-opened
+    document.getElementById('downloadModal').addEventListener('show.bs.modal', () => {
+        document.getElementById('dlBeforeStart').style.display = '';
+        document.getElementById('dlProgress').style.display = 'none';
+        document.getElementById('dlFinished').style.display = 'none';
+        document.getElementById('dlStartBtn').disabled = false;
+        document.getElementById('dlLog').textContent = 'Waiting to start…';
+        loadTickerInfo();
+    });
+
+    function _fmtTime(sec) {
+        sec = Math.round(sec);
+        if (sec < 60) return sec + 's';
+        const m = Math.floor(sec / 60), s = sec % 60;
+        return m + 'm ' + s + 's';
+    }
+
+    async function startDownload() {
+        const force = document.getElementById('dlForceCheck').checked;
+        const threads = parseInt(document.getElementById('dlThreads').value, 10);
+        const startBtn = document.getElementById('dlStartBtn');
+        startBtn.disabled = true;
+
+        try {
+            const resp = await fetch('/api/download/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ force, threads })
+            });
+            const result = await resp.json();
+            if (result.error) {
+                alert(result.error);
+                startBtn.disabled = false;
+                return;
+            }
+        } catch (e) {
+            alert('Failed to start download: ' + e.message);
+            startBtn.disabled = false;
+            return;
+        }
+
+        // Switch to progress view
+        document.getElementById('dlBeforeStart').style.display = 'none';
+        document.getElementById('dlProgress').style.display = '';
+        document.getElementById('dlLog').textContent = 'Starting download…';
+
+        // Open SSE stream
+        if (_dlEvtSrc) { _dlEvtSrc.close(); _dlEvtSrc = null; }
+        _dlEvtSrc = new EventSource('/api/download/status');
+        let _logLines = [];
+
+        _dlEvtSrc.onmessage = function(ev) {
+            const s = JSON.parse(ev.data);
+            document.getElementById('dlDone').textContent = s.done;
+            document.getElementById('dlTotal').textContent = s.total;
+            document.getElementById('dlSaved').textContent = s.saved;
+            document.getElementById('dlSkipped').textContent = s.skipped;
+            document.getElementById('dlFailed').textContent = s.failed;
+
+            const pct = s.total ? Math.round(s.done / s.total * 100) : 0;
+            document.getElementById('dlBar').style.width = pct + '%';
+            document.getElementById('dlPct').textContent = pct + '%';
+
+            const elapsed = s.elapsed || 0;
+            document.getElementById('dlElapsed').textContent = _fmtTime(elapsed);
+
+            if (s.done > 0 && s.total > s.done && elapsed > 0) {
+                const rate = s.done / elapsed;
+                const remaining = (s.total - s.done) / rate;
+                document.getElementById('dlEta').textContent = 'ETA: ' + _fmtTime(remaining);
+            } else if (s.done >= s.total && s.total > 0) {
+                document.getElementById('dlEta').textContent = 'Done';
+            }
+
+            if (s.current) {
+                _logLines.push(s.current);
+                if (_logLines.length > 200) _logLines = _logLines.slice(-200);
+                const logEl = document.getElementById('dlLog');
+                logEl.textContent = _logLines.join('\n');
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+
+            if (s.finished) {
+                _dlEvtSrc.close();
+                _dlEvtSrc = null;
+                // Show finished state
+                document.getElementById('dlProgress').style.display = 'none';
+                document.getElementById('dlFinished').style.display = '';
+                document.getElementById('dlSummary').innerHTML =
+                    '<strong>' + s.saved + '</strong> saved &nbsp;·&nbsp; ' +
+                    '<strong>' + s.skipped + '</strong> skipped &nbsp;·&nbsp; ' +
+                    '<strong>' + s.failed + '</strong> failed &nbsp;·&nbsp; ' +
+                    'Total time: <strong>' + _fmtTime(elapsed) + '</strong>';
+            }
+        };
+
+        _dlEvtSrc.onerror = function() {
+            // SSE disconnected — poll once to get final state
+            _dlEvtSrc.close();
+            _dlEvtSrc = null;
+            fetch('/api/download/state').then(r => r.json()).then(s => {
+                if (s.finished) {
+                    document.getElementById('dlProgress').style.display = 'none';
+                    document.getElementById('dlFinished').style.display = '';
+                    document.getElementById('dlSummary').innerHTML =
+                        '<strong>' + s.saved + '</strong> saved &nbsp;·&nbsp; ' +
+                        '<strong>' + s.skipped + '</strong> skipped &nbsp;·&nbsp; ' +
+                        '<strong>' + s.failed + '</strong> failed';
+                }
+            }).catch(() => {});
+        };
+    }
+    </script>
+</body>
+</html>

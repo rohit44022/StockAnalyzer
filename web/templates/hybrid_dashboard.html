@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hybrid Conviction Engine — BB + TA Combined</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bull:#00c853;--bear:#ff1744;--neutral:#ffc107;--card-bg:#1e1e2f;--bg:#0f0f1a;--accent:#7c4dff}
+body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif}
+.card{background:var(--card-bg);border:1px solid rgba(255,255,255,.08);border-radius:12px}
+.card-header{background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)}
+.bull{color:var(--bull)}.bear{color:var(--bear)}.neutral{color:var(--neutral)}.accent{color:var(--accent)}
+.bg-bull{background:rgba(0,200,83,.15)!important}.bg-bear{background:rgba(255,23,68,.15)!important}
+.bg-neutral{background:rgba(255,193,7,.15)!important}.bg-accent{background:rgba(124,77,255,.15)!important}
+.score-bar{height:10px;border-radius:5px;background:#222;overflow:hidden;position:relative}
+.score-fill{height:100%;border-radius:5px;transition:width .6s ease}
+.verdict-badge{font-size:1.8rem;padding:10px 30px;border-radius:10px;font-weight:700;letter-spacing:1.5px}
+.indicator-val{font-size:1.35rem;font-weight:600}
+.section-title{font-size:1.1rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:0}
+.mini-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.45)}
+.ticker-search{max-width:420px}
+.ticker-search input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:10px 16px;font-size:1.05rem}
+.ticker-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,77,255,.25)}
+.autocomplete-list{position:absolute;z-index:999;width:100%;max-height:240px;overflow-y:auto;background:#1e1e2f;border:1px solid rgba(255,255,255,.1);border-radius:0 0 8px 8px;display:none}
+.autocomplete-list .item{padding:8px 16px;cursor:pointer;font-size:.95rem}
+.autocomplete-list .item:hover,.autocomplete-list .item.active{background:rgba(124,77,255,.25)}
+.edu-box{background:rgba(124,77,255,.08);border:1px solid rgba(124,77,255,.2);border-radius:10px;padding:16px;margin-bottom:16px;font-size:.85rem;line-height:1.7}
+.edu-box strong{color:var(--accent)}
+.method-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:16px;margin-bottom:12px}
+.method-card .method-title{font-size:.95rem;font-weight:600;margin-bottom:8px}
+.obs-card{background:rgba(255,255,255,.04);border-left:3px solid var(--accent);padding:12px 16px;margin-bottom:8px;border-radius:0 8px 8px 0;font-size:.85rem;line-height:1.6}
+.condition-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.85rem}
+.condition-dot{width:10px;height:10px;border-radius:50%}
+.conviction-meter{height:14px;border-radius:7px;background:#222;overflow:hidden;position:relative;margin:12px 0}
+.conviction-fill{height:100%;border-radius:7px;transition:width .8s ease}
+.comparison-vs{width:60px;text-align:center;font-weight:700;color:var(--accent);font-size:1.2rem;align-self:center}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn .4s ease}
+#loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center}
+#loading.active{display:flex}
+nav a.active{color:var(--accent)!important;font-weight:600}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner-border" style="width:3rem;height:3rem;color:var(--accent)"></div></div>
+
+<!-- NAV -->
+<nav class="py-2 px-4 border-bottom border-secondary" style="background:rgba(15,15,26,.95)">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <a href="/" class="text-decoration-none fw-bold" style="font-size:1.1rem;color:var(--accent)">
+      <i class="bi bi-lightning-charge-fill"></i> Hybrid Engine
+    </a>
+    <a href="/" class="text-decoration-none text-light ms-3">Home</a>
+    <a href="/ta" class="text-decoration-none text-light">TA Module</a>
+    <a href="/hybrid" class="text-decoration-none active">Hybrid BB+TA</a>
+    <a href="/portfolio" class="text-decoration-none text-light">Portfolio</a>
+    <a href="/trades" class="text-decoration-none text-light">Trades</a>
+  </div>
+</nav>
+
+<!-- SEARCH HEADER -->
+<div class="container py-4">
+  <div class="text-center mb-4">
+    <h3 class="fw-bold"><i class="bi bi-lightning-charge-fill" style="color:var(--accent)"></i> Hybrid Conviction Engine</h3>
+    <p class="text-secondary mb-3" style="max-width:700px;margin:0 auto">
+      Combines <strong class="bull">Bollinger Band Methods (I–IV)</strong> with
+      <strong style="color:var(--accent)">Murphy's Technical Analysis Framework</strong>
+      for maximum trading conviction.
+    </p>
+    <div class="ticker-search mx-auto position-relative">
+      <input id="tickerInput" class="form-control" placeholder="Search stock ticker (e.g. RELIANCE, TCS, INFY)..." autocomplete="off">
+      <div id="autoList" class="autocomplete-list"></div>
+    </div>
+  </div>
+
+  <!-- WHAT IS THIS — educational box before any analysis -->
+  <div class="edu-box text-center" style="max-width:900px;margin:0 auto 24px auto">
+    <strong>🧠 What is the Hybrid Conviction Engine?</strong><br>
+    Most traders use EITHER Bollinger Bands OR Technical Analysis indicators. This engine uses <strong>BOTH</strong> systems simultaneously and checks if they <strong>agree or disagree</strong>. Think of it like getting a second medical opinion — when two independent systems reach the same conclusion, your confidence in that conclusion should be much higher.<br><br>
+    <strong>How it works:</strong> We run all 4 Bollinger Band methods (Squeeze, Trend Following, Reversals, Band Walking) and score them out of 100 points. Then we run Murphy's Technical Analysis (Trend, Momentum, Volume, Patterns, Support/Resistance, Risk) and score that out of 100 points. Finally, we <strong>cross-validate</strong> — if both agree, we add conviction bonus. If they disagree, we reduce conviction and warn you to wait. The result is a <strong>combined score out of 200+</strong> that tells you how confident we are in the trade.
+  </div>
+
+  <!-- RESULTS (hidden until search) -->
+  <div id="results" style="display:none" class="fade-in">
+
+    <!-- ═══ HYBRID VERDICT ═══ -->
+    <div id="verdictSection" class="mb-4"></div>
+
+    <!-- ═══ CROSS-VALIDATION ═══ -->
+    <div id="crossSection" class="mb-4"></div>
+
+    <!-- ═══ BB vs TA COMPARISON ═══ -->
+    <div id="comparisonSection" class="mb-4"></div>
+
+    <!-- ═══ BOLLINGER BAND METHODS DETAIL ═══ -->
+    <div id="bbMethodsSection" class="mb-4"></div>
+
+    <!-- ═══ TA CATEGORIES DETAIL ═══ -->
+    <div id="taCategoriesSection" class="mb-4"></div>
+
+    <!-- ═══ TARGET PRICES ═══ -->
+    <div id="targetSection" class="mb-4"></div>
+
+    <!-- ═══ BB INDICATORS ═══ -->
+    <div id="bbIndicatorsSection" class="mb-4"></div>
+
+    <!-- ═══ TA SNAPSHOT ═══ -->
+    <div id="taSnapshotSection" class="mb-4"></div>
+
+    <!-- ═══ RISK MANAGEMENT ═══ -->
+    <div id="riskSection" class="mb-4"></div>
+
+    <!-- ═══ HOW TO USE ═══ -->
+    <div id="howToSection" class="mb-4"></div>
+
+  </div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const TICKERS = {{ tickers | tojson }};
+const tickerInput = document.getElementById('tickerInput');
+const autoList = document.getElementById('autoList');
+let acIdx = -1;
+
+tickerInput.addEventListener('input', function(){
+  const q = this.value.trim().toUpperCase();
+  if(q.length < 1){autoList.style.display='none';return}
+  const matches = TICKERS.filter(t=>t.startsWith(q)).slice(0, 15);
+  if(!matches.length){autoList.style.display='none';return}
+  autoList.innerHTML = matches.map(t=>`<div class="item">${t}</div>`).join('');
+  autoList.style.display='block';
+  acIdx=-1;
+  autoList.querySelectorAll('.item').forEach(el=>{
+    el.addEventListener('click', ()=>{tickerInput.value=el.textContent;autoList.style.display='none';doAnalyze(el.textContent)});
+  });
+});
+
+tickerInput.addEventListener('keydown', function(e){
+  const items = autoList.querySelectorAll('.item');
+  if(e.key==='ArrowDown'){e.preventDefault();acIdx=Math.min(acIdx+1,items.length-1)}
+  else if(e.key==='ArrowUp'){e.preventDefault();acIdx=Math.max(acIdx-1,0)}
+  else if(e.key==='Enter'){
+    e.preventDefault();
+    if(acIdx>=0&&items[acIdx]){tickerInput.value=items[acIdx].textContent;autoList.style.display='none';doAnalyze(items[acIdx].textContent)}
+    else if(tickerInput.value.trim()){doAnalyze(tickerInput.value.trim().toUpperCase())}
+    return;
+  }
+  items.forEach((el,i)=>el.classList.toggle('active',i===acIdx));
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.ticker-search'))autoList.style.display='none'});
+
+// ═══════════════════════════════════════════════════════════════
+//  ANALYSIS
+// ═══════════════════════════════════════════════════════════════
+async function doAnalyze(ticker){
+  const ld=document.getElementById('loading');
+  ld.classList.add('active');
+  try{
+    const res=await fetch(`/api/hybrid/analyze?ticker=${encodeURIComponent(ticker)}`);
+    const d=await res.json();
+    if(d.error){alert(d.error);return}
+    document.getElementById('results').style.display='block';
+    renderAll(d);
+  }catch(e){alert('Error: '+e.message)}
+  finally{ld.classList.remove('active')}
+}
+
+function renderAll(d){
+  // Data freshness banner
+  const fresh = d.data_freshness;
+  const oldBanner = document.getElementById('freshnessBanner');
+  if(oldBanner) oldBanner.remove();
+  const mainEl = document.getElementById('mainContent') || document.querySelector('.container');
+  if(fresh && fresh.warning && mainEl){
+    const cls = fresh.trading_days_stale>10?'danger':fresh.trading_days_stale>5?'warning':'info';
+    mainEl.insertAdjacentHTML('afterbegin',
+      `<div id="freshnessBanner" class="alert alert-${cls} d-flex align-items-center mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <div><strong>${fresh.warning}</strong><br><small>Last data: ${fresh.last_date} (${fresh.trading_days_stale} trading days ago)</small></div>
+      </div>`);
+  } else if(fresh && mainEl){
+    mainEl.insertAdjacentHTML('afterbegin',
+      `<div id="freshnessBanner" class="alert alert-success d-flex align-items-center mb-3 py-2" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <small><strong>Live Data</strong> — Last: ${fresh.last_date}</small>
+      </div>`);
+  }
+  renderVerdict(d);
+  renderCrossValidation(d);
+  renderComparison(d);
+  renderBBMethods(d);
+  renderTACategories(d);
+  renderTargetPrices(d);
+  renderBBIndicators(d);
+  renderTASnapshot(d);
+  renderRisk(d);
+  renderHowToUse(d);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER: HYBRID VERDICT
+// ═══════════════════════════════════════════════════════════════
+function renderVerdict(d){
+  const v=d.hybrid_verdict;
+  const bgClass=v.color==='bull'?'bg-bull':v.color==='bear'?'bg-bear':'bg-neutral';
+  const scorePct=Math.abs(v.score)/v.max_score*100;
+  const barClr=v.color==='bull'?'var(--bull)':v.color==='bear'?'var(--bear)':'var(--neutral)';
+
+  let h=`<div class="card p-4 ${bgClass}">`;
+  h+=`<div class="text-center mb-3">`;
+  h+=`<div class="mini-label mb-1">HYBRID CONVICTION VERDICT — ${d.ticker}</div>`;
+  h+=`<div class="verdict-badge ${bgClass}" style="display:inline-block">${v.emoji} ${v.verdict}</div>`;
+  h+=`<div class="mt-2 d-flex justify-content-center gap-4 flex-wrap">`;
+  h+=`<div><span class="mini-label">Combined Score</span><div class="indicator-val">${v.score} / ${v.max_score}</div></div>`;
+  h+=`<div><span class="mini-label">Confidence</span><div class="indicator-val ${v.color}">${v.confidence}%</div></div>`;
+  h+=`<div><span class="mini-label">Alignment</span><div class="indicator-val accent">${v.alignment}</div></div>`;
+  h+=`</div>`;
+  // Conviction meter
+  h+=`<div class="conviction-meter" style="max-width:500px;margin:16px auto"><div class="conviction-fill" style="width:${scorePct}%;background:${barClr}"></div></div>`;
+  h+=`</div>`;
+  // Conviction text
+  h+=`<div class="mt-3 p-3 rounded" style="background:rgba(255,255,255,.04);font-size:.88rem;line-height:1.7">${v.conviction_text}</div>`;
+
+  // Educational: How to read this
+  h+=`<div class="edu-box mt-3">`;
+  h+=`<strong>📖 How to Read This Verdict</strong><br>`;
+  h+=`The verdict combines TWO independent analysis systems:<br>`;
+  h+=`<strong>1. Bollinger Band Score (±100 pts):</strong> Based on John Bollinger's 4 methods — Squeeze, Trend, Reversal, Band Walk. This tells you what the PRICE and VOLATILITY are doing.<br>`;
+  h+=`<strong>2. Technical Analysis Score (±100 pts):</strong> Based on John Murphy's framework — Trend, Momentum, Volume, Patterns, S/R, Risk. This tells you what the BROADER market picture looks like.<br>`;
+  h+=`<strong>3. Cross-Validation Bonus (±30 pts):</strong> When both systems agree, we add bonus conviction. When they conflict, we penalize.<br><br>`;
+  h+=`<strong>Score Guide:</strong> ≥80 = Super Strong Buy, ≥50 = Strong Buy, ≥25 = Buy, -25 to +25 = Hold/Wait, ≤-25 = Sell, ≤-50 = Strong Sell, ≤-80 = Super Strong Sell<br>`;
+  h+=`<strong>Key Rule:</strong> NEVER act on the verdict alone. Always read the cross-validation section below to understand WHY both systems agree or disagree.`;
+  h+=`</div>`;
+  h+=`</div>`;
+
+  document.getElementById('verdictSection').innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER: CROSS-VALIDATION
+// ═══════════════════════════════════════════════════════════════
+function renderCrossValidation(d){
+  const cv=d.cross_validation;
+  if(!cv)return;
+
+  let h=`<div class="card p-4">`;
+  h+=`<div class="section-title accent mb-2"><i class="bi bi-arrow-left-right"></i> CROSS-VALIDATION: BB vs TA</div>`;
+
+  h+=`<div class="edu-box">`;
+  h+=`<strong>🔍 What is Cross-Validation?</strong><br>`;
+  h+=`Cross-validation is like having two experienced doctors examine the same patient independently. If both reach the same diagnosis, you can be very confident. If they disagree, you need more tests before deciding on treatment.<br><br>`;
+  h+=`Here, our two "doctors" are: <strong class="bull">Bollinger Band Analysis</strong> (which studies price behaviour, volatility squeezes, and band structure) and <strong style="color:var(--accent)">Technical Analysis</strong> (which studies momentum, volume patterns, chart formations, and risk metrics).<br><br>`;
+  h+=`<strong>ALIGNED</strong> = both systems agree → HIGH confidence signal<br>`;
+  h+=`<strong>PARTIAL</strong> = one system has a view, the other is neutral → MODERATE confidence<br>`;
+  h+=`<strong>CONFLICTING</strong> = systems disagree → LOW confidence, WAIT for clarity`;
+  h+=`</div>`;
+
+  // Alignment badge
+  const alignClr=cv.alignment==='ALIGNED'?'bull':cv.alignment==='CONFLICTING'?'bear':'neutral';
+  h+=`<div class="text-center mb-3">`;
+  h+=`<span class="badge fs-5 px-3 py-2 bg-${alignClr==='bull'?'success':alignClr==='bear'?'danger':'warning'}">${cv.alignment}</span>`;
+  h+=`<div class="mt-2"><span class="mini-label">BB Direction:</span> <strong class="${cv.bb_direction==='BULLISH'?'bull':'bear'}">${cv.bb_direction}</strong>`;
+  h+=` &nbsp;|&nbsp; <span class="mini-label">TA Direction:</span> <strong class="${cv.ta_direction==='BULLISH'?'bull':'bear'}">${cv.ta_direction}</strong>`;
+  h+=` &nbsp;|&nbsp; <span class="mini-label">Cross-Validation Bonus:</span> <strong class="${cv.agreement_score>0?'bull':cv.agreement_score<0?'bear':'neutral'}">${cv.agreement_score>0?'+':''}${cv.agreement_score} pts</strong></div>`;
+  h+=`</div>`;
+
+  // Observations
+  for(const obs of (cv.observations||[])){
+    h+=`<div class="obs-card">${obs}</div>`;
+  }
+
+  h+=`</div>`;
+  document.getElementById('crossSection').innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER: BB vs TA COMPARISON
+// ═══════════════════════════════════════════════════════════════
+function renderComparison(d){
+  const bb=d.bb_score, ta=d.ta_score;
+  if(!bb||!ta)return;
+
+  const bbPct=Math.abs(bb.total)/bb.max*100;
+  const taPct=Math.abs(ta.total)/ta.max*100;
+  const bbClr=bb.total>0?'var(--bull)':bb.total<0?'var(--bear)':'var(--neutral)';
+  const taClr=ta.total>0?'var(--bull)':ta.total<0?'var(--bear)':'var(--neutral)';
+
+  let h=`<div class="card p-4">`;
+  h+=`<div class="section-title mb-3"><i class="bi bi-bar-chart-steps"></i> SCORE COMPARISON</div>`;
+
+  h+=`<div class="edu-box">`;
+  h+=`<strong>📊 Understanding the Scores</strong><br>`;
+  h+=`Both scores range from <strong class="bear">-100</strong> (extreme bearish) to <strong class="bull">+100</strong> (extreme bullish). A score near 0 means that system is neutral (no clear signal).<br>`;
+  h+=`Think of it like a tug-of-war: positive forces (bullish indicators) pull the score up, negative forces (bearish indicators) pull it down. The final score tells you which side is winning and by how much.`;
+  h+=`</div>`;
+
+  h+=`<div class="d-flex align-items-center gap-3 flex-wrap justify-content-center">`;
+
+  // BB card
+  h+=`<div class="card p-3 text-center" style="flex:1;min-width:250px">`;
+  h+=`<div class="mini-label">BOLLINGER BAND SCORE</div>`;
+  h+=`<div class="indicator-val" style="color:${bbClr}">${bb.total} / ${bb.max}</div>`;
+  h+=`<div class="score-bar mt-2"><div class="score-fill" style="width:${bbPct}%;background:${bbClr}"></div></div>`;
+  h+=`<div class="mini-label mt-1">4 Methods: Squeeze, Trend, Reversal, Band Walk</div></div>`;
+
+  h+=`<div class="comparison-vs">VS</div>`;
+
+  // TA card
+  h+=`<div class="card p-3 text-center" style="flex:1;min-width:250px">`;
+  h+=`<div class="mini-label">TECHNICAL ANALYSIS SCORE</div>`;
+  h+=`<div class="indicator-val" style="color:${taClr}">${ta.total} / ${ta.max}</div>`;
+  h+=`<div class="score-bar mt-2"><div class="score-fill" style="width:${taPct}%;background:${taClr}"></div></div>`;
+  h+=`<div class="mini-label mt-1">6 Categories: Trend, Momentum, Volume, Pattern, S/R, Risk</div></div>`;
+
+  h+=`</div>`; // flex
+  h+=`</div>`; // card
+  document.getElementById('comparisonSection').innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER: BB METHODS DETAIL
+// ═══════════════════════════════════════════════════════════════
+function renderBBMethods(d){
+  const bb=d.bb_score;
+  if(!bb||!bb.methods)return;
+
+  let h=`<div class="card p-4">`;
+  h+=`<div class="section-title bull mb-2"><i class="bi bi-graph-up-arrow"></i> BOLLINGER BAND METHODS — DETAILED BREAKDOWN</div>`;
+
+  h+=`<div class="edu-box">`;
+  h+=`<strong>🎯 John Bollinger's 4 Methods — The Complete Framework</strong><br><br>`;
+  h+=`John Bollinger developed Bollinger Bands in the 1980s and identified <strong>4 distinct methods</strong> for using them. Each method answers a different market question:<br>`;
+  h+=`<strong>Method I (Squeeze):</strong> "When will the next big move happen?" — Detects low-volatility compressions that precede explosive breakouts. Score weight: 40 pts<br>`;
+  h+=`<strong>Method II (Trend):</strong> "Which direction is the trend?" — Uses %b (position within bands) + MFI (money flow) to identify and confirm trends. Score weight: 25 pts<br>`;
+  h+=`<strong>Method III (Reversal):</strong> "Is the trend about to reverse?" — Detects W-Bottom (bullish reversal) and M-Top (bearish reversal) patterns within the band structure. Score weight: 20 pts<br>`;
+  h+=`<strong>Method IV (Walk):</strong> "How strong is the current trend?" — When price walks along one band with pullbacks to the middle band, the trend is very strong. Score weight: 15 pts`;
+  h+=`</div>`;
+
+  for(const m of bb.methods){
+    const clr=m.score>0?'bull':m.score<0?'bear':'neutral';
+    const pct=Math.abs(m.score)/m.max*100;
+    h+=`<div class="method-card">`;
+    h+=`<div class="d-flex justify-content-between align-items-center">`;
+    h+=`<div class="method-title">${m.method}</div>`;
+    h+=`<div class="indicator-val ${clr}">${m.score>0?'+':''}${m.score} / ${m.max}</div>`;
+    h+=`</div>`;
+    h+=`<div class="score-bar mb-2"><div class="score-fill" style="width:${pct}%;background:${m.score>0?'var(--bull)':m.score<0?'var(--bear)':'var(--neutral)'}"></div></div>`;
+
+    // Details
+    for(const det of (m.details||[])){
+      h+=`<div style="font-size:.84rem;padding:2px 0">${det}</div>`;
+    }
+
+    // Explanation
+    h+=`<div class="mt-2 p-2 rounded" style="background:rgba(124,77,255,.08);font-size:.82rem;line-height:1.6"><i class="bi bi-book"></i> ${m.explanation}</div>`;
+    h+=`</div>`;
+  }
+
+  h+=`</div>`;
+  document.getElementById('bbMethodsSection').innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER: TA CATEGORIES DETAIL
+// ═══════════════════════════════════════════════════════════════
+function renderTACategories(d){
+  const ta=d.ta_score;
+  if(!ta||!ta.categories)return;
+
+  const catInfo={
+    trend:{icon:'bi-graph-up',label:'TREND',maxPts:25,
+      edu:'Trend analysis uses Moving Averages (SMA 20, 50, 200), ADX (Average Directional Index), and Supertrend to determine the stock\'s direction. A stock ABOVE its 200-day SMA is in a long-term uptrend. The "Golden Cross" (50 SMA crosses above 200 SMA) is one of the most bullish signals in technical analysis. ADX above 25 means the trend is STRONG (regardless of direction).'},
+    momentum:{icon:'bi-speedometer2',label:'MOMENTUM',maxPts:20,
+      edu:'Momentum measures the SPEED of price movement. RSI (Relative Strength Index) tells you if a stock is overbought (>70) or oversold (<30). MACD (Moving Average Convergence Divergence) shows when fast momentum is crossing slow momentum — a MACD crossover is a classic buy/sell signal. Stochastic oscillator compares closing price to its high-low range. When multiple momentum indicators align, the move has "fuel" behind it.'},
+    volume:{icon:'bi-bar-chart',label:'VOLUME',maxPts:15,
+      edu:'Volume is the "lie detector" of the market. A price move WITHOUT volume is suspicious — it might be manipulation or a false move. A price move WITH high volume is real because many participants are involved. OBV (On Balance Volume) tracks cumulative buying vs selling volume. Volume ratio compares today\'s volume to the 50-day average. Volume above 2x average on a breakout = HIGH conviction.'},
+    pattern:{icon:'bi-cpu',label:'PATTERN',maxPts:15,
+      edu:'Pattern analysis detects recurring chart formations (Head & Shoulders, Double Bottom, Triangle, Cup & Handle) and candlestick patterns (Hammer, Engulfing, Doji, Morning Star). These patterns have been observed in markets for over 100 years because they reflect human psychology — fear, greed, and indecision create recognizable shapes in price charts.'},
+    sr:{icon:'bi-arrows-collapse',label:'SUPPORT / RESISTANCE',maxPts:10,
+      edu:'Support is a price level where buying pressure historically prevents further decline — like a floor. Resistance is where selling pressure prevents further rise — like a ceiling. When price breaks above resistance on strong volume, the old resistance often becomes new support (and vice versa). Fibonacci levels (38.2%, 50%, 61.8%) are natural support/resistance levels based on the Golden Ratio.'},
+    risk:{icon:'bi-shield-check',label:'RISK',maxPts:15,
+      edu:'Risk analysis checks if the stock\'s risk:reward profile is favorable. It considers Average True Range (ATR) for volatility, distance from support/resistance levels, and position sizing rules. The 2% Rule states you should never risk more than 2% of your capital on a single trade. A favorable risk:reward ratio (minimum 1:2) means you stand to gain at least twice what you risk.'},
+  };
+
+  let h=`<div class="card p-4">`;
+  h+=`<div class="section-title accent mb-2"><i class="bi bi-columns-gap"></i> TECHNICAL ANALYSIS — DETAILED BREAKDOWN</div>`;
+
+  h+=`<div class="edu-box">`;
+  h+=`<strong>📚 Murphy's 6-Category Framework (from "Technical Analysis of the Financial Markets")</strong><br><br>`;
+  h+=`John Murphy's framework categorizes ALL technical analysis into 6 areas. Each captures a different dimension of market behaviour. A stock may look great on momentum but terrible on volume — that's a warning sign. The power comes from seeing ALL 6 dimensions together. The scoring weights reflect market wisdom: Trend is most important (25 pts) because "the trend is your friend." Risk scores negatively when the stock is in a dangerous position.`;
+  h+=`</div>`;
+
+  const cats=ta.categories;
+  for(const [key,info] of Object.entries(catInfo)){
+    const cat=cats[key]||{};
+    const score=cat.score||0;
+    const maxPts=info.maxPts;
+    const clr=score>0?'bull':score<0?'bear':'neutral';
+    const pct=Math.min(Math.abs(score)/maxPts*100,100);
+
+    h+=`<div class="method-card">`;
+    h+=`<div class="d-flex justify-content-between align-items-center">`;
+    h+=`<div class="method-title"><i class="bi ${info.icon}"></i> ${info.label}</div>`;
+    h+=`<div class="indicator-val ${clr}">${score>0?'+':''}${score} / ${maxPts}</div>`;
+    h+=`</div>`;
+    h+=`<div class="score-bar mb-2"><div class="score-fill" style="width:${pct}%;background:${score>0?'var(--bull)':score<0?'var(--bear)':'var(--neutral)'}"></div></div>`;
+
+    // Details
+    for(const det of (cat.details||[])){
+      h+=`<div style="font-size:.84rem;padding:2px 0">• ${det}</div>`;
+    }
+
+    // Education
+    h+=`<div class="mt-2 p-2 rounded" style="background:rgba(124,77,255,.08);font-size:.82rem;line-height:1.6"><i class="bi bi-book"></i> ${info.edu}</div>`;
+    h+=`</div>`;
+  }
+
+  h+=`</div>`;
+  document.getElementById('taCategoriesSection').innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER: TARGET PRICES
+// ═══════════════════════════════════════════════════════════════
+function renderTargetPrices(d){
+  const tp=d.target_prices;
+  if(!tp||tp.error){document.getElementById('targetSection').innerHTML='<div class="card p-3"><span class="text-muted">Target price data unavailable.</span></div>';return}
+
+  let h=`<div class="card p-4">`;
+  h+=`<div class="section-title mb-2"><i class="bi bi-bullseye"></i> TARGET PRICES</div>`;
+
+  h+=`<div class="edu-box">`;
+  h+=`<strong>🎯 What are Target Prices?</strong><br>`;
+  h+=`Target prices are PROJECTED price levels where the stock might move based on mathematical models. We use 7 independent methods:<br>`;
+  h+=`<strong>1. Fibonacci Extensions:</strong> Natural ratio (1.618, 2.618) projections from recent swings<br>`;
+  h+=`<strong>2. Support/Resistance:</strong> Historical levels where price reversed before<br>`;
+  h+=`<strong>3. ATR Projections:</strong> Volatility-based range estimates (how far price typically moves)<br>`;
+  h+=`<strong>4. Moving Average Magnets:</strong> Price tends to gravitate toward key MAs<br>`;
+  h+=`<strong>5. Bollinger Band Targets:</strong> Band extensions and mean reversion levels<br>`;
+  h+=`<strong>6. Pattern Measured Moves:</strong> Classic pattern height projections<br>`;
+  h+=`<strong>7. Pivot Points:</strong> Daily/weekly floor trader levels<br><br>`;
+  h+=`<strong>Important:</strong> Target prices are ESTIMATES, not guarantees. Use them as reference points for setting stop-losses and take-profit levels. The "Confidence" percentage shows how many methods agree on a similar level.`;
+  h+=`</div>`;
+
+  // Bias & Consensus
+  const biasClr=tp.bias==='BULLISH'?'bull':tp.bias==='BEARISH'?'bear':'neutral';
+  h+=`<div class="row g-3 mb-3">`;
+  h+=`<div class="col-md-4"><div class="card p-3 text-center h-100"><div class="mini-label">BIAS</div><div class="indicator-val ${biasClr}">${tp.bias}</div></div></div>`;
+  if(tp.consensus_upside){
+    const cu=tp.consensus_upside;
+    h+=`<div class="col-md-4"><div class="card p-3 text-center h-100 bg-bull"><div class="mini-label">UPSIDE TARGET</div><div class="indicator-val bull">₹${cu.target}</div><div style="font-size:.85rem" class="bull">+${cu.pct}%</div><div class="mini-label">${cu.confidence}% confidence</div></div></div>`;
+  }
+  if(tp.consensus_downside){
+    const cd=tp.consensus_downside;
+    h+=`<div class="col-md-4"><div class="card p-3 text-center h-100 bg-bear"><div class="mini-label">DOWNSIDE RISK</div><div class="indicator-val bear">₹${cd.target}</div><div style="font-size:.85rem" class="bear">-${cd.pct}%</div><div class="mini-label">${cd.confidence}% confidence</div></div></div>`;
+  }
+  h+=`</div>`;
+
+  // Risk:Reward
+  if(tp.risk_reward_ratio!=null){
+    const rrClr=tp.risk_reward_ratio>=2?'bull':tp.risk_reward_ratio>=1?'neutral':'bear';
+    h+=`<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.04)"><span class="mini-label">RISK:REWARD</span> <strong class="${rrClr}">1:${tp.risk_reward_ratio}</strong> — ${tp.risk_reward_explanation}</div>`;
+  }
+
+  // Upside table
+  if(tp.upside_targets&&tp.upside_targets.length){
+    h+=`<div class="mini-label mt-3 mb-2 bull">▲ UPSIDE TARGETS</div>`;
+    h+=`<div class="table-responsive"><table class="table table-sm table-dark" style="font-size:.84rem"><thead><tr><th>Method</th><th>Label</th><th>Target</th><th>Upside</th><th>Conf</th></tr></thead><tbody>`;
+    for(const t of tp.upside_targets){
+      h+=`<tr><td>${t.method}</td><td>${t.label}</td><td class="bull fw-bold">₹${t.target}</td><td class="bull">+${t.upside_pct||t.distance_pct||'—'}%</td><td>${t.confidence}%</td></tr>`;
+    }
+    h+=`</tbody></table></div>`;
+  }
+
+  // Downside table
+  if(tp.downside_targets&&tp.downside_targets.length){
+    h+=`<div class="mini-label mt-3 mb-2 bear">▼ DOWNSIDE RISKS</div>`;
+    h+=`<div class="table-responsive"><table class="table table-sm table-dark" style="font-size:.84rem"><thead><tr><th>Method</th><th>Label</th><th>Target</th><th>Downside</th><th>Conf</th></tr></thead><tbody>`;
+    for(const t of tp.downside_targets){
+      h+=`<tr><td>${t.method}</td><td>${t.label}</td><td class="bear fw-bold">₹${t.target}</td><td class="bear">-${t.downside_pct||t.distance_pct||'—'}%</td><td>${t.confidence}%</td></tr>`;
+    }
+    h+=`</tbody></table></div>`;
+  }
+
+  h+=`</div>`;
+  document.getElementById('targetSection').innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER: BB INDICATORS
+// ═══════════════════════════════════════════════════════════════
+function renderBBIndicators(d){
+  const bb=d.bb_data;
+  if(!bb)return;
+
+  let h=`<div class="card p-4">`;
+  h+=`<div class="section-title bull mb-2"><i class="bi bi-bar-chart-line"></i> BOLLINGER BAND INDICATORS</div>`;
+
+  h+=`<div class="edu-box">`;
+  h+=`<strong>📏 Bollinger Band Indicators Explained</strong><br><br>`;
+  h+=`<strong>Upper Band:</strong> Middle Band + 2 Standard Deviations. Price touching or exceeding this is at the top of its "normal" range. It does NOT mean overbought — in strong uptrends, price can walk along the upper band for weeks.<br>`;
+  h+=`<strong>Middle Band (20 SMA):</strong> The 20-day Simple Moving Average. Acts as dynamic support in uptrends and resistance in downtrends. Think of it as the "gravity center" that price orbits around.<br>`;
+  h+=`<strong>Lower Band:</strong> Middle Band - 2 Standard Deviations. Price at the lower band is at the bottom of normal range.<br>`;
+  h+=`<strong>BandWidth (BBW):</strong> Measures how WIDE the bands are. Low BBW = low volatility = squeeze = big move coming. It's the most predictive BB indicator.<br>`;
+  h+=`<strong>%b:</strong> Shows WHERE price is relative to the bands. 0 = at lower band, 0.5 = at middle, 1.0 = at upper band. Above 1 = above upper band (breakout).<br>`;
+  h+=`<strong>Parabolic SAR:</strong> A trend-following indicator that places dots above (bearish) or below (bullish) price. When dots flip from above to below, it's a buy signal.<br>`;
+  h+=`<strong>CMF (Chaikin Money Flow):</strong> Measures buying/selling pressure. Positive = money flowing IN. Negative = money flowing OUT. More reliable than price alone.<br>`;
+  h+=`<strong>MFI (Money Flow Index):</strong> Like RSI but incorporates VOLUME. Above 50 = buying pressure dominates. Below 50 = selling pressure dominates.`;
+  h+=`</div>`;
+
+  const ind=bb.indicators||{};
+  h+=`<div class="row g-3 mb-3">`;
+  const items=[
+    ['Price','₹'+(ind.price||0).toFixed(2),'neutral'],
+    ['Upper BB','₹'+(ind.bb_upper||0).toFixed(2),'bull'],
+    ['Middle BB','₹'+(ind.bb_mid||0).toFixed(2),'neutral'],
+    ['Lower BB','₹'+(ind.bb_lower||0).toFixed(2),'bear'],
+    ['BBW',(ind.bbw||0).toFixed(4),'neutral'],
+    ['%b',(ind.percent_b||0).toFixed(3),'neutral'],
+    ['SAR','₹'+(ind.sar||0).toFixed(2)+(ind.sar_bull?' ▲':' ▼'),ind.sar_bull?'bull':'bear'],
+    ['CMF',(ind.cmf||0).toFixed(3),ind.cmf>0?'bull':'bear'],
+    ['MFI',(ind.mfi||0).toFixed(1),ind.mfi>50?'bull':'bear'],
+    ['Volume',fmtVol(ind.volume),'neutral'],
+    ['Vol 50-SMA',fmtVol(ind.vol_sma50),'neutral'],
+  ];
+  for(const [label,val,clr] of items){
+    h+=`<div class="col-6 col-md-3"><div class="card p-2 text-center"><div class="mini-label">${label}</div><div class="indicator-val ${clr}" style="font-size:1.1rem">${val}</div></div></div>`;
+  }
+  h+=`</div>`;
+
+  // Conditions checklist
+  h+=`<div class="mini-label mb-2">SIGNAL CONDITIONS</div>`;
+  const conds=bb.conditions||{};
+  const condLabels={
+    squeeze:['Squeeze (BBW at 6-month low)',bb.squeeze_days?`Active for ${bb.squeeze_days} days`:''],
+    price_breakout:['Price above Upper BB','Breakout confirmed'],
+    volume_confirm:['Volume > 50-SMA','Real participation'],
+    cmf_positive:['CMF > 0','Money flowing in'],
+    mfi_above_50:['MFI > 50','Buying pressure dominates'],
+  };
+  for(const [key,[label,desc]] of Object.entries(condLabels)){
+    const met=conds[key];
+    h+=`<div class="condition-row"><div class="condition-dot" style="background:${met?'var(--bull)':'#444'}"></div><span style="color:${met?'var(--bull)':'rgba(255,255,255,.4)'}">${met?'✅':'⬜'} ${label}</span><span class="text-secondary" style="font-size:.78rem;margin-left:8px">${met?desc:''}</span></div>`;
+  }
+
+  // Signal summary
+  h+=`<div class="mt-3 p-3 rounded" style="background:rgba(255,255,255,.04)">`;
+  h+=`<div class="mini-label mb-1">PHASE</div><div class="indicator-val ${bb.buy_signal?'bull':bb.sell_signal?'bear':'neutral'}">${bb.phase}</div>`;
+  h+=`<div class="mt-2" style="font-size:.85rem">${bb.summary}</div>`;
+  if(bb.action_message) h+=`<div class="mt-1" style="font-size:.85rem;color:var(--accent)">${bb.action_message}</div>`;
+  if(bb.stop_loss) h+=`<div class="mt-1"><span class="mini-label">Stop Loss:</span> <strong class="bear">₹${bb.stop_loss.toFixed(2)}</strong></div>`;
+  h+=`</div>`;
+
+  h+=`</div>`;
+  document.getElementById('bbIndicatorsSection').innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER: TA SNAPSHOT
+// ═══════════════════════════════════════════════════════════════
+function renderTASnapshot(d){
+  const snap=d.snapshot;
+  if(!snap)return;
+
+  let h=`<div class="card p-4">`;
+  h+=`<div class="section-title accent mb-2"><i class="bi bi-clipboard-data"></i> KEY TA INDICATORS</div>`;
+
+  h+=`<div class="edu-box">`;
+  h+=`<strong>📋 Quick Reference — Key Technical Indicators</strong><br>`;
+  h+=`These are the most important numbers from Murphy's framework. Each tells you something different:<br>`;
+  h+=`<strong>RSI 14:</strong> Momentum oscillator. 30-70 is normal. Below 30 = oversold (potential bounce). Above 70 = overbought (potential pullback). BUT in strong trends, RSI can stay overbought for weeks — don't blindly sell!<br>`;
+  h+=`<strong>MACD:</strong> The difference between 12-EMA and 26-EMA. When MACD crosses above its signal line = bullish. When it crosses below = bearish. The histogram shows the GAP between MACD and signal — growing histogram = strengthening momentum.<br>`;
+  h+=`<strong>ADX:</strong> Trend strength (not direction). Below 20 = no trend (range-bound). 20-40 = trending. Above 40 = STRONGLY trending. Does not tell you UP or DOWN — only HOW STRONG.<br>`;
+  h+=`<strong>Stochastic %K:</strong> Compares close to high-low range. Above 80 = overbought zone. Below 20 = oversold zone. When %K crosses %D from below in oversold zone = strong buy.`;
+  h+=`</div>`;
+
+  const taItems=[
+    ['RSI 14',(snap.rsi_14||0).toFixed(1),snap.rsi_14>70?'bear':snap.rsi_14<30?'bull':'neutral'],
+    ['MACD',(snap.macd||0).toFixed(2),snap.macd>0?'bull':'bear'],
+    ['MACD Signal',(snap.macd_signal||0).toFixed(2),'neutral'],
+    ['ADX',(snap.adx||0).toFixed(1),snap.adx>25?'accent':'neutral'],
+    ['Stoch %K',(snap.stoch_k||0).toFixed(1),snap.stoch_k>80?'bear':snap.stoch_k<20?'bull':'neutral'],
+    ['Williams %R',(snap.williams_r||0).toFixed(1),snap.williams_r<-80?'bull':snap.williams_r>-20?'bear':'neutral'],
+    ['CCI',(snap.cci||0).toFixed(1),snap.cci>100?'bull':snap.cci<-100?'bear':'neutral'],
+    ['OBV',fmtVol(snap.obv),'neutral'],
+    ['VWAP','₹'+(snap.vwap||0).toFixed(2),snap.close>snap.vwap?'bull':'bear'],
+    ['ATR',(snap.atr_14||0).toFixed(2),'neutral'],
+    ['SMA 20','₹'+(snap.sma_20||0).toFixed(2),snap.close>snap.sma_20?'bull':'bear'],
+    ['SMA 50','₹'+(snap.sma_50||0).toFixed(2),snap.close>snap.sma_50?'bull':'bear'],
+    ['SMA 200','₹'+(snap.sma_200||0).toFixed(2),snap.close>snap.sma_200?'bull':'bear'],
+    ['EMA 21','₹'+(snap.ema_21||0).toFixed(2),snap.close>snap.ema_21?'bull':'bear'],
+  ];
+
+  h+=`<div class="row g-2">`;
+  for(const [label,val,clr] of taItems){
+    h+=`<div class="col-6 col-md-3"><div class="card p-2 text-center"><div class="mini-label">${label}</div><div class="indicator-val ${clr}" style="font-size:1rem">${val}</div></div></div>`;
+  }
+  h+=`</div>`;
+
+  // Trend info
+  const trn=d.trend;
+  if(trn){
+    h+=`<div class="mt-3 p-3 rounded" style="background:rgba(255,255,255,.04)">`;
+    h+=`<div class="mini-label mb-1">TREND ANALYSIS</div>`;
+    h+=`<div><strong>Short-term:</strong> <span class="${trn.short_term==='BULLISH'?'bull':'bear'}">${trn.short_term||'N/A'}</span></div>`;
+    h+=`<div><strong>Medium-term:</strong> <span class="${trn.medium_term==='BULLISH'?'bull':'bear'}">${trn.medium_term||'N/A'}</span></div>`;
+    h+=`<div><strong>Long-term:</strong> <span class="${trn.long_term==='BULLISH'?'bull':'bear'}">${trn.long_term||'N/A'}</span></div>`;
+    h+=`</div>`;
+  }
+
+  h+=`</div>`;
+  document.getElementById('taSnapshotSection').innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER: RISK MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+function renderRisk(d){
+  const r=d.risk;
+  if(!r)return;
+
+  let h=`<div class="card p-4">`;
+  h+=`<div class="section-title bear mb-2"><i class="bi bi-shield-exclamation"></i> RISK MANAGEMENT</div>`;
+
+  h+=`<div class="edu-box">`;
+  h+=`<strong>🛡️ Risk Management — The Most Important Section</strong><br><br>`;
+  h+=`Professional traders say: "Take care of the losses and the profits will take care of themselves." This section tells you:<br>`;
+  h+=`<strong>Position Size:</strong> How many shares to buy based on the 2% rule (never risk more than 2% of capital on one trade). This is the #1 rule of professional trading.<br>`;
+  h+=`<strong>Stop Loss:</strong> The price at which you should EXIT to limit losses. ALWAYS set a stop loss BEFORE entering a trade. Common methods: ATR-based (1.5–2x ATR below entry), Support-level-based, or percentage-based (2-3%).<br>`;
+  h+=`<strong>Risk:Reward:</strong> The ratio of potential loss to potential gain. MINIMUM acceptable is 1:2 (risk ₹1 to make ₹2). Below 1:2 = the trade is not worth taking no matter how confident you are.<br>`;
+  h+=`<strong>Key insight:</strong> You can be wrong 50% of the time and STILL be profitable if your R:R is 1:2 or better. This is the mathematical edge that professionals rely on.`;
+  h+=`</div>`;
+
+  const pos=r.position_sizing||{};
+  const sl=r.stop_losses||{};
+
+  h+=`<div class="row g-3">`;
+  if(pos.recommended_qty){
+    h+=`<div class="col-md-4"><div class="card p-3 text-center"><div class="mini-label">POSITION SIZE</div><div class="indicator-val accent">${pos.recommended_qty} shares</div><div class="mini-label">₹${(pos.investment_amount||0).toLocaleString('en-IN')} investment</div></div></div>`;
+  }
+  if(sl.atr_stop){
+    h+=`<div class="col-md-4"><div class="card p-3 text-center"><div class="mini-label">ATR STOP LOSS</div><div class="indicator-val bear">₹${sl.atr_stop.toFixed(2)}</div><div class="mini-label">${sl.atr_stop_pct||'—'}% below</div></div></div>`;
+  }
+  if(sl.support_stop){
+    h+=`<div class="col-md-4"><div class="card p-3 text-center"><div class="mini-label">SUPPORT STOP LOSS</div><div class="indicator-val bear">₹${sl.support_stop.toFixed(2)}</div><div class="mini-label">Below nearest support</div></div></div>`;
+  }
+  h+=`</div>`;
+
+  h+=`</div>`;
+  document.getElementById('riskSection').innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER: HOW TO USE
+// ═══════════════════════════════════════════════════════════════
+function renderHowToUse(d){
+  const v=d.hybrid_verdict;
+  let h=`<div class="card p-4">`;
+  h+=`<div class="section-title mb-2"><i class="bi bi-journal-text"></i> HOW TO USE THIS ANALYSIS — COMPLETE GUIDE</div>`;
+
+  h+=`<div class="edu-box">`;
+  h+=`<strong>📖 Step-by-Step Trading Guide Using the Hybrid Engine</strong><br><br>`;
+
+  h+=`<strong>STEP 1: Check the Verdict & Alignment</strong><br>`;
+  h+=`Look at the top verdict. If it says "HOLD/WAIT" or alignment is "CONFLICTING", STOP HERE. Do not trade. Wait for clarity. The best trade is the one you don't take when signals are mixed.<br><br>`;
+
+  h+=`<strong>STEP 2: Read the Cross-Validation</strong><br>`;
+  h+=`This is the heart of the hybrid engine. Read each observation carefully. It explains WHY the systems agree or disagree and what it means for your trade. If the observations mention "CONFLICTING SIGNALS", the risk is elevated.<br><br>`;
+
+  h+=`<strong>STEP 3: Review BB Method Scores</strong><br>`;
+  h+=`Check which BB methods are contributing positively. Method I (Squeeze) is the most powerful — if a squeeze is resolving bullish with positive score, that's a major catalyst. Method II confirms the trend direction. Methods III and IV add supporting evidence.<br><br>`;
+
+  h+=`<strong>STEP 4: Review TA Category Scores</strong><br>`;
+  h+=`Look for which TA categories agree with BB. If BB says bullish AND TA Trend, Momentum, and Volume are all positive, that's a TEXTBOOK setup. If any TA category strongly disagrees (e.g., Risk score is very negative), pay attention — it's a warning.<br><br>`;
+
+  h+=`<strong>STEP 5: Set Your Targets & Stops</strong><br>`;
+  h+=`Use the Target Price section to identify entry, target, and stop-loss levels. ALWAYS set your stop-loss first. The position size calculator tells you how many shares to buy. Never exceed the recommended position size.<br><br>`;
+
+  h+=`<strong>STEP 6: The 3 Golden Rules</strong><br>`;
+  h+=`1. <strong>Rule of Alignment:</strong> Only trade when BB and TA agree (ALIGNED status)<br>`;
+  h+=`2. <strong>Rule of Risk:</strong> Never risk more than 2% of capital. If R:R is below 1:2, skip the trade<br>`;
+  h+=`3. <strong>Rule of Patience:</strong> If in doubt, stay out. There will always be another trade tomorrow<br><br>`;
+
+  h+=`<strong>WHEN TO BUY:</strong> Verdict is "BUY" or stronger + ALIGNED + BB Method I shows squeeze breakout + TA Trend & Momentum positive + Volume confirms + R:R ≥ 1:2<br>`;
+  h+=`<strong>WHEN TO SELL:</strong> Verdict is "SELL" or stronger + ALIGNED + BB shows exit signals + TA Momentum turning negative<br>`;
+  h+=`<strong>WHEN TO WAIT:</strong> Verdict is "HOLD" OR alignment is CONFLICTING OR R:R < 1:2 OR volume is low`;
+  h+=`</div>`;
+
+  h+=`</div>`;
+  document.getElementById('howToSection').innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════════════
+function fmtVol(v){if(!v)return'0';if(Math.abs(v)>=1e7)return(v/1e7).toFixed(1)+'Cr';if(Math.abs(v)>=1e5)return(v/1e5).toFixed(1)+'L';if(Math.abs(v)>=1e3)return(v/1e3).toFixed(1)+'K';return v.toString()}
+
+</script>
+</body>
+</html>

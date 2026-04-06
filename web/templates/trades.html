@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💰 Trade P&L & Tax Calculator — Indian Equity</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+    --bs-body-bg:#0d1117; --bs-body-color:#c9d1d9;
+    --card-bg:#161b22; --card-border:#30363d;
+    --g:#3fb950; --r:#f85149; --y:#d29922; --b:#58a6ff; --p:#bc8cff; --o:#f0883e; --c:#39d2c0;
+}
+body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
+.card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#0d1117,#161b22 50%,#1a1f2b);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#3fb950,#58a6ff,#bc8cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+/* Summary cards */
+.sum-card{border-radius:14px;padding:1.2rem;transition:transform .15s}
+.sum-card:hover{transform:translateY(-2px)}
+.sum-val{font-size:1.6rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sum-label{font-size:.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* Badges */
+.badge-zerodha{background:rgba(240,136,62,.15);color:#f0883e}
+.badge-dhan{background:rgba(88,166,255,.15);color:#58a6ff}
+.badge-delivery{background:rgba(63,185,80,.15);color:#3fb950}
+.badge-intraday{background:rgba(210,153,34,.15);color:#d29922}
+.badge-stcg{background:rgba(248,81,73,.15);color:#f85149}
+.badge-ltcg{background:rgba(63,185,80,.15);color:#3fb950}
+.badge-speculative{background:rgba(188,140,255,.15);color:#bc8cff}
+
+/* Table */
+.trade-tbl th{color:#8b949e;font-weight:500;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.trade-tbl td{vertical-align:middle;font-size:.88rem}
+.trade-tbl tbody tr{cursor:pointer;transition:background .15s}
+.trade-tbl tbody tr:hover{background:rgba(88,166,255,.06)}
+
+/* Form */
+.form-control,.form-select{background:#0d1117;border-color:var(--card-border);color:#c9d1d9}
+.form-control:focus,.form-select:focus{background:#0d1117;border-color:var(--b);color:#c9d1d9;box-shadow:0 0 0 .2rem rgba(88,166,255,.15)}
+
+/* Modal */
+.charge-row{display:flex;justify-content:space-between;padding:.45rem 0;border-bottom:1px solid rgba(48,54,61,.5)}
+.charge-row:last-child{border-bottom:none}
+.charge-label{color:#8b949e;font-size:.85rem}
+.charge-val{font-family:'JetBrains Mono',monospace;font-weight:600}
+
+/* FY table */
+.fy-tbl th{font-size:.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.04em}
+.fy-tbl td{font-family:'JetBrains Mono',monospace;font-size:.85rem}
+
+/* Nav */
+.top-nav{background:var(--card-bg);border-bottom:1px solid var(--card-border)}
+.top-nav .nav-link{color:#8b949e;font-weight:500;padding:.6rem 1rem}
+.top-nav .nav-link:hover{color:#c9d1d9}
+.top-nav .nav-link.active{color:var(--b)}
+
+/* Autocomplete */
+.ac-list{position:absolute;z-index:1050;background:#161b22;border:1px solid var(--card-border);border-radius:8px;max-height:200px;overflow-y:auto;width:100%;display:none}
+.ac-list .ac-item{padding:.4rem .8rem;cursor:pointer;font-size:.85rem}
+.ac-list .ac-item:hover,.ac-list .ac-item.active{background:rgba(88,166,255,.12);color:#fff}
+
+/* Responsive tweaks */
+@media(max-width:768px){.sum-val{font-size:1.2rem}.hero h1{font-size:1.6rem}}
+</style>
+</head>
+<body>
+
+<!-- ═══════ TOP NAV ═══════ -->
+<nav class="top-nav sticky-top">
+  <div class="container d-flex align-items-center py-2">
+    <a class="nav-link" href="/"><i class="bi bi-graph-up-arrow me-1"></i>Bollinger Dashboard</a>
+    <a class="nav-link active" href="/trades"><i class="bi bi-cash-stack me-1"></i>Trade P&L</a>
+    <a class="nav-link" href="/portfolio"><i class="bi bi-briefcase-fill me-1"></i>Portfolio Tracker</a>
+    <span class="ms-auto text-secondary small font-mono" id="clockSpan"></span>
+  </div>
+</nav>
+
+<!-- ═══════ HERO ═══════ -->
+<section class="hero text-center">
+  <div class="container">
+    <h1><i class="bi bi-calculator-fill"></i> Trade P&L &amp; Tax Calculator</h1>
+    <p class="text-secondary mb-0">All charges (STT, Brokerage, Exchange, SEBI, Stamp, GST, DP) + Capital Gains Tax for Zerodha &amp; Dhan</p>
+  </div>
+</section>
+
+<div class="container py-4">
+
+<!-- ═══════ SUMMARY CARDS ═══════ -->
+<div class="row g-3 mb-4" id="summaryRow">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+      <div class="sum-val text-blue" id="sTrades">0</div><div class="sum-label">Total Trades</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+      <div class="sum-val" id="sInvested">₹0</div><div class="sum-label">Total Invested</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+      <div class="sum-val" id="sGrossPnl">₹0</div><div class="sum-label">Gross P&L</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+      <div class="sum-val text-yellow" id="sCharges">₹0</div><div class="sum-label">Total Charges</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+      <div class="sum-val text-purple" id="sTax">₹0</div><div class="sum-label">Est. Tax</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+      <div class="sum-val" id="sNetPnl">₹0</div><div class="sum-label">Net Profit</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ ADD TRADE ═══════ -->
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#addTradeBody">
+    <i class="bi bi-plus-circle-fill text-green me-2"></i>Add New Trade
+    <i class="bi bi-chevron-down ms-auto"></i>
+  </div>
+  <div class="collapse show" id="addTradeBody">
+    <div class="card-body">
+      <form id="tradeForm">
+        <div class="row g-3">
+          <!-- Stock -->
+          <div class="col-md-3 position-relative">
+            <label class="form-label small text-secondary">Stock Symbol <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="fStock" placeholder="e.g. RELIANCE" required autocomplete="off">
+            <div class="ac-list" id="stockAcList"></div>
+          </div>
+          <!-- Platform -->
+          <div class="col-md-2">
+            <label class="form-label small text-secondary">Platform</label>
+            <select class="form-select" id="fPlatform">
+              <option value="zerodha" selected>Zerodha</option>
+              <option value="dhan">Dhan</option>
+            </select>
+          </div>
+          <!-- Trade Type -->
+          <div class="col-md-2">
+            <label class="form-label small text-secondary">Trade Type</label>
+            <select class="form-select" id="fTradeType">
+              <option value="delivery" selected>Delivery (CNC)</option>
+              <option value="intraday">Intraday (MIS)</option>
+            </select>
+          </div>
+          <!-- Exchange -->
+          <div class="col-md-2">
+            <label class="form-label small text-secondary">Exchange</label>
+            <select class="form-select" id="fExchange">
+              <option value="NSE" selected>NSE</option>
+              <option value="BSE">BSE</option>
+            </select>
+          </div>
+          <!-- Quantity -->
+          <div class="col-md-3">
+            <label class="form-label small text-secondary">Quantity <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="fQty" min="1" step="1" required>
+          </div>
+          <!-- Buy Price -->
+          <div class="col-md-2">
+            <label class="form-label small text-secondary">Buy Price (₹) <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="fBuy" min="0.01" step="0.01" required>
+          </div>
+          <!-- Sell Price -->
+          <div class="col-md-2">
+            <label class="form-label small text-secondary">Sell Price (₹) <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="fSell" min="0.01" step="0.01" required>
+          </div>
+          <!-- Buy Date -->
+          <div class="col-md-2">
+            <label class="form-label small text-secondary">Buy Date <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" id="fBuyDate" required>
+          </div>
+          <!-- Sell Date -->
+          <div class="col-md-2">
+            <label class="form-label small text-secondary">Sell Date <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" id="fSellDate" required>
+          </div>
+          <!-- Notes -->
+          <div class="col-md-2">
+            <label class="form-label small text-secondary">Notes</label>
+            <input type="text" class="form-control" id="fNotes" placeholder="optional">
+          </div>
+          <!-- Submit -->
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-success w-100" id="addBtn">
+              <i class="bi bi-plus-lg"></i> Add Trade
+            </button>
+          </div>
+        </div>
+        <!-- Live preview -->
+        <div class="mt-3 p-3 rounded d-none" id="livePreview" style="background:#0d1117;border:1px solid var(--card-border)">
+          <div class="row g-2 font-mono small">
+            <div class="col-auto">Buy Value: <strong id="pvBuy">-</strong></div>
+            <div class="col-auto">Sell Value: <strong id="pvSell">-</strong></div>
+            <div class="col-auto">Gross P&L: <strong id="pvGross">-</strong></div>
+            <div class="col-auto">Est. Charges: <strong class="text-yellow" id="pvCharges">-</strong></div>
+            <div class="col-auto">Net P&L: <strong id="pvNet">-</strong></div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ TRADE HISTORY ═══════ -->
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center">
+    <i class="bi bi-clock-history me-2"></i>Trade History
+    <span class="badge bg-secondary ms-2 font-mono" id="tradeCountBadge">0</span>
+    <button class="btn btn-outline-danger btn-sm ms-auto d-none" id="deleteAllBtn">
+      <i class="bi bi-trash3"></i> Delete All
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-dark table-hover trade-tbl mb-0">
+        <thead>
+          <tr>
+            <th>Stock</th><th>Platform</th><th>Type</th><th class="text-end">Qty</th>
+            <th class="text-end">Buy ₹</th><th class="text-end">Sell ₹</th>
+            <th class="text-end">Gross P&L</th><th class="text-end">Charges</th>
+            <th class="text-end">Net P&L</th><th>Tax</th><th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tradeBody">
+          <tr id="emptyRow"><td colspan="11" class="text-center text-secondary py-4">
+            <i class="bi bi-inbox" style="font-size:2rem"></i><br>No trades yet — add your first trade above
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ FY TAX SUMMARY ═══════ -->
+<div class="card mb-4">
+  <div class="card-header"><i class="bi bi-receipt-cutoff me-2"></i>Financial Year Tax Summary</div>
+  <div class="card-body p-0" id="fyBody">
+    <p class="text-center text-secondary py-4 mb-0" id="fyEmpty">Add trades to see your FY-wise tax summary</p>
+  </div>
+</div>
+
+<!-- ═══════ MONTHLY P&L CHART ═══════ -->
+<div class="card mb-4">
+  <div class="card-header"><i class="bi bi-bar-chart-line me-2"></i>Monthly P&L</div>
+  <div class="card-body" style="height:300px">
+    <canvas id="monthlyChart"></canvas>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- ═══════ DETAIL MODAL ═══════ -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+<div class="modal-dialog modal-lg modal-dialog-centered">
+<div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border)">
+  <div class="modal-header border-0">
+    <h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Trade Detail — <span id="mdStock"></span></h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+  </div>
+  <div class="modal-body" id="mdBody"></div>
+</div>
+</div>
+</div>
+
+<!-- ═══════ CONFIRM DELETE MODAL ═══════ -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+<div class="modal-dialog modal-sm modal-dialog-centered">
+<div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border)">
+  <div class="modal-body text-center py-4">
+    <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size:2.5rem"></i>
+    <p class="mt-3 mb-1">Delete this trade?</p>
+    <p class="text-secondary small">This action cannot be undone.</p>
+    <div class="d-flex gap-2 justify-content-center mt-3">
+      <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-danger" id="confirmDelBtn"><i class="bi bi-trash3"></i> Delete</button>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════════
+   GLOBALS
+   ═══════════════════════════════════════════════════════════════ */
+let TRADES = [];           // full trade list with pnl
+let TICKERS = [];          // for autocomplete
+let pendingDeleteId = null;
+
+const fmtR = (v) => {
+    if(v==null) return '—';
+    const a = Math.abs(v);
+    if(a>=1e7) return (v<0?'-':'')+'₹'+( a/1e7).toFixed(2)+' Cr';
+    if(a>=1e5) return (v<0?'-':'')+'₹'+(a/1e5).toFixed(2)+' L';
+    return '₹'+v.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+};
+const pnlCls = v => v>=0?'text-green':'text-red';
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', async()=>{
+    // clock
+    setInterval(()=>{
+        const d=new Date();
+        document.getElementById('clockSpan').textContent=d.toLocaleString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+' IST';
+    },1000);
+
+    // set default dates
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('fSellDate').value = today;
+    document.getElementById('fBuyDate').value = today;
+
+    // fetch tickers for autocomplete
+    try{ TICKERS = await(await fetch('/api/tickers')).json(); }catch(e){}
+
+    // load trades
+    await loadTrades();
+
+    // form submit
+    document.getElementById('tradeForm').addEventListener('submit', addTrade);
+
+    // live preview on input change
+    ['fQty','fBuy','fSell','fTradeType','fPlatform'].forEach(id=>{
+        document.getElementById(id).addEventListener('input', updatePreview);
+        document.getElementById(id).addEventListener('change', updatePreview);
+    });
+
+    // stock autocomplete
+    setupAutocomplete();
+
+    // trade type change → auto match dates for intraday
+    document.getElementById('fTradeType').addEventListener('change', ()=>{
+        if(document.getElementById('fTradeType').value==='intraday'){
+            document.getElementById('fSellDate').value = document.getElementById('fBuyDate').value;
+        }
+    });
+    document.getElementById('fBuyDate').addEventListener('change', ()=>{
+        if(document.getElementById('fTradeType').value==='intraday'){
+            document.getElementById('fSellDate').value = document.getElementById('fBuyDate').value;
+        }
+    });
+
+    // confirm delete handler
+    document.getElementById('confirmDelBtn').addEventListener('click', async()=>{
+        if(!pendingDeleteId) return;
+        await fetch('/api/trades/'+pendingDeleteId,{method:'DELETE'});
+        bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal')).hide();
+        pendingDeleteId = null;
+        await loadTrades();
+    });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTOCOMPLETE
+   ═══════════════════════════════════════════════════════════════ */
+function setupAutocomplete(){
+    const inp = document.getElementById('fStock');
+    const list = document.getElementById('stockAcList');
+    let selIdx = -1;
+
+    inp.addEventListener('input', ()=>{
+        const q = inp.value.trim().toUpperCase();
+        if(q.length < 1){list.style.display='none'; return;}
+        const matches = TICKERS.filter(t=>t.startsWith(q)).slice(0,15);
+        if(!matches.length){list.style.display='none'; return;}
+        list.innerHTML = matches.map((m,i)=>`<div class="ac-item" data-idx="${i}">${m}</div>`).join('');
+        list.style.display='block';
+        selIdx=-1;
+        list.querySelectorAll('.ac-item').forEach(el=>{
+            el.addEventListener('mousedown', e=>{
+                e.preventDefault();
+                inp.value = el.textContent;
+                list.style.display='none';
+            });
+        });
+    });
+    inp.addEventListener('keydown', e=>{
+        const items = list.querySelectorAll('.ac-item');
+        if(!items.length) return;
+        if(e.key==='ArrowDown'){e.preventDefault();selIdx=Math.min(selIdx+1,items.length-1);}
+        else if(e.key==='ArrowUp'){e.preventDefault();selIdx=Math.max(selIdx-1,0);}
+        else if(e.key==='Enter'&&selIdx>=0){e.preventDefault();inp.value=items[selIdx].textContent;list.style.display='none';return;}
+        else return;
+        items.forEach((el,i)=>el.classList.toggle('active',i===selIdx));
+    });
+    inp.addEventListener('blur', ()=>setTimeout(()=>list.style.display='none',150));
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LIVE PREVIEW
+   ═══════════════════════════════════════════════════════════════ */
+function updatePreview(){
+    const qty = parseFloat(document.getElementById('fQty').value)||0;
+    const bp  = parseFloat(document.getElementById('fBuy').value)||0;
+    const sp  = parseFloat(document.getElementById('fSell').value)||0;
+    const pv  = document.getElementById('livePreview');
+    if(!qty||!bp||!sp){pv.classList.add('d-none');return;}
+    pv.classList.remove('d-none');
+
+    const bv = qty*bp, sv = qty*sp, gp = sv-bv;
+    // estimate charges quick inline (simplified for preview)
+    const tt = document.getElementById('fTradeType').value;
+    const sttR = tt==='delivery'? 0.001 : 0.00025;
+    const sttBuy = tt==='delivery'? bv*0.001 : 0;
+    const sttSell = sv*sttR;
+    const stamp = bv*(tt==='delivery'?0.00015:0.00003);
+    const exchR = 0.0000307, sebi = (bv+sv)*10/1e7;
+    const exch = (bv+sv)*exchR;
+    const gst = (exch+sebi)*0.18;
+    const dp = tt==='delivery'? 15.34 : 0;
+    const totalCh = sttBuy+sttSell+stamp+exch+sebi+gst+dp;
+    const net = gp - totalCh;
+
+    document.getElementById('pvBuy').textContent = fmtR(bv);
+    document.getElementById('pvSell').textContent = fmtR(sv);
+    document.getElementById('pvGross').innerHTML = `<span class="${pnlCls(gp)}">${fmtR(gp)}</span>`;
+    document.getElementById('pvCharges').textContent = '~'+fmtR(totalCh);
+    document.getElementById('pvNet').innerHTML = `<span class="${pnlCls(net)}">${fmtR(net)}</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOAD TRADES
+   ═══════════════════════════════════════════════════════════════ */
+async function loadTrades(){
+    try{
+        TRADES = await(await fetch('/api/trades')).json();
+    }catch(e){TRADES=[];}
+    renderTable();
+    renderSummary();
+    await renderFYSummary();
+    renderMonthlyChart();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ADD TRADE
+   ═══════════════════════════════════════════════════════════════ */
+async function addTrade(e){
+    e.preventDefault();
+    const btn = document.getElementById('addBtn');
+    btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> Adding...';
+    const payload = {
+        stock:      document.getElementById('fStock').value.trim().toUpperCase(),
+        platform:   document.getElementById('fPlatform').value,
+        trade_type: document.getElementById('fTradeType').value,
+        exchange:   document.getElementById('fExchange').value,
+        quantity:   parseInt(document.getElementById('fQty').value),
+        buy_price:  parseFloat(document.getElementById('fBuy').value),
+        sell_price: parseFloat(document.getElementById('fSell').value),
+        buy_date:   document.getElementById('fBuyDate').value,
+        sell_date:  document.getElementById('fSellDate').value,
+        notes:      document.getElementById('fNotes').value,
+    };
+    try{
+        const r = await fetch('/api/trades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const j = await r.json();
+        if(j.error){alert(j.error);return;}
+        // reset form partially
+        ['fStock','fQty','fBuy','fSell','fNotes'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('livePreview').classList.add('d-none');
+        await loadTrades();
+    }catch(ex){alert('Error adding trade');}
+    finally{btn.disabled=false; btn.innerHTML='<i class="bi bi-plus-lg"></i> Add Trade';}
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER TABLE
+   ═══════════════════════════════════════════════════════════════ */
+function renderTable(){
+    const tb = document.getElementById('tradeBody');
+    const badge = document.getElementById('tradeCountBadge');
+    const delAll = document.getElementById('deleteAllBtn');
+    badge.textContent = TRADES.length;
+
+    if(!TRADES.length){
+        tb.innerHTML = `<tr id="emptyRow"><td colspan="11" class="text-center text-secondary py-4">
+            <i class="bi bi-inbox" style="font-size:2rem"></i><br>No trades yet — add your first trade above</td></tr>`;
+        delAll.classList.add('d-none');
+        return;
+    }
+    delAll.classList.remove('d-none');
+
+    tb.innerHTML = TRADES.map(t=>{
+        const p = t.pnl;
+        const platformBadge = `<span class="badge badge-${t.platform}">${t.platform==='zerodha'?'Zerodha':'Dhan'}</span>`;
+        const typeBadge = `<span class="badge badge-${t.trade_type}">${t.trade_type==='delivery'?'Delivery':'Intraday'}</span>`;
+        const taxBadge = `<span class="badge badge-${p.tax_category.toLowerCase()}">${p.tax_category}</span>`;
+
+        return `<tr onclick="showDetail(${t.id})">
+            <td><strong>${t.stock}</strong><br><small class="text-secondary">${t.buy_date} → ${t.sell_date}</small></td>
+            <td>${platformBadge}</td>
+            <td>${typeBadge}</td>
+            <td class="text-end font-mono">${t.quantity}</td>
+            <td class="text-end font-mono">${fmtR(t.buy_price)}</td>
+            <td class="text-end font-mono">${fmtR(t.sell_price)}</td>
+            <td class="text-end font-mono ${pnlCls(p.gross_pnl)}">${fmtR(p.gross_pnl)}</td>
+            <td class="text-end font-mono text-yellow">${fmtR(p.charges.total)}</td>
+            <td class="text-end font-mono ${pnlCls(p.net_pnl)}"><strong>${fmtR(p.net_pnl)}</strong></td>
+            <td>${taxBadge}</td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();confirmDelete(${t.id})" title="Delete">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUMMARY CARDS
+   ═══════════════════════════════════════════════════════════════ */
+function renderSummary(){
+    if(!TRADES.length){
+        ['sTrades','sInvested','sGrossPnl','sCharges','sTax','sNetPnl'].forEach(id=>
+            document.getElementById(id).textContent = id==='sTrades'?'0':'₹0');
+        return;
+    }
+    let invested=0, gross=0, charges=0, tax=0, net=0;
+    TRADES.forEach(t=>{
+        const p=t.pnl;
+        invested += p.buy_value;
+        gross    += p.gross_pnl;
+        charges  += p.charges.total;
+        tax      += p.total_tax;
+        net      += p.post_tax_pnl;
+    });
+    document.getElementById('sTrades').textContent = TRADES.length;
+    document.getElementById('sInvested').textContent = fmtR(invested);
+    const gpEl = document.getElementById('sGrossPnl');
+    gpEl.textContent = fmtR(gross); gpEl.className = 'sum-val '+pnlCls(gross);
+    document.getElementById('sCharges').textContent = fmtR(charges);
+    document.getElementById('sTax').textContent = fmtR(tax);
+    const npEl = document.getElementById('sNetPnl');
+    npEl.textContent = fmtR(net); npEl.className = 'sum-val '+pnlCls(net);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DETAIL MODAL
+   ═══════════════════════════════════════════════════════════════ */
+function showDetail(id){
+    const t = TRADES.find(x=>x.id===id);
+    if(!t) return;
+    const p = t.pnl, c = p.charges;
+    document.getElementById('mdStock').textContent = t.stock;
+
+    const row = (label,val,cls='') => `<div class="charge-row"><span class="charge-label">${label}</span><span class="charge-val ${cls}">${val}</span></div>`;
+
+    document.getElementById('mdBody').innerHTML = `
+    <!-- Trade Info -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            ${row('Platform', t.platform==='zerodha'?'Zerodha':'Dhan')}
+            ${row('Trade Type', t.trade_type==='delivery'?'Delivery (CNC)':'Intraday (MIS)')}
+            ${row('Exchange', t.exchange)}
+            ${row('Quantity', t.quantity)}
+            ${row('Buy Date', t.buy_date)}
+            ${row('Sell Date', t.sell_date)}
+            ${row('Holding Period', p.holding_days+' days')}
+            ${t.notes? row('Notes', t.notes):''}
+        </div>
+        <div class="col-md-6">
+            ${row('Buy Price', '₹'+t.buy_price.toFixed(2))}
+            ${row('Sell Price', '₹'+t.sell_price.toFixed(2))}
+            ${row('Buy Value', fmtR(p.buy_value))}
+            ${row('Sell Value', fmtR(p.sell_value))}
+            ${row('Turnover', fmtR(p.turnover))}
+            ${row('Gross P&L', fmtR(p.gross_pnl), pnlCls(p.gross_pnl))}
+        </div>
+    </div>
+
+    <!-- Charges Breakdown -->
+    <h6 class="text-secondary mt-3 mb-2"><i class="bi bi-receipt me-1"></i>Charges Breakdown</h6>
+    <div class="p-3 rounded" style="background:#0d1117;border:1px solid var(--card-border)">
+        ${row('Brokerage (Buy)', '₹'+c.brokerage_buy.toFixed(2))}
+        ${row('Brokerage (Sell)', '₹'+c.brokerage_sell.toFixed(2))}
+        ${row('<strong>Total Brokerage</strong>', '<strong>₹'+c.total_brokerage.toFixed(2)+'</strong>')}
+        <hr class="my-1" style="border-color:var(--card-border)">
+        ${row('STT (Buy)', '₹'+c.stt_buy.toFixed(2))}
+        ${row('STT (Sell)', '₹'+c.stt_sell.toFixed(2))}
+        ${row('<strong>Total STT</strong>', '<strong>₹'+c.total_stt.toFixed(2)+'</strong>')}
+        <hr class="my-1" style="border-color:var(--card-border)">
+        ${row('Exchange Txn (Buy)', '₹'+c.exchange_buy.toFixed(2))}
+        ${row('Exchange Txn (Sell)', '₹'+c.exchange_sell.toFixed(2))}
+        ${row('<strong>Total Exchange</strong>', '<strong>₹'+c.total_exchange.toFixed(2)+'</strong>')}
+        <hr class="my-1" style="border-color:var(--card-border)">
+        ${row('SEBI Charges', '₹'+c.sebi.toFixed(2))}
+        ${row('Stamp Duty (Buy side)', '₹'+c.stamp_duty.toFixed(2))}
+        ${row('DP Charges', '₹'+c.dp_charges.toFixed(2))}
+        ${row('GST (18%)', '₹'+c.gst.toFixed(2))}
+        <hr class="my-2" style="border-color:var(--card-border)">
+        ${row('<strong class="text-yellow">TOTAL CHARGES</strong>', '<strong class="text-yellow">'+fmtR(c.total)+'</strong>')}
+    </div>
+
+    <!-- P&L & Tax -->
+    <h6 class="text-secondary mt-3 mb-2"><i class="bi bi-calculator me-1"></i>P&L & Tax</h6>
+    <div class="p-3 rounded" style="background:#0d1117;border:1px solid var(--card-border)">
+        ${row('Gross P&L', fmtR(p.gross_pnl), pnlCls(p.gross_pnl))}
+        ${row('Total Charges', '- '+fmtR(c.total), 'text-yellow')}
+        ${row('<strong>Net P&L</strong>', '<strong class="'+pnlCls(p.net_pnl)+'">'+fmtR(p.net_pnl)+'</strong>')}
+        <hr class="my-1" style="border-color:var(--card-border)">
+        ${row('Tax Category', '<span class="badge badge-'+p.tax_category.toLowerCase()+'">'+p.tax_category+'</span>')}
+        ${row('Tax Rate', (p.tax_rate*100).toFixed(1)+'%'+(p.tax_category==='Speculative'?' (indicative slab)':''))}
+        ${row('Taxable Gain', fmtR(p.taxable_gain))}
+        ${row('Tax Amount', fmtR(p.tax_amount))}
+        ${row('Health & Edu Cess (4%)', fmtR(p.cess))}
+        ${row('<strong class="text-purple">Total Tax</strong>', '<strong class="text-purple">'+fmtR(p.total_tax)+'</strong>')}
+        <hr class="my-2" style="border-color:var(--card-border)">
+        ${row('<strong>Post-Tax P&L</strong>', '<strong class="'+pnlCls(p.post_tax_pnl)+'" style="font-size:1.1rem">'+fmtR(p.post_tax_pnl)+'</strong>')}
+        ${row('Return %', '<strong class="'+pnlCls(p.return_pct)+'">'+p.return_pct.toFixed(2)+'%</strong>')}
+    </div>
+
+    ${p.tax_category==='LTCG'?'<div class="alert alert-info mt-3 small mb-0"><i class="bi bi-info-circle me-1"></i>LTCG exemption of ₹1.25 lakh per FY is applied at the FY summary level, not per trade.</div>':''}
+    ${p.tax_category==='Speculative'?'<div class="alert alert-warning mt-3 small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Intraday profits are treated as Speculative Business Income and taxed at your income tax slab rate. The 30% rate shown is indicative (highest slab).</div>':''}
+    `;
+
+    new bootstrap.Modal(document.getElementById('detailModal')).show();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DELETE
+   ═══════════════════════════════════════════════════════════════ */
+function confirmDelete(id){
+    pendingDeleteId = id;
+    new bootstrap.Modal(document.getElementById('confirmDeleteModal')).show();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FY TAX SUMMARY
+   ═══════════════════════════════════════════════════════════════ */
+async function renderFYSummary(){
+    const body = document.getElementById('fyBody');
+    const empty = document.getElementById('fyEmpty');
+    if(!TRADES.length){body.innerHTML='<p class="text-center text-secondary py-4 mb-0">Add trades to see your FY-wise tax summary</p>';return;}
+
+    try{
+        const data = await(await fetch('/api/trades/summary')).json();
+        if(!data.length){body.innerHTML='<p class="text-center text-secondary py-4 mb-0">No FY data</p>';return;}
+
+        let html = `<div class="table-responsive"><table class="table table-dark fy-tbl mb-0">
+        <thead><tr>
+            <th>FY</th><th class="text-end">Trades</th>
+            <th class="text-end">STCG Profit</th><th class="text-end">STCG Loss</th><th class="text-end">STCG Tax</th>
+            <th class="text-end">LTCG Profit</th><th class="text-end">LTCG Loss</th><th class="text-end">LTCG Exemption</th><th class="text-end">LTCG Tax</th>
+            <th class="text-end">Speculative</th>
+            <th class="text-end">Cess</th><th class="text-end">Total Charges</th>
+            <th class="text-end"><strong>Total Tax</strong></th>
+        </tr></thead><tbody>`;
+
+        data.forEach(f=>{
+            html += `<tr>
+                <td><strong>${f.fy}</strong></td>
+                <td class="text-end">${f.trade_count}</td>
+                <td class="text-end text-green">${fmtR(f.stcg_profit)}</td>
+                <td class="text-end text-red">${fmtR(f.stcg_loss)}</td>
+                <td class="text-end">${fmtR(f.stcg_tax)}</td>
+                <td class="text-end text-green">${fmtR(f.ltcg_profit)}</td>
+                <td class="text-end text-red">${fmtR(f.ltcg_loss)}</td>
+                <td class="text-end text-cyan" style="color:var(--c)">${fmtR(f.ltcg_exemption)}</td>
+                <td class="text-end">${fmtR(f.ltcg_tax)}</td>
+                <td class="text-end">${fmtR(f.speculative_tax)}</td>
+                <td class="text-end">${fmtR(f.cess)}</td>
+                <td class="text-end text-yellow">${fmtR(f.total_charges)}</td>
+                <td class="text-end"><strong class="text-purple">${fmtR(f.total_tax)}</strong></td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+        body.innerHTML = html;
+    }catch(e){body.innerHTML='<p class="text-center text-danger py-4 mb-0">Error loading summary</p>';}
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MONTHLY CHART
+   ═══════════════════════════════════════════════════════════════ */
+let monthlyChartInstance = null;
+function renderMonthlyChart(){
+    const ctx = document.getElementById('monthlyChart');
+    if(monthlyChartInstance) monthlyChartInstance.destroy();
+
+    if(!TRADES.length){
+        monthlyChartInstance = new Chart(ctx,{type:'bar',data:{labels:[],datasets:[]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+        return;
+    }
+
+    // bucket by month
+    const buckets = {};
+    TRADES.forEach(t=>{
+        const m = t.sell_date.substring(0,7); // YYYY-MM
+        if(!buckets[m]) buckets[m]={profit:0,loss:0};
+        const net = t.pnl.net_pnl;
+        if(net>=0) buckets[m].profit += net;
+        else buckets[m].loss += net;
+    });
+    const months = Object.keys(buckets).sort();
+    const profits = months.map(m=>Math.round(buckets[m].profit));
+    const losses  = months.map(m=>Math.round(buckets[m].loss));
+
+    monthlyChartInstance = new Chart(ctx, {
+        type:'bar',
+        data:{
+            labels: months.map(m=>{const[y,mo]=m.split('-');return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1]+" '"+y.slice(2);}),
+            datasets:[
+                {label:'Profit',data:profits,backgroundColor:'rgba(63,185,80,0.7)',borderRadius:4},
+                {label:'Loss',data:losses,backgroundColor:'rgba(248,81,73,0.7)',borderRadius:4},
+            ]
+        },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{labels:{color:'#8b949e'}}},
+            scales:{
+                x:{ticks:{color:'#8b949e'},grid:{color:'rgba(48,54,61,0.4)'}},
+                y:{ticks:{color:'#8b949e',callback:v=>v>=1e5?'₹'+(v/1e5).toFixed(1)+'L':v>=1e3?'₹'+(v/1e3).toFixed(0)+'K':'₹'+v},grid:{color:'rgba(48,54,61,0.4)'}},
+            }
+        }
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Technical Analysis — Murphy's Complete System</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bull:#00c853;--bear:#ff1744;--neutral:#ffc107;--card-bg:#1e1e2f;--bg:#0f0f1a}
+body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif}
+.card{background:var(--card-bg);border:1px solid rgba(255,255,255,.08);border-radius:12px}
+.card-header{background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)}
+.bull{color:var(--bull)}.bear{color:var(--bear)}.neutral{color:var(--neutral)}
+.bg-bull{background:rgba(0,200,83,.15)!important}.bg-bear{background:rgba(255,23,68,.15)!important}
+.bg-neutral{background:rgba(255,193,7,.15)!important}
+.score-bar{height:8px;border-radius:4px;background:#222;overflow:hidden;position:relative}
+.score-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.verdict-badge{font-size:1.5rem;padding:8px 24px;border-radius:8px;font-weight:700;letter-spacing:1px}
+.indicator-val{font-size:1.35rem;font-weight:600}
+.help-icon{cursor:pointer;opacity:.5;font-size:.85rem;margin-left:4px}
+.help-icon:hover{opacity:1}
+.tooltip-inner{max-width:400px;text-align:left;white-space:pre-line;font-size:.82rem;line-height:1.5}
+.section-title{font-size:1.1rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:0}
+.mini-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.45)}
+.chart-container{position:relative;height:350px}
+.ticker-search{max-width:420px}
+.ticker-search input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:10px 16px;font-size:1.05rem}
+.ticker-search input:focus{border-color:#5c6bc0;box-shadow:0 0 0 3px rgba(92,107,192,.25)}
+.autocomplete-list{position:absolute;z-index:999;width:100%;max-height:240px;overflow-y:auto;background:#1e1e2f;border:1px solid rgba(255,255,255,.1);border-radius:0 0 8px 8px;display:none}
+.autocomplete-list .item{padding:8px 16px;cursor:pointer;font-size:.95rem}
+.autocomplete-list .item:hover,.autocomplete-list .item.active{background:rgba(92,107,192,.25)}
+.action-item{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.fib-level{padding:4px 8px;border-radius:4px;font-size:.85rem;margin:2px 0;display:flex;justify-content:space-between}
+.sr-level{padding:6px 10px;border-radius:6px;margin:3px 0;display:flex;justify-content:space-between;align-items:center}
+.pattern-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:.8rem;font-weight:600;margin:2px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn .4s ease}
+#loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center}
+#loading.active{display:flex}
+nav a.active{color:var(--bull)!important;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- ══ LOADING OVERLAY ══ -->
+<div id="loading"><div class="spinner-border text-primary" style="width:3rem;height:3rem"></div></div>
+
+<!-- ══ NAV ══ -->
+<nav class="navbar navbar-expand-lg navbar-dark" style="background:#12121f">
+ <div class="container-fluid px-4">
+  <a class="navbar-brand fw-bold" href="/">📈 StockCode</a>
+  <div class="d-flex gap-3">
+   <a href="/" class="nav-link text-light">BB Squeeze</a>
+   <a href="/trades" class="nav-link text-light">Trades</a>
+   <a href="/portfolio" class="nav-link text-light">Portfolio</a>
+   <a href="/ta" class="nav-link active text-light">Technical Analysis</a>
+   <a href="/hybrid" class="nav-link text-light" style="color:#7c4dff!important">⚡ Hybrid BB+TA</a>
+  </div>
+ </div>
+</nav>
+
+<!-- ══ HERO / SEARCH ══ -->
+<div class="container-fluid px-4 mt-4">
+ <div class="row align-items-center mb-4">
+  <div class="col-md-6">
+   <h3 class="fw-bold mb-1">📊 Technical Analysis</h3>
+   <p class="text-muted mb-0" style="font-size:.9rem">Based on John J. Murphy — "Technical Analysis of the Financial Markets"</p>
+  </div>
+  <div class="col-md-6">
+   <div class="ticker-search position-relative ms-auto">
+    <input type="text" id="tickerInput" class="form-control" placeholder="Search ticker e.g. RELIANCE, TCS, INFY..." autocomplete="off">
+    <div class="autocomplete-list" id="acList"></div>
+   </div>
+  </div>
+ </div>
+
+ <!-- ══ PRE-ANALYSIS PLACEHOLDER ══ -->
+ <div id="placeholder" class="text-center py-5">
+  <i class="bi bi-graph-up" style="font-size:4rem;opacity:.2"></i>
+  <p class="text-muted mt-3">Enter a stock ticker above to run Technical Analysis</p>
+ </div>
+
+ <!-- ══ MAIN CONTENT (hidden until analysis loaded) ══ -->
+ <div id="mainContent" style="display:none">
+
+  <!-- ── VERDICT + META ROW ── -->
+  <div class="row g-3 mb-4 fade-in">
+   <div class="col-lg-4">
+    <div class="card h-100 text-center p-4">
+     <div class="mini-label mb-1">FINAL VERDICT</div>
+     <div id="verdictBadge" class="verdict-badge mb-2">—</div>
+     <div id="verdictScore" class="text-muted" style="font-size:.95rem">Score: —</div>
+     <div id="verdictConfidence" class="text-muted" style="font-size:.85rem">Confidence: —</div>
+     <div class="mt-3 p-2 rounded" style="background:rgba(255,255,255,.03);font-size:.8rem;text-align:left">
+      <strong>How to read this:</strong> The verdict combines 6 categories — Trend, Momentum, Volume, Patterns, Support/Resistance, and Risk — each weighted differently. A score above +20 means BUY conditions dominate; below -20 means SELL conditions dominate. Confidence shows how strongly the indicators agree with each other. Higher confidence = more reliable signal.
+     </div>
+    </div>
+   </div>
+   <div class="col-lg-4">
+    <div class="card h-100 p-4">
+     <div class="mini-label mb-2">STOCK INFO</div>
+     <h4 id="stockName" class="fw-bold mb-1">—</h4>
+     <div class="d-flex flex-wrap gap-3">
+      <div><span class="mini-label">Price</span><div id="stockPrice" class="indicator-val">—</div></div>
+      <div><span class="mini-label">52W High</span><div id="stock52H" class="indicator-val" style="font-size:1rem">—</div></div>
+      <div><span class="mini-label">52W Low</span><div id="stock52L" class="indicator-val" style="font-size:1rem">—</div></div>
+      <div><span class="mini-label">Volume</span><div id="stockVol" class="indicator-val" style="font-size:1rem">—</div></div>
+     </div>
+     <div id="stockMeta" class="text-muted mt-2" style="font-size:.8rem"></div>
+    </div>
+   </div>
+   <div class="col-lg-4">
+    <div class="card h-100 p-4">
+     <div class="mini-label mb-2">TREND STATUS</div>
+     <div id="trendPrimary" class="indicator-val mb-1">—</div>
+     <div id="trendStrength" class="text-muted" style="font-size:.9rem">—</div>
+     <div id="trendPhase" class="text-muted mt-1" style="font-size:.82rem">—</div>
+     <div id="trendEMA" class="mt-1" style="font-size:.82rem">—</div>
+    </div>
+   </div>
+  </div>
+
+  <!-- ── SCORING BREAKDOWN ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header d-flex align-items-center">
+    <span class="section-title">📊 Signal Scoring Breakdown</span>
+    <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Murphy Ch 19: Multiple indicators are combined into a weighted score. Each category contributes to the final BUY/SELL/HOLD verdict."></i>
+   </div>
+   <div class="card-body">
+    <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 What is this?</strong> Technical analysis uses dozens of indicators, but no single indicator is perfect. John Murphy (Ch 19) recommends combining multiple tools for CONFIRMATION — like a doctor getting multiple test results before a diagnosis. Here, we combine 6 categories with different weights: <strong>Trend (25%)</strong> tells you the direction, <strong>Momentum (20%)</strong> tells you the speed, <strong>Volume (15%)</strong> confirms if real money is behind the move, <strong>Patterns (15%)</strong> shows chart formations, <strong>Support/Resistance (10%)</strong> shows price floors/ceilings, and <strong>Risk (15%)</strong> assesses danger levels. A positive score in a category means bullish evidence; negative means bearish.
+    </div>
+    <div id="scoringBreakdown"></div>
+   </div>
+  </div>
+
+  <!-- ── TARGET PRICES ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header d-flex align-items-center">
+    <span class="section-title">🎯 Target Prices & Price Projections</span>
+    <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Multiple methods are used to project where the stock price may go: Fibonacci, S/R levels, ATR volatility, Moving Averages, Bollinger Bands, Chart Patterns, and Pivot Points."></i>
+   </div>
+   <div class="card-body" id="targetSection">
+    <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 What are Target Prices?</strong> A target price is an estimated future price where a stock may move based on technical analysis. Unlike fundamental analysis (which values a company based on earnings), technical targets are based on <em>chart mathematics</em> — past price swings, support/resistance zones, and statistical volatility. We use 7 independent methods and combine them into a confidence-weighted consensus. <strong>Important:</strong> Target prices are projections, not guarantees. They help you set realistic profit expectations and plan your exit strategy.
+    </div>
+   </div>
+  </div>
+
+  <!-- ── ACTION ITEMS ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header"><span class="section-title">🎯 Action Items & Recommendations</span></div>
+   <div class="card-body">
+    <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 How to use these recommendations:</strong> These action items synthesize all the technical analysis into concrete steps. Always remember the 3 golden rules: (1) Never act on a single signal — wait for confirmation from multiple indicators. (2) Always set a stop loss BEFORE entering a trade. (3) Only risk 1-2% of your total capital on any single trade. The market rewards patience and discipline, not urgency.
+    </div>
+    <div id="actionItems"></div>
+   </div>
+  </div>
+
+  <!-- ── CHARTS ROW ── -->
+  <div class="row g-3 mb-4 fade-in">
+   <div class="col-lg-8">
+    <div class="card p-3">
+     <div class="mini-label mb-2">PRICE CHART (with Moving Averages & Bollinger Bands)</div>
+     <div class="chart-container"><canvas id="priceChart"></canvas></div>
+    </div>
+   </div>
+   <div class="col-lg-4">
+    <div class="card p-3 mb-3">
+     <div class="mini-label mb-2">RSI (14)</div>
+     <div class="chart-container" style="height:150px"><canvas id="rsiChart"></canvas></div>
+    </div>
+    <div class="card p-3">
+     <div class="mini-label mb-2">MACD</div>
+     <div class="chart-container" style="height:150px"><canvas id="macdChart"></canvas></div>
+    </div>
+   </div>
+  </div>
+
+  <!-- ── MOVING AVERAGES ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header d-flex">
+    <span class="section-title">📈 Moving Averages</span>
+    <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Murphy Ch 9: Moving averages smooth price data to show trend direction. Price above MA = bullish, below = bearish. Golden Cross (50>200) = strong buy."></i>
+   </div>
+   <div class="card-body">
+    <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 What are Moving Averages?</strong> A Moving Average (MA) smooths out price data by calculating the average price over a specific period. Think of it like this: if a stock's price jumps around daily between ₹95-₹105, the 20-day average might be ₹100 — showing the TRUE direction ignoring daily noise.<br><br>
+     <strong>Key MAs to know:</strong><br>
+     • <strong>SMA 20</strong> — Short-term trend (used by swing traders). Acts as immediate support/resistance.<br>
+     • <strong>SMA 50</strong> — Medium-term trend. When price is above this, the medium-term outlook is positive.<br>
+     • <strong>SMA 200</strong> — Long-term trend. This is THE most important moving average. Institutional investors use it to decide major allocation. Below 200-SMA = bear market territory.<br>
+     • <strong>Golden Cross</strong> — When 50-SMA crosses ABOVE 200-SMA → Strong Buy signal. <strong>Death Cross</strong> — opposite → Strong Sell.<br>
+     • <strong>EMA</strong> (Exponential) reacts faster than SMA because it gives more weight to recent prices. Traders use EMA 9/21 for quick signals.
+    </div>
+    <div id="maSection"></div>
+   </div>
+  </div>
+
+  <!-- ── OSCILLATORS ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header d-flex">
+    <span class="section-title">🔄 Oscillators & Momentum</span>
+    <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Murphy Ch 10: Oscillators measure overbought/oversold conditions and momentum. Best used in conjunction with trend indicators."></i>
+   </div>
+   <div class="card-body">
+    <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 What are Oscillators?</strong> Oscillators measure the SPEED and STRENGTH of price movements. They swing between fixed boundaries (like 0-100) and help answer: "Has the stock moved too far too fast?"<br><br>
+     <strong>Key Oscillators explained:</strong><br>
+     • <strong>RSI (Relative Strength Index, 0-100)</strong> — Measures buying vs selling pressure. Above 70 = OVERBOUGHT (price rose too fast, pullback likely). Below 30 = OVERSOLD (price fell too much, bounce likely). Think of it as a "tiredness meter" for the stock.<br>
+     • <strong>MACD</strong> — Shows if short-term momentum is speeding up or slowing down. When MACD line crosses above signal line = Buy. Histogram bars growing = momentum increasing.<br>
+     • <strong>Stochastic %K/%D (0-100)</strong> — Compares closing price to its price range. Above 80 = overbought, below 20 = oversold. %K crossing above %D = Buy signal.<br>
+     • <strong>Williams %R (-100 to 0)</strong> — Similar to Stochastic but inverted. Above -20 = overbought, below -80 = oversold.<br>
+     • <strong>CCI (Commodity Channel Index)</strong> — Measures how far price has deviated from its average. Above +100 = extended bullish, below -100 = extended bearish.<br>
+     • <strong>ADX (Average Directional Index, 0-100)</strong> — Does NOT tell direction, only STRENGTH. Above 25 = strong trend, below 20 = weak/no trend. Use +DI/-DI for direction.
+    </div>
+    <div id="oscSection"></div>
+   </div>
+  </div>
+
+  <!-- ── VOLUME ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header d-flex">
+    <span class="section-title">📊 Volume Analysis</span>
+    <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Murphy Ch 7: Volume leads price. Rising volume with rising price confirms uptrend. Volume confirms — it never lies."></i>
+   </div>
+   <div class="card-body">
+    <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 Why Volume Matters:</strong> Volume is the number of shares traded — it reveals the CONVICTION behind a price move. A stock rising on high volume = genuine buying (big players are committing money). A stock rising on low volume = suspicious (nobody cares, likely to reverse).<br><br>
+     • <strong>Volume Ratio</strong> — Current volume ÷ 20-day average. Above 1.5x = high participation. Below 0.5x = very low interest.<br>
+     • <strong>OBV (On-Balance Volume)</strong> — Running total of volume: adds on up-days, subtracts on down-days. If OBV is rising while price is flat → smart money is quietly accumulating (bullish!). If OBV is falling while price is rising → distribution happening (bearish warning!).<br>
+     • <strong>VWAP (Volume Weighted Average Price)</strong> — The average price weighted by volume. Institutional traders use VWAP as a benchmark. Price above VWAP = institutions are buying; below = they're selling.
+    </div>
+    <div id="volSection"></div>
+   </div>
+  </div>
+
+  <!-- ── CANDLESTICK PATTERNS ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header d-flex">
+    <span class="section-title">🕯️ Candlestick Patterns</span>
+    <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Murphy Ch 12: Japanese candlestick patterns reveal market psychology. Reversal patterns at key levels are most significant."></i>
+   </div>
+   <div class="card-body">
+    <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 What are Candlestick Patterns?</strong> Each "candle" on a chart shows 4 prices: Open, High, Low, Close. The body shape and shadow/wick lengths reveal the battle between buyers and sellers WITHIN that day.<br><br>
+     <strong>Key patterns to know:</strong><br>
+     • <strong>Hammer/Inverted Hammer</strong> — Found at bottoms. Long lower wick shows sellers tried to push price down but buyers fought back hard. Bullish reversal signal.<br>
+     • <strong>Engulfing</strong> — Today's candle completely "swallows" yesterday's. Bullish engulfing at a bottom = strong reversal. Bearish engulfing at a top = warning.<br>
+     • <strong>Doji</strong> — Open ≈ Close (tiny body). Shows indecision — neither buyers nor sellers won. After a strong trend, a doji warns of potential reversal.<br>
+     • <strong>Morning Star</strong> — 3-candle pattern: big red candle → small candle (indecision) → big green candle. Strong bullish reversal at bottoms.<br>
+     • <strong>Shooting Star</strong> — Small body at bottom, long upper wick. Sellers rejected higher prices. Bearish at tops.<br>
+     <strong>⚠️ Important:</strong> Candlestick patterns are most reliable at key support/resistance levels and when confirmed by volume.
+    </div>
+    <div id="candleSection"></div>
+   </div>
+  </div>
+
+  <!-- ── CHART PATTERNS ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header d-flex">
+    <span class="section-title">🔺 Chart Patterns</span>
+    <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Murphy Ch 5-6: Classical chart patterns like Head & Shoulders, Double Tops/Bottoms, and Triangles provide high-probability trade setups."></i>
+   </div>
+   <div class="card-body">
+    <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 What are Chart Patterns?</strong> Chart patterns are geometric shapes that form on price charts over days/weeks. They represent the psychological battle between buyers and sellers and can predict the next big move.<br><br>
+     <strong>Two types:</strong><br>
+     • <strong>Reversal Patterns</strong> — Signal that the current trend is about to change direction:<br>
+     &nbsp;&nbsp;- Head & Shoulders (bearish reversal), Inverse H&S (bullish reversal)<br>
+     &nbsp;&nbsp;- Double Top (M-shape, bearish), Double Bottom (W-shape, bullish)<br>
+     &nbsp;&nbsp;- Rounding Top/Bottom<br>
+     • <strong>Continuation Patterns</strong> — Signal that the current trend will continue after a pause:<br>
+     &nbsp;&nbsp;- Triangles (ascending = bullish, descending = bearish, symmetric = breakout either way)<br>
+     &nbsp;&nbsp;- Flags and Pennants (brief consolidation in a strong trend)<br>
+     &nbsp;&nbsp;- Wedges (rising wedge = bearish, falling wedge = bullish)<br>
+     <strong>📐 Measured Move:</strong> Most patterns have a "target" calculated by measuring the pattern's height and projecting from the breakout point.
+    </div>
+    <div id="patternSection"></div>
+   </div>
+  </div>
+
+  <!-- ── SUPPORT / RESISTANCE + FIBONACCI ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-body">
+    <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 Support & Resistance Explained:</strong> Support is a price FLOOR where buyers consistently step in to buy. Resistance is a price CEILING where sellers consistently appear. The more times a level is tested, the stronger it becomes. <strong>Key insight:</strong> When support BREAKS, it becomes the new resistance (and vice versa) — this is one of the most powerful concepts in technical analysis. Fibonacci levels (38.2%, 50%, 61.8%) are mathematical ratios derived from the golden ratio — markets tend to retrace to these levels before continuing the trend.
+    </div>
+   </div>
+  </div>
+  <div class="row g-3 mb-4 fade-in">
+   <div class="col-lg-6">
+    <div class="card h-100">
+     <div class="card-header d-flex">
+      <span class="section-title">🧱 Support & Resistance</span>
+      <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Murphy Ch 4: Support = floor (buyers), Resistance = ceiling (sellers). Broken support becomes resistance and vice versa."></i>
+     </div>
+     <div class="card-body" id="srSection"></div>
+    </div>
+   </div>
+   <div class="col-lg-6">
+    <div class="card h-100">
+     <div class="card-header d-flex">
+      <span class="section-title">🌀 Fibonacci Retracements & Pivots</span>
+      <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Murphy Ch 4: Fibonacci ratios (38.2%, 50%, 61.8%) are key retracement levels. Pivot points give daily S/R levels."></i>
+     </div>
+     <div class="card-body" id="fibSection"></div>
+    </div>
+   </div>
+  </div>
+
+  <!-- ── ICHIMOKU ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header d-flex">
+    <span class="section-title">☁️ Ichimoku Cloud Analysis</span>
+    <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Ichimoku Kinko Hyo: A complete trading system showing trend direction, support/resistance, and momentum all at once. Price above cloud = bullish."></i>
+   </div>
+   <div class="card-body">
+    <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 What is Ichimoku Cloud?</strong> Ichimoku Kinko Hyo (Japanese: "one glance equilibrium chart") is the ONLY indicator that gives you trend direction, support/resistance, and momentum ALL in one look. It has 5 lines:<br>
+     • <strong>Tenkan-sen (Conversion Line)</strong> — 9-period midpoint. Like a fast moving average. Shows short-term momentum.<br>
+     • <strong>Kijun-sen (Base Line)</strong> — 26-period midpoint. The key support/resistance line. Flat Kijun = price will pull back to it.<br>
+     • <strong>Senkou Span A & B (Cloud)</strong> — The area between these two lines forms the "cloud." Price ABOVE the cloud = bullish. Price BELOW = bearish. Price INSIDE = no trend. A thicker cloud = stronger support/resistance.<br>
+     • <strong>Chikou Span (Lagging)</strong> — Current closing price plotted 26 periods back. If it's above the historical price, the trend is confirmed.
+    </div>
+    <div id="ichiSection"></div>
+   </div>
+  </div>
+
+  <!-- ── DIVERGENCES + CROSSOVERS ── -->
+  <div class="row g-3 mb-4 fade-in">
+   <div class="col-lg-6">
+    <div class="card h-100">
+     <div class="card-header"><span class="section-title">↕️ Divergences</span></div>
+     <div class="card-body" id="divSection"></div>
+    </div>
+   </div>
+   <div class="col-lg-6">
+    <div class="card h-100">
+     <div class="card-header"><span class="section-title">✕ MA Crossovers</span></div>
+     <div class="card-body" id="crossSection"></div>
+    </div>
+   </div>
+  </div>
+
+  <!-- ── RISK MANAGEMENT ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header d-flex">
+    <span class="section-title">🛡️ Risk Management</span>
+    <i class="bi bi-info-circle help-icon ms-2" data-bs-toggle="tooltip" title="Murphy Ch 16: Money management is the most important aspect of trading. Never risk more than 2% per trade. Always use stop losses."></i>
+   </div>
+   <div class="card-body">
+    <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem">
+     <strong>📖 Why Risk Management is #1:</strong> John Murphy (Ch 16) states that money management is MORE important than the entry signal. Even the best strategy will fail without proper risk control.<br><br>
+     <strong>Key rules every trader must follow:</strong><br>
+     • <strong>2% Rule</strong> — NEVER risk more than 2% of your total capital on a single trade. If you have ₹5,00,000, your maximum risk per trade is ₹10,000.<br>
+     • <strong>Stop Loss is MANDATORY</strong> — Before you buy, ALWAYS know where you'll sell if wrong. Common methods: 2× ATR below entry, below nearest support, or below a key moving average.<br>
+     • <strong>Risk:Reward minimum 1:2</strong> — Only enter trades where potential profit is at least 2× the potential loss. This means even if you're right only 40% of the time, you'll still be profitable.<br>
+     • <strong>Position Sizing</strong> — The number of shares you buy should be calculated from your stop loss distance, NOT from how much you want to invest.
+    </div>
+    <div id="riskSection"></div>
+   </div>
+  </div>
+
+  <!-- ── DOW THEORY / EDUCATION ── -->
+  <div class="card mb-4 fade-in">
+   <div class="card-header"><span class="section-title">📚 Dow Theory Principles (Murphy Ch 2)</span></div>
+   <div class="card-body" id="dowSection"></div>
+  </div>
+
+ </div><!-- /mainContent -->
+</div><!-- /container -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  GLOBALS
+// ═══════════════════════════════════════════════════════════════
+let DATA = null;
+let CHARTS = {};
+let ALL_TICKERS = [];
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTOCOMPLETE
+// ═══════════════════════════════════════════════════════════════
+const tickerInput = document.getElementById('tickerInput');
+const acList = document.getElementById('acList');
+let acIdx = -1;
+
+fetch('/api/tickers').then(r=>r.json()).then(list=>{ALL_TICKERS=list}).catch(()=>{});
+
+tickerInput.addEventListener('input', function(){
+  const q = this.value.trim().toUpperCase();
+  if(q.length < 1){acList.style.display='none';return}
+  const matches = ALL_TICKERS.filter(t=>t.toUpperCase().startsWith(q)).slice(0,15);
+  if(!matches.length){acList.style.display='none';return}
+  acList.innerHTML = matches.map(t=>`<div class="item">${t}</div>`).join('');
+  acList.style.display='block';
+  acIdx=-1;
+  acList.querySelectorAll('.item').forEach(el=>{
+    el.addEventListener('click',()=>{tickerInput.value=el.textContent;acList.style.display='none';runAnalysis(el.textContent)});
+  });
+});
+
+tickerInput.addEventListener('keydown', function(e){
+  const items=acList.querySelectorAll('.item');
+  if(e.key==='ArrowDown'){e.preventDefault();acIdx=Math.min(acIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('active',i===acIdx))}
+  else if(e.key==='ArrowUp'){e.preventDefault();acIdx=Math.max(acIdx-1,0);items.forEach((el,i)=>el.classList.toggle('active',i===acIdx))}
+  else if(e.key==='Enter'){e.preventDefault();if(acIdx>=0&&items[acIdx]){tickerInput.value=items[acIdx].textContent;acList.style.display='none';runAnalysis(items[acIdx].textContent)}else if(this.value.trim()){acList.style.display='none';runAnalysis(this.value.trim())}}
+  else if(e.key==='Escape'){acList.style.display='none'}
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.ticker-search'))acList.style.display='none'});
+
+// ═══════════════════════════════════════════════════════════════
+//  RUN ANALYSIS
+// ═══════════════════════════════════════════════════════════════
+async function runAnalysis(ticker){
+  const loading = document.getElementById('loading');
+  loading.classList.add('active');
+  try{
+    const [res, chartRes] = await Promise.all([
+      fetch(`/api/ta/analyze?ticker=${encodeURIComponent(ticker)}`),
+      fetch(`/api/ta/chart?ticker=${encodeURIComponent(ticker)}&days=180`)
+    ]);
+    if(!res.ok){const e=await res.json();alert(e.error||'Error');return}
+    DATA = await res.json();
+    const chartData = await chartRes.json();
+    document.getElementById('placeholder').style.display='none';
+    document.getElementById('mainContent').style.display='block';
+    renderAll(DATA, chartData);
+  }catch(err){alert('Error: '+err.message)}
+  finally{loading.classList.remove('active')}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════
+function renderAll(d, cd){
+  // Data freshness banner
+  const fresh = d.data_freshness;
+  const freshEl = document.getElementById('freshnessBanner');
+  if(freshEl) freshEl.remove();
+  if(fresh && fresh.warning){
+    const cls = fresh.trading_days_stale>10?'danger':fresh.trading_days_stale>5?'warning':'info';
+    document.getElementById('mainContent').insertAdjacentHTML('afterbegin',
+      `<div id="freshnessBanner" class="alert alert-${cls} d-flex align-items-center mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <div><strong>${fresh.warning}</strong><br><small>Last data: ${fresh.last_date} (${fresh.trading_days_stale} trading days ago)</small></div>
+      </div>`);
+  } else if(fresh) {
+    document.getElementById('mainContent').insertAdjacentHTML('afterbegin',
+      `<div id="freshnessBanner" class="alert alert-success d-flex align-items-center mb-3 py-2" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <small><strong>Live Data</strong> — Last: ${fresh.last_date}</small>
+      </div>`);
+  }
+  renderVerdict(d);
+  renderStockInfo(d);
+  renderTrend(d);
+  renderScoring(d);
+  renderTargetPrices(d);
+  renderActions(d);
+  renderCharts(cd);
+  renderMAs(d);
+  renderOscillators(d);
+  renderVolume(d);
+  renderCandles(d);
+  renderPatterns(d);
+  renderSR(d);
+  renderFib(d);
+  renderIchimoku(d);
+  renderDivergences(d);
+  renderCrossovers(d);
+  renderRisk(d);
+  renderDowTheory();
+  // Init tooltips
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el=>new bootstrap.Tooltip(el));
+}
+
+// ── Verdict ──
+function renderVerdict(d){
+  const s=d.signal;
+  const badge=document.getElementById('verdictBadge');
+  badge.textContent=s.verdict;
+  const cls=s.verdict.includes('BUY')?'bg-bull text-success':s.verdict.includes('SELL')?'bg-bear text-danger':'bg-neutral text-warning';
+  badge.className='verdict-badge '+cls;
+  document.getElementById('verdictScore').textContent=`Score: ${s.score>0?'+':''}${s.score} / ${s.max_score}`;
+  document.getElementById('verdictConfidence').textContent=`Confidence: ${s.confidence}%`;
+}
+
+// ── Stock Info ──
+function renderStockInfo(d){
+  const m=d.meta, s=d.snapshot;
+  document.getElementById('stockName').textContent=m.display_name;
+  document.getElementById('stockPrice').innerHTML=`₹${s.price}`;
+  document.getElementById('stock52H').textContent=`₹${s.high_52w}`;
+  document.getElementById('stock52L').textContent=`₹${s.low_52w}`;
+  document.getElementById('stockVol').textContent=fmtVol(s.volume);
+  document.getElementById('stockMeta').textContent=`${m.data_points} data points | ${m.date_range}`;
+}
+
+// ── Trend ──
+function renderTrend(d){
+  const t=d.trend;
+  const el=document.getElementById('trendPrimary');
+  el.textContent=t.primary;
+  el.className='indicator-val mb-1 '+(t.primary==='UPTREND'?'bull':t.primary==='DOWNTREND'?'bear':'neutral');
+  document.getElementById('trendStrength').textContent=`Strength: ${t.strength} | ADX: ${t.adx||'N/A'}`;
+  document.getElementById('trendPhase').textContent=`Phase: ${t.phase}`;
+  document.getElementById('trendEMA').textContent=`EMA Ribbon: ${t.ema_alignment}`;
+}
+
+// ── Scoring Breakdown ──
+function renderScoring(d){
+  const cats=d.signal.categories;
+  const labels={trend:'🔀 Trend (25pts)',momentum:'🔄 Momentum (20pts)',volume:'📊 Volume (15pts)',pattern:'🔺 Patterns (15pts)',support_resistance:'🧱 Support/Resistance (10pts)',risk:'🛡️ Risk (15pts)'};
+  let h='<div class="row g-3">';
+  for(const[k,v]of Object.entries(cats)){
+    const pct=((v.score+v.max)/(2*v.max))*100;
+    const col=v.score>0?'var(--bull)':v.score<0?'var(--bear)':'var(--neutral)';
+    h+=`<div class="col-md-6 col-xl-4"><div class="p-3 rounded" style="background:rgba(255,255,255,.03)">
+      <div class="d-flex justify-content-between mb-1"><span style="font-size:.85rem">${labels[k]||k}</span><span class="fw-bold" style="color:${col}">${v.score>0?'+':''}${v.score}</span></div>
+      <div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="mt-2" style="font-size:.78rem;opacity:.7">${(v.details||[]).slice(0,3).join('<br>')}</div>
+    </div></div>`;
+  }
+  h+='</div>';
+  document.getElementById('scoringBreakdown').innerHTML=h;
+}
+
+// ── Action Items ──
+function renderActions(d){
+  const items=d.signal.action_items||[];
+  let h=items.map(a=>`<div class="action-item" style="font-size:.95rem">${a}</div>`).join('');
+  h+=`<div class="mt-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem"><strong>Summary:</strong> ${d.signal.summary}</div>`;
+  document.getElementById('actionItems').innerHTML=h;
+}
+
+// ── Charts ──
+function renderCharts(cd){
+  Object.values(CHARTS).forEach(c=>{if(c)c.destroy()});
+  // Price Chart
+  const ctx1=document.getElementById('priceChart').getContext('2d');
+  CHARTS.price=new Chart(ctx1,{type:'line',data:{labels:cd.dates,datasets:[
+    {label:'Close',data:cd.close,borderColor:'#e0e0e0',borderWidth:1.5,pointRadius:0,fill:false},
+    {label:'SMA 20',data:cd.sma_20,borderColor:'#42a5f5',borderWidth:1,pointRadius:0,fill:false,borderDash:[3,2]},
+    {label:'SMA 50',data:cd.sma_50,borderColor:'#ffa726',borderWidth:1,pointRadius:0,fill:false},
+    {label:'SMA 200',data:cd.sma_200,borderColor:'#ef5350',borderWidth:1,pointRadius:0,fill:false},
+    {label:'BB Upper',data:cd.bb_upper,borderColor:'rgba(156,39,176,.4)',borderWidth:1,pointRadius:0,fill:false,borderDash:[2,2]},
+    {label:'BB Lower',data:cd.bb_lower,borderColor:'rgba(156,39,176,.4)',borderWidth:1,pointRadius:0,fill:'+1',backgroundColor:'rgba(156,39,176,.05)'},
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{legend:{labels:{boxWidth:12,font:{size:10}}}},scales:{x:{ticks:{maxTicksLimit:10,font:{size:9}}},y:{position:'right',ticks:{font:{size:10}}}}}});
+
+  // RSI Chart
+  const ctx2=document.getElementById('rsiChart').getContext('2d');
+  CHARTS.rsi=new Chart(ctx2,{type:'line',data:{labels:cd.dates,datasets:[
+    {label:'RSI',data:cd.rsi,borderColor:'#ab47bc',borderWidth:1.5,pointRadius:0,fill:false},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{min:0,max:100,ticks:{stepSize:30,font:{size:9}},position:'right',grid:{color:ctx=>{const v=ctx.tick.value;return v===30||v===70?'rgba(255,255,255,.2)':'rgba(255,255,255,.04)'}}}}}});
+
+  // MACD Chart
+  const ctx3=document.getElementById('macdChart').getContext('2d');
+  const histColors=cd.macd_hist.map(v=>v>=0?'rgba(0,200,83,.6)':'rgba(255,23,68,.6)');
+  CHARTS.macd=new Chart(ctx3,{type:'bar',data:{labels:cd.dates,datasets:[
+    {label:'Histogram',data:cd.macd_hist,backgroundColor:histColors,barPercentage:0.6},
+    {label:'MACD',data:cd.macd,type:'line',borderColor:'#42a5f5',borderWidth:1.2,pointRadius:0,fill:false},
+    {label:'Signal',data:cd.macd_signal,type:'line',borderColor:'#ffa726',borderWidth:1.2,pointRadius:0,fill:false},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{size:9}}}},scales:{x:{display:false},y:{position:'right',ticks:{font:{size:9}}}}}});
+}
+
+// ── Moving Averages ──
+function renderMAs(d){
+  const s=d.snapshot;
+  const mas=[
+    {label:'SMA 10',val:s.sma_10,above:s.price>s.sma_10},{label:'SMA 20',val:s.sma_20,above:s.above_sma_20},
+    {label:'SMA 50',val:s.sma_50,above:s.above_sma_50},{label:'SMA 100',val:s.sma_100,above:s.price&&s.sma_100&&s.price>s.sma_100},
+    {label:'SMA 200',val:s.sma_200,above:s.above_sma_200},
+    {label:'EMA 9',val:s.ema_9,above:s.price>s.ema_9},{label:'EMA 21',val:s.ema_21,above:s.above_ema_21},
+    {label:'EMA 50',val:s.ema_50,above:s.price>s.ema_50},{label:'EMA 200',val:s.ema_200,above:s.price>s.ema_200},
+  ];
+  let h='<div class="row g-2">';
+  for(const m of mas){
+    if(!m.val)continue;
+    const cls=m.above?'bull':'bear';
+    const icon=m.above?'▲':'▼';
+    h+=`<div class="col-6 col-md-4 col-xl-2"><div class="p-2 rounded text-center" style="background:rgba(255,255,255,.03)">
+      <div class="mini-label">${m.label}</div>
+      <div class="fw-bold ${cls}">₹${m.val}</div>
+      <div style="font-size:.75rem" class="${cls}">${icon} Price ${m.above?'Above':'Below'}</div>
+    </div></div>`;
+  }
+  h+='</div>';
+
+  // Crossover status
+  const cross=d.crossovers||[];
+  if(cross.length){
+    h+='<div class="mt-3"><div class="mini-label mb-1">CROSSOVER STATUS</div>';
+    for(const c of cross){
+      const cls2=c.type==='BULLISH'||c.type==='ABOVE'?'bull':'bear';
+      h+=`<div class="d-flex gap-2 align-items-center mb-1"><span class="pattern-badge ${c.type==='BULLISH'||c.type==='ABOVE'?'bg-bull':'bg-bear'}">${c.type}</span><span style="font-size:.85rem">${c.label}: ${c.detail}</span></div>`;
+    }
+    h+='</div>';
+  }
+  document.getElementById('maSection').innerHTML=h;
+}
+
+// ── Oscillators ──
+function renderOscillators(d){
+  const s=d.snapshot;
+  const oscs=[
+    {name:'RSI (14)',val:s.rsi,range:'0–100',ob:70,os:30,status:s.rsi>70?'OVERBOUGHT':s.rsi<30?'OVERSOLD':'NEUTRAL'},
+    {name:'Stochastic %K',val:s.stoch_k,range:'0–100',ob:80,os:20,status:s.stoch_k>80?'OVERBOUGHT':s.stoch_k<20?'OVERSOLD':'NEUTRAL'},
+    {name:'Stochastic %D',val:s.stoch_d,range:'0–100'},
+    {name:'Williams %R',val:s.williams_r,range:'-100 to 0',ob:-20,os:-80,status:s.williams_r>-20?'OVERBOUGHT':s.williams_r<-80?'OVERSOLD':'NEUTRAL'},
+    {name:'CCI',val:s.cci,range:'±200+',ob:100,os:-100,status:s.cci>100?'OVERBOUGHT':s.cci<-100?'OVERSOLD':'NEUTRAL'},
+    {name:'ROC',val:s.roc,range:'%',status:s.roc>0?'BULLISH':'BEARISH'},
+    {name:'ADX',val:s.adx,range:'0–100',status:s.adx>=25?'STRONG TREND':s.adx>=20?'MODERATE':'WEAK'},
+    {name:'+DI',val:s.plus_di,range:'0–100'},
+    {name:'-DI',val:s.minus_di,range:'0–100'},
+    {name:'MACD',val:s.macd,status:s.macd>0?'BULLISH':'BEARISH'},
+    {name:'MACD Histogram',val:s.macd_hist,status:s.macd_hist>0?'BULLISH':'BEARISH'},
+  ];
+  let h='<div class="row g-2">';
+  for(const o of oscs){
+    if(o.val===null||o.val===undefined)continue;
+    const st=o.status||'';
+    const cls=st.includes('OVER')?'bear':st.includes('BULL')||st.includes('STRONG')?'bull':st.includes('BEAR')?'bear':'neutral';
+    h+=`<div class="col-6 col-md-4 col-xl-3"><div class="p-2 rounded" style="background:rgba(255,255,255,.03)">
+      <div class="mini-label">${o.name}</div>
+      <div class="fw-bold indicator-val" style="font-size:1.1rem">${typeof o.val==='number'?o.val.toFixed(1):o.val}</div>
+      ${st?`<span class="pattern-badge ${cls==='bull'?'bg-bull':cls==='bear'?'bg-bear':'bg-neutral'}" style="font-size:.7rem">${st}</span>`:''}
+    </div></div>`;
+  }
+  h+='</div>';
+  document.getElementById('oscSection').innerHTML=h;
+}
+
+// ── Volume ──
+function renderVolume(d){
+  const v=d.volume, s=d.snapshot;
+  let h=`<div class="row g-3">
+    <div class="col-md-3"><div class="mini-label">Current Volume</div><div class="indicator-val">${fmtVol(v.current_volume)}</div></div>
+    <div class="col-md-3"><div class="mini-label">Avg Volume (20d)</div><div class="indicator-val">${fmtVol(v.avg_volume_20)}</div></div>
+    <div class="col-md-3"><div class="mini-label">Volume Ratio</div><div class="indicator-val ${v.volume_ratio>1.5?'bull':v.volume_ratio<0.7?'bear':''}">${v.volume_ratio}x</div></div>
+    <div class="col-md-3"><div class="mini-label">Status</div><div class="indicator-val">${v.volume_status}</div></div>
+  </div>
+  <div class="row g-3 mt-2">
+    <div class="col-md-4"><div class="mini-label">OBV Trend</div><div style="font-size:.9rem">${v.obv_trend}</div></div>
+    <div class="col-md-4"><div class="mini-label">A/D Line</div><div style="font-size:.9rem">${s.ad_line?fmtVol(s.ad_line):'N/A'}</div></div>
+    <div class="col-md-4"><div class="mini-label">VWAP</div><div style="font-size:.9rem">${s.vwap?'₹'+s.vwap:'N/A'}</div></div>
+  </div>
+  <div class="mt-3 p-2 rounded" style="background:rgba(255,255,255,.03);font-size:.85rem">${v.explanation}</div>`;
+  document.getElementById('volSection').innerHTML=h;
+}
+
+// ── Candlestick Patterns ──
+function renderCandles(d){
+  const pats=d.candle_patterns||[];
+  if(!pats.length){document.getElementById('candleSection').innerHTML='<span class="text-muted">No candlestick patterns detected in the last 5 candles.</span>';return}
+  let h='<div class="row g-2">';
+  for(const p of pats){
+    const cls=p.type==='BULLISH'?'bg-bull':p.type==='BEARISH'?'bg-bear':'bg-neutral';
+    h+=`<div class="col-md-6"><div class="p-3 rounded ${cls}">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="fw-bold">${p.name}</span>
+        <span class="pattern-badge ${cls}">${p.type} ${'★'.repeat(p.strength||1)}</span>
+      </div>
+      <div style="font-size:.82rem;opacity:.8">${p.meaning}</div>
+      <div class="mini-label mt-1">${p.date||''}</div>
+    </div></div>`;
+  }
+  h+='</div>';
+  document.getElementById('candleSection').innerHTML=h;
+}
+
+// ── Chart Patterns ──
+function renderPatterns(d){
+  const pats=d.chart_patterns||[];
+  if(!pats.length){document.getElementById('patternSection').innerHTML='<span class="text-muted">No classical chart patterns detected in recent data.</span>';return}
+  let h='';
+  for(const p of pats){
+    const cls=p.type==='BULLISH'?'bg-bull':p.type==='BEARISH'?'bg-bear':'bg-neutral';
+    h+=`<div class="p-3 mb-2 rounded ${cls}">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="fw-bold">${p.name}</span>
+        <span class="pattern-badge ${cls}">${p.type} ${'★'.repeat(p.strength||1)}</span>
+      </div>
+      <div style="font-size:.85rem">${p.meaning}</div>
+      ${p.neckline?`<div class="mini-label mt-1">Neckline: ₹${p.neckline} | Target: ₹${p.target}</div>`:''}
+    </div>`;
+  }
+  document.getElementById('patternSection').innerHTML=h;
+}
+
+// ── Support / Resistance ──
+function renderSR(d){
+  const sr=d.support_resistance;
+  let h=`<div class="mb-2" style="font-size:.9rem">Current Price: <strong>₹${sr.current_price}</strong></div>`;
+  h+='<div class="mini-label mb-1 bear">RESISTANCE (Ceilings)</div>';
+  for(const r of (sr.resistance||[]).reverse()){
+    h+=`<div class="sr-level bg-bear"><span>₹${r.level}</span><span class="mini-label">${r.touches} touch${r.touches>1?'es':''} | Strength ${'█'.repeat(r.strength)}</span></div>`;
+  }
+  h+=`<div class="sr-level my-2" style="background:rgba(255,255,255,.1);font-weight:700">₹${sr.current_price} ← CURRENT PRICE</div>`;
+  h+='<div class="mini-label mb-1 bull">SUPPORT (Floors)</div>';
+  for(const s of (sr.support||[])){
+    h+=`<div class="sr-level bg-bull"><span>₹${s.level}</span><span class="mini-label">${s.touches} touch${s.touches>1?'es':''} | Strength ${'█'.repeat(s.strength)}</span></div>`;
+  }
+  document.getElementById('srSection').innerHTML=h;
+}
+
+// ── Fibonacci ──
+function renderFib(d){
+  const f=d.fibonacci, p=d.pivot_points;
+  let h='<div class="mini-label mb-2">FIBONACCI RETRACEMENTS</div>';
+  h+=`<div class="mb-2" style="font-size:.82rem">Swing: ₹${f.swing_low} → ₹${f.swing_high} (${f.is_uptrend?'Upswing':'Downswing'})</div>`;
+  const fibLabels={'fib_0.0':'0% (Start)','fib_0.236':'23.6%','fib_0.382':'38.2%','fib_0.5':'50%','fib_0.618':'61.8% (Golden)','fib_0.786':'78.6%','fib_1.0':'100% (End)'};
+  for(const[k,label]of Object.entries(fibLabels)){
+    if(f[k]===undefined)continue;
+    const isKey=k.includes('0.382')||k.includes('0.5')||k.includes('0.618');
+    h+=`<div class="fib-level" style="background:rgba(255,255,255,${isKey?'.08':'.03'})"><span>${label}</span><strong>₹${f[k]}</strong></div>`;
+  }
+
+  h+='<div class="mini-label mt-3 mb-2">PIVOT POINTS (Classic)</div>';
+  const pvOrder=['R3','R2','R1','PP','S1','S2','S3'];
+  for(const k of pvOrder){
+    if(!p[k])continue;
+    const cls2=k.startsWith('R')?'bear':k.startsWith('S')?'bull':'';
+    h+=`<div class="fib-level ${k==='PP'?'fw-bold':''}"><span class="${cls2}">${k}</span><strong>₹${p[k]}</strong></div>`;
+  }
+  document.getElementById('fibSection').innerHTML=h;
+}
+
+// ── Ichimoku ──
+function renderIchimoku(d){
+  const ich=d.ichimoku;
+  if(ich.status==='NOT COMPUTED'){document.getElementById('ichiSection').innerHTML='<span class="text-muted">Insufficient data for Ichimoku.</span>';return}
+  let h=`<div class="mb-3"><span class="pattern-badge ${ich.score>=1?'bg-bull':ich.score<=-1?'bg-bear':'bg-neutral'}" style="font-size:.95rem">${ich.verdict}</span></div>`;
+  h+='<div class="row g-3 mb-3">';
+  h+=`<div class="col-md-3"><div class="mini-label">Tenkan-sen</div><div class="fw-bold">₹${ich.tenkan}</div></div>`;
+  h+=`<div class="col-md-3"><div class="mini-label">Kijun-sen</div><div class="fw-bold">₹${ich.kijun}</div></div>`;
+  h+=`<div class="col-md-3"><div class="mini-label">Senkou A</div><div class="fw-bold">₹${ich.span_a||'N/A'}</div></div>`;
+  h+=`<div class="col-md-3"><div class="mini-label">Senkou B</div><div class="fw-bold">₹${ich.span_b||'N/A'}</div></div>`;
+  h+='</div>';
+  h+='<div class="mini-label mb-1">SIGNALS</div>';
+  for(const s of ich.signals){
+    const cls3=s.includes('BULLISH')?'bull':s.includes('BEARISH')?'bear':'neutral';
+    h+=`<div class="${cls3}" style="font-size:.85rem;padding:2px 0">${s}</div>`;
+  }
+  document.getElementById('ichiSection').innerHTML=h;
+}
+
+// ── Divergences ──
+function renderDivergences(d){
+  const divs=d.divergences||[];
+  if(!divs.length){document.getElementById('divSection').innerHTML='<span class="text-muted">No divergences detected.</span>';return}
+  let h='';
+  for(const dv of divs){
+    const cls=dv.type.includes('BULLISH')?'bg-bull':'bg-bear';
+    h+=`<div class="p-2 mb-2 rounded ${cls}"><strong>${dv.indicator}:</strong> ${dv.meaning}</div>`;
+  }
+  document.getElementById('divSection').innerHTML=h;
+}
+
+// ── Crossovers ──
+function renderCrossovers(d){
+  const cross=d.crossovers||[];
+  if(!cross.length){document.getElementById('crossSection').innerHTML='<span class="text-muted">No crossover data.</span>';return}
+  let h='';
+  for(const c of cross){
+    const cls=c.type==='BULLISH'||c.type==='ABOVE'?'bg-bull':'bg-bear';
+    h+=`<div class="p-2 mb-2 rounded ${cls}"><strong>${c.label}:</strong> ${c.detail}</div>`;
+  }
+  document.getElementById('crossSection').innerHTML=h;
+}
+
+// ── Risk Management ──
+function renderRisk(d){
+  const r=d.risk;
+  if(r.error){document.getElementById('riskSection').innerHTML=`<span class="text-muted">${r.error}</span>`;return}
+  let h='<div class="row g-3">';
+
+  // Position sizing
+  if(r.position_sizing&&r.position_sizing.shares){
+    const ps=r.position_sizing;
+    h+=`<div class="col-md-6"><div class="p-3 rounded" style="background:rgba(255,255,255,.03)">
+      <div class="mini-label mb-2">POSITION SIZING (2% Rule)</div>
+      <div class="row g-2">
+        <div class="col-6"><span class="mini-label">Shares to Buy</span><div class="fw-bold indicator-val bull">${ps.shares}</div></div>
+        <div class="col-6"><span class="mini-label">Position Value</span><div class="fw-bold">₹${fmtNum(ps.position_value)}</div></div>
+        <div class="col-6"><span class="mini-label">Risk Amount</span><div class="bear">₹${fmtNum(ps.risk_amount)}</div></div>
+        <div class="col-6"><span class="mini-label">% of Capital</span><div>${ps.pct_of_capital}%</div></div>
+      </div>
+      <div class="mt-2" style="font-size:.8rem;opacity:.7">${ps.explanation}</div>
+    </div></div>`;
+  }
+
+  // Risk:Reward
+  if(r.risk_reward&&r.risk_reward.ratio){
+    const rr=r.risk_reward;
+    h+=`<div class="col-md-6"><div class="p-3 rounded" style="background:rgba(255,255,255,.03)">
+      <div class="mini-label mb-2">RISK : REWARD</div>
+      <div class="row g-2">
+        <div class="col-4"><span class="mini-label">Entry</span><div class="fw-bold">₹${rr.entry}</div></div>
+        <div class="col-4"><span class="mini-label">Stop Loss</span><div class="fw-bold bear">₹${rr.stop_loss}</div></div>
+        <div class="col-4"><span class="mini-label">Target</span><div class="fw-bold bull">₹${rr.target}</div></div>
+      </div>
+      <div class="mt-2 text-center"><span class="indicator-val ${rr.is_acceptable?'bull':'bear'}">${rr.ratio_display}</span>
+        <span class="ms-2">${rr.is_acceptable?'✅ Acceptable':'❌ Too Risky'}</span></div>
+      <div class="mt-2" style="font-size:.8rem;opacity:.7">${rr.explanation}</div>
+    </div></div>`;
+  }
+  h+='</div>';
+
+  // Stop loss methods
+  if(r.stop_losses&&r.stop_losses.stops){
+    h+='<div class="mt-3"><div class="mini-label mb-2">STOP LOSS METHODS</div><div class="row g-2">';
+    for(const[k,v]of Object.entries(r.stop_losses.stops)){
+      const isRec=k===r.stop_losses.recommended;
+      h+=`<div class="col-md-4"><div class="p-2 rounded ${isRec?'border border-success':''}" style="background:rgba(255,255,255,.03)">
+        <div class="d-flex justify-content-between"><span style="font-size:.82rem">${v.method}</span>${isRec?'<span class="badge bg-success">Recommended</span>':''}</div>
+        <div class="fw-bold bear">₹${v.level}</div>
+        <div style="font-size:.75rem;opacity:.6">${v.explanation}</div>
+      </div></div>`;
+    }
+    h+='</div></div>';
+  }
+
+  // Rules
+  if(r.rules){
+    h+='<div class="mt-3"><div class="mini-label mb-2">💡 MURPHY\'S MONEY MANAGEMENT RULES</div>';
+    for(const rule of r.rules){
+      h+=`<div style="font-size:.85rem;padding:3px 0">• ${rule}</div>`;
+    }
+    h+='</div>';
+  }
+  document.getElementById('riskSection').innerHTML=h;
+}
+
+// ── Dow Theory ──
+function renderDowTheory(){
+  const principles=[
+    {name:'The Averages Discount Everything',text:'All information is already reflected in the stock price. The market "knows" everything.'},
+    {name:'The Market Has Three Trends',text:'PRIMARY (months-years) | SECONDARY (weeks-months, retraces 33-66%) | MINOR (days-weeks)'},
+    {name:'Major Trends Have Three Phases',text:'ACCUMULATION (smart money buying) → PUBLIC PARTICIPATION (trend followers) → DISTRIBUTION (smart money selling)'},
+    {name:'Volume Must Confirm the Trend',text:'Uptrend: volume increases on rallies, decreases on pullbacks. Downtrend: opposite.'},
+    {name:'A Trend Continues Until Definite Reversal Signals',text:'Stay with the trend until evidence clearly shows it has ended. Don\'t predict reversals.'},
+  ];
+  let h='<div class="row g-2">';
+  for(let i=0;i<principles.length;i++){
+    const p=principles[i];
+    h+=`<div class="col-md-6 col-xl-4"><div class="p-3 rounded" style="background:rgba(255,255,255,.03)">
+      <div class="fw-bold mb-1" style="font-size:.9rem">${i+1}. ${p.name}</div>
+      <div style="font-size:.82rem;opacity:.75">${p.text}</div>
+    </div></div>`;
+  }
+  h+='</div>';
+  document.getElementById('dowSection').innerHTML=h;
+}
+
+// ── Target Prices ──
+function renderTargetPrices(d){
+  const tp=d.target_prices;
+  if(!tp||tp.error){document.getElementById('targetSection').innerHTML+='<span class="text-muted">Target price data unavailable.</span>';return}
+  let h='';
+
+  // Bias & Consensus
+  const biasClr=tp.bias==='BULLISH'?'bull':tp.bias==='BEARISH'?'bear':'neutral';
+  const biasIcon=tp.bias==='BULLISH'?'▲':tp.bias==='BEARISH'?'▼':'◆';
+  h+=`<div class="row g-3 mb-3">`;
+  h+=`<div class="col-md-4"><div class="card p-3 text-center h-100"><div class="mini-label">OVERALL BIAS</div><div class="indicator-val ${biasClr}">${biasIcon} ${tp.bias}</div><div class="mini-label mt-1">Based on ${tp.total_methods_used} methods, ${tp.total_targets_computed} projections</div></div></div>`;
+
+  if(tp.consensus_upside){
+    const cu=tp.consensus_upside;
+    h+=`<div class="col-md-4"><div class="card p-3 text-center h-100 bg-bull"><div class="mini-label">CONSENSUS UPSIDE TARGET</div><div class="indicator-val bull">₹${cu.target}</div><div class="text-success" style="font-size:.9rem">+${cu.pct}% upside</div><div class="mini-label mt-1">${cu.num_methods} methods, ${cu.num_targets} projections (${cu.confidence}% conf)</div></div></div>`;
+  }
+  if(tp.consensus_downside){
+    const cd2=tp.consensus_downside;
+    h+=`<div class="col-md-4"><div class="card p-3 text-center h-100 bg-bear"><div class="mini-label">CONSENSUS DOWNSIDE RISK</div><div class="indicator-val bear">₹${cd2.target}</div><div class="text-danger" style="font-size:.9rem">-${cd2.pct}% downside</div><div class="mini-label mt-1">${cd2.num_methods} methods, ${cd2.num_targets} projections (${cd2.confidence}% conf)</div></div></div>`;
+  }
+  h+=`</div>`;
+
+  // Risk:Reward
+  if(tp.risk_reward_ratio!==null&&tp.risk_reward_ratio!==undefined){
+    const rrClr=tp.risk_reward_ratio>=2?'bull':tp.risk_reward_ratio>=1?'neutral':'bear';
+    h+=`<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.04)"><div class="d-flex align-items-center gap-3"><div><span class="mini-label">RISK:REWARD</span><div class="indicator-val ${rrClr}">1:${tp.risk_reward_ratio}</div></div><div style="font-size:.85rem;flex:1">${tp.risk_reward_explanation}</div></div></div>`;
+  }
+
+  // Bias explanation
+  h+=`<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.03);font-size:.85rem">${tp.bias_explanation}</div>`;
+
+  // Upside targets table
+  if(tp.upside_targets&&tp.upside_targets.length){
+    h+=`<div class="mini-label mb-2 bull">▲ UPSIDE TARGETS (sorted by price)</div><div class="table-responsive"><table class="table table-sm table-dark" style="font-size:.85rem"><thead><tr><th>Method</th><th>Label</th><th>Target</th><th>Upside</th><th>Confidence</th></tr></thead><tbody>`;
+    for(const t of tp.upside_targets){
+      h+=`<tr><td>${t.method}</td><td>${t.label}</td><td class="fw-bold bull">₹${t.target}</td><td class="bull">+${t.upside_pct||t.distance_pct||'—'}%</td><td><div class="score-bar" style="width:80px;height:6px;display:inline-block"><div class="score-fill" style="width:${t.confidence}%;background:var(--bull)"></div></div> ${t.confidence}%</td></tr>`;
+    }
+    h+=`</tbody></table></div>`;
+  }
+
+  // Downside targets table
+  if(tp.downside_targets&&tp.downside_targets.length){
+    h+=`<div class="mini-label mb-2 mt-3 bear">▼ DOWNSIDE RISK LEVELS (sorted by price)</div><div class="table-responsive"><table class="table table-sm table-dark" style="font-size:.85rem"><thead><tr><th>Method</th><th>Label</th><th>Target</th><th>Downside</th><th>Confidence</th></tr></thead><tbody>`;
+    for(const t of tp.downside_targets){
+      h+=`<tr><td>${t.method}</td><td>${t.label}</td><td class="fw-bold bear">₹${t.target}</td><td class="bear">-${t.downside_pct||t.distance_pct||'—'}%</td><td><div class="score-bar" style="width:80px;height:6px;display:inline-block"><div class="score-fill" style="width:${t.confidence}%;background:var(--bear)"></div></div> ${t.confidence}%</td></tr>`;
+    }
+    h+=`</tbody></table></div>`;
+  }
+
+  // Methodology
+  h+=`<div class="mt-3 p-3 rounded" style="background:rgba(255,255,255,.03);font-size:.82rem"><strong>📐 Methodology:</strong> ${tp.methodology_explanation}</div>`;
+
+  document.getElementById('targetSection').innerHTML+=h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════════════
+function fmtVol(v){if(!v)return'0';if(Math.abs(v)>=1e7)return(v/1e7).toFixed(1)+'Cr';if(Math.abs(v)>=1e5)return(v/1e5).toFixed(1)+'L';if(Math.abs(v)>=1e3)return(v/1e3).toFixed(1)+'K';return v.toString()}
+function fmtNum(v){if(!v)return'0';return v.toLocaleString('en-IN')}
+</script>
+</body>
+</html>

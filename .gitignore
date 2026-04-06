@@ -1,0 +1,58 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+*.spec.bak
+
+# ── macOS ──
+.DS_Store
+._*
+
+# ── Editors ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Environment ──
+.env
+venv/
+env/
+
+# ── SQLite databases (user data, not source) ──
+*.db
+*.db-wal
+*.db-shm
+
+# ── Large data (CSV stock data — 322MB, 2000+ files) ──
+# These are downloaded via the app's "Download Data" feature.
+stock_csv/
+
+# ── Build artifacts ──
+dist/
+build/StockAnalyzer/
+
+# ── Temp / logs ──
+*.log
+nohup.out
+
+# ── Backtest result JSONs (generated, not source) ──
+backtest_deep_results.json
+backtest_full_results.json
+backtest_pa_results.json
+backtest_results.json
+simulation_results.json
+
+# ── Pip installer ──
+get-pip.py
+
+# ── Excel exports ──
+*.xlsx
+
+# ── Tickers cache (generated on download) ──
+tickers_cache.json

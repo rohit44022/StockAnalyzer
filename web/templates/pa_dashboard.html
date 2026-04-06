@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Price Action Engine — Al Brooks Methodology</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--bull:#00c853;--bear:#ff1744;--neutral:#ffc107;--card-bg:#1e1e2f;--bg:#0f0f1a;--accent:#f0883e;--hold:#6c757d}
+body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif}
+.card{background:var(--card-bg);border:1px solid rgba(255,255,255,.08);border-radius:12px}
+.card-header{background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)}
+.bull{color:var(--bull)}.bear{color:var(--bear)}.neutral{color:var(--neutral)}.acc{color:var(--accent)}
+.bg-bull{background:rgba(0,200,83,.15)!important}.bg-bear{background:rgba(255,23,68,.15)!important}
+.bg-neutral{background:rgba(255,193,7,.15)!important}.bg-acc{background:rgba(240,136,62,.15)!important}
+.score-bar{height:10px;border-radius:5px;background:#222;overflow:hidden}
+.score-fill{height:100%;border-radius:5px;transition:width .6s ease}
+.verdict-badge{font-size:1.6rem;padding:12px 28px;border-radius:10px;font-weight:700;letter-spacing:1.2px;display:inline-block}
+.vb-buy{background:rgba(0,200,83,.18);color:var(--bull);border:2px solid rgba(0,200,83,.4)}
+.vb-sell{background:rgba(255,23,68,.18);color:var(--bear);border:2px solid rgba(255,23,68,.4)}
+.vb-hold{background:rgba(108,117,125,.18);color:var(--hold);border:2px solid rgba(108,117,125,.4)}
+.indicator-val{font-size:1.25rem;font-weight:600}
+.mini-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.45)}
+.section-title{font-size:1rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:0}
+.reason-item{background:rgba(255,255,255,.04);border-left:3px solid var(--accent);padding:8px 14px;margin-bottom:6px;border-radius:0 8px 8px 0;font-size:.85rem;line-height:1.6}
+.brooks-ctx{background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2);border-radius:10px;padding:16px;font-size:.88rem;line-height:1.7}
+.brooks-ctx strong{color:var(--accent)}
+.detail-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.88rem}
+.detail-row:last-child{border:none}
+.pattern-pill{display:inline-block;background:rgba(240,136,62,.15);color:var(--accent);padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:600;margin:2px}
+.cross-agree{color:var(--bull)}.cross-conflict{color:var(--bear)}.cross-neutral{color:var(--neutral)}
+.ticker-search{max-width:450px}
+.ticker-search input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:10px 16px;font-size:1.05rem}
+.ticker-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(240,136,62,.25)}
+.autocomplete-list{position:absolute;z-index:999;width:100%;max-height:240px;overflow-y:auto;background:#1e1e2f;border:1px solid rgba(255,255,255,.1);border-radius:0 0 8px 8px;display:none}
+.autocomplete-list .item{padding:8px 16px;cursor:pointer;font-size:.95rem}
+.autocomplete-list .item:hover,.autocomplete-list .item.active{background:rgba(240,136,62,.25)}
+.setup-badge{font-size:.78rem;padding:4px 10px;border-radius:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.sb-breakout{background:rgba(0,200,83,.2);color:#00e676}.sb-pullback{background:rgba(33,150,243,.2);color:#42a5f5}
+.sb-reversal{background:rgba(255,193,7,.2);color:#ffd740}.sb-trendcont{background:rgba(124,77,255,.2);color:#b388ff}
+.sb-failed{background:rgba(255,23,68,.2);color:#ff5252}.sb-second{background:rgba(0,200,83,.3);color:#69f0ae}
+.pressure-bar{position:relative;height:20px;border-radius:10px;overflow:hidden;background:#222;margin:8px 0}
+.pressure-buy{position:absolute;left:0;top:0;height:100%;background:rgba(0,200,83,.4);border-radius:10px 0 0 10px}
+.pressure-sell{position:absolute;right:0;top:0;height:100%;background:rgba(255,23,68,.4);border-radius:0 10px 10px 0}
+.price-level{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;margin:4px 0;font-size:.88rem}
+.pl-entry{background:rgba(33,150,243,.12);border-left:3px solid #42a5f5}
+.pl-stop{background:rgba(255,23,68,.12);border-left:3px solid var(--bear)}
+.pl-target{background:rgba(0,200,83,.12);border-left:3px solid var(--bull)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn .4s ease}
+.scan-item{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px 16px;margin-bottom:8px;cursor:pointer;transition:border-color .2s}
+.scan-item:hover{border-color:var(--accent)}
+.scan-item .scan-meta{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:4px}
+.scan-item .scan-meta span{margin-right:12px}
+#loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center}
+#loading.active{display:flex}
+nav a.active{color:var(--accent)!important;font-weight:600}
+
+/* Info tooltips & help text */
+.field-label{display:flex;align-items:center;gap:5px}
+.field-label .info-icon{font-size:.68rem;color:rgba(255,255,255,.25);cursor:help;transition:color .2s}
+.field-label .info-icon:hover{color:var(--accent)}
+.card-desc{font-size:.8rem;color:rgba(255,255,255,.35);line-height:1.5;padding:6px 0 10px;border-bottom:1px solid rgba(255,255,255,.05);margin-bottom:8px}
+
+/* Pipeline visualization */
+.pipeline{display:flex;flex-wrap:wrap;gap:0;align-items:center;margin:16px 0}
+.pipeline-step{background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.15);border-radius:10px;padding:10px 14px;flex:1;min-width:120px;text-align:center;position:relative}
+.pipeline-step .step-num{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);font-weight:700;display:block;margin-bottom:2px}
+.pipeline-step .step-name{font-size:.82rem;font-weight:600;color:#c9d1d9;display:block}
+.pipeline-step .step-desc{font-size:.72rem;color:rgba(255,255,255,.35);margin-top:2px;display:block}
+.pipeline-arrow{color:var(--accent);font-size:1.1rem;padding:0 2px;flex-shrink:0}
+
+/* How it works section */
+.how-section{background:rgba(240,136,62,.05);border:1px solid rgba(240,136,62,.12);border-radius:12px;padding:20px;margin-bottom:16px}
+.how-section h6{color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:.85rem;margin-bottom:10px}
+.how-section p,.how-section li{font-size:.85rem;color:#8b949e;line-height:1.7}
+.how-section ul{padding-left:18px}
+.how-section .concept-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:10px}
+.how-section .concept-card{background:rgba(255,255,255,.03);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,.05)}
+.how-section .concept-card strong{color:#c9d1d9;font-size:.82rem;display:block;margin-bottom:3px}
+.how-section .concept-card span{font-size:.75rem;color:rgba(255,255,255,.4)}
+
+/* Results guide */
+.results-guide{background:rgba(33,150,243,.05);border:1px solid rgba(33,150,243,.15);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:.82rem;color:#8b949e;line-height:1.6}
+.results-guide strong{color:#42a5f5}
+.results-guide .guide-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:10px}
+.results-guide .guide-item{display:flex;align-items:flex-start;gap:6px}
+.results-guide .guide-item i{color:var(--accent);margin-top:2px;flex-shrink:0}
+
+/* Score description */
+.score-desc{font-size:.72rem;color:rgba(255,255,255,.3);margin-top:1px;margin-bottom:4px}
+</style>
+</head>
+<body>
+<div id="loading"><div class="spinner-border" style="width:3rem;height:3rem;color:var(--accent)"></div></div>
+
+<!-- NAV -->
+<nav class="py-2 px-4 border-bottom border-secondary" style="background:rgba(15,15,26,.95)">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <a href="/pa" class="text-decoration-none fw-bold" style="font-size:1.1rem;color:var(--accent)">
+      <i class="bi bi-candlestick-chart"></i> Price Action
+    </a>
+    <a href="/" class="text-decoration-none text-light ms-3">Home</a>
+    <a href="/ta" class="text-decoration-none text-light">TA Module</a>
+    <a href="/hybrid" class="text-decoration-none text-light">Hybrid BB+TA</a>
+    <a href="/pa" class="text-decoration-none active">Price Action</a>
+    <a href="/portfolio" class="text-decoration-none text-light">Portfolio</a>
+    <a href="/trades" class="text-decoration-none text-light">Trades</a>
+  </div>
+</nav>
+
+<!-- SEARCH HEADER -->
+<div class="container py-4">
+  <div class="text-center mb-4">
+    <h3 class="fw-bold"><i class="bi bi-candlestick-chart" style="color:var(--accent)"></i> Price Action Engine</h3>
+    <p class="text-secondary mb-1" style="max-width:700px;margin:0 auto">
+      Al Brooks <em>"Trading Price Action: TRENDS"</em> — Bar-by-bar analysis with trend detection,
+      pattern recognition, breakout/pullback signals, and cross-system validation.
+    </p>
+    <p class="text-secondary small mb-3">Always-In Direction · Spike & Channel · H/L Counting · Two-Leg Analysis · Buying/Selling Pressure</p>
+    <div class="ticker-search mx-auto position-relative">
+      <input id="tickerInput" class="form-control" placeholder="Search stock ticker (e.g. RELIANCE, TCS, INFY)..." autocomplete="off">
+      <div id="autoList" class="autocomplete-list"></div>
+    </div>
+    <div class="mt-3">
+      <button class="btn btn-sm" style="background:rgba(0,200,83,.15);color:var(--bull);border:1px solid rgba(0,200,83,.3)" onclick="runScan('buy')">
+        <i class="bi bi-rocket-takeoff-fill me-1"></i> Scan BUY Signals
+      </button>
+      <button class="btn btn-sm ms-2" style="background:rgba(255,23,68,.15);color:var(--bear);border:1px solid rgba(255,23,68,.3)" onclick="runScan('sell')">
+        <i class="bi bi-sign-stop-fill me-1"></i> Scan SELL Signals
+      </button>
+      <button class="btn btn-sm ms-2" style="background:rgba(240,136,62,.15);color:var(--accent);border:1px solid rgba(240,136,62,.3)" onclick="runScan('all')">
+        <i class="bi bi-grid-3x3-gap-fill me-1"></i> Scan All Signals
+      </button>
+    </div>
+  </div>
+
+  <!-- INTRO BOX (visible before analysis) -->
+  <div id="introBox">
+
+    <!-- About This Engine -->
+    <div class="brooks-ctx mb-3">
+      <strong><i class="bi bi-book me-1"></i> About This Engine</strong><br>
+      This system implements <strong>Al Brooks' price action methodology</strong> from
+      <em>"Trading Price Action: TRENDS"</em>. It reads raw price bars (candlesticks) without relying
+      on lagging indicators like RSI or MACD. Instead, it analyzes <strong>what buyers and sellers are
+      actually doing</strong> — bar by bar — to determine who is in control and where the next
+      high-probability trade setup is forming.
+      <br><br>
+      <strong><i class="bi bi-info-circle me-1"></i> What Makes This Different?</strong>
+      Most trading systems use indicator crossovers (moving averages, RSI overbought/oversold).
+      Price action reads the <em>story</em> behind each bar — the struggle between buyers and sellers,
+      momentum shifts, failed breakouts, and trapped traders. This gives <strong>earlier, more reliable
+      signals</strong> because you're reading the cause (price), not the effect (indicators).
+    </div>
+
+    <!-- How It Works — Pipeline -->
+    <div class="how-section mb-3">
+      <h6><i class="bi bi-gear-wide-connected me-2"></i>How This System Works — The Analysis Pipeline</h6>
+      <p>When you analyze a stock, it goes through <strong>7 sequential stages</strong>. Each stage builds on the previous one to produce a final trading signal with confidence scoring.</p>
+
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <span class="step-num">Step 1</span>
+          <span class="step-name">Bar Classification</span>
+          <span class="step-desc">Each bar is classified as Bull Trend, Bear Trend, Doji, etc.</span>
+        </div>
+        <span class="pipeline-arrow"><i class="bi bi-chevron-right"></i></span>
+        <div class="pipeline-step">
+          <span class="step-num">Step 2</span>
+          <span class="step-name">Pattern Detection</span>
+          <span class="step-desc">Finds ii, H1-H4, L1-L4, wedges, double flags, inside/outside bars</span>
+        </div>
+        <span class="pipeline-arrow"><i class="bi bi-chevron-right"></i></span>
+        <div class="pipeline-step">
+          <span class="step-num">Step 3</span>
+          <span class="step-name">Trend Analysis</span>
+          <span class="step-desc">Determines always-in direction, trend phase, buying/selling pressure</span>
+        </div>
+        <span class="pipeline-arrow"><i class="bi bi-chevron-right"></i></span>
+        <div class="pipeline-step">
+          <span class="step-num">Step 4</span>
+          <span class="step-name">Channel & Breakout</span>
+          <span class="step-desc">Identifies trend channels, price position, and breakout events</span>
+        </div>
+      </div>
+      <div class="pipeline mt-0">
+        <div class="pipeline-step">
+          <span class="step-num">Step 5</span>
+          <span class="step-name">Signal Scoring</span>
+          <span class="step-desc">8 components scored 0-100: trend, bar quality, patterns, pressure, etc.</span>
+        </div>
+        <span class="pipeline-arrow"><i class="bi bi-chevron-right"></i></span>
+        <div class="pipeline-step">
+          <span class="step-num">Step 6</span>
+          <span class="step-name">Setup Classification</span>
+          <span class="step-desc">Identifies setup type: Breakout, Pullback, Reversal, Second Entry, etc.</span>
+        </div>
+        <span class="pipeline-arrow"><i class="bi bi-chevron-right"></i></span>
+        <div class="pipeline-step">
+          <span class="step-num">Step 7</span>
+          <span class="step-name">Cross-Validation</span>
+          <span class="step-desc">PA signal checked against BB Squeeze, TA, and Hybrid engines</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key Concepts Quick Reference -->
+    <div class="how-section mb-3">
+      <h6><i class="bi bi-lightbulb me-2"></i>Key Concepts at a Glance</h6>
+      <div class="concept-grid">
+        <div class="concept-card">
+          <strong><i class="bi bi-compass me-1" style="color:var(--bull)"></i> Always-In Direction</strong>
+          <span>If forced to be in a trade NOW, would you be long or short? This is the market's overall lean. Only trade in this direction for best odds.</span>
+        </div>
+        <div class="concept-card">
+          <strong><i class="bi bi-speedometer me-1" style="color:var(--accent)"></i> Confidence %</strong>
+          <span>How certain the system is about the signal. 60%+ = actionable, 40-60% = watch, &lt;40% = weak/avoid. Higher when multiple factors align.</span>
+        </div>
+        <div class="concept-card">
+          <strong><i class="bi bi-bullseye me-1" style="color:var(--bear)"></i> PA Score</strong>
+          <span>Net score from -100 to +100. Positive = bullish pressure, negative = bearish. Computed by scoring 8 independent factors for both BUY and SELL, then subtracting.</span>
+        </div>
+        <div class="concept-card">
+          <strong><i class="bi bi-puzzle me-1" style="color:var(--neutral)"></i> Setup Type</strong>
+          <span>The specific pattern driving the signal. Second Entry (H2/L2) = highest probability. Breakout = momentum. Reversal = counter-trend (risky but rewarding).</span>
+        </div>
+        <div class="concept-card">
+          <strong><i class="bi bi-shield-check me-1" style="color:#42a5f5"></i> Cross-Validation</strong>
+          <span>PA signal compared with Bollinger Band, TA, and Hybrid engines. When all 3 agree, confidence gets +15% bonus. Conflicts apply -10% penalty.</span>
+        </div>
+        <div class="concept-card">
+          <strong><i class="bi bi-cash-stack me-1" style="color:var(--bull)"></i> Price Levels</strong>
+          <span>Entry, Stop Loss, Target 1 (1.5× risk), Target 2 (measured move). These are computed from bar extremes and two-leg projections — not arbitrary numbers.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Verdict Meanings -->
+    <div class="how-section mb-3">
+      <h6><i class="bi bi-signpost-split me-2"></i>Understanding the Verdicts & Badges</h6>
+      <div class="row g-2">
+        <div class="col-md-4">
+          <div style="border-left:3px solid var(--bull);padding-left:10px">
+            <span class="verdict-badge vb-buy" style="font-size:.8rem;padding:4px 12px">BUY</span>
+            <p class="small text-secondary mt-1 mb-0">PA Score is positive (bullish). The system sees more buying pressure, supportive patterns, and trend alignment favoring upward movement.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div style="border-left:3px solid var(--bear);padding-left:10px">
+            <span class="verdict-badge vb-sell" style="font-size:.8rem;padding:4px 12px">SELL</span>
+            <p class="small text-secondary mt-1 mb-0">PA Score is negative (bearish). Selling pressure dominates, with bearish patterns and trend structure supporting downward movement.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div style="border-left:3px solid var(--hold);padding-left:10px">
+            <span class="verdict-badge vb-hold" style="font-size:.8rem;padding:4px 12px">HOLD</span>
+            <p class="small text-secondary mt-1 mb-0">PA Score is near zero or confidence is too low. The market is in balance — no clear edge. Wait for a stronger setup to form.</p>
+          </div>
+        </div>
+      </div>
+      <div class="mt-3">
+        <p class="small text-secondary mb-1"><strong style="color:#c9d1d9">Setup Badges:</strong> The colored badge below the verdict shows <em>what type of trade setup</em> triggered the signal —</p>
+        <div class="d-flex flex-wrap gap-2">
+          <span class="setup-badge sb-breakout">Breakout</span><span class="small text-secondary align-self-center">— Price broke a key level with conviction</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-1">
+          <span class="setup-badge sb-second">Second Entry</span><span class="small text-secondary align-self-center">— H2/L2 "failed failure" — highest probability setup</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-1">
+          <span class="setup-badge sb-pullback">Pullback</span><span class="small text-secondary align-self-center">— Trend pulled back and is resuming — joining existing trend</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-1">
+          <span class="setup-badge sb-reversal">Reversal</span><span class="small text-secondary align-self-center">— Counter-trend signal (wedge/climax/exhaustion detected)</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-1">
+          <span class="setup-badge sb-trendcont">Trend Cont</span><span class="small text-secondary align-self-center">— Continuation in direction of existing trend, no specific pattern</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-1">
+          <span class="setup-badge sb-failed">Failed Breakout</span><span class="small text-secondary align-self-center">— Breakout that reversed — trapped traders create strong momentum</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PA EDUCATIONAL GLOSSARY -->
+  <div class="card mb-4" id="paGlossaryCard">
+    <div class="card-header d-flex align-items-center justify-content-between" style="cursor:pointer" onclick="document.getElementById('glossaryBody').style.display = document.getElementById('glossaryBody').style.display==='none'?'block':'none'; this.querySelector('.bi').classList.toggle('bi-chevron-down'); this.querySelector('.bi').classList.toggle('bi-chevron-up');">
+      <span class="section-title"><i class="bi bi-mortarboard me-2" style="color:var(--accent)"></i>Al Brooks Price Action Glossary — Learn the Terminology</span>
+      <i class="bi bi-chevron-down text-secondary"></i>
+    </div>
+    <div id="glossaryBody" class="card-body" style="display:none">
+      <p class="text-secondary small mb-3">Click any term to expand its full explanation. Written in simple language for beginners.</p>
+
+      <!-- GLOSSARY CATEGORY: Core Concepts -->
+      <h6 class="acc mb-2"><i class="bi bi-1-circle me-1"></i> Core Concepts</h6>
+      <div class="accordion mb-4" id="glossaryCore">
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-pa" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Price Action</button></h2>
+          <div id="g-pa" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--accent)">Price Action</strong> means reading the raw price chart — just the bars (candlesticks) — without relying on indicators like RSI or MACD. Think of it like reading body language: the price bars "tell a story" about what buyers and sellers are doing. Every bar shows who's winning (buyers vs sellers) and how hard they're fighting. Al Brooks' entire method is based on reading this story bar by bar.
+              <br><br><em>In simple terms:</em> Instead of looking at fancy lines and colors from indicators, you look at the actual price movement — where it opened, where it closed, how high and low it went. That's price action.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-ai" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Always-In Direction</button></h2>
+          <div id="g-ai" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--accent)">Always-In Direction</strong> is Al Brooks' most important concept. Imagine you MUST be in a trade at all times — either long (betting price goes up) or short (betting price goes down). Which would you choose right now? That's the always-in direction.
+              <br><br><strong>LONG</strong> = The overall pressure is UP. If forced to pick, you'd be buying. <br>
+              <strong>SHORT</strong> = The overall pressure is DOWN. If forced to pick, you'd be selling. <br>
+              <strong>FLAT</strong> = It's unclear — no strong direction. Best to wait.
+              <br><br><em>Why it matters:</em> You should only take BUY trades when always-in is LONG, and SELL trades when always-in is SHORT. Trading against the always-in direction is like swimming against the current.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-signalbar" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Signal Bar & Entry Bar</button></h2>
+          <div id="g-signalbar" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              A <strong style="color:var(--accent)">Signal Bar</strong> is the bar that "signals" you to prepare for a trade. It tells you: "Hey, something is about to happen." For a BUY signal, this is often a strong bull bar (closes near its high). For a SELL signal, it's a strong bear bar (closes near its low).
+              <br><br>The <strong style="color:var(--accent)">Entry Bar</strong> is the very next bar after the signal bar — this is where you actually enter the trade. You place your order when the entry bar goes above (for BUY) or below (for SELL) the signal bar.
+              <br><br><em>Think of it like traffic lights:</em> The signal bar is the yellow light (get ready), and the entry bar is the green light (go!).
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-trendbar" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Trend Bar / Doji / Shaved Bar</button></h2>
+          <div id="g-trendbar" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--bull)">Bull Trend Bar</strong> — A strong bar where the close is much higher than the open. The body (colored part) is at least 60% of the total bar. This means buyers are winning convincingly.
+              <br><br><strong style="color:var(--bear)">Bear Trend Bar</strong> — The opposite. Close is much lower than the open. Sellers are dominating.
+              <br><br><strong style="color:var(--neutral)">Doji</strong> — A bar where open and close are nearly equal (very small body). It means neither buyers nor sellers won that round — a draw. Dojis often appear at turning points.
+              <br><br><strong>Shaved Bar</strong> — A bar with no tail (shadow/wick) on one end. A "shaved top" bull bar closed at its absolute highest price — extreme buyer conviction. Same idea for shaved bottom bear bars.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GLOSSARY CATEGORY: Patterns -->
+      <h6 class="acc mb-2"><i class="bi bi-2-circle me-1"></i> Bar Patterns</h6>
+      <div class="accordion mb-4" id="glossaryPatterns">
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-insidebar" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Inside Bar (ii, iii, ioi)</button></h2>
+          <div id="g-insidebar" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              An <strong style="color:var(--accent)">Inside Bar</strong> is a bar whose high is lower than the previous bar's high AND whose low is higher than the previous bar's low. It's completely "inside" the previous bar's range. This means the market is taking a breather — pausing.
+              <br><br><strong>ii</strong> = Two consecutive inside bars. Like two pauses in a row — extra compression. <br>
+              <strong>iii</strong> = Three inside bars. Very rare and very powerful — the spring is coiled tight. <br>
+              <strong>ioi</strong> = Inside bar, then an outside bar (bigger), then another inside bar. A complex squeeze pattern.
+              <br><br><em>Why it matters:</em> Inside bars = coiled spring. When the market finally breaks out of this tight range, the move is often fast and strong. The more inside bars in a row, the bigger the expected breakout.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-outsidebar" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Outside Bar</button></h2>
+          <div id="g-outsidebar" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              An <strong style="color:var(--accent)">Outside Bar</strong> is the opposite of an inside bar — its high is ABOVE the previous bar's high AND its low is BELOW the previous bar's low. It completely "swallows" the previous bar.
+              <br><br>This means both buyers and sellers made strong moves within that bar. It often signals a potential reversal or the start of a big move. The direction it closes in (up or down) often hints at which side won.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-hl" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            H1-H4 / L1-L4 (High/Low Counts)</button></h2>
+          <div id="g-hl" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              In a pullback (a temporary dip in an uptrend or rise in a downtrend), Al Brooks counts how many times price tries to resume:
+              <br><br><strong style="color:var(--bull)">H1, H2, H3, H4</strong> — In a bull trend, when price pulls back, the first bar that goes above the previous bar's high is called <strong>H1</strong> (High 1). If it fails and pulls back again, the next attempt is <strong>H2</strong>. Then H3, H4.
+              <br><br><strong style="color:var(--bear)">L1, L2, L3, L4</strong> — Same idea in a bear trend. L1 is the first bar that goes below the previous bar's low during a pullback.
+              <br><br><em>The golden rule:</em> <strong>H2 (or L2)</strong> is the "second entry" — Al Brooks considers this the highest-probability trade because it means the trend tried to resume, failed once, and is now trying again with more conviction. Most professional traders wait for the H2/L2 entry.
+              <br><br>H4/L4 = The trend may be exhausted. Four attempts to resume suggests the pullback might become a reversal.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-wedge" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Wedge / Double Top / Double Bottom</button></h2>
+          <div id="g-wedge" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--accent)">Wedge</strong> — Three pushes in the same direction. In an uptrend: three higher highs, each weaker than the last (like a tired runner). In a downtrend: three lower lows. After the third push, the trend often reverses. Think of it as "three strikes and you're out."
+              <br><br><strong style="color:var(--bear)">Double Top (DT / M-Top)</strong> — Price reaches a high, pulls back, then reaches approximately the same high again but can't go higher. It looks like the letter "M." This often means buyers are exhausted — expect a drop.
+              <br><br><strong style="color:var(--bull)">Double Bottom (DB / W-Bottom)</strong> — The mirror image. Price hits a low, bounces, hits about the same low again, then bounces harder. Looks like "W." Sellers are exhausted — expect a rise.
+              <br><br><strong>Bear Flag / Bull Flag</strong> — A brief pause (flag) in the middle of a trend. A bull flag is a small pullback in an uptrend — it's just the trend catching its breath before continuing up. Bear flag = small bounce in a downtrend before continuing down.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GLOSSARY CATEGORY: Trend Concepts -->
+      <h6 class="acc mb-2"><i class="bi bi-3-circle me-1"></i> Trend Concepts</h6>
+      <div class="accordion mb-4" id="glossaryTrend">
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-spike" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Spike & Channel</button></h2>
+          <div id="g-spike" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              Most trends have two phases:
+              <br><br><strong style="color:var(--accent)">Spike</strong> — The explosive start. Price moves rapidly with big trend bars and little or no overlap between bars. This is like a sprinter's start — fast and powerful. Spikes are driven by urgency (everyone rushing to buy or sell at the same time).
+              <br><br><strong style="color:var(--accent)">Channel</strong> — After the spike, the trend continues but in a calmer, more orderly way. Price makes steady progress with small pullbacks along the way. Think of it like a jogger after a sprint — still moving forward, but at a sustainable pace.
+              <br><br><em>Trading tip:</em> The best entries happen at the START of a spike or on pullbacks within a channel. Entering at the END of a channel is risky because the trend is aging.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-micro" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Micro Channel</button></h2>
+          <div id="g-micro" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              A <strong style="color:var(--accent)">Micro Channel</strong> is a very tight channel where almost every bar moves in the trend direction with very tiny pullbacks (or none at all). For a bull micro channel, every bar's low is at or above the previous bar's low.
+              <br><br>This is extremely bullish (or bearish for a bear micro channel) — it means the trend is so strong that the other side can't even create a one-bar pullback.
+              <br><br><em>Caution:</em> While micro channels show extreme strength, they're also unsustainable. When they finally break, the pullback can be sharp. Don't chase the end of a micro channel.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-twoleg" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Two-Leg Pullback / Measured Move</button></h2>
+          <div id="g-twoleg" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--accent)">Two-Leg Pullback</strong> — Al Brooks says "the market does everything in twos." When a trend pulls back, it usually does so in two distinct legs (two separate down-swings in a bull trend). After the second leg completes, the trend usually resumes.
+              <br><br><strong style="color:var(--accent)">Measured Move</strong> — The second leg of a move often equals the first leg in size. So if the first leg went up ₹50, the second leg after a pullback will likely also go up about ₹50. This gives you a price target.
+              <br><br><em>How to use it:</em> Wait for two legs of pullback, then enter. Set your target as a measured move from the pullback low. This is one of the most reliable patterns in all of trading.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-pressure" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Buying Pressure / Selling Pressure</button></h2>
+          <div id="g-pressure" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--bull)">Buying Pressure</strong> = How aggressively buyers are acting. Measured by: bull bars closing near their highs, bars closing above the previous bar's close, lower tails being rejected (buyers stepping in at lows).
+              <br><br><strong style="color:var(--bear)">Selling Pressure</strong> = The opposite — bear bars closing near lows, closes below previous close, upper tails being rejected (sellers stepping in at highs).
+              <br><br>This system measures both on a scale. When buying pressure strongly exceeds selling pressure, the always-in direction tilts LONG. The reverse for SHORT.
+              <br><br><em>Analogy:</em> Think of a tug-of-war. Buying pressure is one team pulling left, selling pressure is the other team pulling right. Whichever side is pulling harder determines the trend direction.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GLOSSARY CATEGORY: Setups & Entries -->
+      <h6 class="acc mb-2"><i class="bi bi-4-circle me-1"></i> Setups & Entry Types</h6>
+      <div class="accordion mb-4" id="glossarySetups">
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-breakout" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Breakout / Failed Breakout</button></h2>
+          <div id="g-breakout" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--accent)">Breakout</strong> — When price moves beyond a key level (a previous high, low, or trendline). It's like water breaking through a dam. A strong breakout with big bars and high volume often leads to a sustained trend.
+              <br><br><strong style="color:var(--bear)">Failed Breakout</strong> — Price breaks a level but quickly reverses back. This is one of the MOST reliable trading signals. Why? Because everyone who bought the breakout is now trapped — they'll need to sell, which pushes price further in the opposite direction.
+              <br><br><em>Example:</em> Stock hits ₹500 resistance, breaks to ₹510, but then drops back to ₹495. Everyone who bought at ₹505-510 is now losing money and panicking. Their selling accelerates the down move. A failed breakout above becomes a sell signal, and vice versa.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-secondentry" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Second Entry (H2 / L2)</button></h2>
+          <div id="g-secondentry" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              The <strong style="color:var(--accent)">Second Entry</strong> is Al Brooks' bread-and-butter trade. In a bull trend pullback, H1 (first attempt to resume) often fails. H2 (the second attempt) has a much higher success rate — typically 60%+ probability.
+              <br><br><em>Why?</em> The H1 failure shakes out weak longs and attracts shorts. When H2 forms, both the longs re-entering AND the shorts covering their losing positions push price up. It's a double engine of buying power.
+              <br><br><strong>When to use:</strong> In a clear bull trend, wait for a pullback. The first high (H1) forms. If it fails and pulls back again, watch for H2. Enter above H2's high with a stop below the pullback low. This is the highest-probability with-trend entry.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-pullback" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Pullback / Trend Continuation</button></h2>
+          <div id="g-pullback" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--accent)">Pullback</strong> — A temporary move against the trend. In an uptrend, a pullback is a small dip. It's normal and healthy — trends need to pause and "reload" before continuing.
+              <br><br><strong style="color:var(--accent)">Trend Continuation</strong> — After the pullback completes, the trend resumes its original direction. This is the safest type of trade — you're joining an existing trend rather than trying to predict a reversal.
+              <br><br><em>How deep is too deep?</em> If a pullback retraces more than 50% of the previous move, it might not be a pullback — it could be the start of a reversal. Shallow pullbacks (25-38% retracement) are strongest.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-reversal" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Reversal / Climax</button></h2>
+          <div id="g-reversal" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--accent)">Reversal</strong> — When the trend changes direction. A bull trend becomes a bear trend, or vice versa. Reversals usually start with a climax or exhaustion pattern.
+              <br><br><strong style="color:var(--accent)">Climax</strong> — An extreme move that exhausts one side. A buy climax is a series of big bull bars at the top of a trend — the last burst of enthusiasm before sellers take over. "The hottest flame burns out fastest."
+              <br><br><em>Signs of a reversal:</em> Multiple climax bars followed by a strong reversal bar, a failed breakout at a key level, and 3 pushes (wedge) completing. Reversals are harder to trade than trend continuations — only advanced traders should attempt them.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GLOSSARY CATEGORY: Trading Ranges -->
+      <h6 class="acc mb-2"><i class="bi bi-5-circle me-1"></i> Trading Ranges & Phases</h6>
+      <div class="accordion mb-4" id="glossaryRanges">
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-tradingrange" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Trading Range (Sideways Market)</button></h2>
+          <div id="g-tradingrange" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              A <strong style="color:var(--accent)">Trading Range</strong> is when price goes sideways — bouncing between a ceiling (resistance) and a floor (support) without making progress in either direction. Al Brooks says the market spends about <strong>80% of its time in trading ranges</strong>.
+              <br><br><em>Key insight:</em> In a trading range, most breakout attempts fail. Buy low (near support), sell high (near resistance), and wait for clear signs of a real breakout before committing to a trend trade.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-broadchannel" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Broad Channel / Tight Channel</button></h2>
+          <div id="g-broadchannel" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--accent)">Tight Channel</strong> — Price is moving in a narrow range with small pullbacks. The trend lines are close together. Very strong trend — don't bet against it.
+              <br><br><strong style="color:var(--accent)">Broad Channel</strong> — Price is trending but with wide swings back and forth. Each pullback is significant. This is easier for swing traders — buy at the bottom of the channel, sell at the top.
+              <br><br><strong>Phases of a trend (Al Brooks model):</strong>
+              <br>1. <strong>Spike</strong> → 2. <strong>Tight Channel</strong> → 3. <strong>Broad Channel</strong> → 4. <strong>Trading Range</strong>
+              <br><em>As a trend ages, channels tend to widen.</em> A transition from tight to broad channel is an early warning that the trend may be weakening.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GLOSSARY CATEGORY: Risk Management -->
+      <h6 class="acc mb-2"><i class="bi bi-6-circle me-1"></i> Risk Management</h6>
+      <div class="accordion" id="glossaryRisk">
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-stoploss" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Stop Loss & Position Sizing</button></h2>
+          <div id="g-stoploss" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--bear)">Stop Loss</strong> — The price at which you exit a losing trade. Al Brooks typically places stops one tick beyond the signal bar's extreme. For a BUY: stop goes one tick below the signal bar's low. For a SELL: one tick above the signal bar's high.
+              <br><br><strong style="color:var(--accent)">Position Sizing</strong> — How many shares to buy. The golden rule: never risk more than <strong>1-2% of your capital</strong> on a single trade. If your capital is ₹5,00,000 and your risk per trade is 1%, you can risk ₹5,000 maximum. If the stop loss is ₹10 away from your entry, you can buy 500 shares (₹5,000 ÷ ₹10).
+              <br><br><strong style="color:var(--accent)">Risk:Reward Ratio</strong> — How much you can gain vs how much you might lose. A 1:2 ratio means for every ₹1 risked, you could gain ₹2. Al Brooks recommends at least 1:2 for most trades and 1:1 only for very high-probability setups.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-followthrough" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Follow-Through</button></h2>
+          <div id="g-followthrough" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--accent)">Follow-Through</strong> means what happens AFTER a signal. If a strong bull signal bar forms and the next bar (entry bar) also closes higher — that's good follow-through. It confirms the signal.
+              <br><br>If the entry bar is a doji or a bear bar instead — that's poor follow-through. The signal may be failing.
+              <br><br><em>Rule of thumb:</em> Wait for one bar of follow-through before trusting a signal. A strong signal with no follow-through is like thunder with no rain — it might be a false alarm.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RESULTS (hidden until analysis runs) -->
+  <div id="results" style="display:none" class="fade-in">
+
+    <!-- HOW TO READ THIS REPORT -->
+    <div class="results-guide mb-3">
+      <strong><i class="bi bi-info-circle me-1"></i> How to Read This Report</strong> — This analysis card shows the complete price action picture for this stock. Here's what each section tells you:
+      <div class="guide-grid">
+        <div class="guide-item"><i class="bi bi-bullseye"></i><span><strong>Signal Details</strong> — The core trading signal: BUY/SELL/HOLD, how strong it is, how confident the system is, and what setup triggered it.</span></div>
+        <div class="guide-item"><i class="bi bi-cash-stack"></i><span><strong>Price Levels</strong> — Where to enter, where to place your stop loss, and two profit targets based on risk multiples and measured moves.</span></div>
+        <div class="guide-item"><i class="bi bi-diagram-3"></i><span><strong>Cross-System</strong> — Does Bollinger Band, TA, and Hybrid agree with the PA signal? More agreement = higher conviction.</span></div>
+        <div class="guide-item"><i class="bi bi-arrow-up-right"></i><span><strong>Trend State</strong> — The market's current direction, always-in lean, phase (spike/channel/range), and buyer vs seller pressure.</span></div>
+        <div class="guide-item"><i class="bi bi-puzzle"></i><span><strong>Patterns & Bars</strong> — What patterns are active (H2, wedge, flags), last bar type, and whether we're in breakout mode.</span></div>
+        <div class="guide-item"><i class="bi bi-bar-chart-fill"></i><span><strong>Score Breakdown</strong> — The 8 factors that make up the confidence score, each weighted differently. Green = supportive, red = weak.</span></div>
+      </div>
+    </div>
+
+    <!-- ── VERDICT HEADER ── -->
+    <div class="text-center mb-4">
+      <div class="mb-2">
+        <span class="mini-label">TICKER</span><br>
+        <span id="rTicker" class="fw-bold" style="font-size:1.8rem;color:var(--accent)">—</span>
+        <span id="rPrice" class="ms-2 text-secondary" style="font-size:1.1rem"></span>
+      </div>
+      <div id="rVerdict" class="verdict-badge vb-hold">HOLD</div>
+      <div class="mt-2">
+        <span id="rSetupBadge" class="setup-badge sb-trendcont">—</span>
+      </div>
+      <div class="mt-2 text-secondary" id="rDescription"></div>
+    </div>
+
+    <div class="row g-3">
+
+      <!-- ── LEFT COL: Signal + Prices + Cross-System ── -->
+      <div class="col-lg-5">
+
+        <!-- Signal Details -->
+        <div class="card mb-3">
+          <div class="card-header py-2"><span class="section-title"><i class="bi bi-bullseye me-1 acc"></i> Signal Details</span></div>
+          <div class="card-body">
+            <div class="card-desc">The core trading signal generated by bar-by-bar analysis. Shows what to do (BUY/SELL/HOLD), how strong the signal is, and the system's confidence level.</div>
+            <div class="detail-row"><span class="field-label">Signal <i class="bi bi-question-circle info-icon" title="BUY = bullish setup detected, SELL = bearish, HOLD = no clear edge. Based on the net PA score direction."></i></span><span id="dSignal" class="fw-bold">—</span></div>
+            <div class="detail-row"><span class="field-label">Strength <i class="bi bi-question-circle info-icon" title="STRONG = high conviction (60%+ confidence), MODERATE = decent (40-60%), WEAK = low confidence (<40%). Strength reflects how many scoring factors support the signal."></i></span><span id="dStrength">—</span></div>
+            <div class="detail-row"><span class="field-label">Confidence <i class="bi bi-question-circle info-icon" title="Percentage (0-100%) representing how certain the system is. Computed from 8 scoring components. 60%+ is actionable for most traders. Cross-system bonuses can push it higher."></i></span><span id="dConfidence">—</span></div>
+            <div class="detail-row"><span class="field-label">PA Score <i class="bi bi-question-circle info-icon" title="Net score from -100 to +100. Calculated as BUY score minus SELL score across 8 factors. Positive = bullish momentum, Negative = bearish. ±75+ = STRONG signal, ±25-75 = moderate, near 0 = neutral."></i></span><span id="dPaScore">—</span></div>
+            <div class="detail-row"><span class="field-label">Normalized Score <i class="bi bi-question-circle info-icon" title="The same PA score normalized to 0-100 scale (as shown in Top 5 Picks). Blends 70% normalized raw score + 30% confidence. Lets you compare directly with the composite score components."></i></span><span id="dPaNormalized">—</span></div>
+            <div class="detail-row"><span class="field-label">Setup Type <i class="bi bi-question-circle info-icon" title="What pattern/setup triggered this signal. SECOND_ENTRY (H2/L2) = highest win rate. BREAKOUT = momentum play. PULLBACK = joining existing trend. REVERSAL = counter-trend (risky). FAILED_BREAKOUT = trading trapped traders."></i></span><span id="dSetup">—</span></div>
+            <div class="detail-row"><span class="field-label">Risk : Reward <i class="bi bi-question-circle info-icon" title="Ratio of potential profit to potential loss. 1:2 means you risk ₹1 to make ₹2. Al Brooks recommends at least 1:2 for most trades. 1:1 only for very high-probability setups (60%+ win rate)."></i></span><span id="dRR">—</span></div>
+          </div>
+        </div>
+
+        <!-- Price Levels -->
+        <div class="card mb-3">
+          <div class="card-header py-2"><span class="section-title"><i class="bi bi-cash-stack me-1 acc"></i> Price Levels</span></div>
+          <div class="card-body">
+            <div class="card-desc">Actionable price levels computed from bar analysis. Entry is based on signal bar extremes. Stop loss is placed beyond the signal bar. Targets use risk multiples and measured move projections.</div>
+            <div class="price-level pl-entry"><i class="bi bi-arrow-right-circle-fill" style="color:#42a5f5"></i> <span class="flex-grow-1 field-label">Entry <i class="bi bi-question-circle info-icon" title="Suggested entry price. For BUY: above signal bar's high. For SELL: below signal bar's low. This is where you place your order."></i></span> <span id="plEntry" class="fw-bold">—</span></div>
+            <div class="price-level pl-stop"><i class="bi bi-x-circle-fill" style="color:var(--bear)"></i> <span class="flex-grow-1 field-label">Stop Loss <i class="bi bi-question-circle info-icon" title="Maximum loss price. Placed 1 tick beyond opposite end of signal bar. If price hits this, exit immediately — the setup has failed. Key to risk management."></i></span> <span id="plStop" class="fw-bold">—</span></div>
+            <div class="price-level pl-target"><i class="bi bi-check-circle-fill" style="color:var(--bull)"></i> <span class="flex-grow-1 field-label">Target 1 (1.5R) <i class="bi bi-question-circle info-icon" title="First profit target at 1.5× the risk distance. If risk is ₹10 (entry to stop), target 1 is ₹15 from entry. Conservative target — consider taking partial profits here."></i></span> <span id="plT1" class="fw-bold">—</span></div>
+            <div class="price-level pl-target"><i class="bi bi-trophy-fill" style="color:var(--bull)"></i> <span class="flex-grow-1 field-label">Target 2 (Measured) <i class="bi bi-question-circle info-icon" title="Second target based on measured move (two-leg projection). In Al Brooks' method, the second leg often equals the first leg in distance. This is the profit target for the remaining position."></i></span> <span id="plT2" class="fw-bold">—</span></div>
+          </div>
+        </div>
+
+        <!-- Cross-System -->
+        <div class="card mb-3">
+          <div class="card-header py-2"><span class="section-title"><i class="bi bi-diagram-3 me-1 acc"></i> Cross-System Validation</span></div>
+          <div class="card-body">
+            <div class="card-desc">Compares this PA signal against 3 other independent analysis engines. When multiple systems agree, the signal is much more reliable. <span style="color:var(--bull)"><i class="bi bi-check-circle-fill"></i> Agree</span> = same direction. <span style="color:var(--bear)"><i class="bi bi-x-circle-fill"></i> Conflict</span> = opposite direction.</div>
+            <div class="detail-row"><span class="field-label">BB Squeeze <i class="bi bi-question-circle info-icon" title="Does the Bollinger Band Squeeze strategy agree with the PA signal? BB methods detect volatility contraction (squeeze) and expansion (breakout). AGREE means BB sees the same direction."></i></span><span id="xBB">—</span></div>
+            <div class="detail-row"><span class="field-label">Technical Analysis <i class="bi bi-question-circle info-icon" title="Does the TA module agree? TA uses RSI, MACD, moving averages, ADX, and other indicators. If TA and PA both say BUY, the signal has multi-methodology confirmation."></i></span><span id="xTA">—</span></div>
+            <div class="detail-row"><span class="field-label">Hybrid Engine <i class="bi bi-question-circle info-icon" title="Does the combined BB+TA hybrid engine agree? Hybrid blends Bollinger Band and Technical Analysis into a single verdict. Agreement here means all classical indicators support the PA signal."></i></span><span id="xHybrid">—</span></div>
+            <div class="detail-row"><span class="field-label">Cross Bonus <i class="bi bi-question-circle info-icon" title="Points added (+) or subtracted (-) from confidence based on inter-system agreement. All agree = +15. Partial agree = +5. Conflict = -10. This rewards signals confirmed by multiple methodologies."></i></span><span id="xBonus">—</span></div>
+            <div class="detail-row"><span class="field-label">Combined Conf. <i class="bi bi-question-circle info-icon" title="Final confidence after applying cross-system bonuses/penalties. This is the most important number — it's the PA confidence adjusted by whether other engines agree or disagree."></i></span><span id="xCombConf" class="fw-bold">—</span></div>
+            <div class="mt-2 small text-secondary" id="xVerdict"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RIGHT COL: Trend + Patterns + Reasons ── -->
+      <div class="col-lg-7">
+
+        <!-- Trend State -->
+        <div class="card mb-3">
+          <div class="card-header py-2"><span class="section-title"><i class="bi bi-arrow-up-right me-1 acc"></i> Trend State</span></div>
+          <div class="card-body">
+            <div class="card-desc">The big picture — what is the market doing right now? Always-In Direction is the most critical field: it tells you which side of the market you should be on. Only take BUY signals when always-in is LONG, and SELL signals when always-in is SHORT.</div>
+            <div class="row g-2 text-center mb-3">
+              <div class="col-4">
+                <div class="mini-label" title="If you MUST be in a trade right now (long or short), which would it be? LONG = market pressure is up. SHORT = pressure is down. FLAT = unclear, best to wait.">Always-In <i class="bi bi-question-circle" style="font-size:.65rem;color:rgba(255,255,255,.25)"></i></div>
+                <div id="tAlwaysIn" class="indicator-val">—</div>
+              </div>
+              <div class="col-4">
+                <div class="mini-label" title="Overall trend direction based on price structure. BULL = higher highs/lows. BEAR = lower highs/lows. SIDEWAYS = no clear direction (trading range).">Direction <i class="bi bi-question-circle" style="font-size:.65rem;color:rgba(255,255,255,.25)"></i></div>
+                <div id="tDirection" class="indicator-val">—</div>
+              </div>
+              <div class="col-4">
+                <div class="mini-label" title="Current phase in the trend lifecycle. SPIKE = explosive start. TIGHT/BROAD CHANNEL = orderly trend. TRADING_RANGE = sideways. Trends age from SPIKE → CHANNEL → RANGE.">Phase <i class="bi bi-question-circle" style="font-size:.65rem;color:rgba(255,255,255,.25)"></i></div>
+                <div id="tPhase" class="indicator-val" style="font-size:1rem">—</div>
+              </div>
+            </div>
+            <div class="detail-row"><span class="field-label">Trend Strength <i class="bi bi-question-circle info-icon" title="How strong the current trend is, as a percentage (0-100%). Based on trend bar ratio, consecutive bars, overlap between bars. Higher = stronger trend. Below 30% = very weak/range."></i></span><span id="tStrength">—</span></div>
+            <div class="detail-row"><span class="field-label">AI Score <i class="bi bi-question-circle info-icon" title="Always-In Score from -100 to +100. Weighted combination of: trend bar ratio, EMA position, consecutive directional bars, H/L counting pattern, and signal bar presence. Positive = lean LONG, negative = lean SHORT."></i></span><span id="tAIScore">—</span></div>
+
+            <!-- Pressure bar -->
+            <div class="mini-label mt-2" title="Tug-of-war between buyers and sellers. Based on trend bars (30%), close zones (25%), strong bars (25%), and follow-through (20%). When one side dominates (60%+), the always-in direction tilts that way.">Buying / Selling Pressure <i class="bi bi-question-circle" style="font-size:.65rem;color:rgba(255,255,255,.25)"></i></div>
+            <div class="pressure-bar">
+              <div class="pressure-buy" id="pressureBuy" style="width:50%"></div>
+              <div class="pressure-sell" id="pressureSell" style="width:50%"></div>
+            </div>
+            <div class="d-flex justify-content-between" style="font-size:.78rem">
+              <span class="bull" id="pressureBuyPct">50%</span>
+              <span class="bear" id="pressureSellPct">50%</span>
+            </div>
+
+            <div class="detail-row mt-2"><span class="field-label">Two-Leg Complete <i class="bi bi-question-circle info-icon" title="Has a two-leg measured move completed? Markets move in two legs (AB-CD). If YES, the move may be exhausted and a pullback or reversal is likely. Important for timing exits."></i></span><span id="tTwoLeg">—</span></div>
+            <div class="detail-row"><span class="field-label">Measured Target <i class="bi bi-question-circle info-icon" title="Price target from the measured move projection. If the first leg was ₹50, the second leg targets ₹50 from the pullback extreme. One of the most reliable price targets in Al Brooks' methodology."></i></span><span id="tMeasured">—</span></div>
+          </div>
+        </div>
+
+        <!-- Patterns & Bar Info -->
+        <div class="card mb-3">
+          <div class="card-header py-2"><span class="section-title"><i class="bi bi-puzzle me-1 acc"></i> Patterns & Bar Analysis</span></div>
+          <div class="card-body">
+            <div class="card-desc">What patterns are currently active and how the last bar behaved. Active patterns are the building blocks of the setup — they explain WHY the signal was generated. See the glossary above for detailed explanations of each pattern.</div>
+            <div class="detail-row"><span class="field-label">Last Bar <i class="bi bi-question-circle info-icon" title="Classification of the most recent bar. STRONG_BULL/BEAR_TREND = very directional (body >70%). MODERATE = medium conviction. DOJI = indecision (body <30%). Shows who won the last round of the buyer vs seller fight."></i></span><span id="pLastBar">—</span></div>
+            <div class="detail-row"><span class="field-label">Signal Bar? <i class="bi bi-question-circle info-icon" title="Is the last bar a valid signal bar? YES means it has the right characteristics to trigger a trade entry on the NEXT bar. Requirements: reversal tail, trend bar strength, or specific pattern completion."></i></span><span id="pSignalBar">—</span></div>
+            <div class="detail-row"><span class="field-label">Breakout Mode <i class="bi bi-question-circle info-icon" title="Is the stock currently breaking out of a key level? ACTIVE means price has just broken above a high or below a low with conviction. Breakouts can lead to fast moves — or fail and reverse."></i></span><span id="pBreakout">—</span></div>
+            <div class="detail-row"><span class="field-label">Last H Count <i class="bi bi-question-circle info-icon" title="In a bull trend pullback, how many times has price tried to go above the previous bar's high? H1 = first attempt (often fails). H2 = second attempt (highest probability entry). H4 = trend may be exhausted."></i></span><span id="pHCount">—</span></div>
+            <div class="detail-row"><span class="field-label">Last L Count <i class="bi bi-question-circle info-icon" title="In a bear trend pullback, how many times has price tried to go below the previous bar's low? L1 = first attempt. L2 = second attempt (best sell entry). L4 = selling pressure may be waning."></i></span><span id="pLCount">—</span></div>
+            <div class="detail-row"><span class="field-label">Channel Position <i class="bi bi-question-circle info-icon" title="Where is price within the current channel? TOP = near upper trend line (overbought zone). BOTTOM = near lower trend line (oversold zone). MIDDLE = no edge from position. Best BUY entries are near BOTTOM of bull channel."></i></span><span id="pChannel">—</span></div>
+            <div class="mt-2 mini-label" title="Currently active Al Brooks patterns. Each pattern contributes to the final signal. Hover patterns for definitions in the glossary. Common patterns: H2 (second entry buy), L2 (second entry sell), ii/iii (inside bar compression), DB/DT (double bottom/top), WEDGE (three pushes).">Active Patterns <i class="bi bi-question-circle" style="font-size:.65rem;color:rgba(255,255,255,.25)"></i></div>
+            <div id="pPatterns" class="mt-1">—</div>
+          </div>
+        </div>
+
+        <!-- Score Breakdown -->
+        <div class="card mb-3">
+          <div class="card-header py-2"><span class="section-title"><i class="bi bi-bar-chart-fill me-1 acc"></i> Score Breakdown</span></div>
+          <div class="card-body">
+            <div class="card-desc">The signal confidence is built from 8 independent scoring factors, each measuring a different aspect of price action. Green bars (70%+) = strongly supportive. Yellow (40-70%) = moderate. Red (&lt;40%) = weak or unsupportive.</div>
+            <div id="scoreBreakdown">
+            <!-- filled by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Reasons -->
+        <div class="card mb-3">
+          <div class="card-header py-2"><span class="section-title"><i class="bi bi-list-check me-1 acc"></i> Signal Reasons</span></div>
+          <div class="card-body">
+            <div class="card-desc">Human-readable explanations of why this signal was generated. Each reason is an independent observation about the current price action. More reasons = more evidence supporting the signal.</div>
+            <div id="reasonsList">
+            <!-- filled by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Al Brooks Context -->
+        <div class="brooks-ctx" id="brooksContext" title="A natural-language summary in Al Brooks' terminology describing the current market situation. Written as if Al Brooks himself were reading this chart and explaining what he sees.">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCAN RESULTS (hidden until scan runs) -->
+  <div id="scanResults" style="display:none" class="fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="fw-bold mb-0"><i class="bi bi-search me-1 acc"></i> <span id="scanTitle">Scan Results</span></h5>
+      <small class="text-secondary" id="scanStats"></small>
+    </div>
+    <div class="results-guide mb-3" style="padding:10px 14px">
+      <strong>Reading Scan Results:</strong> Each row shows a stock with an active PA signal. Click any stock to see its full analysis.
+      <strong>Confidence %</strong> = signal strength (higher is better). <strong>Setup badge</strong> = what type of trade (Second Entry is highest quality).
+      <strong>Phase</strong> = trend lifecycle stage. Stocks in SPIKE phase have strongest momentum; BROAD CHANNEL gives more swing-trade entries.
+    </div>
+    <div id="scanList"><!-- filled by JS --></div>
+  </div>
+
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const TICKERS = {{ tickers | tojson }};
+const inp = document.getElementById('tickerInput');
+const autoList = document.getElementById('autoList');
+
+// ── Autocomplete ──
+inp.addEventListener('input', () => {
+    const q = inp.value.trim().toUpperCase();
+    autoList.innerHTML = '';
+    if (q.length < 1) { autoList.style.display = 'none'; return; }
+    const matches = TICKERS.filter(t => t.toUpperCase().includes(q)).slice(0, 15);
+    if (!matches.length) { autoList.style.display = 'none'; return; }
+    matches.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.textContent = t;
+        div.onclick = () => { inp.value = t; autoList.style.display = 'none'; analyze(t); };
+        autoList.appendChild(div);
+    });
+    autoList.style.display = 'block';
+});
+inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); analyze(inp.value.trim()); autoList.style.display = 'none'; }
+    if (e.key === 'Escape') autoList.style.display = 'none';
+});
+document.addEventListener('click', e => { if (!e.target.closest('.ticker-search')) autoList.style.display = 'none'; });
+
+// ── Loading ──
+function showLoading() { document.getElementById('loading').classList.add('active'); }
+function hideLoading() { document.getElementById('loading').classList.remove('active'); }
+
+// ── Analyze single stock ──
+async function analyze(ticker) {
+    if (!ticker) return;
+    ticker = ticker.replace('.NS', '').trim();
+    showLoading();
+    document.getElementById('introBox').style.display = 'none';
+    document.getElementById('scanResults').style.display = 'none';
+    try {
+        const resp = await fetch('/api/pa/' + encodeURIComponent(ticker));
+        const d = await resp.json();
+        if (d.error) { alert(d.error); return; }
+        renderResult(d);
+        document.getElementById('results').style.display = 'block';
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function renderResult(d) {
+    const s = d.signal, t = d.trend, p = d.patterns, cs = d.cross_system, pl = d.price_levels;
+
+    // Ticker & price
+    document.getElementById('rTicker').textContent = d.ticker;
+    document.getElementById('rPrice').textContent = pl.current ? '₹' + pl.current.toFixed(2) : '';
+
+    // Verdict badge
+    const vEl = document.getElementById('rVerdict');
+    vEl.textContent = s.pa_verdict;
+    vEl.className = 'verdict-badge ' + (s.type === 'BUY' ? 'vb-buy' : s.type === 'SELL' ? 'vb-sell' : 'vb-hold');
+
+    // Setup badge
+    const sb = document.getElementById('rSetupBadge');
+    sb.textContent = s.setup.replace(/_/g, ' ');
+    const setupClasses = {BREAKOUT:'sb-breakout',PULLBACK:'sb-pullback',REVERSAL:'sb-reversal',TREND_CONT:'sb-trendcont',FAILED_BREAKOUT:'sb-failed',SECOND_ENTRY:'sb-second'};
+    sb.className = 'setup-badge ' + (setupClasses[s.setup] || 'sb-trendcont');
+
+    document.getElementById('rDescription').textContent = d.description;
+
+    // Signal details
+    const sigColor = s.type === 'BUY' ? 'bull' : s.type === 'SELL' ? 'bear' : 'neutral';
+    document.getElementById('dSignal').innerHTML = '<span class="' + sigColor + '">' + s.type + '</span>';
+    document.getElementById('dStrength').textContent = s.strength;
+    document.getElementById('dConfidence').textContent = s.confidence + '%';
+    document.getElementById('dPaScore').innerHTML = '<span class="' + (s.pa_score >= 0 ? 'bull' : 'bear') + '">' + (s.pa_score >= 0 ? '+' : '') + s.pa_score.toFixed(1) + '</span>';
+    // Normalized score (same formula as Top 5 Picks: 70% normalized + 30% confidence)
+    var paNorm = (s.pa_score + 100) / 2;
+    var paBlended = paNorm * 0.7 + s.confidence * 0.3;
+    paBlended = Math.max(0, Math.min(100, paBlended));
+    var normColor = paBlended >= 60 ? 'bull' : paBlended >= 40 ? 'neutral' : 'bear';
+    document.getElementById('dPaNormalized').innerHTML = '<span class="' + normColor + '">' + paBlended.toFixed(0) + '/100</span>';
+    document.getElementById('dSetup').textContent = s.setup.replace(/_/g, ' ');
+    document.getElementById('dRR').textContent = pl.risk_reward ? '1 : ' + pl.risk_reward.toFixed(1) : '—';
+
+    // Price levels
+    document.getElementById('plEntry').textContent = pl.entry ? '₹' + pl.entry.toFixed(2) : '—';
+    document.getElementById('plStop').textContent = pl.stop_loss ? '₹' + pl.stop_loss.toFixed(2) : '—';
+    document.getElementById('plT1').textContent = pl.target_1 ? '₹' + pl.target_1.toFixed(2) : '—';
+    document.getElementById('plT2').textContent = pl.target_2 ? '₹' + pl.target_2.toFixed(2) : '—';
+
+    // Cross-system
+    const agreeIcon = v => v === 'AGREE' ? '<span class="cross-agree"><i class="bi bi-check-circle-fill"></i> Agree</span>' :
+                           v === 'CONFLICT' ? '<span class="cross-conflict"><i class="bi bi-x-circle-fill"></i> Conflict</span>' :
+                           '<span class="cross-neutral"><i class="bi bi-dash-circle"></i> ' + v + '</span>';
+    document.getElementById('xBB').innerHTML = agreeIcon(cs.bb_agreement);
+    document.getElementById('xTA').innerHTML = agreeIcon(cs.ta_agreement);
+    document.getElementById('xHybrid').innerHTML = agreeIcon(cs.hybrid_agreement);
+    document.getElementById('xBonus').innerHTML = (cs.cross_bonus >= 0 ? '+' : '') + cs.cross_bonus;
+    document.getElementById('xCombConf').textContent = cs.combined_confidence.toFixed(0) + '%';
+    document.getElementById('xVerdict').textContent = cs.combined_verdict;
+
+    // Trend state
+    const aiColor = t.always_in === 'LONG' ? 'bull' : t.always_in === 'SHORT' ? 'bear' : 'neutral';
+    document.getElementById('tAlwaysIn').innerHTML = '<span class="' + aiColor + '">' + t.always_in + '</span>';
+    const dirColor = t.direction === 'BULL' ? 'bull' : t.direction === 'BEAR' ? 'bear' : 'neutral';
+    document.getElementById('tDirection').innerHTML = '<span class="' + dirColor + '">' + t.direction + '</span>';
+    document.getElementById('tPhase').textContent = t.phase.replace(/_/g, ' ');
+    document.getElementById('tStrength').textContent = t.strength.toFixed(0) + '%';
+    document.getElementById('tAIScore').innerHTML = '<span class="' + (t.always_in_score >= 0 ? 'bull' : 'bear') + '">' + (t.always_in_score >= 0 ? '+' : '') + t.always_in_score.toFixed(1) + '</span>';
+
+    // Pressure bar
+    const bp = t.buying_pressure, sp = t.selling_pressure;
+    document.getElementById('pressureBuy').style.width = bp + '%';
+    document.getElementById('pressureSell').style.width = sp + '%';
+    document.getElementById('pressureBuyPct').textContent = bp.toFixed(0) + '% Buy';
+    document.getElementById('pressureSellPct').textContent = sp.toFixed(0) + '% Sell';
+
+    // Two-leg
+    const tl = d.two_leg;
+    document.getElementById('tTwoLeg').innerHTML = tl.complete ? '<span class="bull">YES ✓</span>' : '<span class="text-secondary">No</span>';
+    document.getElementById('tMeasured').textContent = tl.measured_target ? '₹' + tl.measured_target.toFixed(2) : '—';
+
+    // Patterns
+    const lb = d.last_bar;
+    document.getElementById('pLastBar').textContent = lb.type.replace(/_/g, ' ');
+    document.getElementById('pSignalBar').innerHTML = lb.is_signal ? '<span class="acc">YES ✓</span>' : 'No';
+    document.getElementById('pBreakout').innerHTML = p.breakout_mode ? '<span class="acc">ACTIVE ⚡</span>' : 'No';
+    document.getElementById('pHCount').textContent = p.last_h || '—';
+    document.getElementById('pLCount').textContent = p.last_l || '—';
+    document.getElementById('pChannel').textContent = d.channel.price_position.replace(/_/g, ' ');
+
+    const patsEl = document.getElementById('pPatterns');
+    if (p.active && p.active.length) {
+        patsEl.innerHTML = p.active.map(n => '<span class="pattern-pill">' + n + '</span>').join('');
+    } else {
+        patsEl.innerHTML = '<span class="text-secondary small">None active</span>';
+    }
+
+    // Score breakdown
+    const scoring = d.scoring || {};
+    const scoreEl = document.getElementById('scoreBreakdown');
+    const maxScores = {trend_direction:25,bar_quality:15,pattern_match:15,pressure:15,breakout:10,channel_position:10,two_leg:5,follow_through:5};
+    const scoreDescs = {
+        trend_direction:'Alignment with always-in direction + overall trend strength. The most heavily weighted factor (25 pts). Measures if the signal goes WITH or AGAINST the trend.',
+        bar_quality:'Quality of the signal bar and recent bars. Strong trend bars with closes near extremes score high. Dojis and overlapping bars score low. Max 15 pts.',
+        pattern_match:'How many active patterns support this signal direction. Each matching pattern (H2, wedge, flag, etc.) adds points. More patterns = stronger conviction. Max 15 pts.',
+        pressure:'Buying vs selling pressure balance in the signal direction. Based on trend bar ratio, close zones, strong bars, and follow-through bars. Max 15 pts.',
+        breakout:'Breakout context. Scores higher if price just broke a key level, or if a failed breakout creates trapped-trader momentum. Active breakout mode = bonus. Max 10 pts.',
+        channel_position:'Where price sits in the channel. BUY signals score more at channel bottom (support). SELL signals score more at channel top (resistance). Max 10 pts.',
+        two_leg:'Two-leg measured move completion. If a two-leg ABC correction has completed, this adds conviction for the trend resumption. Rare but reliable. Max 5 pts.',
+        follow_through:'Recent follow-through in signal direction. Consecutive confirming bars after the signal bar show momentum is building. More follow-through = more confidence. Max 5 pts.'
+    };
+    let html = '';
+    for (const [key, max] of Object.entries(maxScores)) {
+        const val = scoring[key] || 0;
+        const pct = max > 0 ? (val / max * 100) : 0;
+        const color = pct >= 70 ? 'var(--bull)' : pct >= 40 ? 'var(--neutral)' : 'var(--bear)';
+        html += '<div class="mb-2"><div class="d-flex justify-content-between" style="font-size:.82rem"><span>' +
+                key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) + '</span><span>' +
+                val.toFixed(1) + ' / ' + max + '</span></div>' +
+                '<div class="score-bar"><div class="score-fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
+                '<div class="score-desc">' + (scoreDescs[key] || '') + '</div></div>';
+    }
+    scoreEl.innerHTML = html;
+
+    // Reasons
+    const rl = document.getElementById('reasonsList');
+    if (d.reasons && d.reasons.length) {
+        rl.innerHTML = d.reasons.map(r => '<div class="reason-item">' + r + '</div>').join('');
+    } else {
+        rl.innerHTML = '<div class="text-secondary small">No details</div>';
+    }
+
+    // Al Brooks context
+    document.getElementById('brooksContext').innerHTML = '<strong><i class="bi bi-book me-1"></i> Al Brooks Context</strong><br>' + (d.al_brooks_context || '—');
+}
+
+// ── Scan ──
+async function runScan(direction) {
+    showLoading();
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('introBox').style.display = 'none';
+    try {
+        const resp = await fetch('/api/pa/scan?direction=' + direction + '&min_confidence=25&limit=100');
+        const d = await resp.json();
+        renderScan(d, direction);
+        document.getElementById('scanResults').style.display = 'block';
+    } catch (err) {
+        alert('Scan error: ' + err.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function renderScan(d, direction) {
+    const titles = {buy:'BUY Signals',sell:'SELL Signals',all:'All Signals'};
+    document.getElementById('scanTitle').textContent = titles[direction] || 'Scan Results';
+    document.getElementById('scanStats').textContent = d.count + ' signals from ' + d.scanned + ' stocks (' + d.errors + ' errors)';
+
+    const list = document.getElementById('scanList');
+    if (!d.results || !d.results.length) {
+        list.innerHTML = '<div class="text-center py-4 text-secondary"><i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:8px"></i>No signals found</div>';
+        return;
+    }
+
+    list.innerHTML = d.results.map(r => {
+        const s = r.signal, t = r.trend;
+        const sigClass = s.type === 'BUY' ? 'bull' : s.type === 'SELL' ? 'bear' : 'neutral';
+        const setupClasses = {BREAKOUT:'sb-breakout',PULLBACK:'sb-pullback',REVERSAL:'sb-reversal',TREND_CONT:'sb-trendcont',FAILED_BREAKOUT:'sb-failed',SECOND_ENTRY:'sb-second'};
+        const aiClass = t.always_in === 'LONG' ? 'bull' : t.always_in === 'SHORT' ? 'bear' : 'neutral';
+        const scoreSign = s.pa_score >= 0 ? '+' : '';
+        const scoreClass = s.pa_score >= 0 ? 'bull' : 'bear';
+        return '<div class="scan-item" onclick="analyze(\'' + r.ticker + '\')">' +
+            '<div class="d-flex justify-content-between align-items-center">' +
+            '<div><span class="fw-bold acc">' + r.ticker + '</span>' +
+            ' <span class="' + sigClass + ' fw-bold ms-2">' + s.type + '</span>' +
+            ' <span class="setup-badge ms-2 ' + (setupClasses[s.setup] || '') + '">' + s.setup.replace(/_/g,' ') + '</span></div>' +
+            '<div><span class="mini-label me-2">' + t.phase.replace(/_/g,' ') + '</span>' +
+            '<span class="fw-bold">' + s.confidence + '%</span></div></div>' +
+            '<div class="scan-meta">' +
+            '<span title="Always-In Direction">AI: <span class="' + aiClass + '">' + t.always_in + '</span></span>' +
+            '<span title="PA Score (-100 to +100)">Score: <span class="' + scoreClass + '">' + scoreSign + s.pa_score.toFixed(1) + '</span></span>' +
+            '<span title="Signal Strength">' + s.strength + '</span>' +
+            '</div>' +
+            '<div class="small text-secondary mt-1">' + (r.description || '') + '</div></div>';
+    }).join('');
+}
+</script>
+</body>
+</html>

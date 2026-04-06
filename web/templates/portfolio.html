@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📊 Strategy Portfolio Tracker — Bollinger Band</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bs-body-bg:#0d1117; --bs-body-color:#c9d1d9;
+    --card-bg:#161b22; --card-border:#30363d;
+    --g:#3fb950; --r:#f85149; --y:#d29922; --b:#58a6ff; --p:#bc8cff; --o:#f0883e; --c:#39d2c0;
+    --m1-color:#58a6ff; --m2-color:#3fb950; --m3-color:#bc8cff; --m4-color:#f0883e;
+}
+body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
+.card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
+
+/* Nav */
+.top-nav{background:var(--card-bg);border-bottom:1px solid var(--card-border)}
+.top-nav .nav-link{color:#8b949e;font-weight:500;padding:.6rem 1rem}
+.top-nav .nav-link:hover{color:#c9d1d9}
+.top-nav .nav-link.active{color:var(--b)}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#0d1117,#161b22 50%,#1a1f2b);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#f0883e,#bc8cff,#58a6ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+/* Summary cards */
+.sum-card{border-radius:14px;padding:1.2rem;transition:transform .15s}
+.sum-card:hover{transform:translateY(-2px)}
+.sum-val{font-size:1.6rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sum-label{font-size:.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* Strategy badges */
+.badge-m1{background:rgba(88,166,255,.15);color:#58a6ff}
+.badge-m2{background:rgba(63,185,80,.15);color:#3fb950}
+.badge-m3{background:rgba(188,140,255,.15);color:#bc8cff}
+.badge-m4{background:rgba(240,136,62,.15);color:#f0883e}
+.badge-open{background:rgba(63,185,80,.15);color:#3fb950}
+.badge-closed{background:rgba(139,148,158,.15);color:#8b949e}
+.badge-buy{background:rgba(63,185,80,.15);color:#3fb950}
+.badge-sell{background:rgba(248,81,73,.15);color:#f85149}
+.badge-hold{background:rgba(88,166,255,.15);color:#58a6ff}
+.badge-add{background:rgba(210,153,34,.15);color:#d29922}
+.badge-wait{background:rgba(139,148,158,.15);color:#8b949e}
+
+/* Table */
+.port-tbl th{color:#8b949e;font-weight:500;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.port-tbl td{vertical-align:middle;font-size:.88rem}
+.port-tbl tbody tr{cursor:pointer;transition:background .15s}
+.port-tbl tbody tr:hover{background:rgba(88,166,255,.06)}
+
+/* Form */
+.form-control,.form-select{background:#0d1117;border-color:var(--card-border);color:#c9d1d9}
+.form-control:focus,.form-select:focus{background:#0d1117;border-color:var(--b);color:#c9d1d9;box-shadow:0 0 0 .2rem rgba(88,166,255,.15)}
+
+/* Analysis panel */
+.analysis-panel{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:1.5rem}
+.rec-action{font-size:1.8rem;font-weight:800;letter-spacing:1px}
+.rec-action.SELL{color:var(--r)}.rec-action.BUY,.rec-action.ADD{color:var(--g)}.rec-action.HOLD{color:var(--b)}.rec-action.WAIT{color:var(--y)}
+.target-bar{height:6px;border-radius:3px;background:var(--card-border);position:relative;overflow:visible}
+.target-marker{position:absolute;top:-4px;width:14px;height:14px;border-radius:50%;border:2px solid var(--card-bg)}
+.target-line{position:absolute;top:-20px;font-size:.65rem;white-space:nowrap;transform:translateX(-50%)}
+
+/* Indicator pills */
+.ind-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;font-size:.82rem;background:rgba(255,255,255,.04);border:1px solid var(--card-border)}
+.ind-pill .ind-val{font-family:'JetBrains Mono',monospace;font-weight:600}
+
+/* Confirm/warning items */
+.confirm-item{padding:6px 10px;border-radius:8px;font-size:.85rem;margin-bottom:4px}
+.confirm-item.green{background:rgba(63,185,80,.08);border-left:3px solid var(--g)}
+.confirm-item.red{background:rgba(248,81,73,.08);border-left:3px solid var(--r)}
+.confirm-item.blue{background:rgba(88,166,255,.08);border-left:3px solid var(--b)}
+.confirm-item.yellow{background:rgba(210,153,34,.08);border-left:3px solid var(--y)}
+
+/* Autocomplete */
+.ac-wrap{position:relative}
+.ac-list{position:absolute;z-index:1060;background:var(--card-bg);border:1px solid var(--card-border);border-radius:0 0 10px 10px;max-height:220px;overflow-y:auto;width:100%;left:0;top:100%;display:none}
+.ac-item{padding:7px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:.88rem;color:var(--bs-body-color)}
+.ac-item:hover,.ac-item.active{background:rgba(88,166,255,.12);color:var(--b)}
+.ac-item .ac-match{color:var(--b);font-weight:600}
+
+/* Tabs */
+.nav-pills .nav-link{color:#8b949e;border-radius:8px}
+.nav-pills .nav-link.active{background:rgba(88,166,255,.15);color:var(--b)}
+</style>
+</head>
+<body>
+
+<!-- ═══════ TOP NAV ═══════ -->
+<nav class="top-nav sticky-top">
+  <div class="container-fluid d-flex align-items-center py-2">
+    <a class="nav-link" href="/"><i class="bi bi-graph-up-arrow me-1"></i>Bollinger Dashboard</a>
+    <a class="nav-link" href="/trades"><i class="bi bi-cash-stack me-1"></i>Trade P&L</a>
+    <a class="nav-link active" href="/portfolio"><i class="bi bi-briefcase-fill me-1"></i>Portfolio Tracker</a>
+    <span class="ms-auto text-secondary small font-mono" id="clockSpan"></span>
+  </div>
+</nav>
+
+<!-- ═══════ HERO ═══════ -->
+<div class="hero">
+  <div class="container-fluid">
+    <h1><i class="bi bi-briefcase-fill me-2"></i>Strategy Portfolio Tracker</h1>
+    <p class="text-secondary mb-0">Log stocks bought via Bollinger Band strategies &bull; Track daily recommendations &bull; Target prices &bull; HOLD / SELL / ADD guidance</p>
+  </div>
+</div>
+
+<!-- ═══════ SUMMARY CARDS ═══════ -->
+<div class="container-fluid mt-3">
+  <div class="row g-3 mb-3" id="summaryRow">
+    <div class="col-6 col-md-3"><div class="sum-card card"><div class="sum-val text-info" id="sumOpen">0</div><div class="sum-label">Open Positions</div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card card"><div class="sum-val" id="sumInvested">₹0</div><div class="sum-label">Total Invested</div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card card"><div class="sum-val" id="sumCurrent">₹0</div><div class="sum-label">Current Value</div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card card"><div class="sum-val" id="sumPnl">₹0</div><div class="sum-label">Unrealized P&L</div></div></div>
+  </div>
+
+  <!-- ═══════ TABS: OPEN / CLOSED / ADD ═══════ -->
+  <ul class="nav nav-pills mb-3">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#tabOpen" id="tabOpenBtn">Open Positions</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#tabClosed" id="tabClosedBtn">Closed</a></li>
+    <li class="nav-item ms-auto"><button class="btn btn-sm btn-outline-light" onclick="showAddModal()"><i class="bi bi-plus-lg me-1"></i>Add Position</button></li>
+  </ul>
+
+  <div class="tab-content">
+    <!-- ── OPEN POSITIONS ── -->
+    <div class="tab-pane fade show active" id="tabOpen">
+      <div class="card">
+        <div class="table-responsive">
+          <table class="table table-dark table-hover port-tbl mb-0" id="openTable">
+            <thead>
+              <tr>
+                <th>Ticker</th><th>Strategy</th><th>Buy Price</th><th>Buy Date</th>
+                <th>Qty</th><th>Current</th><th>P&L</th><th>P&L %</th>
+                <th>Days</th><th>Action</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="openBody"></tbody>
+          </table>
+        </div>
+        <div class="text-center py-4 text-secondary" id="openEmpty" style="display:none;">
+          <i class="bi bi-inbox fs-1 d-block mb-2"></i>No open positions yet. Click <strong>Add Position</strong> to get started.
+        </div>
+      </div>
+    </div>
+    <!-- ── CLOSED POSITIONS ── -->
+    <div class="tab-pane fade" id="tabClosed">
+      <div class="card">
+        <div class="table-responsive">
+          <table class="table table-dark table-hover port-tbl mb-0" id="closedTable">
+            <thead>
+              <tr>
+                <th>Ticker</th><th>Strategy</th><th>Buy</th><th>Sell</th>
+                <th>Qty</th><th>P&L</th><th>P&L %</th><th>Reason</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="closedBody"></tbody>
+          </table>
+        </div>
+        <div class="text-center py-4 text-secondary" id="closedEmpty" style="display:none;">
+          No closed positions yet.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ ANALYSIS DETAIL PANEL (shown when clicking a row) ═══════ -->
+  <div id="analysisSection" style="display:none;" class="mt-4 mb-5">
+    <div class="d-flex align-items-center mb-3">
+      <h4 class="mb-0"><i class="bi bi-clipboard-data me-2"></i>Position Analysis: <span class="font-mono text-info" id="analysisTicker"></span></h4>
+      <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="hideAnalysis()"><i class="bi bi-x-lg"></i> Close</button>
+    </div>
+
+    <!-- Loading spinner -->
+    <div id="analysisLoading" class="text-center py-5"><div class="spinner-border text-info"></div><p class="mt-2 text-secondary">Analyzing position...</p></div>
+
+    <!-- Analysis content -->
+    <div id="analysisContent" style="display:none;">
+      <div class="row g-3">
+
+        <!-- LEFT: Recommendation + Targets -->
+        <div class="col-lg-5">
+          <!-- Recommendation card -->
+          <div class="analysis-panel mb-3">
+            <div class="text-secondary small text-uppercase mb-1">Recommendation</div>
+            <div class="rec-action" id="recAction"></div>
+            <div class="text-secondary small mt-1">Strength: <span class="font-mono fw-bold" id="recStrength"></span></div>
+            <div class="text-secondary small">Strategy: <span class="font-mono" id="recStrategy"></span></div>
+            <div class="d-flex flex-wrap gap-2 mt-2" id="recMeta"></div>
+            <hr style="border-color:var(--card-border)">
+            <div class="small fw-semibold text-secondary mb-1">Reasons</div>
+            <div id="recReasons"></div>
+            <div id="recWarningsWrap" style="display:none" class="mt-2">
+              <div class="small fw-semibold text-secondary mb-1"><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>Warnings</div>
+              <div id="recWarnings"></div>
+            </div>
+            <div id="recTriggersWrap" style="display:none" class="mt-2">
+              <div class="small fw-semibold text-secondary mb-1"><i class="bi bi-bullseye text-info me-1"></i>Action Triggers</div>
+              <div id="recTriggers"></div>
+            </div>
+          </div>
+
+          <!-- Target Prices -->
+          <div class="analysis-panel mb-3">
+            <div class="text-secondary small text-uppercase mb-2">Target Prices</div>
+            <table class="table table-sm table-dark mb-0" style="font-size:.85rem">
+              <thead><tr><th>Level</th><th>Price</th><th>Distance</th></tr></thead>
+              <tbody id="targetBody"></tbody>
+            </table>
+            <div class="mt-2 d-flex justify-content-between small text-secondary">
+              <span>Risk:Reward <span class="font-mono fw-bold text-info" id="rrRatio"></span></span>
+              <span>52W High <span class="font-mono fw-bold" id="high52w"></span></span>
+            </div>
+          </div>
+
+          <!-- Holding Info -->
+          <div class="analysis-panel">
+            <div class="text-secondary small text-uppercase mb-2">Holding Summary</div>
+            <div class="row g-2">
+              <div class="col-6"><small class="text-secondary">Invested</small><div class="font-mono fw-bold" id="holdInvested"></div></div>
+              <div class="col-6"><small class="text-secondary">Current Value</small><div class="font-mono fw-bold" id="holdCurrent"></div></div>
+              <div class="col-6"><small class="text-secondary">P&L</small><div class="font-mono fw-bold" id="holdPnl"></div></div>
+              <div class="col-6"><small class="text-secondary">Holding Days</small><div class="font-mono fw-bold" id="holdDays"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Indicators + Cross-Strategy -->
+        <div class="col-lg-7">
+          <!-- Current Indicators -->
+          <div class="analysis-panel mb-3">
+            <div class="text-secondary small text-uppercase mb-2">Current Technical Indicators (Daily)</div>
+            <div class="d-flex flex-wrap gap-2" id="indicatorPills"></div>
+          </div>
+
+          <!-- Buying Strategy Status -->
+          <div class="analysis-panel mb-3">
+            <div class="text-secondary small text-uppercase mb-2">Your Buying Strategy — Current Status</div>
+            <div id="buyingStrategyInfo"></div>
+          </div>
+
+          <!-- Cross-Strategy Confirmation -->
+          <div class="analysis-panel mb-3">
+            <div class="text-secondary small text-uppercase mb-2"><i class="bi bi-shield-check me-1"></i>Cross-Strategy Confirmation</div>
+            <div id="confirmList"></div>
+          </div>
+
+          <!-- All 4 Strategies at a glance -->
+          <div class="analysis-panel">
+            <div class="text-secondary small text-uppercase mb-2">All Strategies — Current Signals</div>
+            <div class="row g-2" id="allStratsRow"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-outline-danger" onclick="promptClosePosition()"><i class="bi bi-x-circle me-1"></i>Close Position (Sell)</button>
+        <a class="btn btn-outline-info" id="btnViewAnalyze" href="#"><i class="bi bi-graph-up me-1"></i>Full Analyze Page</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ ADD POSITION MODAL ═══════ -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border)">
+      <div class="modal-header" style="border-color:var(--card-border)">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Position</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3 ac-wrap">
+          <label class="form-label small text-secondary">Ticker Symbol</label>
+          <input type="text" class="form-control font-mono" id="addTicker" placeholder="e.g. RELIANCE" autocomplete="off">
+          <div class="ac-list" id="tickerAcList"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Strategy Used to Buy</label>
+          <select class="form-select" id="addStrategy">
+            <option value="M1">Method I — Volatility Breakout (Squeeze)</option>
+            <option value="M2">Method II — Trend Following (%b + MFI)</option>
+            <option value="M3">Method III — Reversals (W-Bottom / M-Top)</option>
+            <option value="M4">Method IV — Walking the Bands</option>
+          </select>
+        </div>
+        <div class="row g-2">
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Buy Price (₹)</label>
+            <input type="number" class="form-control font-mono" id="addPrice" step="0.05" min="0.01">
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Quantity</label>
+            <input type="number" class="form-control font-mono" id="addQty" value="1" min="1">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Buy Date</label>
+          <input type="date" class="form-control font-mono" id="addDate">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Notes (optional)</label>
+          <textarea class="form-control" id="addNotes" rows="2" placeholder="e.g. Entered on squeeze breakout with high volume"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-color:var(--card-border)">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="submitAdd()"><i class="bi bi-check-lg me-1"></i>Add Position</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ CLOSE POSITION MODAL ═══════ -->
+<div class="modal fade" id="closeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border)">
+      <div class="modal-header" style="border-color:var(--card-border)">
+        <h5 class="modal-title"><i class="bi bi-x-circle me-2 text-danger"></i>Close Position</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-secondary">Closing <strong class="text-info font-mono" id="closeTicker"></strong></p>
+        <div class="row g-2">
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Sell Price (₹)</label>
+            <input type="number" class="form-control font-mono" id="closePrice" step="0.05" min="0.01">
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Sell Date</label>
+            <input type="date" class="form-control font-mono" id="closeDate">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Sell Reason</label>
+          <select class="form-select" id="closeReason">
+            <option value="Target reached">Target reached</option>
+            <option value="Stop loss hit">Stop loss hit</option>
+            <option value="Strategy exit signal">Strategy exit signal</option>
+            <option value="Manual decision">Manual decision</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-color:var(--card-border)">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-danger" onclick="submitClose()"><i class="bi bi-check-lg me-1"></i>Close Position</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+let allPositions = [];
+let currentAnalysis = null;
+let selectedPid = null;
+let allTickers = [];
+
+const STRATEGY_NAMES = {
+    M1: 'Method I — Squeeze', M2: 'Method II — Trend',
+    M3: 'Method III — Reversals', M4: 'Method IV — Band Walk'
+};
+const STRATEGY_COLORS = { M1:'#58a6ff', M2:'#3fb950', M3:'#bc8cff', M4:'#f0883e' };
+
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════
+const fmt = (v,d=2) => v == null ? 'N/A' : Number(v).toFixed(d);
+const fmtINR = v => v == null ? '₹0' : '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits:0});
+const fmtINR2 = v => v == null ? '₹0' : '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits:2});
+const pnlColor = v => v > 0 ? 'var(--g)' : v < 0 ? 'var(--r)' : 'var(--bs-body-color)';
+const pnlSign = v => v > 0 ? '+' : '';
+const daysBetween = (a,b) => { try { return Math.floor((new Date(b||new Date())-new Date(a))/(864e5)); } catch(e){ return 0; } };
+
+function stratBadge(code) {
+    return `<span class="badge badge-${code.toLowerCase()}">${code}</span>`;
+}
+function actionBadge(action) {
+    const cls = action==='SELL'?'sell':action==='BUY'||action==='ADD'?'buy':action==='HOLD'?'hold':'wait';
+    return `<span class="badge badge-${cls}">${action}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CLOCK
+// ═══════════════════════════════════════════════════════════════
+function updateClock() {
+    const d = new Date();
+    document.getElementById('clockSpan').textContent = d.toLocaleString('en-IN', {
+        day:'2-digit', month:'short', year:'numeric',
+        hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
+    });
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ═══════════════════════════════════════════════════════════════
+//  DATA LOADING
+// ═══════════════════════════════════════════════════════════════
+async function loadPositions() {
+    const res = await fetch('/api/portfolio');
+    allPositions = await res.json();
+    renderPositions();
+}
+
+function renderPositions() {
+    const open = allPositions.filter(p => p.status === 'OPEN');
+    const closed = allPositions.filter(p => p.status === 'CLOSED');
+
+    // Summary (estimated — will be updated by analysis)
+    document.getElementById('sumOpen').textContent = open.length;
+
+    // Open table
+    const ob = document.getElementById('openBody');
+    ob.innerHTML = '';
+    document.getElementById('openEmpty').style.display = open.length ? 'none' : 'block';
+
+    open.forEach(p => {
+        const days = daysBetween(p.buy_date, null);
+        const tr = document.createElement('tr');
+        tr.dataset.pid = p.id;
+        tr.innerHTML = `
+            <td class="font-mono fw-bold">${p.ticker.replace('.NS','')}</td>
+            <td>${stratBadge(p.strategy_code)}</td>
+            <td class="font-mono">${fmtINR2(p.buy_price)}</td>
+            <td class="font-mono small">${p.buy_date}</td>
+            <td class="font-mono">${p.quantity}</td>
+            <td class="font-mono" id="cur_${p.id}">—</td>
+            <td class="font-mono" id="pnl_${p.id}">—</td>
+            <td class="font-mono" id="pnlp_${p.id}">—</td>
+            <td class="font-mono">${days}d</td>
+            <td id="act_${p.id}"><span class="badge badge-wait">...</span></td>
+            <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();confirmDelete(${p.id})" title="Delete"><i class="bi bi-trash3"></i></button>
+            </td>
+        `;
+        tr.addEventListener('click', () => analyzePosition(p.id));
+        ob.appendChild(tr);
+    });
+
+    // Closed table
+    const cb = document.getElementById('closedBody');
+    cb.innerHTML = '';
+    document.getElementById('closedEmpty').style.display = closed.length ? 'none' : 'block';
+
+    closed.forEach(p => {
+        const pnl = p.sell_price && p.buy_price ? (p.sell_price - p.buy_price) * p.quantity : 0;
+        const pnlPct = p.buy_price ? ((p.sell_price - p.buy_price) / p.buy_price * 100) : 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="font-mono fw-bold">${p.ticker.replace('.NS','')}</td>
+            <td>${stratBadge(p.strategy_code)}</td>
+            <td class="font-mono small">${fmtINR2(p.buy_price)} <span class="text-secondary">(${p.buy_date})</span></td>
+            <td class="font-mono small">${fmtINR2(p.sell_price)} <span class="text-secondary">(${p.sell_date||''})</span></td>
+            <td class="font-mono">${p.quantity}</td>
+            <td class="font-mono" style="color:${pnlColor(pnl)}">${pnlSign(pnl)}${fmtINR2(pnl)}</td>
+            <td class="font-mono" style="color:${pnlColor(pnlPct)}">${pnlSign(pnlPct)}${pnlPct.toFixed(2)}%</td>
+            <td class="small">${p.sell_reason||''}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-info" onclick="reopenPosition(${p.id})" title="Reopen"><i class="bi bi-arrow-counterclockwise"></i></button>
+                <button class="btn btn-sm btn-outline-danger ms-1" onclick="confirmDelete(${p.id})" title="Delete"><i class="bi bi-trash3"></i></button>
+            </td>
+        `;
+        cb.appendChild(tr);
+    });
+
+    // Auto-analyze open positions for live data
+    if (open.length) fetchLiveUpdates(open);
+}
+
+async function fetchLiveUpdates(openPositions) {
+    const res = await fetch('/api/portfolio/analyze-all');
+    const analyses = await res.json();
+    let totalInvested = 0, totalCurrent = 0, totalPnl = 0;
+
+    analyses.forEach(a => {
+        if (a.error) return;
+        const p = a.position;
+        const h = a.holding;
+        totalInvested += h.invested || 0;
+        totalCurrent += h.current_value || 0;
+        totalPnl += h.pnl_amount || 0;
+
+        const curEl = document.getElementById(`cur_${p.id}`);
+        const pnlEl = document.getElementById(`pnl_${p.id}`);
+        const pnlpEl = document.getElementById(`pnlp_${p.id}`);
+        const actEl = document.getElementById(`act_${p.id}`);
+        if (curEl) curEl.textContent = fmtINR2(h.current_price);
+        if (pnlEl) { pnlEl.textContent = `${pnlSign(h.pnl_amount)}${fmtINR2(h.pnl_amount)}`; pnlEl.style.color = pnlColor(h.pnl_amount); }
+        if (pnlpEl) { pnlpEl.textContent = `${pnlSign(h.pnl_pct)}${fmt(h.pnl_pct)}%`; pnlpEl.style.color = pnlColor(h.pnl_pct); }
+        if (actEl) actEl.innerHTML = actionBadge(a.recommendation.action);
+    });
+
+    document.getElementById('sumInvested').textContent = fmtINR(totalInvested);
+    document.getElementById('sumCurrent').textContent = fmtINR(totalCurrent);
+    document.getElementById('sumPnl').textContent = `${pnlSign(totalPnl)}${fmtINR(totalPnl)}`;
+    document.getElementById('sumPnl').style.color = pnlColor(totalPnl);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ANALYZE SINGLE POSITION
+// ═══════════════════════════════════════════════════════════════
+async function analyzePosition(pid) {
+    selectedPid = pid;
+    const pos = allPositions.find(p => p.id === pid);
+    if (!pos) return;
+
+    document.getElementById('analysisSection').style.display = 'block';
+    document.getElementById('analysisLoading').style.display = 'block';
+    document.getElementById('analysisContent').style.display = 'none';
+    document.getElementById('analysisTicker').textContent = pos.ticker.replace('.NS','');
+    document.getElementById('btnViewAnalyze').href = `/analyze/${pos.ticker.replace('.NS','')}`;
+
+    document.getElementById('analysisSection').scrollIntoView({behavior:'smooth', block:'start'});
+
+    const res = await fetch(`/api/portfolio/${pid}/analyze`);
+    const data = await res.json();
+    if (data.error) {
+        document.getElementById('analysisLoading').innerHTML = `<p class="text-danger">${data.error}</p>`;
+        return;
+    }
+    currentAnalysis = data;
+    renderAnalysis(data);
+}
+
+function renderAnalysis(data) {
+    document.getElementById('analysisLoading').style.display = 'none';
+    document.getElementById('analysisContent').style.display = 'block';
+
+    const rec = data.recommendation;
+    const tgt = data.targets;
+    const ind = data.indicators;
+    const hold = data.holding;
+
+    // Recommendation
+    const recEl = document.getElementById('recAction');
+    recEl.textContent = rec.action;
+    recEl.className = 'rec-action ' + rec.action;
+    document.getElementById('recStrength').textContent = rec.strength;
+    document.getElementById('recStrategy').textContent = STRATEGY_NAMES[rec.strategy_code] || rec.strategy_code;
+
+    // Entry Quality + Momentum badges
+    const recMeta = document.getElementById('recMeta');
+    if (recMeta) {
+        const eq = rec.entry_quality || {};
+        const mm = rec.momentum || {};
+        const eqClr = eq.zone==='EXCELLENT'?'var(--g)':eq.zone==='GOOD'?'var(--b)':eq.zone==='FAIR'?'var(--y)':'var(--r)';
+        const mmClr = mm.label?.includes('BULLISH')?'var(--g)':mm.label?.includes('BEARISH')?'var(--r)':'var(--y)';
+        recMeta.innerHTML = `
+            <span class="ind-pill"><span class="text-secondary">Entry</span><span class="ind-val" style="color:${eqClr}">${eq.zone||'N/A'}</span></span>
+            <span class="ind-pill"><span class="text-secondary">Momentum</span><span class="ind-val" style="color:${mmClr}">${mm.label||'N/A'}</span></span>
+            <span class="ind-pill"><span class="text-secondary">Volume</span><span class="ind-val">${mm.volume_trend||'N/A'}</span></span>
+        `;
+    }
+
+    // Reasons
+    const rDiv = document.getElementById('recReasons');
+    rDiv.innerHTML = rec.reasons.map(r => `<div class="confirm-item blue"><i class="bi bi-info-circle me-1"></i>${r}</div>`).join('');
+
+    // Warnings
+    const wDiv = document.getElementById('recWarnings');
+    const wWrap = document.getElementById('recWarningsWrap');
+    if (rec.warnings.length) {
+        wWrap.style.display = 'block';
+        wDiv.innerHTML = rec.warnings.map(w => `<div class="confirm-item yellow"><i class="bi bi-exclamation-triangle me-1"></i>${w}</div>`).join('');
+    } else {
+        wWrap.style.display = 'none';
+    }
+
+    // Action Triggers
+    const tWrap = document.getElementById('recTriggersWrap');
+    const tDiv = document.getElementById('recTriggers');
+    if (rec.action_triggers && rec.action_triggers.length) {
+        tWrap.style.display = 'block';
+        tDiv.innerHTML = rec.action_triggers.map(t => {
+            let cls = 'blue';
+            if (t.startsWith('EXIT') || t.startsWith('SELL')) cls = 'red';
+            else if (t.startsWith('ADD') || t.startsWith('BUY')) cls = 'green';
+            else if (t.startsWith('WATCH') || t.startsWith('BOOK')) cls = 'yellow';
+            return `<div class="confirm-item ${cls}"><i class="bi bi-${cls==='green'?'arrow-up-circle':cls==='red'?'arrow-down-circle':cls==='yellow'?'eye':'crosshair'} me-1"></i>${t}</div>`;
+        }).join('');
+    } else {
+        tWrap.style.display = 'none';
+    }
+
+    // Target prices table
+    const tb = document.getElementById('targetBody');
+    tb.innerHTML = '';
+    const targets = [
+        ['Stop Loss', tgt.stop_loss, '—', 'var(--r)'],
+        ['BB Lower', tgt.bb_lower, tgt.pct_to_lower+'%', 'var(--r)'],
+        ['BB Mid', tgt.bb_mid, tgt.pct_to_mid+'%', 'var(--y)'],
+        ['BB Upper (T1)', tgt.bb_upper, tgt.pct_to_upper+'%', 'var(--g)'],
+        ['+1 Sigma', tgt.target_1_sigma, '—', 'var(--b)'],
+        ['+3 Sigma (Ext)', tgt.target_3_sigma, tgt.pct_to_3sigma+'%', 'var(--p)'],
+        ['52W High', tgt.high_52w, tgt.pct_to_52w_high+'%', 'var(--o)'],
+    ];
+    targets.forEach(([label, price, dist, clr]) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><span style="color:${clr}"><i class="bi bi-dash-lg me-1"></i>${label}</span></td><td class="font-mono fw-bold">${fmtINR2(price)}</td><td class="font-mono small" style="color:${clr}">${dist}</td>`;
+        tb.appendChild(tr);
+    });
+    document.getElementById('rrRatio').textContent = `1:${tgt.risk_reward}`;
+    document.getElementById('high52w').textContent = fmtINR2(tgt.high_52w);
+
+    // Holding info
+    document.getElementById('holdInvested').textContent = fmtINR(hold.invested);
+    document.getElementById('holdCurrent').textContent = fmtINR(hold.current_value);
+    const pnlEl = document.getElementById('holdPnl');
+    pnlEl.textContent = `${pnlSign(hold.pnl_amount)}${fmtINR(hold.pnl_amount)} (${pnlSign(hold.pnl_pct)}${fmt(hold.pnl_pct)}%)`;
+    pnlEl.style.color = pnlColor(hold.pnl_amount);
+    document.getElementById('holdDays').textContent = `${hold.days} days`;
+
+    // Indicator pills
+    const ip = document.getElementById('indicatorPills');
+    const pills = [
+        ['Price', fmt(ind.price), null],
+        ['%b', fmt(ind.percent_b,4), ind.percent_b>0.8?'var(--g)':ind.percent_b<0.2?'var(--r)':'var(--b)'],
+        ['MFI', fmt(ind.mfi,1), ind.mfi>60?'var(--g)':ind.mfi<40?'var(--r)':'var(--y)'],
+        ['CMF', fmt(ind.cmf,4), ind.cmf>0?'var(--g)':'var(--r)'],
+        ['BBW', fmt(ind.bbw,4), null],
+        ['SAR', fmt(ind.sar) + (ind.sar_bull?' ▲':' ▼'), ind.sar_bull?'var(--g)':'var(--r)'],
+        ['Squeeze', ind.squeeze_on?'ON':'OFF', ind.squeeze_on?'var(--y)':'var(--g)'],
+        ['Volume', Number(ind.volume).toLocaleString('en-IN'), ind.volume>ind.vol_sma50?'var(--g)':'var(--r)'],
+    ];
+    ip.innerHTML = pills.map(([label, val, clr]) =>
+        `<div class="ind-pill"><span class="text-secondary">${label}</span><span class="ind-val" ${clr?`style="color:${clr}"`:''}>​${val}</span></div>`
+    ).join('');
+
+    // Buying strategy status
+    const bsi = document.getElementById('buyingStrategyInfo');
+    const bs = data.buying_strategy_current;
+    if (bs) {
+        const sigType = bs.signal_type || bs.signal?.type || 'N/A';
+        const conf = bs.confidence || bs.signal?.confidence || 0;
+        const reason = bs.reason || bs.signal?.reason || '';
+        bsi.innerHTML = `
+            <div class="d-flex align-items-center gap-2 mb-1">
+                ${stratBadge(rec.strategy_code)}
+                ${actionBadge(sigType)}
+                <span class="font-mono small text-secondary">Confidence: ${conf}%</span>
+            </div>
+            <p class="small mb-0">${reason}</p>
+        `;
+    } else {
+        bsi.innerHTML = '<span class="text-secondary">No data available</span>';
+    }
+
+    // Cross-strategy confirmations
+    const cDiv = document.getElementById('confirmList');
+    cDiv.innerHTML = rec.confirms.map(c => {
+        let cls = 'blue';
+        if (c.includes('BUY') || c.includes('HOLD') || c.includes('W-Bottom') || c.includes('supportive')) cls = 'green';
+        if (c.includes('SELL') || c.includes('EXIT') || c.includes('M-Top') || c.includes('fading')) cls = 'red';
+        if (c.includes('WATCH') || c.includes('WAIT')) cls = 'yellow';
+        return `<div class="confirm-item ${cls}"><i class="bi bi-${cls==='green'?'check-circle':cls==='red'?'x-circle':cls==='yellow'?'exclamation-circle':'info-circle'} me-1"></i>${c}</div>`;
+    }).join('');
+
+    // All strategies at a glance
+    const asr = document.getElementById('allStratsRow');
+    const m1 = data.method1_summary;
+    const allSignals = [
+        { code:'M1', type: m1.sell?'SELL':m1.buy?'BUY':m1.hold?'HOLD':'WAIT', conf: m1.confidence, phase: m1.phase },
+        ...data.all_strategies.map(s => ({
+            code: s.code,
+            type: s.signal?.type || 'NONE',
+            conf: s.signal?.confidence || 0,
+            reason: s.signal?.reason || ''
+        }))
+    ];
+    asr.innerHTML = allSignals.map(s => `
+        <div class="col-6 col-md-3">
+            <div class="p-2 rounded" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border)">
+                <div class="d-flex align-items-center gap-2 mb-1">${stratBadge(s.code)} ${actionBadge(s.type)}</div>
+                <div class="font-mono small" style="color:${STRATEGY_COLORS[s.code]}">${STRATEGY_NAMES[s.code]}</div>
+                <div class="small text-secondary">Conf: ${s.conf}%${s.phase?' • '+s.phase:''}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function hideAnalysis() {
+    document.getElementById('analysisSection').style.display = 'none';
+    selectedPid = null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ADD POSITION
+// ═══════════════════════════════════════════════════════════════
+function showAddModal() {
+    document.getElementById('addTicker').value = '';
+    document.getElementById('addPrice').value = '';
+    document.getElementById('addQty').value = '1';
+    document.getElementById('addDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('addNotes').value = '';
+    new bootstrap.Modal(document.getElementById('addModal')).show();
+}
+
+async function submitAdd() {
+    const ticker = document.getElementById('addTicker').value.trim().toUpperCase();
+    const strategy = document.getElementById('addStrategy').value;
+    const price = parseFloat(document.getElementById('addPrice').value);
+    const qty = parseInt(document.getElementById('addQty').value) || 1;
+    const buyDate = document.getElementById('addDate').value;
+    const notes = document.getElementById('addNotes').value.trim();
+
+    if (!ticker) return alert('Please enter a ticker symbol');
+    if (!price || price <= 0) return alert('Please enter a valid buy price');
+    if (!buyDate) return alert('Please select a buy date');
+
+    const res = await fetch('/api/portfolio', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            ticker: ticker.includes('.NS') ? ticker : ticker + '.NS',
+            strategy_code: strategy,
+            buy_price: price,
+            buy_date: buyDate,
+            quantity: qty,
+            notes: notes
+        })
+    });
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+
+    bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
+    loadPositions();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CLOSE POSITION
+// ═══════════════════════════════════════════════════════════════
+function promptClosePosition() {
+    if (!selectedPid) return;
+    const pos = allPositions.find(p => p.id === selectedPid);
+    if (!pos) return;
+
+    document.getElementById('closeTicker').textContent = pos.ticker.replace('.NS','');
+    document.getElementById('closePrice').value = currentAnalysis?.targets?.current_price || '';
+    document.getElementById('closeDate').value = new Date().toISOString().slice(0,10);
+    new bootstrap.Modal(document.getElementById('closeModal')).show();
+}
+
+async function submitClose() {
+    const price = parseFloat(document.getElementById('closePrice').value);
+    const date = document.getElementById('closeDate').value;
+    const reason = document.getElementById('closeReason').value;
+
+    if (!price || price <= 0) return alert('Please enter a valid sell price');
+    if (!date) return alert('Please select a sell date');
+
+    const res = await fetch(`/api/portfolio/${selectedPid}/close`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ sell_price: price, sell_date: date, sell_reason: reason })
+    });
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+
+    bootstrap.Modal.getInstance(document.getElementById('closeModal')).hide();
+    hideAnalysis();
+    loadPositions();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DELETE / REOPEN
+// ═══════════════════════════════════════════════════════════════
+async function confirmDelete(pid) {
+    if (!confirm('Delete this position permanently?')) return;
+    await fetch(`/api/portfolio/${pid}`, { method: 'DELETE' });
+    if (selectedPid === pid) hideAnalysis();
+    loadPositions();
+}
+
+async function reopenPosition(pid) {
+    if (!confirm('Reopen this position?')) return;
+    await fetch(`/api/portfolio/${pid}/reopen`, { method: 'POST' });
+    loadPositions();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TICKER AUTOCOMPLETE
+// ═══════════════════════════════════════════════════════════════
+fetch('/api/tickers').then(r=>r.json()).then(data => { allTickers = data; });
+
+(function() {
+    const inp = document.getElementById('addTicker');
+    const list = document.getElementById('tickerAcList');
+    let activeIdx = -1;
+
+    inp.addEventListener('input', () => {
+        const q = inp.value.trim().toUpperCase();
+        list.innerHTML = '';
+        activeIdx = -1;
+        if (q.length < 2) { list.style.display = 'none'; return; }
+        const matches = allTickers.filter(t => {
+            const clean = t.replace('.NS','');
+            return clean.startsWith(q) || clean.includes(q);
+        }).slice(0, 15);
+        if (!matches.length) { list.style.display = 'none'; return; }
+        matches.forEach((t, i) => {
+            const d = document.createElement('div');
+            d.className = 'ac-item';
+            const clean = t.replace('.NS','');
+            const idx = clean.indexOf(q);
+            if (idx >= 0) {
+                d.innerHTML = clean.substring(0,idx) + '<span class="ac-match">' + clean.substring(idx, idx+q.length) + '</span>' + clean.substring(idx+q.length);
+            } else {
+                d.textContent = clean;
+            }
+            d.onclick = () => { inp.value = clean; list.style.display = 'none'; };
+            list.appendChild(d);
+        });
+        list.style.display = 'block';
+    });
+
+    inp.addEventListener('keydown', e => {
+        const items = list.querySelectorAll('.ac-item');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx+1, items.length-1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx-1, 0); }
+        else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); items[activeIdx].click(); return; }
+        else if (e.key === 'Escape') { list.style.display = 'none'; return; }
+        else return;
+        items.forEach((it,i) => it.classList.toggle('active', i===activeIdx));
+        if (items[activeIdx]) items[activeIdx].scrollIntoView({block:'nearest'});
+    });
+
+    document.addEventListener('click', e => { if (!e.target.closest('.ac-wrap')) list.style.display = 'none'; });
+})();
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+loadPositions();
+</script>
+</body>
+</html>

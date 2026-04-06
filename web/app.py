@@ -10,7 +10,7 @@ Then open:  http://127.0.0.1:5000
 
 import sys, os, json, math, threading
 from dataclasses import asdict
-from datetime import date
+from datetime import date, timedelta
 import pandas as pd
 import time as _time
 
@@ -803,6 +803,88 @@ def api_tickers_info():
     return jsonify(info)
 
 
+# ── EOD data availability check ──────────────────────────────────
+
+_eod_cache = {"ts": 0, "data": None}  # cached YF probe (avoids rate limits)
+_EOD_CACHE_TTL = 900  # 15 minutes
+
+@app.route("/api/eod-status")
+def api_eod_status():
+    """Check whether new EOD data is available for download.
+
+    Compares the latest local CSV date against what Yahoo Finance
+    actually has (probed & cached for 15 min).  Only says "Available"
+    when YFinance truly has newer data than local CSVs.
+    """
+    from bb_squeeze.data_loader import _last_expected_trading_date, _is_nse_trading_day
+    from datetime import datetime, timedelta
+    import pytz
+
+    ist = pytz.timezone("Asia/Kolkata")
+    now_ist = datetime.now(ist)
+
+    # Market closes at 15:30 IST; data appears on Yahoo ~16:00-16:30
+    market_closed = now_ist.hour > 16 or (now_ist.hour == 16 and now_ist.minute >= 15)
+    is_trading_day = _is_nse_trading_day(now_ist.replace(tzinfo=None))
+
+    # ── Find latest local CSV date (sample 5 liquid stocks) ──
+    sample_tickers = ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "SBIN.NS"]
+    local_dates = []
+    for ticker in sample_tickers:
+        csv_path = os.path.join(CSV_DIR, f"{ticker}.csv")
+        if not os.path.exists(csv_path):
+            continue
+        try:
+            df = pd.read_csv(csv_path, usecols=["Date"], parse_dates=["Date"])
+            if not df.empty:
+                local_dates.append(df["Date"].iloc[-1].date())
+        except Exception:
+            pass
+
+    local_last = max(local_dates) if local_dates else None
+
+    # ── Probe YFinance for latest available date (cached) ──
+    yf_last = None
+    now_ts = _time.time()
+    if _eod_cache["data"] and (now_ts - _eod_cache["ts"]) < _EOD_CACHE_TTL:
+        yf_last = _eod_cache["data"]
+    else:
+        try:
+            import yfinance as yf
+            t = yf.Ticker("RELIANCE.NS")
+            hist = t.history(period="5d", auto_adjust=False)
+            if hist is not None and not hist.empty:
+                yf_last = hist.index[-1].date()
+                _eod_cache["data"] = yf_last
+                _eod_cache["ts"] = now_ts
+        except Exception:
+            # YF probe failed — fall back to expected-date heuristic
+            last_td = _last_expected_trading_date()
+            yf_last = last_td.date() if hasattr(last_td, "date") else last_td
+
+    # ── Decide availability ──
+    if local_last is None:
+        available = True
+        reason = "No local data — download recommended"
+    elif yf_last and local_last < yf_last:
+        available = True
+        reason = f"Local data: {local_last} → YFinance has: {yf_last}"
+    elif is_trading_day and not market_closed:
+        available = False
+        reason = f"Market still open — local data through {local_last}"
+    else:
+        available = False
+        reason = f"Up to date (through {local_last})"
+
+    return jsonify({
+        "available": available,
+        "reason": reason,
+        "local_last_date": str(local_last) if local_last else None,
+        "yf_last_date": str(yf_last) if yf_last else None,
+        "market_open_today": is_trading_day and not market_closed,
+    })
+
+
 @app.route("/api/download/start", methods=["POST"])
 def api_download_start():
     """Start historical data download in background."""
@@ -820,7 +902,8 @@ def api_download_start():
     force = body.get("force", False)
     max_workers = min(int(body.get("threads", 8)), 20)  # cap at 20
 
-    end_date = date.today().strftime("%Y-%m-%d")
+    # yfinance 'end' is exclusive, so use tomorrow to include today's data
+    end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
     staleness = 0 if force else STALENESS_DAYS
 
     with _dl_lock:

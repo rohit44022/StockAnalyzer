@@ -444,11 +444,15 @@
                 </button>
             </form>
 
-            <!-- Download Historical Data Button -->
-            <div class="mt-3">
+            <!-- Download Historical Data Button + EOD Status -->
+            <div class="mt-3 d-flex flex-wrap align-items-center gap-2">
                 <button class="btn btn-outline-info btn-sm" id="downloadDataBtn" data-bs-toggle="modal" data-bs-target="#downloadModal">
                     <i class="bi bi-cloud-arrow-down me-1"></i> Download / Update Historical Data
                 </button>
+                <span id="eodBadge" class="badge rounded-pill d-inline-flex align-items-center gap-1" style="font-size:.75rem;cursor:pointer;opacity:0;transition:opacity .3s" title="Click to refresh" onclick="checkEodStatus()">
+                    <span class="spinner-border spinner-border-sm" role="status" id="eodSpinner"></span>
+                    <span id="eodText">Checking…</span>
+                </span>
                 <a href="/trades" class="btn btn-outline-success btn-sm ms-2">
                     <i class="bi bi-cash-stack me-1"></i> Trade P&L & Tax Calculator
                 </a>
@@ -1988,6 +1992,59 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════
+       EOD DATA AVAILABILITY CHECK
+       ═══════════════════════════════════════════════════════════════ */
+    async function checkEodStatus() {
+        const badge   = document.getElementById('eodBadge');
+        const spinner = document.getElementById('eodSpinner');
+        const text    = document.getElementById('eodText');
+
+        badge.style.opacity = '1';
+        badge.className = 'badge rounded-pill bg-secondary d-inline-flex align-items-center gap-1';
+        spinner.style.display = '';
+        text.textContent = 'Checking…';
+
+        try {
+            const r = await fetch('/api/eod-status');
+            const d = await r.json();
+            spinner.style.display = 'none';
+
+            if (d.available) {
+                badge.className = 'badge rounded-pill bg-success d-inline-flex align-items-center gap-1';
+                badge.style.cursor = 'pointer';
+                badge.setAttribute('data-bs-toggle', 'modal');
+                badge.setAttribute('data-bs-target', '#downloadModal');
+                const dateInfo = d.local_last_date && d.yf_last_date
+                    ? ' (Local: ' + d.local_last_date + ' → YF: ' + d.yf_last_date + ')'
+                    : '';
+                text.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>EOD Data Available' + dateInfo;
+                badge.title = d.reason + '. Click to download.';
+            } else if (d.market_open_today) {
+                badge.className = 'badge rounded-pill d-inline-flex align-items-center gap-1';
+                badge.style.cssText += ';background:#b45309;';
+                badge.removeAttribute('data-bs-toggle');
+                badge.removeAttribute('data-bs-target');
+                text.innerHTML = '<i class="bi bi-clock-fill me-1"></i>Market Open — EOD after 4 PM';
+                badge.title = 'NSE market is still open. EOD data will be available after market close.';
+            } else {
+                badge.className = 'badge rounded-pill bg-danger d-inline-flex align-items-center gap-1';
+                badge.removeAttribute('data-bs-toggle');
+                badge.removeAttribute('data-bs-target');
+                text.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Not Available';
+                badge.title = d.reason;
+            }
+        } catch (e) {
+            spinner.style.display = 'none';
+            badge.className = 'badge rounded-pill bg-secondary d-inline-flex align-items-center gap-1';
+            text.textContent = 'Check failed';
+            badge.title = e.message;
+        }
+    }
+
+    // Auto-check on page load
+    checkEodStatus();
+
+    /* ═══════════════════════════════════════════════════════════════
        HISTORICAL DATA DOWNLOAD
        ═══════════════════════════════════════════════════════════════ */
     let _dlEvtSrc = null;
@@ -2120,6 +2177,8 @@
                     '<strong>' + s.skipped + '</strong> skipped &nbsp;·&nbsp; ' +
                     '<strong>' + s.failed + '</strong> failed &nbsp;·&nbsp; ' +
                     'Total time: <strong>' + _fmtTime(elapsed) + '</strong>';
+                // Refresh EOD badge after download completes
+                setTimeout(checkEodStatus, 1000);
             }
         };
 
@@ -2135,6 +2194,8 @@
                         '<strong>' + s.saved + '</strong> saved &nbsp;·&nbsp; ' +
                         '<strong>' + s.skipped + '</strong> skipped &nbsp;·&nbsp; ' +
                         '<strong>' + s.failed + '</strong> failed';
+                    // Refresh EOD badge after download completes
+                    setTimeout(checkEodStatus, 1000);
                 }
             }).catch(() => {});
         };

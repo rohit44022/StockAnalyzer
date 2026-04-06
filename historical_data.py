@@ -20,7 +20,7 @@ import json
 import time
 import warnings
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import requests
 import yfinance as yf
@@ -37,7 +37,8 @@ logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 # ══════════════════════════════════════════════════════════════════
 
 START_DATE  = "2020-01-01"
-END_DATE    = date.today().strftime("%Y-%m-%d")   # always today's date
+# yfinance 'end' is exclusive — use tomorrow so today's EOD data is included
+END_DATE    = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 SAVE_PATH   = "/Users/rttripathirttripathi/Rohit/coding/StockCode/ historical_data/stock_csv/"
 SKIP_EXISTING = True   # set False to re-download everything from scratch
 RETRY_ONCE    = True   # retry a failed ticker once before skipping

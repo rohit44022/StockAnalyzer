@@ -79,6 +79,8 @@ class TrendState:
     ema20: float = 0.0
     price_vs_ema: str = "AT"               # "ABOVE" | "BELOW" | "AT"
     recent_climax: bool = False             # Climax bar in last 5 bars
+    ema_gap_bar_count: int = 0              # Consecutive bars not touching EMA20
+                                            # Brooks: 20+ = very strong trend (sign of strength)
 
     # ── Summary ──
     description: str = ""
@@ -663,6 +665,22 @@ def analyze_trend(
         else:
             state.price_vs_ema = "AT"
 
+        # Brooks: "20 moving average gap bars" — count consecutive bars
+        # where neither the low (in bull) nor high (in bear) touches EMA20.
+        # 20+ gap bars = very strong trend, sign of strength.
+        ema_values = ema.values
+        gap_count = 0
+        for j in range(len(df) - 1, max(0, len(df) - 60), -1):
+            bar_low = df["Low"].iloc[j]
+            bar_high = df["High"].iloc[j]
+            ema_val = ema_values[j]
+            # Bar doesn't touch EMA if EMA is not between low and high
+            if bar_low > ema_val or bar_high < ema_val:
+                gap_count += 1
+            else:
+                break  # First bar touching EMA ends the count
+        state.ema_gap_bar_count = gap_count
+
     # 8. Recent climax
     recent_5 = bars[-5:]
     state.recent_climax = any(b.is_climax_bar for b in recent_5)
@@ -705,6 +723,12 @@ def _compute_trend_strength(state: TrendState) -> float:
     # Spike bonus (10 points)
     if state.in_spike:
         strength += 10
+
+    # Brooks: 20 gap bar setup — very strong trend sign of strength
+    if state.ema_gap_bar_count >= 20:
+        strength += 10  # Major sign of strength per Brooks
+    elif state.ema_gap_bar_count >= 10:
+        strength += 5   # Moderate sign of strength
 
     return min(round(strength, 1), 100)
 
@@ -750,5 +774,11 @@ def _build_trend_description(state: TrendState) -> str:
         parts.append(f"{state.consecutive_bull_trend} consecutive bull trend bars — STRONG")
     elif state.consecutive_bear_trend >= C.CONSECUTIVE_TREND_STRONG:
         parts.append(f"{state.consecutive_bear_trend} consecutive bear trend bars — STRONG")
+
+    # Brooks: 20 gap bar sign of strength
+    if state.ema_gap_bar_count >= 20:
+        parts.append(f"⚡ {state.ema_gap_bar_count} EMA gap bars — VERY STRONG trend (Brooks sign of strength)")
+    elif state.ema_gap_bar_count >= 10:
+        parts.append(f"{state.ema_gap_bar_count} EMA gap bars — strong trend momentum")
 
     return " | ".join(parts)

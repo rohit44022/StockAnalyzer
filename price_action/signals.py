@@ -83,7 +83,10 @@ class PASignalResult:
 # ─────────────────────────────────────────────────────────────────
 
 def _score_trend_direction(trend: TrendState, direction: str) -> float:
-    """Score: Is the signal aligned with the trend? (0-25 points)"""
+    """Score: Is the signal aligned with the trend? (0-25 points)
+
+    Brooks Ch 19: Signs of strength include 20+ gap bars (bars not touching EMA).
+    """
     score = 0.0
 
     # Always-in alignment
@@ -102,16 +105,40 @@ def _score_trend_direction(trend: TrendState, direction: str) -> float:
     elif trend.trend_strength >= 40:
         score += 5
 
+    # Brooks: 20 gap bar sign of strength — huge trend confirmation
+    if hasattr(trend, 'ema_gap_bar_count') and trend.ema_gap_bar_count >= 20:
+        if (direction == "BUY" and trend.trend_direction == "BULL") or \
+           (direction == "SELL" and trend.trend_direction == "BEAR"):
+            score += 5  # Very strong with-trend bonus
+
     return min(score, C.W_TREND_DIRECTION)
 
 
-def _score_bar_quality(bars: List[BarAnalysis], direction: str) -> float:
-    """Score: Quality of the last bar as a signal bar. (0-15 points)"""
+def _score_bar_quality(bars: List[BarAnalysis], direction: str, trend: TrendState = None) -> float:
+    """Score: Quality of the last bar as a signal bar. (0-15 points)
+
+    Brooks Ch 5: "The stronger the trend, the less important it is to have
+    a strong signal bar for a with-trend trade and the more important it is
+    to have a strong signal bar for a countertrend trade."
+    """
     if not bars:
         return 0.0
 
     last = bars[-1]
     score = 0.0
+
+    # Determine if this is a with-trend or countertrend signal
+    is_with_trend = False
+    if trend:
+        if direction == "BUY" and trend.trend_direction == "BULL":
+            is_with_trend = True
+        elif direction == "SELL" and trend.trend_direction == "BEAR":
+            is_with_trend = True
+
+    # Brooks: In strong trend, even weak signal bars are valid for with-trend trades
+    trend_strength_bonus = 0
+    if is_with_trend and trend and trend.trend_strength >= 60:
+        trend_strength_bonus = 3  # Brooks: less important for strong with-trend
 
     # Signal bar present
     if last.is_signal_bar:
@@ -122,7 +149,7 @@ def _score_bar_quality(bars: List[BarAnalysis], direction: str) -> float:
             quality_map = {"STRONG": 15, "MODERATE": 10, "WEAK": 5}
             score += quality_map.get(last.signal_quality, 0)
 
-    # Trend bar in signal direction
+    # Trend bar in signal direction (with-trend entry without formal reversal bar)
     elif direction == "BUY" and last.is_trend_bar and last.is_bull:
         score += 10 if last.is_strong_trend_bar else 7
     elif direction == "SELL" and last.is_trend_bar and last.is_bear:
@@ -131,6 +158,10 @@ def _score_bar_quality(bars: List[BarAnalysis], direction: str) -> float:
     # Doji at the right place (possible reversal)
     elif last.is_doji:
         score += 3
+
+    # Apply Brooks with-trend bonus: boost weaker signal bars in strong trends
+    if is_with_trend and score > 0:
+        score += trend_strength_bonus
 
     return min(score, C.W_BAR_QUALITY)
 
@@ -730,7 +761,7 @@ def _score_direction(
 ) -> dict:
     """Score a single direction (BUY or SELL) across all components."""
     s_trend = _score_trend_direction(trend, direction)
-    s_bar = _score_bar_quality(bars, direction)
+    s_bar = _score_bar_quality(bars, direction, trend)
     s_pattern = _score_pattern_match(patterns, direction)
     s_pressure = _score_pressure(trend, direction)
     s_breakout = _score_breakout(breakouts, direction)

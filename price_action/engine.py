@@ -69,6 +69,7 @@ class PriceActionResult:
     trend_phase: str = "UNKNOWN"
     buying_pressure: float = 0.0
     selling_pressure: float = 0.0
+    ema_gap_bar_count: int = 0              # Brooks: 20+ = very strong trend
 
     # ── Bar Analysis ──
     last_bar_type: str = "UNKNOWN"
@@ -228,9 +229,9 @@ def _extract_ta_direction(ta_data: dict) -> str:
 
 
 def _extract_hybrid_direction(hybrid_data: dict) -> str:
-    """Extract direction from Hybrid analysis."""
+    """Extract direction from Triple/Hybrid analysis."""
     if isinstance(hybrid_data, dict):
-        hv = hybrid_data.get("hybrid_verdict", {})
+        hv = hybrid_data.get("triple_verdict") or hybrid_data.get("hybrid_verdict", {})
         if isinstance(hv, dict):
             verdict = hv.get("verdict", "HOLD")
             if "BUY" in verdict.upper():
@@ -311,7 +312,7 @@ def run_price_action_analysis(
     ta_data : dict, optional
         TA signal data (from generate_signal()).
     hybrid_data : dict, optional
-        Hybrid analysis data (from run_hybrid_analysis()).
+        Triple/Hybrid analysis data (from run_triple_analysis()).
 
     Returns
     -------
@@ -386,6 +387,7 @@ def run_price_action_analysis(
         result.trend_phase = trend.trend_phase
         result.buying_pressure = trend.buying_pressure
         result.selling_pressure = trend.selling_pressure
+        result.ema_gap_bar_count = trend.ema_gap_bar_count
 
         # Last bar info
         last_bar = bars[-1]
@@ -472,6 +474,7 @@ def pa_result_to_dict(result: PriceActionResult) -> dict:
             "phase": result.trend_phase,
             "buying_pressure": result.buying_pressure,
             "selling_pressure": result.selling_pressure,
+            "ema_gap_bar_count": result.ema_gap_bar_count,
         },
 
         "last_bar": {

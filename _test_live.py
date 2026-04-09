@@ -55,14 +55,14 @@ for k, v in cats.items():
 assert -100 <= signal.get("score", 0) <= 100, "Score out of range"
 print("  PASS")
 
-# Test 4: Hybrid engine
-print("\nTEST 4: Hybrid Engine")
-from hybrid_engine import run_hybrid_analysis
-result = run_hybrid_analysis(df.copy(), ticker="RELIANCE.NS", capital=500000)
-assert "error" not in result, f"Hybrid error: {result.get('error')}"
-assert "data_freshness" in result, "Missing data_freshness in hybrid result"
-hv = result["hybrid_verdict"]
-print(f"  Hybrid verdict: {hv['verdict']}")
+# Test 4: Triple engine
+print("\nTEST 4: Triple Conviction Engine")
+from hybrid_pa_engine import run_triple_analysis
+result = run_triple_analysis(df.copy(), ticker="RELIANCE.NS", capital=500000)
+assert "error" not in result, f"Triple error: {result.get('error')}"
+assert "data_freshness" in result, "Missing data_freshness in triple result"
+hv = result["triple_verdict"]
+print(f"  Triple verdict: {hv['verdict']}")
 print(f"  Score: {hv['score']}/{hv['max_score']}")
 print(f"  Confidence: {hv['confidence']}%")
 print(f"  Freshness: {result['data_freshness']}")
@@ -98,9 +98,9 @@ print("  PASS")
 print("\nTEST 7: Cross-validate with TCS")
 df_tcs = load_stock_data("TCS.NS", CSV_DIR, use_live_fallback=False)
 if df_tcs is not None:
-    result_tcs = run_hybrid_analysis(df_tcs.copy(), ticker="TCS.NS", capital=500000)
+    result_tcs = run_triple_analysis(df_tcs.copy(), ticker="TCS.NS", capital=500000)
     assert "error" not in result_tcs, f"TCS error: {result_tcs.get('error')}"
-    print(f"  TCS verdict: {result_tcs['hybrid_verdict']['verdict']}")
+    print(f"  TCS verdict: {result_tcs['triple_verdict']['verdict']}")
     print(f"  TCS freshness: {result_tcs['data_freshness']}")
     print("  PASS")
 else:

@@ -211,7 +211,12 @@ def identify_trend(df: pd.DataFrame) -> dict:
 # ═══════════════════════════════════════════════════════════════
 
 def _detect_double_top_bottom(df: pd.DataFrame, lookback: int = 60) -> list[dict]:
-    """Detect Double Top (M) and Double Bottom (W) patterns."""
+    """Detect Double Top (M) and Double Bottom (W) patterns.
+
+    Murphy Ch 5: Pattern is confirmed when price penetrates the middle
+    trough/peak (neckline) by at least 1% — the 'significant penetration'
+    criterion that filters false breakouts.
+    """
     patterns = []
     window = df.tail(lookback)
     swing_h, swing_l = _find_swing_points(window["Close"], window=5)
@@ -230,7 +235,9 @@ def _detect_double_top_bottom(df: pd.DataFrame, lookback: int = 60) -> list[dict
                 trough = float(between.min())
                 neckline = trough
 
-                if current_price < neckline:
+                # Murphy: 1% penetration criterion for breakout confirmation
+                penetration_pct = (neckline - current_price) / neckline * 100 if neckline > 0 else 0
+                if current_price < neckline and penetration_pct >= 1.0:
                     patterns.append({
                         "name": "Double Top (M Pattern)",
                         "type": "BEARISH",
@@ -239,8 +246,24 @@ def _detect_double_top_bottom(df: pd.DataFrame, lookback: int = 60) -> list[dict
                         "target": round(neckline - (h1 - neckline), 2),
                         "meaning": (
                             f"Price tested resistance near ₹{h1:.0f} twice and failed. "
-                            f"Neckline at ₹{neckline:.0f} is broken → bearish. "
+                            f"Neckline at ₹{neckline:.0f} broken by {penetration_pct:.1f}% "
+                            f"(Murphy: 1%+ confirms) → bearish. "
                             f"Target: ₹{neckline - (h1 - neckline):.0f}"
+                        ),
+                    })
+                elif current_price < neckline:
+                    # Below neckline but < 1% penetration — unconfirmed
+                    patterns.append({
+                        "name": "Double Top (Unconfirmed)",
+                        "type": "BEARISH",
+                        "strength": 1,
+                        "neckline": round(neckline, 2),
+                        "target": round(neckline - (h1 - neckline), 2),
+                        "meaning": (
+                            f"Possible Double Top near ₹{h1:.0f}. "
+                            f"Neckline at ₹{neckline:.0f} only slightly broken "
+                            f"({penetration_pct:.1f}% < 1% Murphy threshold). "
+                            f"Not yet confirmed — watch for deeper penetration."
                         ),
                     })
 
@@ -255,7 +278,9 @@ def _detect_double_top_bottom(df: pd.DataFrame, lookback: int = 60) -> list[dict
                 peak = float(between.max())
                 neckline = peak
 
-                if current_price > neckline:
+                # Murphy: 1% penetration criterion for breakout confirmation
+                penetration_pct = (current_price - neckline) / neckline * 100 if neckline > 0 else 0
+                if current_price > neckline and penetration_pct >= 1.0:
                     patterns.append({
                         "name": "Double Bottom (W Pattern)",
                         "type": "BULLISH",
@@ -264,8 +289,24 @@ def _detect_double_top_bottom(df: pd.DataFrame, lookback: int = 60) -> list[dict
                         "target": round(neckline + (neckline - l1), 2),
                         "meaning": (
                             f"Price tested support near ₹{l1:.0f} twice and held. "
-                            f"Neckline at ₹{neckline:.0f} is broken → bullish. "
+                            f"Neckline at ₹{neckline:.0f} broken by {penetration_pct:.1f}% "
+                            f"(Murphy: 1%+ confirms) → bullish. "
                             f"Target: ₹{neckline + (neckline - l1):.0f}"
+                        ),
+                    })
+                elif current_price > neckline:
+                    # Above neckline but < 1% penetration — unconfirmed
+                    patterns.append({
+                        "name": "Double Bottom (Unconfirmed)",
+                        "type": "BULLISH",
+                        "strength": 1,
+                        "neckline": round(neckline, 2),
+                        "target": round(neckline + (neckline - l1), 2),
+                        "meaning": (
+                            f"Possible Double Bottom near ₹{l1:.0f}. "
+                            f"Neckline at ₹{neckline:.0f} only slightly broken "
+                            f"({penetration_pct:.1f}% < 1% Murphy threshold). "
+                            f"Not yet confirmed — watch for deeper penetration."
                         ),
                     })
 
@@ -273,11 +314,18 @@ def _detect_double_top_bottom(df: pd.DataFrame, lookback: int = 60) -> list[dict
 
 
 def _detect_head_and_shoulders(df: pd.DataFrame, lookback: int = 80) -> list[dict]:
-    """Detect Head & Shoulders (bearish) and Inverse H&S (bullish)."""
+    """Detect Head & Shoulders (bearish) and Inverse H&S (bullish).
+
+    Murphy Ch 5: Volume should be "lighter on head than left shoulder,
+    lighter still on right shoulder." Declining volume across the three
+    peaks is a key confirmation criterion.
+    """
     patterns = []
     window = df.tail(lookback)
     swing_h, swing_l = _find_swing_points(window["Close"], window=5)
     current_price = float(window["Close"].iloc[-1])
+
+    has_volume = "Volume" in window.columns
 
     # H&S Top: three peaks where middle > sides
     if len(swing_h) >= 3:
@@ -293,16 +341,34 @@ def _detect_head_and_shoulders(df: pd.DataFrame, lookback: int = 80) -> list[dic
             if troughs:
                 neckline = np.mean(troughs)
                 if current_price < neckline:
+                    # Murphy volume check: declining volume across peaks
+                    vol_confirms = True
+                    vol_note = ""
+                    strength = 3
+                    if has_volume:
+                        vol_ls = float(window["Volume"].iloc[max(0, ls_idx - 2):ls_idx + 3].mean())
+                        vol_h = float(window["Volume"].iloc[max(0, h_idx - 2):h_idx + 3].mean())
+                        vol_rs = float(window["Volume"].iloc[max(0, rs_idx - 2):rs_idx + 3].mean())
+                        if vol_h < vol_ls and vol_rs < vol_h:
+                            vol_note = " Volume declining across peaks (classic Murphy confirmation)."
+                            strength = 4  # Stronger pattern
+                        elif vol_h < vol_ls:
+                            vol_note = " Volume lighter on head vs left shoulder."
+                        else:
+                            vol_note = " Warning: volume not declining across peaks (Murphy says it should)."
+                            strength = 2  # Weaker without volume confirmation
+
                     patterns.append({
                         "name": "Head & Shoulders (Top)",
                         "type": "BEARISH",
-                        "strength": 3,
+                        "strength": strength,
                         "neckline": round(neckline, 2),
                         "target": round(neckline - (head - neckline), 2),
                         "meaning": (
                             f"Classic Head & Shoulders reversal pattern detected. "
                             f"Head at ₹{head:.0f}, neckline at ₹{neckline:.0f}. "
                             f"Neckline broken → bearish target ₹{neckline - (head - neckline):.0f}."
+                            f"{vol_note}"
                         ),
                     })
 
@@ -319,16 +385,29 @@ def _detect_head_and_shoulders(df: pd.DataFrame, lookback: int = 80) -> list[dic
             if peaks:
                 neckline = np.mean(peaks)
                 if current_price > neckline:
+                    # Murphy: For bottoms, volume on breakout is even MORE important
+                    vol_note = ""
+                    strength = 3
+                    if has_volume:
+                        vol_rs = float(window["Volume"].iloc[max(0, rs_idx - 2):rs_idx + 3].mean())
+                        vol_break = float(window["Volume"].iloc[-5:].mean()) if len(window) >= 5 else 0
+                        if vol_break > vol_rs * 1.5:
+                            vol_note = " Heavy breakout volume confirms pattern (Murphy: critical for bottom patterns)."
+                            strength = 4
+                        else:
+                            vol_note = " Breakout volume should be heavier for bottom reversal confirmation."
+
                     patterns.append({
                         "name": "Inverse Head & Shoulders (Bottom)",
                         "type": "BULLISH",
-                        "strength": 3,
+                        "strength": strength,
                         "neckline": round(neckline, 2),
                         "target": round(neckline + (neckline - head), 2),
                         "meaning": (
                             f"Inverse Head & Shoulders (bullish reversal). "
                             f"Head at ₹{head:.0f}, neckline at ₹{neckline:.0f}. "
                             f"Neckline broken → bullish target ₹{neckline + (neckline - head):.0f}."
+                            f"{vol_note}"
                         ),
                     })
 

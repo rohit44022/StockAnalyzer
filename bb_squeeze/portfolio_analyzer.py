@@ -31,6 +31,10 @@ from bb_squeeze.strategy_config import (
     M4_WALK_PCT_B_UPPER,
 )
 
+# Multi-system engines
+from hybrid_pa_engine import run_triple_analysis
+from price_action.engine import run_price_action_analysis
+
 
 # ═══════════════════════════════════════════════════════════════
 #  HELPERS
@@ -414,6 +418,382 @@ def _generate_recommendation(
 
 
 # ═══════════════════════════════════════════════════════════════
+#  MULTI-SYSTEM ANALYSIS (Hybrid + Triple + PA)
+# ═══════════════════════════════════════════════════════════════
+
+def _run_multi_system(df_raw: pd.DataFrame, ticker: str, buy_price: float) -> dict:
+    """
+    Run Hybrid (BB+TA), Triple (BB+TA+PA), and standalone PA engines.
+    Returns condensed results for each system + a master summary.
+    """
+    results = {}
+
+    # 1. Triple Engine (BB + TA + PA) — replaces old hybrid engine
+    try:
+        triple = run_triple_analysis(df_raw, ticker=ticker)
+        tv = triple.get("triple_verdict", {})
+        pa_d = triple.get("pa_data", {})
+        pa_s = triple.get("pa_score", {})
+        cv = triple.get("cross_validation", {})
+        # Provide backward-compatible "hybrid" key with triple data
+        results["hybrid"] = {
+            "verdict":    tv.get("verdict", "N/A"),
+            "score":      _safe(tv.get("score", 0)),
+            "max_score":  tv.get("max_score", 390),
+            "confidence": _safe(tv.get("confidence", 0)),
+            "alignment":  cv.get("alignment", "N/A"),
+            "bb_score":   _safe(triple.get("bb_score", {}).get("total", 0)),
+            "ta_score":   _safe(triple.get("ta_score", {}).get("total", 0)),
+            "ta_verdict": triple.get("ta_signal", {}).get("verdict", "N/A"),
+        }
+        results["triple"] = {
+            "verdict":     tv.get("verdict", "N/A"),
+            "score":       _safe(tv.get("score", 0)),
+            "max_score":   tv.get("max_score", 390),
+            "confidence":  _safe(tv.get("confidence", 0)),
+            "alignment":   cv.get("alignment", "N/A"),
+            "bb_score":    _safe(triple.get("bb_score", {}).get("total", 0)),
+            "ta_score":    _safe(triple.get("ta_score", {}).get("total", 0)),
+            "pa_score":    _safe(pa_s.get("total", 0)),
+        }
+        # [WEIS] Extract Wyckoff data from triple engine
+        wyckoff_raw = triple.get("wyckoff")
+        if wyckoff_raw:
+            wk_phase = wyckoff_raw.get("phase", {})
+            results["wyckoff"] = {
+                "phase":       wk_phase.get("name", "UNKNOWN"),
+                "sub_phase":   wk_phase.get("sub_phase", "UNKNOWN"),
+                "confidence":  wk_phase.get("confidence", 0),
+                "bias":        wyckoff_raw.get("scoring", {}).get("bias", "NEUTRAL"),
+                "bonus":       wyckoff_raw.get("scoring", {}).get("wyckoff_bonus", 0),
+                "volume":      wyckoff_raw.get("volume", {}),
+                "wave_balance": wyckoff_raw.get("wave_balance", {}),
+                "shortening":  wyckoff_raw.get("shortening", {}),
+                "events":      wk_phase.get("events", []),
+                "hints":       wyckoff_raw.get("hints", []),
+                "summary":     wyckoff_raw.get("summary", ""),
+            }
+        else:
+            results["wyckoff"] = None
+
+        # [DALTON] Extract Market Profile data from triple engine
+        mp_raw = triple.get("market_profile")
+        if mp_raw:
+            results["dalton"] = {
+                "value_area":     mp_raw.get("value_area", {}),
+                "day_type":       mp_raw.get("day_type", {}),
+                "open_type":      mp_raw.get("open_type", "UNKNOWN"),
+                "open_vs_prev":   mp_raw.get("open_vs_prev", {}),
+                "activity":       mp_raw.get("activity", "UNKNOWN"),
+                "directional_performance": mp_raw.get("directional_performance", {}),
+                "market_structure": mp_raw.get("market_structure", {}),
+                "one_timeframing": mp_raw.get("one_timeframing", {}),
+                "poor_extremes":  mp_raw.get("poor_extremes", {}),
+                "profile_shape":  mp_raw.get("profile_shape", "NORMAL"),
+                "high_probability": mp_raw.get("high_probability", {}),
+                "gap":            mp_raw.get("gap", {}),
+                "overnight_inventory": mp_raw.get("overnight_inventory", "NEUTRAL"),
+                "rotation_factor": mp_raw.get("rotation_factor", 0),
+                "poc_migration":  mp_raw.get("poc_migration", "STATIONARY"),
+                "va_sequence":    mp_raw.get("va_sequence", []),
+                "scoring":        mp_raw.get("scoring", {}),
+                "dalton_signals": mp_raw.get("dalton_signals", []),
+                "observations":   mp_raw.get("observations", []),
+                "summary":        mp_raw.get("summary", ""),
+            }
+        else:
+            results["dalton"] = None
+    except Exception:
+        results["hybrid"] = {"verdict": "ERROR", "score": 0, "max_score": 390,
+                             "confidence": 0, "alignment": "N/A", "bb_score": 0, "ta_score": 0, "ta_verdict": "N/A"}
+        results["triple"] = {"verdict": "ERROR", "score": 0, "max_score": 390,
+                             "confidence": 0, "alignment": "N/A", "bb_score": 0, "ta_score": 0, "pa_score": 0}
+        results["wyckoff"] = None
+        results["dalton"] = None
+    try:
+        pa_result = run_price_action_analysis(df_raw, ticker=ticker)
+        results["price_action"] = {
+            "signal":        pa_result.signal_type,
+            "setup":         pa_result.setup_type,
+            "strength":      pa_result.strength,
+            "confidence":    pa_result.confidence,
+            "pa_score":      _safe(pa_result.pa_score),
+            "always_in":     pa_result.always_in,
+            "trend":         pa_result.trend_direction,
+            "stop_loss":     _safe(pa_result.stop_loss),
+            "target_1":      _safe(pa_result.target_1),
+            "target_2":      _safe(pa_result.target_2),
+            "risk_reward":   _safe(pa_result.risk_reward),
+            "bar_type":      pa_result.last_bar_type,
+            "bar_desc":      pa_result.last_bar_description,
+            "patterns":      pa_result.active_patterns[:5] if pa_result.active_patterns else [],
+            "context":       pa_result.al_brooks_context,
+            "reasons":       pa_result.reasons[:5] if pa_result.reasons else [],
+        }
+    except Exception:
+        results["price_action"] = {"signal": "ERROR", "setup": "N/A", "strength": "N/A",
+                                   "confidence": 0, "pa_score": 0, "always_in": "N/A",
+                                   "trend": "N/A", "stop_loss": None, "target_1": None,
+                                   "target_2": None, "risk_reward": None, "bar_type": "N/A",
+                                   "bar_desc": "", "patterns": [], "context": "", "reasons": []}
+
+    # 4. Master Summary — plain language
+    results["master_summary"] = _build_master_summary(results, buy_price)
+
+    return results
+
+
+def _build_master_summary(systems: dict, buy_price: float) -> dict:
+    """
+    Combine all system verdicts into one clear, plain-language recommendation.
+    Does NOT override the BB-based recommendation — this is an additional perspective.
+    """
+    hybrid = systems.get("hybrid", {})
+    triple = systems.get("triple", {})
+    pa = systems.get("price_action", {})
+
+    # Count consensus
+    votes = {"BUY": 0, "SELL": 0, "HOLD": 0}
+    system_opinions = []
+
+    # Hybrid verdict
+    hv = hybrid.get("verdict", "N/A")
+    if "BUY" in hv:
+        votes["BUY"] += 1
+        system_opinions.append(("Hybrid (BB+TA)", "BULLISH", hv))
+    elif "SELL" in hv:
+        votes["SELL"] += 1
+        system_opinions.append(("Hybrid (BB+TA)", "BEARISH", hv))
+    else:
+        votes["HOLD"] += 1
+        system_opinions.append(("Hybrid (BB+TA)", "NEUTRAL", hv))
+
+    # Triple verdict
+    tv = triple.get("verdict", "N/A")
+    if "BUY" in tv:
+        votes["BUY"] += 1
+        system_opinions.append(("Triple (BB+TA+PA)", "BULLISH", tv))
+    elif "SELL" in tv:
+        votes["SELL"] += 1
+        system_opinions.append(("Triple (BB+TA+PA)", "BEARISH", tv))
+    else:
+        votes["HOLD"] += 1
+        system_opinions.append(("Triple (BB+TA+PA)", "NEUTRAL", tv))
+
+    # PA standalone
+    pa_sig = pa.get("signal", "N/A")
+    if pa_sig == "BUY":
+        votes["BUY"] += 1
+        system_opinions.append(("Price Action (Al Brooks)", "BULLISH", f"BUY — {pa.get('setup', 'N/A')}"))
+    elif pa_sig == "SELL":
+        votes["SELL"] += 1
+        system_opinions.append(("Price Action (Al Brooks)", "BEARISH", f"SELL — {pa.get('setup', 'N/A')}"))
+    else:
+        votes["HOLD"] += 1
+        system_opinions.append(("Price Action (Al Brooks)", "NEUTRAL", f"HOLD — {pa.get('always_in', 'N/A')}"))
+
+    # Determine consensus
+    total_systems = 3
+    dominant = max(votes, key=votes.get)
+    dominant_count = votes[dominant]
+
+    if dominant_count == 3:
+        consensus = "STRONG"
+        agreement = "ALL AGREE"
+    elif dominant_count == 2:
+        consensus = "MODERATE"
+        agreement = "MAJORITY"
+    else:
+        consensus = "MIXED"
+        agreement = "SPLIT"
+
+    # Overall direction
+    if dominant == "BUY":
+        direction = "BULLISH"
+        action_word = "HOLD / ADD"
+    elif dominant == "SELL":
+        direction = "BEARISH"
+        action_word = "SELL / EXIT"
+    else:
+        direction = "NEUTRAL"
+        action_word = "HOLD / WAIT"
+
+    # Confidence average across systems (weighted)
+    conf_vals = [hybrid.get("confidence", 0), triple.get("confidence", 0), pa.get("confidence", 0)]
+    avg_confidence = round(sum(c for c in conf_vals if c) / max(1, sum(1 for c in conf_vals if c)), 1)
+
+    # Build plain-language explanation
+    plain_lines = []
+
+    if consensus == "STRONG" and direction == "BULLISH":
+        plain_lines.append("All 3 analysis systems are saying this stock looks good right now.")
+        plain_lines.append("The Bollinger Band indicators, Technical Analysis, and Price Action patterns all point upward.")
+        plain_lines.append("This is a strong position — you can hold with confidence or consider adding more if you want.")
+    elif consensus == "STRONG" and direction == "BEARISH":
+        plain_lines.append("All 3 systems are warning that this stock is weakening.")
+        plain_lines.append("Bollinger Bands, Technical indicators, and Price Action all point downward.")
+        plain_lines.append("Consider reducing your position or setting a tight stop loss to protect your capital.")
+    elif consensus == "MODERATE" and direction == "BULLISH":
+        plain_lines.append("2 out of 3 systems are positive on this stock.")
+        dissenting = [s[0] for s in system_opinions if s[1] != "BULLISH"]
+        if dissenting:
+            plain_lines.append(f"Only {dissenting[0]} is not fully aligned, but the majority favors holding.")
+        plain_lines.append("You can continue holding. Watch for the dissenting system to also turn positive for more confidence.")
+    elif consensus == "MODERATE" and direction == "BEARISH":
+        plain_lines.append("2 out of 3 systems suggest caution on this stock.")
+        supporting = [s[0] for s in system_opinions if s[1] == "BULLISH"]
+        if supporting:
+            plain_lines.append(f"Only {supporting[0]} is still positive.")
+        plain_lines.append("Consider tightening your stop loss. If the last system also turns negative, it may be time to exit.")
+    elif consensus == "MODERATE" and direction == "NEUTRAL":
+        plain_lines.append("The systems mostly say to wait and watch.")
+        plain_lines.append("There is no strong buying or selling pressure right now.")
+        plain_lines.append("Hold your position but keep monitoring for any change in signals.")
+    else:
+        plain_lines.append("The 3 systems are giving different signals — this means the market is undecided about this stock.")
+        plain_lines.append("When systems disagree, it's best to hold your current position and avoid adding more money.")
+        plain_lines.append("Wait for at least 2 systems to agree before making any move.")
+
+    # Price Action context (always useful)
+    always_in = pa.get("always_in", "N/A")
+    if always_in in ("BULLISH", "LONG"):
+        plain_lines.append("Price Action shows the 'Always-In' direction is LONG — the trend favors buyers.")
+    elif always_in in ("BEARISH", "SHORT"):
+        plain_lines.append("Price Action shows 'Always-In' direction is SHORT — sellers are in control currently.")
+    else:
+        plain_lines.append("Price Action shows the market is sideways — no clear trend.")
+
+    # PA patterns
+    pa_patterns = pa.get("patterns", [])
+    if pa_patterns:
+        plain_lines.append(f"Active price patterns: {', '.join(pa_patterns[:3])}.")
+
+    # [WEIS] Wyckoff phase context
+    wyckoff = systems.get("wyckoff")
+    if wyckoff and wyckoff.get("phase", "UNKNOWN") != "UNKNOWN":
+        wk_phase = wyckoff.get("phase", "UNKNOWN")
+        wk_hints = wyckoff.get("hints", [])
+        if wk_phase == "ACCUMULATION":
+            plain_lines.append("📊 Wyckoff Analysis: Smart money appears to be ACCUMULATING (quietly buying). "
+                               "This is often a good sign for holders.")
+        elif wk_phase == "DISTRIBUTION":
+            plain_lines.append("📊 Wyckoff Analysis: Smart money appears to be DISTRIBUTING (quietly selling). "
+                               "Be on alert — the smart money may be exiting.")
+        elif wk_phase == "MARKUP":
+            wk_sub = wyckoff.get("sub_phase", "")
+            if wk_sub == "LATE":
+                plain_lines.append("📊 Wyckoff Analysis: The stock is in LATE MARKUP — the uptrend has been "
+                                   "running for a while and may be getting tired. Like a marathon runner "
+                                   "approaching the finish line. Hold your position but tighten stops and "
+                                   "watch for exhaustion signals (shorter rallies, declining volume on up-moves).")
+            elif wk_sub == "CONFIRMED":
+                plain_lines.append("📊 Wyckoff Analysis: The stock is in CONFIRMED MARKUP — this is the sweet spot. "
+                                   "Prices are rising with genuine buying volume behind them. Like a river flowing "
+                                   "strongly uphill. Small dips on low volume are buying opportunities.")
+            elif wk_sub == "MIDDLE":
+                plain_lines.append("📊 Wyckoff Analysis: The stock is in MIDDLE MARKUP — the uptrend is real but "
+                                   "not yet fully powered by volume. Buyers have shown strength. Hold your "
+                                   "position and watch for volume to confirm the next rally.")
+            else:  # EARLY
+                plain_lines.append("📊 Wyckoff Analysis: The stock is in EARLY MARKUP — the uptrend is just starting. "
+                                   "Like a plane gaining speed on the runway. Promising structure, but volume hasn't "
+                                   "fully confirmed the move yet. Watch the next rally's volume closely.")
+        elif wk_phase == "MARKDOWN":
+            wk_sub = wyckoff.get("sub_phase", "")
+            if wk_sub == "LATE":
+                plain_lines.append("📊 Wyckoff Analysis: The stock is in LATE MARKDOWN — the decline has been "
+                                   "running for a while and may be nearing exhaustion. Watch for panic selling "
+                                   "with a big volume spike (Selling Climax) — that often marks the bottom.")
+            elif wk_sub == "CONFIRMED":
+                plain_lines.append("📊 Wyckoff Analysis: The stock is in CONFIRMED MARKDOWN — supply is overwhelming "
+                                   "demand and prices are falling steadily. Any small bounces on low volume are "
+                                   "NOT buying opportunities — they're the last exit points before more downside.")
+            else:
+                plain_lines.append("📊 Wyckoff Analysis: The stock is in MARKDOWN phase — "
+                                   "supply is overwhelming demand. Consider protecting capital.")
+        # Add the first 2 layman hints from Wyckoff
+        for hint in wk_hints[:2]:
+            plain_lines.append(f"  → {hint}")
+
+    # [DALTON] Market Profile context
+    dalton = systems.get("dalton")
+    if dalton and dalton.get("day_type", {}).get("type", "UNKNOWN") != "UNKNOWN":
+        dt = dalton["day_type"]["type"]
+        ms = dalton.get("market_structure", {}).get("type", "UNKNOWN")
+        dp_rating = dalton.get("directional_performance", {}).get("rating", "NEUTRAL")
+        dp_dir = dalton.get("directional_performance", {}).get("direction", "NEUTRAL")
+        ot = dalton.get("open_type", "UNKNOWN")
+        otf = dalton.get("one_timeframing", {}).get("direction", "NONE")
+        otf_days = dalton.get("one_timeframing", {}).get("days", 0)
+
+        # Market structure context
+        if ms == "TRENDING_UP":
+            plain_lines.append("📈 Dalton Market Profile: The market structure is TRENDING UP — "
+                               "value areas are consistently moving higher day after day.")
+        elif ms == "TRENDING_DOWN":
+            plain_lines.append("📉 Dalton Market Profile: The market structure is TRENDING DOWN — "
+                               "value areas are moving lower. Sellers are in control.")
+        elif ms == "BRACKETING":
+            bd = dalton.get("market_structure", {}).get("bracket_days", 0)
+            plain_lines.append(f"📊 Dalton Market Profile: Market is BRACKETING (sideways) for "
+                               f"{bd} days — value areas are overlapping, no clear direction.")
+        elif ms == "TRANSITIONING":
+            plain_lines.append("🔄 Dalton Market Profile: Market structure is TRANSITIONING — "
+                               "a new trend may be forming. Watch closely.")
+
+        # One-timeframing
+        if otf in ("UP", "DOWN") and otf_days >= 2:
+            otf_word = "upward" if otf == "UP" else "downward"
+            plain_lines.append(f"  → One-timeframing {otf_word} for {otf_days} days — "
+                               f"strong directional conviction from institutional traders.")
+
+        # High-probability setups
+        hp = dalton.get("high_probability", {})
+        if hp.get("three_to_i", {}).get("active"):
+            ti_dir = hp["three_to_i"].get("direction", "")
+            plain_lines.append(f"  → ⚡ 3-to-I Day setup detected ({ti_dir}) — "
+                               "this pattern has 94% historical follow-through probability!")
+        if hp.get("neutral_extreme", {}).get("active"):
+            ne_dir = hp["neutral_extreme"].get("direction", "")
+            plain_lines.append(f"  → ⚡ Neutral-Extreme Day ({ne_dir}) — "
+                               "92% probability of follow-through tomorrow!")
+        if hp.get("balance_breakout", {}).get("active"):
+            bb_dir = hp["balance_breakout"].get("direction", "")
+            plain_lines.append(f"  → ⚡ Balance-Area Breakout ({bb_dir}) — "
+                               "price broke out of a sideways range with conviction.")
+
+    # Score context
+    triple_score = triple.get("score", 0)
+    triple_max = triple.get("max_score", 360)
+    if triple_score is not None and triple_max:
+        pct = abs(triple_score) / triple_max * 100
+        if triple_score > 0:
+            plain_lines.append(f"The combined conviction score is +{triple_score}/{triple_max} — this is {_score_grade(pct)} bullish.")
+        elif triple_score < 0:
+            plain_lines.append(f"The combined conviction score is {triple_score}/{triple_max} — this is {_score_grade(pct)} bearish.")
+
+    return {
+        "consensus":        consensus,
+        "agreement":        agreement,
+        "direction":        direction,
+        "action_word":      action_word,
+        "votes":            votes,
+        "system_opinions":  system_opinions,
+        "avg_confidence":   avg_confidence,
+        "plain_text":       plain_lines,
+    }
+
+
+def _score_grade(pct: float) -> str:
+    if pct >= 50:
+        return "strongly"
+    elif pct >= 25:
+        return "moderately"
+    else:
+        return "mildly"
+
+
+# ═══════════════════════════════════════════════════════════════
 #  MAIN ANALYSIS FUNCTION
 # ═══════════════════════════════════════════════════════════════
 
@@ -495,6 +875,11 @@ def analyze_position(position: dict) -> dict:
     days = _holding_days(position["buy_date"])
     current_price = float(last["Close"])
 
+    # 9. Multi-system analysis (Hybrid, Triple, PA)
+    # Use the raw data (before BB indicators) for these engines — they compute their own
+    df_raw = load_stock_data(ticker, csv_dir=CSV_DIR)
+    multi_sys = _run_multi_system(df_raw, ticker, buy_price) if df_raw is not None and len(df_raw) >= 60 else {}
+
     return {
         "position":                position,
         "indicators":              indicators,
@@ -514,6 +899,7 @@ def analyze_position(position: dict) -> dict:
         },
         "recommendation":  rec,
         "targets":         targets,
+        "multi_system":    multi_sys,
         "holding": {
             "days":          days,
             "buy_price":     buy_price,

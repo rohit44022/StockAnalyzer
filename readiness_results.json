@@ -1,0 +1,226 @@
+{
+  "simulation_date": "2026-04-09T13:33:23.859175",
+  "tickers_tested": 100,
+  "total_checks": 16393,
+  "passed": 16393,
+  "failed": 0,
+  "warnings": 8,
+  "pass_rate": 100.0,
+  "time_sec": 18.3,
+  "ready": true,
+  "errors": [
+    {
+      "section": "data",
+      "ticker": "CCAVENUE.NS",
+      "severity": "WARN",
+      "message": "Insufficient data (0 rows)"
+    },
+    {
+      "section": "data",
+      "ticker": "AMAGI.NS",
+      "severity": "WARN",
+      "message": "Insufficient data (0 rows)"
+    },
+    {
+      "section": "data",
+      "ticker": "CORONA.NS",
+      "severity": "WARN",
+      "message": "Insufficient data (0 rows)"
+    },
+    {
+      "section": "data",
+      "ticker": "LENSKART.NS",
+      "severity": "WARN",
+      "message": "Insufficient data (0 rows)"
+    },
+    {
+      "section": "data",
+      "ticker": "BHARATCOAL.NS",
+      "severity": "WARN",
+      "message": "Insufficient data (0 rows)"
+    },
+    {
+      "section": "price_action",
+      "ticker": "IPL.NS",
+      "severity": "WARN",
+      "message": "PA targets not available"
+    },
+    {
+      "section": "price_action",
+      "ticker": "SAREGAMA.NS",
+      "severity": "WARN",
+      "message": "PA targets not available"
+    },
+    {
+      "section": "data",
+      "ticker": "EUROPRATIK.NS",
+      "severity": "WARN",
+      "message": "Insufficient data (0 rows)"
+    }
+  ],
+  "distributions": {
+    "triple_verdict": {
+      "STRONG BUY": 21,
+      "BUY": 18,
+      "HOLD / WAIT": 46,
+      "SUPER STRONG BUY": 6,
+      "SELL": 3
+    },
+    "alignment": {
+      "DOUBLE_ALIGNED": 24,
+      "SINGLE": 43,
+      "TRIPLE_ALIGNED": 12,
+      "ALL_NEUTRAL": 9,
+      "MIXED": 5,
+      "CONFLICTING": 1
+    },
+    "wyckoff_phase": {
+      "MARKDOWN": 71,
+      "RANGING": 6,
+      "MARKUP": 14,
+      "UNKNOWN": 2,
+      "DISTRIBUTION": 1
+    },
+    "wk_events_count": {
+      "0": 89,
+      "1": 3,
+      "2": 2
+    },
+    "wyckoff_bias": {
+      "BEARISH": 44,
+      "NEUTRAL": 29,
+      "BULLISH": 21
+    },
+    "day_type": {
+      "NEUTRAL_EXTREME": 15,
+      "NORMAL": 37,
+      "NORMAL_VARIATION": 4,
+      "NEUTRAL": 32,
+      "NONTREND": 3,
+      "TREND": 2,
+      "DOUBLE_DIST": 1
+    },
+    "day_conviction": {
+      "HIGH": 16,
+      "MODERATE": 54,
+      "LOW": 22,
+      "VERY_HIGH": 2
+    },
+    "open_type": {
+      "OPEN_AUCTION": 75,
+      "OPEN_DRIVE": 11,
+      "OPEN_TEST_DRIVE": 8
+    },
+    "activity": {
+      "INITIATIVE_BUYING": 47,
+      "RESPONSIVE_SELLING": 33,
+      "INITIATIVE_SELLING": 14
+    },
+    "market_structure": {
+      "BRACKETING": 81,
+      "TRANSITIONING": 13
+    },
+    "otf_direction": {
+      "UP": 67,
+      "NONE": 26,
+      "DOWN": 1
+    },
+    "dp_rating": {
+      "VERY_STRONG": 65,
+      "MODERATE": 24,
+      "STRONG": 3,
+      "NEUTRAL": 2
+    },
+    "poc_migration": {
+      "MIGRATING_UP": 66,
+      "STATIONARY": 25,
+      "MIGRATING_DOWN": 3
+    },
+    "va_last": {
+      "HIGHER": 68,
+      "OVERLAPPING": 19,
+      "OUTSIDE": 6,
+      "INSIDE": 1
+    },
+    "profile_shape": {
+      "NORMAL": 86,
+      "B_SHAPE": 4,
+      "ELONGATED": 3,
+      "P_SHAPE": 1
+    },
+    "overnight_inv": {
+      "LONG": 93,
+      "NEUTRAL": 1
+    },
+    "hp_three_to_i": {
+      "BULLISH": 2
+    },
+    "hp_neutral_extreme": {
+      "BULLISH": 9,
+      "BEARISH": 6
+    },
+    "hp_balance_breakout": {
+      "BULLISH": 32
+    },
+    "gap_type": {
+      "BREAKAWAY": 84,
+      "EXHAUSTION": 9
+    },
+    "dalton_signals_count": {
+      "4": 1,
+      "0": 18,
+      "2": 27,
+      "1": 40,
+      "3": 8
+    },
+    "pa_signal": {
+      "BUY": 58,
+      "SELL": 34,
+      "HOLD": 2
+    },
+    "pa_setup": {
+      "FAILED_BREAKOUT": 28,
+      "PULLBACK": 17,
+      "SECOND_ENTRY": 15,
+      "BREAKOUT": 7,
+      "TREND_CONT": 22,
+      "REVERSAL": 3,
+      "NONE": 2
+    },
+    "pa_trend_dir": {
+      "BULL": 31,
+      "SIDEWAYS": 55,
+      "BEAR": 8
+    },
+    "pa_trend_phase": {
+      "CHANNEL": 36,
+      "BROAD_CHANNEL": 42,
+      "TRADING_RANGE": 16
+    },
+    "pa_always_in": {
+      "LONG": 31,
+      "FLAT": 55,
+      "SHORT": 8
+    },
+    "pa_bar_type": {
+      "DOJI": 86,
+      "BEAR_TREND": 2,
+      "STRONG_BEAR_TREND": 2,
+      "BULL_TREND": 2,
+      "MODERATE_BEAR": 2
+    },
+    "pa_pattern_count": {
+      "2": 18,
+      "3": 26,
+      "5": 16,
+      "0": 8,
+      "4": 8,
+      "1": 18
+    },
+    "rec_action": {
+      "HOLD": 164,
+      "ADD": 20,
+      "SELL": 4
+    }
+  }
+}

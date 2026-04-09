@@ -5,7 +5,7 @@ top_picks/scorer.py — Composite Scoring Logic for Top 5 Picks Engine
 WHAT THIS FILE DOES (plain English):
 ─────────────────────────────────────
 This file takes ALL the analysis data for a single stock — the BB strategy
-result, the Technical Analysis result, the Hybrid Engine result, plus data
+result, the Technical Analysis result, the Triple Conviction Engine result, plus data
 quality info — and boils it ALL down to ONE number: the Composite Score (0-100).
 
 Think of it as a judge at a competition. The judge watches every performance
@@ -23,10 +23,10 @@ SCORING BREAKDOWN:
     We normalize: (ta_raw + 100) / 2 = 0 to 100.
     So TA score of +60 → (60+100)/2 = 80 out of 100.
 
-  Component 3 — Hybrid Score (0-100):
-    The Hybrid Engine returns -245 to +245.
-    We normalize: (hybrid_raw + 245) / 490 × 100 = 0 to 100.
-    So hybrid score of +120 → (120+245)/490 × 100 = 74.5 out of 100.
+  Component 3 — Triple Score (0-100):
+    The Triple Conviction Engine returns -390 to +390.
+    We normalize: (triple_raw + 390) / 780 × 100 = 0 to 100.
+    So triple score of +120 → (120+390)/780 × 100 = 65.4 out of 100.
 
   Component 4 — Risk/Reward Score (0-100):
     Based on the target price vs stop-loss ratio.
@@ -46,7 +46,7 @@ import math
 from typing import Optional
 
 from top_picks.config import (
-    WEIGHTS, RR_SCORE_MAP, FRESHNESS_SCORE_MAP, HYBRID_MAX_SCORE, HYBRID_MIN_SCORE, PA_MAX_SCORE,
+    WEIGHTS, RR_SCORE_MAP, FRESHNESS_SCORE_MAP, TRIPLE_MAX_SCORE, TRIPLE_MIN_SCORE, PA_MAX_SCORE,
 )
 
 
@@ -79,10 +79,10 @@ def compute_composite_score(
     │                   "score" (-100 to +100), "verdict",         │
     │                   "categories" (trend, momentum, etc.)       │
     │                                                              │
-    │  hybrid_result  — The full hybrid engine output dict.        │
-    │                   Contains "hybrid_verdict", "bb_score",     │
-    │                   "ta_score", "cross_validation", "risk",    │
-    │                   "target_prices"                            │
+    │  hybrid_result  — The full triple engine output dict.        │
+    │                   Contains "triple_verdict", "bb_score",     │
+    │                   "ta_score", "pa_score", "cross_validation",│
+    │                   "risk", "target_prices"                    │
     │                                                              │
     │  data_freshness — Dict with "trading_days_stale" etc.        │
     │                                                              │
@@ -132,21 +132,21 @@ def compute_composite_score(
         elif ta_raw < -30:
             warnings.append(f"Technical Analysis is BEARISH ({ta_verdict}, score {ta_raw:+.0f})")
 
-    # ── Component 3: Hybrid Score ───────────────────────────────
-    # Same direction-aware logic: for SELL, negative hybrid = good.
-    hybrid_score_component = _score_hybrid(hybrid_result, is_sell)
-    hybrid_verdict_text = _extract_hybrid_verdict(hybrid_result)
-    hybrid_combined = _extract_hybrid_combined_score(hybrid_result)
+    # ── Component 3: Triple Score ─────────────────────────────
+    # Same direction-aware logic: for SELL, negative triple = good.
+    triple_score_component = _score_triple(hybrid_result, is_sell)
+    triple_verdict_text = _extract_triple_verdict(hybrid_result)
+    triple_combined = _extract_triple_combined_score(hybrid_result)
     if is_sell:
-        if hybrid_combined < -25:
-            reasons.append(f"Hybrid Engine confirms BEARISH ({hybrid_verdict_text})")
-        elif hybrid_combined > 50:
-            warnings.append(f"Hybrid Engine is BULLISH ({hybrid_verdict_text}) — conflicts with SELL")
+        if triple_combined < -25:
+            reasons.append(f"Triple Engine confirms BEARISH ({triple_verdict_text})")
+        elif triple_combined > 50:
+            warnings.append(f"Triple Engine is BULLISH ({triple_verdict_text}) — conflicts with SELL")
     else:
-        if hybrid_combined > 50:
-            reasons.append(f"Hybrid Engine strongly BULLISH ({hybrid_verdict_text})")
-        elif hybrid_combined < -25:
-            warnings.append(f"Hybrid Engine is BEARISH ({hybrid_verdict_text})")
+        if triple_combined > 50:
+            reasons.append(f"Triple Engine strongly BULLISH ({triple_verdict_text})")
+        elif triple_combined < -25:
+            warnings.append(f"Triple Engine is BEARISH ({triple_verdict_text})")
 
     # ── Component 4: Risk/Reward Score ──────────────────────────
     rr_score, rr_ratio = _score_risk_reward(hybrid_result)
@@ -157,7 +157,7 @@ def compute_composite_score(
 
     # ── Component 5: Signal Agreement ───────────────────────────
     agreement_score = _score_signal_agreement(
-        bb_signal_type, ta_verdict, hybrid_verdict_text
+        bb_signal_type, ta_verdict, triple_verdict_text
     )
     if agreement_score >= 80:
         reasons.append("All analysis engines agree on direction — high conviction")
@@ -197,7 +197,7 @@ def compute_composite_score(
     composite = (
         bb_score            * WEIGHTS["bb_strategy"]
         + ta_score_component * WEIGHTS["ta_score"]
-        + hybrid_score_component * WEIGHTS["hybrid_score"]
+        + triple_score_component * WEIGHTS["triple_score"]
         + pa_score_component * WEIGHTS["pa_score"]
         + rr_score           * WEIGHTS["risk_reward"]
         + agreement_score    * WEIGHTS["signal_agreement"]
@@ -228,12 +228,12 @@ def compute_composite_score(
                 "detail": f"TA verdict: {ta_verdict}, raw score: {ta_raw:+.0f}/100",
                 "hint": "Murphy's 6-category technical analysis (trend, momentum, volume, patterns, S/R, risk)",
             },
-            "hybrid_score": {
-                "score": round(hybrid_score_component, 1),
-                "weight": WEIGHTS["hybrid_score"],
-                "weighted": round(hybrid_score_component * WEIGHTS["hybrid_score"], 1),
-                "detail": f"Hybrid verdict: {hybrid_verdict_text}, combined {hybrid_combined:+.0f}/245",
-                "hint": "Cross-validation — do BB and TA agree? Higher when both point the same direction",
+            "triple_score": {
+                "score": round(triple_score_component, 1),
+                "weight": WEIGHTS["triple_score"],
+                "weighted": round(triple_score_component * WEIGHTS["triple_score"], 1),
+                "detail": f"Triple verdict: {triple_verdict_text}, combined {triple_combined:+.0f}/390",
+                "hint": "Cross-validation — do BB, TA, and PA agree? Higher when all three point the same direction",
             },
             "risk_reward": {
                 "score": round(rr_score, 1),
@@ -253,8 +253,8 @@ def compute_composite_score(
                 "score": round(agreement_score, 1),
                 "weight": WEIGHTS["signal_agreement"],
                 "weighted": round(agreement_score * WEIGHTS["signal_agreement"], 1),
-                "detail": _describe_agreement(bb_signal_type, ta_verdict, hybrid_verdict_text),
-                "hint": "Do all 3 engines (BB, TA, Hybrid) agree? 100 = perfect agreement",
+                "detail": _describe_agreement(bb_signal_type, ta_verdict, triple_verdict_text),
+                "hint": "Do all 3 engines (BB, TA, Triple) agree? 100 = perfect agreement",
             },
             "data_quality": {
                 "score": round(dq_score, 1),
@@ -330,23 +330,17 @@ def _score_technical_analysis(ta_signal: dict, is_sell: bool = False) -> float:
     return max(0.0, min(100.0, normalized))
 
 
-def _score_hybrid(hybrid_result: dict, is_sell: bool = False) -> float:
+def _score_triple(hybrid_result: dict, is_sell: bool = False) -> float:
     """
-    Normalize Hybrid Engine score from (-230 to +245) → (0 to 100).
+    Normalize Triple Engine score from (-390 to +390) → (0 to 100).
 
-    Uses asymmetric range: max = +245, min = -230.
     FOR BUY:  normalized = (combined - min) / (max - min) × 100
     FOR SELL: normalized = (max - combined) / (max - min) × 100  (flipped)
-
-    EXAMPLES (BUY):
-      Combined score +120  →  (120 + 230) / (245 + 230) × 100 = 73.7
-      Combined score -50   →  (-50 + 230) / 475 × 100 = 37.9
-      Combined score +200  →  (200 + 230) / 475 × 100 = 90.5
     """
-    combined = _extract_hybrid_combined_score(hybrid_result)
-    max_s = HYBRID_MAX_SCORE   # +245
-    min_s = HYBRID_MIN_SCORE   # -230
-    total_range = max_s - min_s  # 475
+    combined = _extract_triple_combined_score(hybrid_result)
+    max_s = TRIPLE_MAX_SCORE   # +390
+    min_s = TRIPLE_MIN_SCORE   # -390
+    total_range = max_s - min_s  # 780
     if is_sell:
         normalized = (max_s - combined) / total_range * 100.0
     else:
@@ -533,45 +527,47 @@ def _to_direction(signal: str) -> str:
     return "NEUTRAL"
 
 
-def _extract_hybrid_verdict(hybrid_result: dict) -> str:
-    """Extract the human-readable verdict string from the hybrid result."""
-    hv = hybrid_result.get("hybrid_verdict", {})
-    if isinstance(hv, dict):
-        return hv.get("verdict", "UNKNOWN")
-    return str(hv) if hv else "UNKNOWN"
+def _extract_triple_verdict(hybrid_result: dict) -> str:
+    """Extract the human-readable verdict string from the triple result."""
+    tv = hybrid_result.get("triple_verdict", {})
+    if isinstance(tv, dict):
+        return tv.get("verdict", "UNKNOWN")
+    return str(tv) if tv else "UNKNOWN"
 
 
-def _extract_hybrid_combined_score(hybrid_result: dict) -> float:
+def _extract_triple_combined_score(hybrid_result: dict) -> float:
     """
-    Extract the combined numerical score from the hybrid result.
-    This is BB_total + TA_total + agreement_bonus (range: -245 to +245).
+    Extract the combined numerical score from the triple result.
+    This is BB_total + TA_total + PA_total + agreement_bonus (range: -390 to +390).
     """
-    hv = hybrid_result.get("hybrid_verdict", {})
-    if isinstance(hv, dict):
-        score = hv.get("score", 0)
+    tv = hybrid_result.get("triple_verdict", {})
+    if isinstance(tv, dict):
+        score = tv.get("score", 0)
         if score is not None and not (isinstance(score, float) and math.isnan(score)):
             return float(score)
 
-    # Fallback: reconstruct from bb_score + ta_score + cross_validation
+    # Fallback: reconstruct from bb_score + ta_score + pa_score + cross_validation
     bb = hybrid_result.get("bb_score", {})
     ta = hybrid_result.get("ta_score", {})
+    pa = hybrid_result.get("pa_score", {})
     cv = hybrid_result.get("cross_validation", {})
     bb_total = bb.get("total", 0) if isinstance(bb, dict) else 0
     ta_total = ta.get("total", 0) if isinstance(ta, dict) else 0
+    pa_total = pa.get("total", 0) if isinstance(pa, dict) else 0
     cv_score = cv.get("agreement_score", 0) if isinstance(cv, dict) else 0
-    return float(bb_total) + float(ta_total) + float(cv_score)
+    return float(bb_total) + float(ta_total) + float(pa_total) + float(cv_score)
 
 
-def _describe_agreement(bb_signal: str, ta_verdict: str, hybrid_verdict: str) -> str:
+def _describe_agreement(bb_signal: str, ta_verdict: str, triple_verdict: str) -> str:
     """Build a human-readable description of signal agreement."""
     bb_dir = _to_direction(bb_signal)
     ta_dir = _to_direction(ta_verdict)
-    hy_dir = _to_direction(hybrid_verdict)
+    tr_dir = _to_direction(triple_verdict)
 
     parts = [
         f"BB → {bb_dir}",
         f"TA → {ta_dir}",
-        f"Hybrid → {hy_dir}",
+        f"Triple → {tr_dir}",
     ]
     return " | ".join(parts)
 

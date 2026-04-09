@@ -7,23 +7,23 @@ from bb_squeeze.data_loader import load_stock_data, get_data_freshness
 from bb_squeeze.indicators import compute_all_indicators
 from bb_squeeze.signals import analyze_signals
 from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
-from hybrid_engine import run_hybrid_analysis
+from hybrid_pa_engine import run_triple_analysis
 from price_action.engine import run_price_action_analysis, pa_result_to_dict
-from top_picks.scorer import compute_composite_score, _score_bb_strategy, _score_technical_analysis, _score_hybrid, _score_risk_reward, _score_signal_agreement, _score_data_quality, _score_price_action
+from top_picks.scorer import compute_composite_score, _score_bb_strategy, _score_technical_analysis, _score_triple, _score_risk_reward, _score_signal_agreement, _score_data_quality, _score_price_action
 
 ticker = "KRISHANA.NS"
 df = load_stock_data(ticker, use_live_fallback=False)
 print(f"Data loaded: {len(df)} rows")
 
-# Run hybrid (runs everything internally)
-hybrid = run_hybrid_analysis(df, ticker=ticker)
+# Run triple (runs everything internally)
+hybrid = run_triple_analysis(df, ticker=ticker)
 if "error" in hybrid:
     print(f"ERROR: {hybrid['error']}")
     sys.exit(1)
 
 bb_data = hybrid.get("bb_data", {})
 ta_signal = hybrid.get("ta_signal", {})
-hv = hybrid.get("hybrid_verdict", {})
+hv = hybrid.get("triple_verdict", {})
 data_freshness = hybrid.get("data_freshness", {})
 target_prices = hybrid.get("target_prices", {})
 
@@ -65,8 +65,8 @@ for cat, data in cats.items():
     if isinstance(data, dict):
         print(f"    {cat}: {data.get('score',0)}/{data.get('max',0)}")
 
-# Hybrid
-print(f"\n--- Hybrid Engine ---")
+# Triple
+print(f"\n--- Triple Engine ---")
 print(f"  verdict: {hv.get('verdict')}")
 print(f"  combined_score: {hv.get('score')}")
 print(f"  confidence: {hv.get('confidence')}")
@@ -131,7 +131,7 @@ if pa_flat:
 # Manually compute each component
 bb_score = _score_bb_strategy(bb_conf, bb_type, "M2")
 ta_comp = _score_technical_analysis(ta_signal, is_sell=False)
-hybrid_comp = _score_hybrid(hybrid, is_sell=False)
+hybrid_comp = _score_triple(hybrid, is_sell=False)
 rr_score, rr_val = _score_risk_reward(hybrid)
 agree_score = _score_signal_agreement(bb_type, ta_signal.get("verdict", "HOLD"),
                                        hv.get("verdict", "UNKNOWN"))
@@ -141,7 +141,7 @@ pa_comp = _score_price_action(pa_flat, is_sell=False)
 print(f"\nComponent Scores (what shows in UI):")
 print(f"  BB Strategy:   {bb_score:.1f}/100   (weight 20%)")
 print(f"  TA Score:      {ta_comp:.1f}/100   (weight 20%)")
-print(f"  Hybrid Score:  {hybrid_comp:.1f}/100   (weight 15%)")
+print(f"  Triple Score:  {hybrid_comp:.1f}/100   (weight 15%)")
 print(f"  Price Action:  {pa_comp:.1f}/100   (weight 15%)")
 print(f"  Risk/Reward:   {rr_score:.1f}/100   (weight 15%, R:R={rr_val})")
 print(f"  Agreement:     {agree_score:.1f}/100   (weight 10%)")

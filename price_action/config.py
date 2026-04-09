@@ -63,7 +63,7 @@ PRESSURE_LOOKBACK = 20              # Bars to analyze for pressure
 PRESSURE_STRONG = 0.65              # >65% bull bars = strong buying pressure
 
 # Spike detection
-SPIKE_MIN_BARS = 3                  # Min consecutive strong trend bars for spike (Al Brooks: urgency = 2-5 bars) (Al Brooks: urgency = 2-5 bars) (Al Brooks: urgency = 2-5 bars)
+SPIKE_MIN_BARS = 2                  # Min consecutive strong trend bars for spike (Al Brooks: "every trend bar is a spike"; 2+ = confirmed spike)
 SPIKE_MAX_BARS = 5                  # Typical spike is 1-5 bars
 SPIKE_BODY_THRESHOLD = 0.55         # Min body pct to qualify as spike bar
 

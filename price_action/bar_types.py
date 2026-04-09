@@ -259,6 +259,11 @@ def _detect_signal_bars(bars: List[BarAnalysis]) -> None:
       close near or above midpoint, ideally bull body
     - Bear reversal bar: appears after up move, prominent upper tail,
       close near or below midpoint, ideally bear body
+
+    Brooks Ch 5: "The stronger the trend, the less important it is to have
+    a strong signal bar for a with-trend trade."
+    Brooks Ch 5: Overlap check — if midpoint of bull reversal bar is above
+    low of prior bar, overlap may be excessive (trading range, not reversal).
     """
     if len(bars) < C.MIN_BARS_IN_MOVE + 1:
         return
@@ -278,40 +283,48 @@ def _detect_signal_bars(bars: List[BarAnalysis]) -> None:
         down_move = move_lows[-1] < move_lows[0]  # trending down
         up_move = move_highs[-1] > move_highs[0]  # trending up
 
+        prev_bar = bars[i - 1]
+
         # ── Bull Reversal Bar ──
-        # After a down move: prominent lower tail, close in upper half, body not too big
+        # After a down move: prominent lower tail, close in upper half
+        # Brooks: body_max constraint relaxed — strong trend bars can be signal bars
         if (down_move or bear_count >= bull_count) and \
            bar.lower_tail_pct >= C.REVERSAL_BAR_TAIL_MIN and \
-           bar.body_pct <= C.REVERSAL_BAR_BODY_MAX and \
-           bar.body_pct <= C.REVERSAL_BAR_BODY_MAX and \
-           bar.body_pct <= C.REVERSAL_BAR_BODY_MAX and \
            bar.close_position >= 0.50:
 
             bar.is_signal_bar = True
             bar.signal_direction = "BULL_REVERSAL"
 
-            # Quality assessment
-            if bar.is_bull and bar.lower_tail_pct > 0.40 and bar.close_zone == "UPPER_THIRD":
+            # Brooks Ch 5: Overlap check for countertrend entries
+            # If midpoint of reversal bar is above low of prior bar = excessive overlap
+            bar_midpoint = (bar.high + bar.low) / 2.0
+            excessive_overlap = bar_midpoint > prev_bar.low
+
+            # Quality assessment (Brooks: tail, body, close position, overlap)
+            if bar.is_bull and bar.lower_tail_pct > 0.40 and bar.close_zone == "UPPER_THIRD" and not excessive_overlap:
                 bar.signal_quality = "STRONG"
             elif bar.is_bull or bar.lower_tail_pct > 0.35:
-                bar.signal_quality = "MODERATE"
+                bar.signal_quality = "MODERATE" if not excessive_overlap else "WEAK"
             else:
                 bar.signal_quality = "WEAK"
 
         # ── Bear Reversal Bar ──
-        # After an up move: prominent upper tail, close in lower half, body not too big
+        # After an up move: prominent upper tail, close in lower half
         elif (up_move or bull_count >= bear_count) and \
              bar.upper_tail_pct >= C.REVERSAL_BAR_TAIL_MIN and \
-             bar.body_pct <= C.REVERSAL_BAR_BODY_MAX and \
              bar.close_position <= 0.50:
 
             bar.is_signal_bar = True
             bar.signal_direction = "BEAR_REVERSAL"
 
-            if bar.is_bear and bar.upper_tail_pct > 0.40 and bar.close_zone == "LOWER_THIRD":
+            # Overlap check: if midpoint of bear reversal is below high of prior bar
+            bar_midpoint = (bar.high + bar.low) / 2.0
+            excessive_overlap = bar_midpoint < prev_bar.high
+
+            if bar.is_bear and bar.upper_tail_pct > 0.40 and bar.close_zone == "LOWER_THIRD" and not excessive_overlap:
                 bar.signal_quality = "STRONG"
             elif bar.is_bear or bar.upper_tail_pct > 0.35:
-                bar.signal_quality = "MODERATE"
+                bar.signal_quality = "MODERATE" if not excessive_overlap else "WEAK"
             else:
                 bar.signal_quality = "WEAK"
 

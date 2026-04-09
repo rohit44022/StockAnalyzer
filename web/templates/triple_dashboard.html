@@ -1,0 +1,2302 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Triple Conviction Engine — BB + TA + PA</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--bull:#00c853;--bear:#ff1744;--neutral:#ffc107;--card-bg:#1e1e2f;--bg:#0f0f1a;--accent:#e040fb;--accent2:#7c4dff;--accent3:#f0883e}
+body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif}
+.card{background:var(--card-bg);border:1px solid rgba(255,255,255,.08);border-radius:12px}
+.card-header{background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)}
+.bull{color:var(--bull)}.bear{color:var(--bear)}.neutral{color:var(--neutral)}.accent{color:var(--accent)}
+.bg-bull{background:rgba(0,200,83,.15)!important}.bg-bear{background:rgba(255,23,68,.15)!important}
+.bg-neutral{background:rgba(255,193,7,.15)!important}
+.score-bar{height:10px;border-radius:5px;background:#222;overflow:hidden}
+.score-fill{height:100%;border-radius:5px;transition:width .6s ease}
+.verdict-badge{font-size:1.8rem;padding:10px 30px;border-radius:10px;font-weight:700;letter-spacing:1.5px}
+.indicator-val{font-size:1.35rem;font-weight:600}
+.section-title{font-size:1.1rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:0}
+.mini-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.45)}
+.ticker-search{max-width:420px}
+.ticker-search input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:10px 16px;font-size:1.05rem}
+.ticker-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(224,64,251,.25)}
+.autocomplete-list{position:absolute;z-index:999;width:100%;max-height:240px;overflow-y:auto;background:#1e1e2f;border:1px solid rgba(255,255,255,.1);border-radius:0 0 8px 8px;display:none}
+.autocomplete-list .item{padding:8px 16px;cursor:pointer;font-size:.95rem}
+.autocomplete-list .item:hover,.autocomplete-list .item.active{background:rgba(224,64,251,.25)}
+.edu-box{background:rgba(224,64,251,.08);border:1px solid rgba(224,64,251,.2);border-radius:10px;padding:16px;margin-bottom:16px;font-size:.85rem;line-height:1.7}
+.edu-box strong{color:var(--accent)}
+.method-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:16px;margin-bottom:12px}
+.method-card .method-title{font-size:.95rem;font-weight:600;margin-bottom:8px}
+.obs-card{background:rgba(255,255,255,.04);border-left:3px solid var(--accent);padding:12px 16px;margin-bottom:8px;border-radius:0 8px 8px 0;font-size:.85rem;line-height:1.6}
+.condition-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.85rem}
+.condition-dot{width:10px;height:10px;border-radius:50%}
+.conviction-meter{height:14px;border-radius:7px;background:#222;overflow:hidden;position:relative;margin:12px 0}
+.conviction-fill{height:100%;border-radius:7px;transition:width .8s ease}
+.system-col{flex:1;min-width:220px;padding:16px;border-radius:10px}
+.system-bb{background:rgba(0,150,255,.08);border:1px solid rgba(0,150,255,.2)}
+.system-ta{background:rgba(124,77,255,.08);border:1px solid rgba(124,77,255,.2)}
+.system-pa{background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2)}
+.vs-divider{width:50px;text-align:center;font-weight:700;font-size:1.1rem;align-self:center;color:var(--accent)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn .4s ease}
+#loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center}
+#loading.active{display:flex}
+nav a.active{color:var(--accent)!important;font-weight:600}
+.pa-comp-bar{height:6px;border-radius:3px;background:#333;overflow:hidden;margin-top:4px}
+.pa-comp-fill{height:100%;border-radius:3px}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner-border" style="width:3rem;height:3rem;color:var(--accent)"></div></div>
+
+<!-- NAV -->
+<nav class="py-2 px-4 border-bottom border-secondary" style="background:rgba(15,15,26,.95)">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <a href="/triple" class="text-decoration-none fw-bold" style="font-size:1.1rem;color:var(--accent)">
+      <i class="bi bi-triangle-fill"></i> Triple Engine
+    </a>
+    <a href="/" class="text-decoration-none text-light ms-3">Home</a>
+    <a href="/ta" class="text-decoration-none text-light">TA Module</a>
+    <a href="/pa" class="text-decoration-none text-light">Price Action</a>
+    <a href="/triple" class="text-decoration-none active">Triple BB+TA+PA</a>
+    <a href="/portfolio" class="text-decoration-none text-light">Portfolio</a>
+    <a href="/trades" class="text-decoration-none text-light">Trades</a>
+  </div>
+</nav>
+
+<!-- SEARCH HEADER -->
+<div class="container py-4" id="mainContent">
+  <div class="text-center mb-4">
+    <h3 class="fw-bold"><i class="bi bi-triangle-fill" style="color:var(--accent)"></i> Triple Conviction Engine</h3>
+    <p class="text-secondary mb-1" style="max-width:800px;margin:0 auto">
+      Combines <strong style="color:#2196f3">Bollinger Bands (I–IV)</strong>,
+      <strong style="color:var(--accent2)">Murphy's Technical Analysis</strong>, and
+      <strong style="color:var(--accent3)">Al Brooks Price Action</strong>
+      into a single maximum-conviction system.
+    </p>
+    <p class="text-secondary mb-3" style="max-width:700px;margin:0 auto;font-size:.82rem">
+      BB tells you <strong>WHAT</strong> is happening · TA tells you <strong>WHY</strong> · PA tells you <strong>HOW</strong> — all three agreeing = highest probability
+    </p>
+    <div class="ticker-search mx-auto position-relative">
+      <input id="tickerInput" class="form-control" placeholder="Search stock (RELIANCE, TCS, INFY)..." autocomplete="off">
+      <div id="autoList" class="autocomplete-list"></div>
+    </div>
+  </div>
+
+  <!-- EDUCATIONAL BOX -->
+  <div class="edu-box text-center" style="max-width:950px;margin:0 auto 24px auto">
+    <strong>🧠 Why Three Independent Systems?</strong><br>
+    Most traders rely on a single approach. This engine runs <strong>3 independent analysis frameworks</strong> simultaneously:
+    <strong style="color:#2196f3">Bollinger Bands</strong> (volatility & squeeze mechanics from John Bollinger),
+    <strong style="color:var(--accent2)">Technical Analysis</strong> (trend, momentum, volume, patterns from John Murphy), and
+    <strong style="color:var(--accent3)">Price Action</strong> (bar-by-bar structure from Al Brooks).<br><br>
+    Each system scores -100 to +100 independently. When all three reach the same conclusion, the probability of a
+    correct signal increases significantly. When they <strong>disagree</strong>, it's a <strong>warning to stay cautious</strong>.
+    The combined score (max ±390) with cross-validation gives you the most complete picture possible.
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none" class="fade-in">
+    <div id="verdictSection" class="mb-3"></div>
+    <div id="actionVerdictSection" class="mb-3"></div>
+    <div class="row g-3 mb-3">
+      <div class="col-lg-7" id="crossSection"></div>
+      <div class="col-lg-5" id="riskSection"></div>
+    </div>
+    <div id="wyckoffSection" class="mb-3"></div>
+    <div id="marketProfileSection" class="mb-3"></div>
+    <div id="tripleCompareSection" class="mb-3"></div>
+    <div class="row g-3 mb-3">
+      <div class="col-lg-6" id="bbMethodsSection"></div>
+      <div class="col-lg-6" id="taCategoriesSection"></div>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-lg-6" id="paComponentsSection"></div>
+      <div class="col-lg-6" id="paDetailsSection"></div>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-lg-6" id="targetSection"></div>
+      <div class="col-lg-6" id="indicatorsSection"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const TICKERS = {{ tickers | tojson }};
+const tickerInput = document.getElementById('tickerInput');
+const autoList = document.getElementById('autoList');
+let acIdx = -1;
+
+tickerInput.addEventListener('input', function(){
+  const q = this.value.trim().toUpperCase();
+  if(q.length < 1){autoList.style.display='none';return}
+  const matches = TICKERS.filter(t=>t.startsWith(q)).slice(0, 15);
+  if(!matches.length){autoList.style.display='none';return}
+  autoList.innerHTML = matches.map(t=>`<div class="item">${t}</div>`).join('');
+  autoList.style.display='block';
+  acIdx=-1;
+  autoList.querySelectorAll('.item').forEach(el=>{
+    el.addEventListener('click', ()=>{tickerInput.value=el.textContent;autoList.style.display='none';doAnalyze(el.textContent)});
+  });
+});
+
+tickerInput.addEventListener('keydown', function(e){
+  const items = autoList.querySelectorAll('.item');
+  if(e.key==='ArrowDown'){e.preventDefault();acIdx=Math.min(acIdx+1,items.length-1)}
+  else if(e.key==='ArrowUp'){e.preventDefault();acIdx=Math.max(acIdx-1,0)}
+  else if(e.key==='Enter'){
+    e.preventDefault();
+    if(acIdx>=0&&items[acIdx]){tickerInput.value=items[acIdx].textContent;autoList.style.display='none';doAnalyze(items[acIdx].textContent)}
+    else if(tickerInput.value.trim()){doAnalyze(tickerInput.value.trim().toUpperCase())}
+    return;
+  }
+  items.forEach((el,i)=>el.classList.toggle('active',i===acIdx));
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.ticker-search'))autoList.style.display='none'});
+
+/* ═══════════════════════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════════════════════ */
+function fmt(v,d=2){return v==null?'—':Number(v).toFixed(d)}
+function pct(v){return v==null?'—':(v*100).toFixed(1)+'%'}
+function scoreColor(s){return s>0?'var(--bull)':s<0?'var(--bear)':'var(--neutral)'}
+function barColor(s){return s>0?'var(--bull)':s<0?'var(--bear)':'#555'}
+function barPct(score,max){return Math.min(Math.abs(score)/max*100,100)}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANALYSIS
+   ═══════════════════════════════════════════════════════════════ */
+async function doAnalyze(ticker){
+  const ld=document.getElementById('loading');
+  ld.classList.add('active');
+  try{
+    const res=await fetch(`/api/triple/analyze?ticker=${encodeURIComponent(ticker)}`);
+    const d=await res.json();
+    if(d.error){alert(d.error);return}
+    document.getElementById('results').style.display='block';
+    renderAll(d);
+  }catch(e){alert('Error: '+e.message)}
+  finally{ld.classList.remove('active')}
+}
+
+function renderAll(d){
+  renderFreshness(d);
+  renderVerdict(d);
+  renderActionVerdict(d);
+  renderCrossValidation(d);
+  renderWyckoff(d);
+  renderMarketProfile(d);
+  renderTripleCompare(d);
+  renderBBMethods(d);
+  renderTACategories(d);
+  renderPAComponents(d);
+  renderPADetails(d);
+  renderTargetPrices(d);
+  renderIndicators(d);
+  renderRisk(d);
+}
+
+/* ─── Freshness Banner ─── */
+function renderFreshness(d){
+  const old = document.getElementById('freshBanner');
+  if(old) old.remove();
+  const f = d.data_freshness;
+  if(!f) return;
+  const main = document.getElementById('mainContent');
+  if(f.warning){
+    const cls = f.trading_days_stale>10?'danger':f.trading_days_stale>5?'warning':'info';
+    main.insertAdjacentHTML('afterbegin',`<div id="freshBanner" class="alert alert-${cls} d-flex align-items-center mb-3 py-2"><i class="bi bi-exclamation-triangle-fill me-2"></i><div><strong>${f.warning}</strong><br><small>Last: ${f.last_date} (${f.trading_days_stale} td ago)</small></div></div>`);
+  } else {
+    main.insertAdjacentHTML('afterbegin',`<div id="freshBanner" class="alert alert-success d-flex align-items-center mb-3 py-2"><i class="bi bi-check-circle-fill me-2"></i><small><strong>Live Data</strong> — Last: ${f.last_date}</small></div>`);
+  }
+}
+
+/* ─── VERDICT ─── */
+function renderVerdict(d){
+  const v = d.triple_verdict;
+  const el = document.getElementById('verdictSection');
+  const bgClass = v.color==='bull'?'bg-bull':v.color==='bear'?'bg-bear':'bg-neutral';
+  const scoreColor = v.color==='bull'?'var(--bull)':v.color==='bear'?'var(--bear)':'var(--neutral)';
+  el.innerHTML = `
+    <div class="card ${bgClass}">
+      <div class="card-body text-center py-2">
+        <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap">
+          <div class="mini-label">${d.ticker} — Triple Conviction Engine</div>
+          <div class="verdict-badge d-inline-block" style="border:2px solid ${scoreColor};font-size:1.4rem;padding:6px 20px">${v.emoji} ${v.verdict}</div>
+        </div>
+        <div class="row g-2 mt-2 justify-content-center">
+          <div class="col-auto text-center">
+            <div class="mini-label">Combined</div>
+            <div class="indicator-val" style="color:${scoreColor};font-size:1.15rem">${v.score > 0 ? '+' : ''}${fmt(v.score,1)}<span class="mini-label"> / ±${v.max_score}</span></div>
+          </div>
+          <div class="col-auto text-center">
+            <div class="mini-label">Confidence</div>
+            <div class="indicator-val" style="color:${scoreColor};font-size:1.15rem">${fmt(v.confidence,1)}%</div>
+          </div>
+          <div class="col-auto text-center">
+            <div class="mini-label">Alignment</div>
+            <div class="indicator-val" style="color:${scoreColor};font-size:1.15rem">${v.alignment.replace(/_/g,' ')}</div>
+          </div>
+          <div class="col-auto text-center">
+            <div class="mini-label">BB</div>
+            <div class="indicator-val" style="color:#2196f3;font-size:1.15rem">${fmt(d.bb_score.total,1)}</div>
+          </div>
+          <div class="col-auto text-center">
+            <div class="mini-label">TA</div>
+            <div class="indicator-val" style="color:var(--accent2);font-size:1.15rem">${fmt(d.ta_score.total,1)}</div>
+          </div>
+          <div class="col-auto text-center">
+            <div class="mini-label">PA</div>
+            <div class="indicator-val" style="color:var(--accent3);font-size:1.15rem">${fmt(d.pa_score.total,1)}</div>
+          </div>
+        </div>
+        <div class="conviction-meter mt-2 mx-auto" style="max-width:500px">
+          <div class="conviction-fill" style="width:${v.confidence}%;background:${scoreColor}"></div>
+        </div>
+        <p class="text-secondary mt-1 mb-0" style="max-width:700px;margin:0 auto;font-size:.8rem">${v.conviction_text}</p>
+      </div>
+    </div>`;
+}
+
+/* ─── ACTION VERDICT — Deep "What Should You Do?" Panel ─── */
+function renderActionVerdict(d){
+  const el = document.getElementById('actionVerdictSection');
+  const v = d.triple_verdict;
+  const cv = d.cross_validation || {};
+  const wk = d.wyckoff || {};
+  const pa = d.pa_data || {};
+  const bb = d.bb_data || {};
+  const ta = d.ta_signal || {};
+  const tp = d.target_prices || {};
+  const risk = d.risk || {};
+  const snap = d.snapshot || {};
+  const price = (bb.indicators||{}).price || snap.close || 0;
+
+  const isBullish = v.color === 'bull';
+  const isBearish = v.color === 'bear';
+  const isNeutral = !isBullish && !isBearish;
+  const vColor = isBullish?'var(--bull)':isBearish?'var(--bear)':'var(--neutral)';
+
+  // ── Decision framework ──
+  const signals = [];
+  const risks = [];
+  const actions = [];
+
+  // 1. Engine alignment
+  const dirs = [cv.bb_direction, cv.ta_direction, cv.pa_direction].filter(Boolean);
+  const buyCount = dirs.filter(d=>d==='BUY').length;
+  const sellCount = dirs.filter(d=>d==='SELL').length;
+  if(buyCount === 3) signals.push({icon:'🟢', text:'All 3 engines (BB + TA + PA) agree: <strong>BUY</strong>. This is the strongest signal possible.'});
+  else if(sellCount === 3) signals.push({icon:'🔴', text:'All 3 engines agree: <strong>SELL</strong>. All frameworks independently see weakness.'});
+  else if(buyCount === 2) signals.push({icon:'🟢', text:`2 of 3 engines say BUY. One engine (${dirs.find(d=>d!=='BUY')||'HOLD'}) disagrees — partial conviction.`});
+  else if(sellCount === 2) signals.push({icon:'🔴', text:`2 of 3 engines say SELL. One engine disagrees — partial bearish conviction.`});
+  else signals.push({icon:'🟡', text:'Engines are giving mixed or conflicting signals. No clear consensus — be cautious.'});
+
+  // 2. Wyckoff phase context
+  const phase = (wk.phase||{}).name||'';
+  const subPhase = (wk.phase||{}).sub_phase||'';
+  const phaseMap = {
+    'ACCUMULATION': {icon:'💰', text:'Wyckoff says this stock is in <strong>ACCUMULATION</strong> — smart money is quietly buying while prices are low. This is a <strong>potential early buying opportunity</strong> before the uptrend starts.'},
+    'MARKUP': {icon:'🚀', text:'Wyckoff says this stock is in <strong>MARKUP</strong> — the uptrend is already underway. ' + (subPhase==='EARLY'?'It\'s still early in the move — good entry if you act soon.':subPhase==='LATE'?'The move is maturing — late entry carries higher risk of pullback.':'The trend is active — riding the trend is the play.')},
+    'DISTRIBUTION': {icon:'⚠️', text:'Wyckoff says this stock is in <strong>DISTRIBUTION</strong> — smart money is selling to retail buyers at the top. This is a <strong>danger zone for new buys</strong>. Consider booking profits or tightening stop-losses.'},
+    'MARKDOWN': {icon:'📉', text:'Wyckoff says this stock is in <strong>MARKDOWN</strong> — the downtrend is active. <strong>Avoid buying</strong> until signs of accumulation appear. Short sellers may find opportunities here.'},
+  };
+  if(phaseMap[phase]) signals.push(phaseMap[phase]);
+
+  // 3. Volume context
+  const volStatus = (wk.volume||{}).status||'';
+  const volRatio = (wk.volume||{}).ratio||1;
+  if(volStatus==='CLIMAX') signals.push({icon:'⚡', text:`Volume is at <strong>CLIMAX</strong> level (${volRatio.toFixed(1)}× average) — extreme activity. This often marks a <strong>turning point</strong>. If price is near highs = potential top. If near lows = potential bottom.`});
+  else if(volStatus==='SPIKE') signals.push({icon:'📊', text:`Volume SPIKE detected (${volRatio.toFixed(1)}× average) — institutional-level activity. Big players are making moves. Watch for breakout confirmation.`});
+  else if(volStatus==='DRYUP') risks.push({icon:'🏜️', text:'Volume has dried up — very low activity. Moves on low volume are unreliable. Wait for volume to return before trusting the direction.'});
+
+  // 4. Trend & momentum
+  const rsi = snap.rsi_14;
+  if(rsi != null){
+    if(rsi > 75) risks.push({icon:'🔥', text:`RSI is at ${rsi.toFixed(0)} — <strong>overbought territory</strong>. The stock may be due for a pullback. Don't chase highs.`});
+    else if(rsi < 25) signals.push({icon:'💎', text:`RSI is at ${rsi.toFixed(0)} — <strong>oversold territory</strong>. The stock may be due for a bounce. Watch for reversal signals.`});
+  }
+
+  // 5. Squeeze (BB)
+  if(bb.squeeze_on) signals.push({icon:'🔵', text:`BB Squeeze is ON (${bb.squeeze_days||0} days) — volatility is compressed like a spring. A <strong>big move is coming</strong>. The direction of the breakout will be the key signal.`});
+
+  // 6. PA setup
+  if(pa.always_in === 'LONG') signals.push({icon:'📈', text:`Al Brooks "Always-In" direction is <strong>LONG</strong> — the dominant institutional flow is upward. Favor buy setups.`});
+  else if(pa.always_in === 'SHORT') signals.push({icon:'📉', text:`Al Brooks "Always-In" direction is <strong>SHORT</strong> — the dominant institutional flow is downward. Favor sell setups or avoid.`});
+
+  if(pa.in_breakout && pa.breakout_direction === 'UP') signals.push({icon:'🔥', text:`Active <strong>UPSIDE BREAKOUT</strong> detected! Price is breaking through resistance — high-probability bullish move.`});
+  else if(pa.in_breakout && pa.breakout_direction === 'DOWN') signals.push({icon:'💥', text:`Active <strong>DOWNSIDE BREAKOUT</strong> detected! Price is breaking through support — high-probability bearish move.`});
+
+  // 7. Price action patterns
+  const patterns = (pa.active_patterns||[]).slice(0,3);
+  if(patterns.length) signals.push({icon:'📐', text:`Patterns detected: <strong>${patterns.map(p=>p.replace(/_/g,' ')).join(', ')}</strong>. These chart formations suggest the next likely move.`});
+
+  // ── Risks ──
+  const stale = (d.data_freshness||{}).trading_days_stale || 0;
+  if(stale > 3) risks.push({icon:'📅', text:`Data is <strong>${stale} trading days old</strong>. The market may have moved since then. Refresh data before acting.`});
+
+  if(phase==='DISTRIBUTION' && isBullish) risks.push({icon:'🪤', text:'<strong>Conflict warning:</strong> Engines say BUY but Wyckoff says Distribution (smart money selling). This could be a bull trap.'});
+  if(phase==='ACCUMULATION' && isBearish) risks.push({icon:'🔄', text:'<strong>Possible reversal:</strong> Engines say SELL but Wyckoff says Accumulation. Smart money may be buying the dip — watch for turns.'});
+
+  const wbRatio = (wk.wave_balance||{}).ratio;
+  if(wbRatio != null && isBullish && wbRatio < 0.7) risks.push({icon:'⚖️', text:`Wave balance ratio is only ${wbRatio.toFixed(1)}× — selling volume exceeds buying volume despite bullish verdict. Proceed carefully.`});
+  if(wbRatio != null && isBearish && wbRatio > 1.5) risks.push({icon:'⚖️', text:`Wave balance ratio is ${wbRatio.toFixed(1)}× — buying volume is strong despite bearish verdict. Bears may be in trouble.`});
+
+  // ── Action items ──
+  if(isBullish){
+    if(pa.entry_price) actions.push(`<strong>Entry:</strong> Consider buying near ₹${Number(pa.entry_price).toLocaleString('en-IN')} (Price Action entry level)`);
+    else if(price) actions.push(`<strong>Entry:</strong> Current price ₹${Number(price).toLocaleString('en-IN')} — look for a pullback or confirmation candle before entering`);
+    if(pa.stop_loss) actions.push(`<strong>Stop-Loss:</strong> Place stop at ₹${Number(pa.stop_loss).toLocaleString('en-IN')} — <em>never trade without a stop-loss</em>`);
+    if(pa.target_1) actions.push(`<strong>Target 1:</strong> ₹${Number(pa.target_1).toLocaleString('en-IN')} — book partial profits here`);
+    if(pa.target_2) actions.push(`<strong>Target 2:</strong> ₹${Number(pa.target_2).toLocaleString('en-IN')} — trail stop-loss for remaining position`);
+    if(pa.risk_reward) actions.push(`<strong>Risk:Reward</strong> = 1:${Number(pa.risk_reward).toFixed(1)} — ${pa.risk_reward>=2?'✅ Favorable':'⚠️ Below ideal 1:2'}`);
+    if(risk.position_size) actions.push(`<strong>Position Size:</strong> ${risk.position_size.shares} shares (₹${Number(risk.position_size.entry_price*risk.position_size.shares).toLocaleString('en-IN')} capital required)`);
+    actions.push(`<strong>Risk Rule:</strong> Never risk more than 1-2% of your total capital on a single trade`);
+  } else if(isBearish){
+    actions.push(`<strong>If holding:</strong> Consider reducing position or tightening stop-loss`);
+    if(pa.stop_loss) actions.push(`<strong>Stop-Loss (for shorts):</strong> ₹${Number(pa.stop_loss).toLocaleString('en-IN')}`);
+    if(pa.target_1) actions.push(`<strong>Downside Target 1:</strong> ₹${Number(pa.target_1).toLocaleString('en-IN')}`);
+    actions.push(`<strong>Caution:</strong> Don't short unless you have experience — shorting can have unlimited downside`);
+  } else {
+    actions.push(`<strong>Wait for clarity:</strong> Engines are giving mixed signals — stay on the sidelines`);
+    actions.push(`<strong>Set alerts:</strong> Watch for price to break above resistance or below support for direction`);
+    actions.push(`<strong>No trade is a trade:</strong> Preserving capital when uncertain is a winning strategy`);
+  }
+
+  // ── Build the "What Should You Do?" verdict ──
+  const actionLabel = isBullish ? '✅ CONSIDER BUYING' : isBearish ? '🛑 CONSIDER SELLING / AVOIDING' : '⏸️ WAIT — NO CLEAR TRADE';
+  const actionBg = isBullish ? 'rgba(0,200,83,.08)' : isBearish ? 'rgba(255,23,68,.08)' : 'rgba(255,199,39,.08)';
+  const actionBorder = isBullish ? 'rgba(0,200,83,.25)' : isBearish ? 'rgba(255,23,68,.25)' : 'rgba(255,199,39,.25)';
+
+  // Strength meter (1-5 scale)
+  const strengthScore = Math.min(5, Math.max(1, Math.round(v.confidence / 20)));
+  const strengthBars = Array(5).fill(0).map((_,i) => `<div style="width:28px;height:10px;border-radius:3px;background:${i<strengthScore?vColor:'rgba(255,255,255,.08)'}"></div>`).join('');
+  const strengthLabels = ['Very Weak','Weak','Moderate','Strong','Very Strong'];
+
+  el.innerHTML = `
+    <div class="card" style="border:1px solid ${actionBorder};background:${actionBg}">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid ${actionBorder}">
+        <span class="section-title"><i class="bi bi-signpost-split-fill me-2" style="color:${vColor}"></i>What Should You Do?</span>
+        <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
+            <span style="font-size:.72rem;color:rgba(255,255,255,.5)">Conviction:</span>
+            <div class="d-flex gap-1">${strengthBars}</div>
+            <span style="font-size:.75rem;font-weight:600;color:${vColor}">${strengthLabels[strengthScore-1]||'—'}</span>
+          </div>
+          <span class="badge" style="background:${vColor};color:#000;font-size:.82rem;padding:5px 12px">${actionLabel}</span>
+        </div>
+      </div>
+      <div class="card-body py-2">
+        <div class="row g-3">
+          <!-- Signals Column -->
+          <div class="col-lg-${risks.length?'4':'6'}">
+            <div style="font-size:.72rem;font-weight:600;color:rgba(255,255,255,.6);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📡 Key Signals</div>
+            ${signals.map(s=>`<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 10px;margin-bottom:4px;background:rgba(255,255,255,.03);border-radius:6px;border-left:3px solid ${vColor}"><span style="font-size:1rem;flex-shrink:0">${s.icon}</span><span style="font-size:.78rem;line-height:1.5;color:rgba(255,255,255,.85)">${s.text}</span></div>`).join('')}
+          </div>
+          ${risks.length ? `
+          <!-- Risks Column -->
+          <div class="col-lg-4">
+            <div style="font-size:.72rem;font-weight:600;color:#ff9800;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">⚠️ Risks</div>
+            ${risks.map(r=>`<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 10px;margin-bottom:4px;background:rgba(255,152,0,.06);border-radius:6px;border-left:3px solid #ff9800"><span style="font-size:1rem;flex-shrink:0">${r.icon}</span><span style="font-size:.78rem;line-height:1.5;color:rgba(255,255,255,.85)">${r.text}</span></div>`).join('')}
+          </div>` : ''}
+          <!-- Action Plan Column -->
+          <div class="col-lg-4">
+            <div style="font-size:.72rem;font-weight:600;color:${vColor};margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🎯 Action Plan</div>
+            ${actions.map((a,i)=>`<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 10px;margin-bottom:4px;background:rgba(255,255,255,.03);border-radius:6px"><span style="font-size:.78rem;font-weight:700;color:${vColor};flex-shrink:0">${i+1}.</span><span style="font-size:.78rem;line-height:1.5;color:rgba(255,255,255,.85)">${a}</span></div>`).join('')}
+          </div>
+        </div>
+        <div style="margin-top:10px;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:6px;border:1px solid rgba(255,255,255,.06)">
+          <span style="font-size:.68rem;color:rgba(255,255,255,.3)"><i class="bi bi-info-circle me-1"></i><strong>Disclaimer:</strong> Algorithm-generated analysis, not financial advice. Always do your own research. Never invest money you can't afford to lose.</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── CROSS-VALIDATION ─── */
+function renderCrossValidation(d){
+  const c = d.cross_validation;
+  const el = document.getElementById('crossSection');
+  const obsHtml = (c.observations||[]).map(o=>`<div class="obs-card">${o}</div>`).join('');
+
+  // Wyckoff badges (if present in cross-validation)
+  const wkBias = c.wyckoff_bias || '';
+  const wkBonus = c.wyckoff_bonus || 0;
+  const wkBiasClr = wkBias==='BULLISH'?'var(--bull)':wkBias==='BEARISH'?'var(--bear)':'var(--neutral)';
+  const wkBonusClr = wkBonus>0?'var(--bull)':wkBonus<0?'var(--bear)':'#555';
+  const wkBadgeHtml = wkBias ? `
+          <div class="px-3 py-2 rounded" style="background:rgba(255,165,0,.1);border:1px solid rgba(255,165,0,.2)">
+            <span class="mini-label">Wyckoff Bias</span><br>
+            <strong style="color:${wkBiasClr}">${wkBias}</strong>
+            <span style="font-size:.72rem;color:${wkBonusClr};margin-left:6px">(${wkBonus>0?'+':''}${wkBonus} pts)</span>
+          </div>` : '';
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="section-title"><i class="bi bi-shield-check me-2" style="color:var(--accent)"></i>Triple Cross-Validation</span>
+        <span class="badge" style="background:${c.agreement_score>0?'var(--bull)':c.agreement_score<0?'var(--bear)':'#555'}">${c.agreement_score>0?'+':''}${c.agreement_score} pts</span>
+      </div>
+      <div class="card-body">
+        <div class="d-flex gap-3 mb-3 flex-wrap">
+          <div class="px-3 py-2 rounded" style="background:rgba(33,150,243,.1);border:1px solid rgba(33,150,243,.2)">
+            <span class="mini-label">BB Direction</span><br>
+            <strong style="color:#2196f3">${c.bb_direction}</strong>
+          </div>
+          <div class="px-3 py-2 rounded" style="background:rgba(124,77,255,.1);border:1px solid rgba(124,77,255,.2)">
+            <span class="mini-label">TA Direction</span><br>
+            <strong style="color:var(--accent2)">${c.ta_direction}</strong>
+          </div>
+          <div class="px-3 py-2 rounded" style="background:rgba(240,136,62,.1);border:1px solid rgba(240,136,62,.2)">
+            <span class="mini-label">PA Direction</span><br>
+            <strong style="color:var(--accent3)">${c.pa_direction}</strong>
+          </div>
+          ${wkBadgeHtml}
+          <div class="px-3 py-2 rounded" style="background:rgba(255,255,255,.04)">
+            <span class="mini-label">Alignment</span><br>
+            <strong>${c.alignment.replace(/_/g,' ')}</strong>
+          </div>
+        </div>
+        ${obsHtml}
+      </div>
+    </div>`;
+}
+
+/* ─── WYCKOFF / WEIS VOLUME ANALYSIS — RICH CHARTS + DETAIL ─── */
+// Track chart instances so we can destroy/recreate
+const _wkCharts = {};
+function _wkChart(id, cfg){
+  if(_wkCharts[id]){ _wkCharts[id].destroy(); delete _wkCharts[id]; }
+  const ctx = document.getElementById(id);
+  if(!ctx) return null;
+  const c = new Chart(ctx, cfg);
+  _wkCharts[id] = c;
+  return c;
+}
+
+function renderWyckoff(d){
+  const el = document.getElementById('wyckoffSection');
+  const wk = d.wyckoff;
+  if(!wk || !wk.phase || !wk.phase.name || wk.phase.name==='UNKNOWN'){
+    el.innerHTML = '';
+    return;
+  }
+
+  const ph = wk.phase;
+  const vol = wk.volume || {};
+  const wb = wk.wave_balance || {};
+  const sh = wk.shortening || {};
+  const sc = wk.scoring || {};
+  const hints = wk.hints || [];
+  const events = ph.events || [];
+  const waves = wk.waves || [];
+  const erArr = wk.effort_result || [];
+  const ft = wk.follow_through || {};
+
+  // Colors
+  const phClrMap = {'ACCUMULATION':'#00c853','MARKUP':'#2196f3','DISTRIBUTION':'#ff1744','MARKDOWN':'#ff6b6b','RANGING':'#ffc107'};
+  const phClr = phClrMap[ph.name] || '#ffc107';
+  const biasClr = sc.bias==='BULLISH'?'var(--bull)':sc.bias==='BEARISH'?'var(--bear)':'var(--neutral)';
+  const volClrMap = {'CLIMAX':'var(--bear)','SPIKE':'orange','ABOVE_AVG':'var(--bull)','NORMAL':'var(--neutral)','DRYUP':'#888'};
+  const volClr = volClrMap[vol.status||''] || 'var(--neutral)';
+  const bonusClr = (sc.wyckoff_bonus||0)>0?'var(--bull)':(sc.wyckoff_bonus||0)<0?'var(--bear)':'var(--neutral)';
+
+  // ── Phase explanation per phase+sub_phase
+  const phaseExplains = {
+    'ACCUMULATION': {
+      'EARLY': 'After a significant decline, the stock has stopped falling and is consolidating sideways. This is the early stage where smart investors START to quietly buy — like bargain hunters at a sale before the crowd notices.',
+      'MIDDLE': 'Clear sideways consolidation after a decline with emerging signs of smart-money buying — a Selling Climax or Spring may have occurred. Think of it as institutional investors filling their shopping carts while the store is empty.',
+      'LATE': 'Accumulation is nearly complete! Both Spring and Sign of Strength confirmed. Smart money has loaded up. The stock is about to break into Markup (uptrend). This is a HIGH-PROBABILITY buy setup.',
+      '_default': 'Smart money appears to be quietly buying while most people are still scared. This "quiet before the storm" often precedes a major up-move.'
+    },
+    'MARKUP': {
+      'EARLY': 'The stock is forming higher highs and higher lows — like a staircase going up. But volume hasn\'t fully confirmed the move yet. Think of a plane gaining speed on the runway — it LOOKS like takeoff, but needs volume to confirm liftoff.',
+      'MIDDLE': 'The uptrend is real and strengthening. A Sign of Strength (SOS) bar shows strong demand, but consistent volume expansion across multiple rallies hasn\'t been seen yet. The plane has left the ground but isn\'t at cruising altitude.',
+      'CONFIRMED': 'This is the SWEET SPOT of an uptrend! Volume expands on rallies and contracts on dips — the textbook pattern of a healthy uptrend. Like a river flowing strongly in one direction.',
+      'LATE': 'The uptrend is mature — like a marathon runner approaching the finish line. Still fast, but watch for each rally covering less distance (shortening of thrust) or a Buying Climax. Protect profits.',
+      '_default': 'The stock is trending up with higher highs and higher lows. This is the profit phase where the move from accumulation plays out.'
+    },
+    'DISTRIBUTION': {
+      'EARLY': 'After a big rally, the stock has stopped climbing and is moving sideways. Smart money could be quietly selling. Watch for Upthrust (breakout trap) or Buying Climax as confirmation.',
+      'MIDDLE': 'Warning signs are mounting. Sideways range after advance with Upthrust or Buying Climax detected. Smart money appears to be offloading — like party hosts leaving while guests still celebrate.',
+      'LATE': 'Distribution nearly complete! Both Upthrust and Sign of Weakness confirmed. A breakdown into Markdown (downtrend) is likely imminent. HIGH-PROBABILITY sell/exit zone.',
+      '_default': 'Smart money appears to be quietly selling while most people are still bullish. Distribution phases happen at market tops.'
+    },
+    'MARKDOWN': {
+      'EARLY': 'Lower highs and lower lows are forming. The downtrend hasn\'t been fully confirmed — could be just a pullback.',
+      'MIDDLE': 'The downtrend is real. A Sign of Weakness (SOW) confirms sellers are in control. Avoid buying.',
+      'CONFIRMED': 'Confirmed downtrend — volume expands on drops, contracts on bounces. Bounces on low volume are NOT buying opportunities.',
+      'LATE': 'The decline has been running long. Watch for exhaustion: Selling Climax with extreme volume, or shorter drops each time. The bottom may be forming.',
+      '_default': 'Supply overwhelms demand. Smart money is no longer supporting the price.'
+    },
+    'RANGING': {
+      '_default': 'Sideways movement without clear direction. Watch for Springs (bullish) or Upthrusts (bearish) to reveal which side wins.'
+    }
+  };
+  const phGroup = phaseExplains[ph.name] || phaseExplains['RANGING'];
+  const phaseText = phGroup[ph.sub_phase] || phGroup['_default'] || '';
+
+  const phaseActions = {
+    'ACCUMULATION': '<i class="bi bi-check-circle me-1"></i><strong>Action:</strong> Potential buying zone. Look for Springs and low-volume tests as entry signals.',
+    'MARKUP_EARLY': '<i class="bi bi-eye me-1"></i><strong>Action:</strong> Watch closely — if the next rally comes on increasing volume, the markup is real. Consider buying.',
+    'MARKUP_MIDDLE': '<i class="bi bi-hand-thumbs-up me-1"></i><strong>Action:</strong> Hold positions. Wait for volume to confirm the next rally to add more.',
+    'MARKUP_CONFIRMED': '<i class="bi bi-trophy me-1"></i><strong>Action:</strong> HOLD with confidence! Small dips on low volume (LPS) are buying opportunities.',
+    'MARKUP_LATE': '<i class="bi bi-exclamation-triangle me-1"></i><strong>Action:</strong> DO NOT add new buys. Tighten stops. Protect your profits.',
+    'DISTRIBUTION': '<i class="bi bi-shield-exclamation me-1"></i><strong>Action:</strong> Take profits or tighten stops. Breakouts without volume are likely TRAPS.',
+    'MARKDOWN': '<i class="bi bi-x-circle me-1"></i><strong>Action:</strong> Avoid buying. Exit on bounces. Low-volume rallies are selling zones, not buying ones.',
+    'RANGING': '<i class="bi bi-hourglass-split me-1"></i><strong>Action:</strong> Wait for a clear signal. Watch for Springs or Upthrusts.'
+  };
+  const actionKey = ph.name === 'MARKUP' || ph.name === 'MARKDOWN' ? ph.name + '_' + (ph.sub_phase||'') : ph.name;
+  const actionText = phaseActions[actionKey] || phaseActions[ph.name] || '';
+  const actionClr = ph.name==='ACCUMULATION'||ph.name==='MARKUP'?'var(--bull)':ph.name==='DISTRIBUTION'||ph.name==='MARKDOWN'?'var(--bear)':'var(--neutral)';
+
+  // Volume explanations
+  const volExplains = {
+    'CLIMAX': `<strong style="color:var(--bear)">⚡ Climax Volume (${vol.ratio||0}× average)!</strong> — Extreme volume marks TURNING POINTS. One side is going "all in." Close near the high = buyers won; close near the low = sellers won. After a climax, expect a reversal or consolidation.`,
+    'SPIKE': `<strong style="color:orange">📊 Volume Spike (${vol.ratio||0}×)</strong> — Significantly above average. Institutional investors are active. The direction of this bar matters greatly.`,
+    'ABOVE_AVG': `<strong style="color:var(--bull)">✅ Above Average (${vol.ratio||0}×)</strong> — Healthy activity level. Enough volume to trust the price movement — good confirmation.`,
+    'NORMAL': `<strong style="color:var(--neutral)">📉 Normal Volume (${vol.ratio||0}×)</strong> — Standard trading activity. No strong conviction from either side.`,
+    'DRYUP': `<strong style="color:#888">🏜️ Volume Dry-Up (${vol.ratio||0}×)</strong> — Very quiet. Like the calm before a storm — often precedes a BIG move.`
+  };
+
+  // ── Events
+  const eventNames = {
+    'SC':'🔻 Selling Climax','BC':'🔺 Buying Climax',
+    'SPRING':'🟢 Spring (Shakeout)','UPTHRUST':'🔴 Upthrust (Trap)',
+    'SOS':'💪 Sign of Strength','SOW':'💀 Sign of Weakness','TEST':'🔍 Successful Test'
+  };
+  const eventsHtml = events.length
+    ? events.map(e=>{
+        const eClr = e.bullish?'var(--bull)':'var(--bear)';
+        const eBg = e.bullish?'rgba(0,200,83,.06)':'rgba(255,23,68,.06)';
+        // Follow-through for this event
+        const eft = ft[e.type] || {};
+        let ftBadge = '';
+        if(eft.quality){
+          const ftC = eft.quality==='STRONG'?'var(--bull)':eft.quality==='MODERATE'?'var(--neutral)':'var(--bear)';
+          ftBadge = ` <span class="badge" style="background:${ftC};color:#000;font-size:.65rem">FT: ${eft.quality}</span>`;
+        }
+        return `<div class="p-2 rounded mb-2" style="border-left:3px solid ${eClr};background:${eBg}">
+          <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+            <strong style="color:${eClr}">${eventNames[e.type]||e.type}</strong>
+            <span class="badge" style="background:rgba(255,255,255,.08);font-size:.7rem">${e.confidence}% conf</span>
+            <span class="badge" style="background:rgba(255,255,255,.08);font-size:.7rem">@ ₹${fmt(e.price,2)}</span>
+            <span class="badge" style="background:rgba(255,255,255,.08);font-size:.7rem">Vol: ${fmt(e.volume_ratio,1)}×</span>
+            ${ftBadge}
+          </div>
+          <div style="font-size:.82rem;line-height:1.6">${e.description}</div>
+          ${eft.description ? '<div style="font-size:.78rem;color:rgba(255,255,255,.55);margin-top:4px"><i class="bi bi-arrow-return-right me-1"></i>'+eft.description+'</div>' : ''}
+        </div>`;
+      }).join('')
+    : '<div style="font-size:.82rem;color:rgba(255,255,255,.45)"><i class="bi bi-info-circle me-1"></i>No Wyckoff events (Springs, Upthrusts, Climaxes) in recent bars. These are rare, high-value signals at key turning points.</div>';
+
+  // ── Shortening
+  let shortHtml = '';
+  if(sh.detected){
+    shortHtml = sh.direction==='UP_EXHAUSTION'
+      ? `<div class="p-2 rounded mb-3" style="border-left:3px solid var(--bear);background:rgba(255,23,68,.06)">
+          <strong style="color:var(--bear)">⚠️ Shortening of Upward Thrust!</strong><br>
+          <span style="font-size:.85rem">The last ${sh.waves_analyzed||3} rallies each cover LESS distance. Like a bouncing ball — each bounce is shorter. Thrust ratio: ${((sh.thrust_ratio||0)*100).toFixed(0)}% of first wave. Severity: <strong>${sh.severity}</strong>.</span>
+        </div>`
+      : `<div class="p-2 rounded mb-3" style="border-left:3px solid var(--bull);background:rgba(0,200,83,.06)">
+          <strong style="color:var(--bull)">📈 Shortening of Downward Thrust!</strong><br>
+          <span style="font-size:.85rem">The last ${sh.waves_analyzed||3} drops each cover LESS distance. Sellers are running out of steam. Thrust ratio: ${((sh.thrust_ratio||0)*100).toFixed(0)}%. Severity: <strong>${sh.severity}</strong>.</span>
+        </div>`;
+  }
+
+  // ── Hints
+  const hintsHtml = hints.length
+    ? hints.map(h=>`<div class="obs-card" style="border-left-color:orange">${h}</div>`).join('')
+    : '';
+
+  // ═══════ BUILD FULL HTML — with chart containers ═══════
+  el.innerHTML = `
+    <div class="card" style="border-color:rgba(255,165,0,.25)">
+      <div class="card-header d-flex justify-content-between align-items-center" style="border-bottom-color:rgba(255,165,0,.15)">
+        <span class="section-title"><i class="bi bi-moisture me-2" style="color:orange"></i>Wyckoff / Weis Volume Analysis <span class="badge" style="background:rgba(255,165,0,.15);color:orange;font-size:.65rem;margin-left:6px">[WEIS]</span></span>
+        <span class="badge" style="background:${bonusClr};font-size:.75rem">${(sc.wyckoff_bonus||0)>0?'+':''}${sc.wyckoff_bonus||0} pts conviction</span>
+      </div>
+      <div class="card-body">
+
+        <!-- Educational Intro -->
+        <div class="edu-box" style="background:rgba(255,165,0,.06);border-color:rgba(255,165,0,.2);margin-bottom:14px;padding:8px 12px">
+          <strong style="color:orange;font-size:.82rem">📚 Wyckoff Analysis</strong> — Reveals how <strong>smart money</strong> (institutions) operates: accumulating at bottoms, distributing at tops, using <strong>volume waves</strong> to show who\'s really in control.
+        </div>
+
+        <!-- ═══ CHART 1: Wyckoff Phase Lifecycle ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-diagram-3" style="color:orange;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">WYCKOFF PHASE LIFECYCLE — WHERE IS THIS STOCK RIGHT NOW?</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.5">
+            Stocks move through 4 repeating phases. The <strong>brighter/longer bar</strong> = current phase. Bar length = confidence level.
+          </div>
+          <div style="height:90px"><canvas id="wkPhaseChart"></canvas></div>
+          <details class="mt-2" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">
+            <summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 What do the 4 phases mean? (click to expand)</summary>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.5);line-height:1.7;margin-top:6px">
+              <div class="row g-2">
+                <div class="col-md-6"><span style="color:#00c853">🟢 <strong>ACCUMULATION</strong></span> — Smart money quietly buys after a big drop while everyone is scared.</div>
+                <div class="col-md-6"><span style="color:#2196f3">🔵 <strong>MARKUP</strong></span> — The stock starts rising. Demand pushes price up as regular investors notice.</div>
+                <div class="col-md-6"><span style="color:#ff1744">🔴 <strong>DISTRIBUTION</strong></span> — Smart money quietly sells to latecomers at the top. The "sell the news" zone.</div>
+                <div class="col-md-6"><span style="color:#ff6b6b">🟠 <strong>MARKDOWN</strong></span> — Smart money sold, price drops. Late buyers panic and sell at a loss.</div>
+              </div>
+              <div class="mt-1 text-center" style="color:rgba(255,255,255,.35)"><i class="bi bi-arrow-repeat me-1"></i> Accumulation → Markup → Distribution → Markdown → ...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase Detail Card -->
+        <div class="p-2 rounded mb-3" style="border:1px solid ${phClr}40;background:${phClr}08">
+          <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+            <span class="badge" style="background:${phClr};color:#000;font-size:.85rem;font-weight:700">${ph.name}${ph.sub_phase?' ('+ph.sub_phase+')':''}</span>
+            <span class="badge" style="background:rgba(255,255,255,.08);font-size:.72rem">Bias: <strong style="color:${biasClr}">${sc.bias||'N/A'}</strong></span>
+            <span class="badge" style="background:rgba(255,255,255,.08);font-size:.72rem">Conf: ${ph.confidence||0}%</span>
+            ${ph.support?'<span class="badge" style="background:rgba(0,200,83,.12);font-size:.72rem">S: ₹'+fmt(ph.support,2)+'</span>':''}
+            ${ph.resistance?'<span class="badge" style="background:rgba(255,23,68,.12);font-size:.72rem">R: ₹'+fmt(ph.resistance,2)+'</span>':''}
+          </div>
+          ${ph.support||ph.resistance ? '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:4px"><strong>Support</strong> = price floor. <strong>Resistance</strong> = price ceiling. Breaks = major signals.</div>' : ''}
+          <div style="font-size:.82rem;line-height:1.5;margin-bottom:6px">${phaseText}</div>
+          <div style="font-size:.8rem;color:${actionClr}">${actionText}</div>
+        </div>
+
+        <!-- ═══ CHART 2: Weis Wave Volume Chart ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-bar-chart-fill" style="color:orange;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">WEIS WAVE VOLUME — UP vs DOWN</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.5">
+            Each bar = one Weis Wave (directional swing). <strong style="color:#00c853">Green (UP)</strong> = demand. <strong style="color:#ff1744">Red (DOWN)</strong> = supply. Compare heights to see who dominates.
+          </div>
+          <div style="height:160px"><canvas id="wkWaveChart"></canvas></div>
+          <details class="mt-2" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">
+            <summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 How to read this chart (click to expand)</summary>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">
+              • <strong>Tall green →</strong> Strong buying. <strong>Short green →</strong> Weak rally.<br>
+              • <strong>Tall red →</strong> Heavy selling. <strong>Short red →</strong> Sellers drying up (bullish).<br>
+              • <strong style="color:#00c853">🔑 Bullish:</strong> Green growing, red shrinking. <strong style="color:#ff1744">🔑 Bearish:</strong> Red growing, green shrinking.
+            </div>
+          </details>
+        </div>
+
+        <!-- ═══ CHART 3: Volume Character + Wave Balance (2 columns) ═══ -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <div class="p-3 rounded h-100" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-speedometer2" style="color:orange;font-size:1.1rem"></i>
+                <strong class="mini-label" style="letter-spacing:1px">VOLUME GAUGE</strong>
+                <span class="badge ms-auto" style="background:${volClr};color:#000;font-weight:600">${vol.status||'N/A'} (${vol.ratio||0}×)</span>
+              </div>
+              <div style="font-size:.75rem;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.4">
+                Current trading activity vs average. Higher = more active = big players making moves.
+              </div>
+              <div style="height:130px"><canvas id="wkVolGauge"></canvas></div>
+              <div style="font-size:.85rem;line-height:1.6;margin-top:8px">${volExplains[vol.status||'']||vol.description||'No volume data.'}</div>
+              ${vol.trend ? '<div class="mt-1" style="font-size:.78rem;color:rgba(255,255,255,.5)"><i class="bi bi-arrow-'+(vol.trend==='INCREASING'?'up':'down')+'-right me-1"></i>Volume trend: '+vol.trend+(vol.trend==='INCREASING'?' — Activity is ramping up, watch for a big move!':' — Activity is cooling off, the stock may be resting.')+'</div>' : ''}
+              <div class="mt-1" style="font-size:.68rem;color:rgba(255,255,255,.3);line-height:1.4">
+                🏜️ DRYUP (0-0.5×) | 📉 NORMAL (0.5-1.2×) | ✅ ABOVE AVG (1.2-2×) | 📊 SPIKE (2-3×) | ⚡ CLIMAX (3×+)
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 rounded h-100" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-tsunami" style="color:orange;font-size:1.1rem"></i>
+                <strong class="mini-label" style="letter-spacing:1px">SUPPLY vs DEMAND — TUG OF WAR</strong>
+              </div>
+              <div style="font-size:.75rem;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.4">
+                <strong style="color:#00c853">Green</strong> = buyers' volume. <strong style="color:#ff1744">Red</strong> = sellers' volume. Center number: &gt;1.0× = buyers lead, &lt;1.0× = sellers.
+              </div>
+              <div style="height:130px"><canvas id="wkDemandChart"></canvas></div>
+              ${wb.balance ? '<div style="font-size:.82rem;line-height:1.6;margin-top:8px"><strong style="color:'+(wb.balance.includes('DEMAND')?'var(--bull)':wb.balance.includes('SUPPLY')?'var(--bear)':'var(--neutral)')+'">'+wb.balance.replace(/_/g,' ')+'</strong> — '+(wb.description||'')+'</div>' : '<div style="font-size:.85rem;color:rgba(255,255,255,.45)">Insufficient data for wave analysis.</div>'}
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ CHART 4: Effort vs Result ═══ -->
+        ${erArr.length ? `
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-activity" style="color:orange;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">EFFORT vs RESULT — BAR-BY-BAR</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.5">
+            <strong>Effort</strong> = volume (how hard). <strong>Result</strong> = price spread (how far). Big effort + small result = absorption (someone pushing back).
+          </div>
+          <div style="height:150px"><canvas id="wkEffortChart"></canvas></div>
+          <details class="mt-2" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">
+            <summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 Detailed reading guide (click to expand)</summary>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">
+              • <strong style="color:#2196f3">Blue (Effort)</strong> = trading activity. <strong style="color:#00c853">Green</strong>/<strong style="color:#ff1744">Red</strong>/<strong style="color:#ffc107">Yellow</strong> = result direction.<br>
+              • <strong style="color:var(--bear)">ABSORPTION:</strong> Tall blue + short result → reversal likely. <strong style="color:var(--bull)">EASY MOVEMENT:</strong> Short blue + tall result → no resistance.<br>
+              • <strong>NO DEMAND:</strong> Up on no volume = fake rally. <strong>NO SUPPLY:</strong> Down on no volume = just a pullback.
+            </div>
+          </details>
+          <div class="mt-2 d-flex flex-wrap gap-1">
+            ${erArr.map(er=>{
+              const ecMap = {'ABSORPTION':'var(--bear)','NO_DEMAND':'#888','NO_SUPPLY':'var(--bull)','CLIMAX_UP':'#2196f3','CLIMAX_DOWN':'#ff6b6b','NORMAL':'var(--neutral)'};
+              const ecExplain = {'ABSORPTION':'High volume, small move — someone is absorbing','NO_DEMAND':'Rally on no volume — fake move up','NO_SUPPLY':'Dip on no volume — sellers exhausted','CLIMAX_UP':'Extreme buying finale — may top out','CLIMAX_DOWN':'Extreme selling finale — may bottom out','NORMAL':'Normal activity — no anomaly'};
+              return '<span class="badge" style="background:'+(ecMap[er.effort_result]||'#555')+'22;border:1px solid '+(ecMap[er.effort_result]||'#555')+'55;color:'+(ecMap[er.effort_result]||'#888')+';font-size:.65rem" title="'+(ecExplain[er.effort_result]||'')+'">'+er.effort_result.replace(/_/g,' ')+'</span>';
+            }).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- ═══ CHART 5: Shortening of Thrust ═══ -->
+        ${sh.detected && waves.length>=3 ? `
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-graph-down-arrow" style="color:orange;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">SHORTENING OF THRUST — WAVE STRENGTH DECAY</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.5">
+            ${sh.direction==='UP_EXHAUSTION'
+              ? 'Each successive rally covers LESS distance — <strong style="color:var(--bear)">buyers running out of energy</strong>. Often precedes a rollover.'
+              : 'Each successive drop covers LESS distance — <strong style="color:var(--bull)">sellers losing steam</strong>. Often signals a bottom is forming.'}
+          </div>
+          <div style="height:130px"><canvas id="wkShorteningChart"></canvas></div>
+          <div class="mt-1" style="font-size:.75rem;color:rgba(255,255,255,.45);line-height:1.5">
+            Bars getting shorter = exhaustion. Thrust ratio: <strong>${((sh.thrust_ratio||0)*100).toFixed(0)}%</strong> of first wave. ${(sh.thrust_ratio||0)<0.5 ? '<strong style="color:var(--bear)">Big momentum drop!</strong>' : 'Moderate decay.'}
+          </div>
+          ${shortHtml}
+        </div>` : shortHtml}
+
+        <!-- ═══ CHART 6: Events on Price Scale ═══ -->
+        ${events.length ? `
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-lightning-charge" style="color:orange;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">KEY WYCKOFF EVENTS — CONFIDENCE & VOLUME MAP</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.5">
+            Critical turning-point signals. <strong>X-axis</strong> = confidence. <strong>Y-axis</strong> = volume intensity. <strong>Bubble size</strong> = price level.
+          </div>
+          <div style="height:150px"><canvas id="wkEventsChart"></canvas></div>
+          <details class="mt-2" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">
+            <summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 What are Wyckoff Events? (click to expand)</summary>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">
+              <strong style="color:#00c853">🟢 Spring</strong> = bear trap (buy). <strong style="color:#00c853">💪 SOS</strong> = powerful up-bar.<br>
+              <strong style="color:#ff1744">🔴 Upthrust</strong> = bull trap (sell). <strong style="color:#ff1744">💀 SOW</strong> = powerful down-bar.<br>
+              <strong style="color:#ff1744">🔺 BC</strong> = extreme buying at top. <strong style="color:#00c853">🔻 SC</strong> = extreme selling at bottom.<br>
+              Top-right corner = highest confidence + volume = strongest signal.
+            </div>
+          </details>
+        </div>` : ''}
+
+        <!-- Events Detail Cards -->
+        <div class="mb-3">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-lightning-charge" style="color:orange;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">KEY WYCKOFF EVENTS — DETAIL</strong>
+          </div>
+          ${eventsHtml}
+        </div>
+
+        <!-- ═══ CHART 7: Wyckoff Scoring Breakdown ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-pie-chart-fill" style="color:orange;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">WYCKOFF SCORING BREAKDOWN</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.5">
+            Wyckoff adds <strong style="color:${bonusClr}">${(sc.wyckoff_bonus||0)>0?'+':''}${sc.wyckoff_bonus||0} pts</strong> to Triple Conviction. Each factor below is scored independently.
+          </div>
+          <div style="height:120px"><canvas id="wkScoringChart"></canvas></div>
+          <details class="mt-1" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">
+            <summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 What each factor means (click to expand)</summary>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.6;margin-top:6px">
+              <strong>Phase Alignment</strong> = supports trade direction? <strong>Volume Character</strong> = volume signals? <strong>Wave Balance</strong> = buyers or sellers dominating? <strong>Events</strong> = Springs/SOS/Upthrusts + follow-through?<br>
+              <strong style="color:#00c853">Green</strong> = supports trade. <strong style="color:#ff1744">Red</strong> = warns against it.
+            </div>
+          </details>
+        </div>
+
+        <!-- Plain English Hints + Summary inline -->
+        ${hintsHtml || wk.summary ? '<div class="p-2 rounded mt-2" style="background:rgba(255,165,0,.04);border:1px solid rgba(255,165,0,.12)">' +
+          (hintsHtml ? '<div class="d-flex align-items-center gap-2 mb-1"><i class="bi bi-lightbulb-fill" style="color:orange;font-size:.85rem"></i><strong class="mini-label" style="color:orange;letter-spacing:1px;font-size:.7rem">INSIGHTS</strong></div>'+hintsHtml : '') +
+          (wk.summary ? '<div style="font-size:.8rem;line-height:1.5;margin-top:4px"><i class="bi bi-journal-text me-1" style="color:orange"></i><strong style="color:orange">Summary:</strong> '+wk.summary+'</div>' : '') +
+          '</div>' : ''}
+      </div>
+    </div>`;
+
+  // ═══════════════════════════════════════════════════
+  //  Now render all Chart.js charts
+  // ═══════════════════════════════════════════════════
+
+  const chartDefaults = {
+    color: 'rgba(255,255,255,.7)',
+    borderColor: 'rgba(255,255,255,.1)',
+  };
+  Chart.defaults.color = chartDefaults.color;
+  Chart.defaults.borderColor = chartDefaults.borderColor;
+
+  // ── CHART 1: Phase Lifecycle (Horizontal bar showing phases) ──
+  const phases = ['ACCUMULATION','MARKUP','DISTRIBUTION','MARKDOWN'];
+  const phColors = ['#00c853','#2196f3','#ff1744','#ff6b6b'];
+  const phIdx = phases.indexOf(ph.name);
+  _wkChart('wkPhaseChart', {
+    type: 'bar',
+    data: {
+      labels: phases.map((p,i)=> i===phIdx ? '► '+p+(ph.sub_phase?' ('+ph.sub_phase+')':'') : p),
+      datasets: [{
+        data: phases.map((p,i)=> i===phIdx ? ph.confidence||70 : 15),
+        backgroundColor: phases.map((p,i)=> i===phIdx ? phColors[i] : phColors[i]+'30'),
+        borderColor: phases.map((p,i)=> i===phIdx ? phColors[i] : phColors[i]+'50'),
+        borderWidth: phases.map((p,i)=> i===phIdx ? 2 : 1),
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {display:false},
+        tooltip: {
+          callbacks: {
+            label: (ctx)=> ctx.dataIndex===phIdx
+              ? `CURRENT PHASE: ${ph.name} (${ph.sub_phase||'N/A'}) — ${ph.confidence||0}% confidence`
+              : phases[ctx.dataIndex]+' — not current'
+          }
+        }
+      },
+      scales: {
+        x: {display:false, max:100},
+        y: {grid:{display:false}, ticks:{font:{size:11}}}
+      }
+    }
+  });
+
+  // ── CHART 2: Weis Wave Volume Bars ──
+  if(waves.length >= 2){
+    const wLabels = waves.map((w,i)=> 'Wave '+(i+1));
+    const wVolData = waves.map(w=> w.direction==='UP' ? w.cum_volume : -w.cum_volume);
+    const wColors = waves.map(w=> w.direction==='UP' ? '#00c853' : '#ff1744');
+    const wBorders = waves.map(w=> w.direction==='UP' ? '#00c85380' : '#ff174480');
+    _wkChart('wkWaveChart', {
+      type: 'bar',
+      data: {
+        labels: wLabels,
+        datasets: [{
+          label: 'Cumulative Wave Volume',
+          data: wVolData,
+          backgroundColor: wColors,
+          borderColor: wBorders,
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: {display:false},
+          tooltip: {
+            callbacks: {
+              title: (items)=> {
+                const w = waves[items[0].dataIndex];
+                return w.direction+' Wave — '+w.bars+' bars';
+              },
+              label: (ctx)=> {
+                const w = waves[ctx.dataIndex];
+                return [
+                  'Volume: '+(Math.abs(w.cum_volume)/1000).toFixed(0)+'K',
+                  'Price Move: ₹'+w.price_move.toFixed(2),
+                  'Range: ₹'+w.start_price.toFixed(2)+' → ₹'+w.end_price.toFixed(2)
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          x: {grid:{display:false}},
+          y: {
+            grid:{color:'rgba(255,255,255,.05)'},
+            ticks: {
+              callback: v => (v>=0?'':'-')+(Math.abs(v)/1000).toFixed(0)+'K'
+            },
+            title: {display:true, text:'← Supply (Down Vol)     Demand (Up Vol) →', font:{size:10}, color:'rgba(255,255,255,.4)'}
+          }
+        }
+      }
+    });
+  }
+
+  // ── CHART 3A: Volume Gauge (Doughnut) ──
+  const volRatio = Math.min(vol.ratio||1, 4);
+  const volPct = (volRatio / 4) * 100;
+  const gaugeLabels = ['Current Volume','Remaining'];
+  const gaugeSegments = [volPct, 100-volPct];
+  const gaugeStatColors = {'CLIMAX':'#ff1744','SPIKE':'#ff9800','ABOVE_AVG':'#00c853','NORMAL':'#ffc107','DRYUP':'#666'};
+  const gClr = gaugeStatColors[vol.status||'NORMAL'] || '#ffc107';
+  _wkChart('wkVolGauge', {
+    type: 'doughnut',
+    data: {
+      labels: gaugeLabels,
+      datasets: [{
+        data: gaugeSegments,
+        backgroundColor: [gClr, 'rgba(255,255,255,.05)'],
+        borderWidth: 0,
+        circumference: 180,
+        rotation: 270,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: {
+        legend: {display:false},
+        tooltip: {
+          callbacks: {
+            label: ()=> `${vol.status}: ${vol.ratio||0}× average volume`
+          }
+        }
+      }
+    },
+    plugins: [{
+      id: 'gaugeNeedle',
+      afterDraw(chart){
+        const {ctx:c, chartArea:{left,right,top,bottom}} = chart;
+        const cx = (left+right)/2, cy = bottom - 10;
+        // ── Draw needle ──
+        const needleAngle = Math.PI + (volPct / 100) * Math.PI; // left(π) → right(2π)
+        const outerR = (right - left) / 2 * 0.62; // just inside the cutout
+        const nx = cx + Math.cos(needleAngle) * outerR;
+        const ny = cy + Math.sin(needleAngle) * outerR;
+        c.save();
+        // Needle line
+        c.beginPath();
+        c.moveTo(cx, cy);
+        c.lineTo(nx, ny);
+        c.lineWidth = 3;
+        c.strokeStyle = '#fff';
+        c.shadowColor = 'rgba(0,0,0,.6)';
+        c.shadowBlur = 4;
+        c.stroke();
+        // Center hub circle
+        c.beginPath();
+        c.arc(cx, cy, 6, 0, 2 * Math.PI);
+        c.fillStyle = '#fff';
+        c.fill();
+        c.beginPath();
+        c.arc(cx, cy, 3, 0, 2 * Math.PI);
+        c.fillStyle = gClr;
+        c.fill();
+        // Needle tip dot
+        c.beginPath();
+        c.arc(nx, ny, 4, 0, 2 * Math.PI);
+        c.fillStyle = gClr;
+        c.shadowBlur = 6;
+        c.shadowColor = gClr;
+        c.fill();
+        c.shadowBlur = 0;
+        c.shadowColor = 'transparent';
+        // ── Text overlays ──
+        c.textAlign = 'center';
+        c.fillStyle = gClr;
+        c.font = 'bold 22px system-ui';
+        c.fillText((vol.ratio||0).toFixed(1)+'×', cx, cy - 14);
+        c.fillStyle = 'rgba(255,255,255,.5)';
+        c.font = '11px system-ui';
+        c.fillText(vol.status||'', cx, cy + 4);
+        const zones = [{l:'DRYUP',x:left+15},{l:'NORMAL',x:(left+right)/2},{l:'CLIMAX',x:right-18}];
+        c.font = '9px system-ui';
+        c.fillStyle = 'rgba(255,255,255,.3)';
+        zones.forEach(z=>c.fillText(z.l, z.x, bottom+2));
+        c.restore();
+      }
+    }]
+  });
+
+  // ── CHART 3B: Supply vs Demand Doughnut ──
+  if(wb.up_volume || wb.down_volume){
+    const upV = wb.up_volume||0, dnV = wb.down_volume||0;
+    _wkChart('wkDemandChart', {
+      type: 'doughnut',
+      data: {
+        labels: ['Demand (Up Volume)', 'Supply (Down Volume)'],
+        datasets: [{
+          data: [upV, dnV],
+          backgroundColor: ['#00c853', '#ff1744'],
+          borderColor: ['#00c85340', '#ff174440'],
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '55%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {font:{size:10}, boxWidth:12, padding:8}
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx)=> {
+                const total = upV+dnV;
+                const pct = total>0 ? ((ctx.raw/total)*100).toFixed(1) : 0;
+                return ctx.label + ': ' + (ctx.raw/1000).toFixed(0)+'K (' + pct + '%)';
+              }
+            }
+          }
+        }
+      },
+      plugins: [{
+        id: 'centerText',
+        afterDraw(chart){
+          const {ctx:c, chartArea:{left,right,top,bottom}} = chart;
+          const cx=(left+right)/2, cy=(top+bottom)/2 - 5;
+          c.save(); c.textAlign='center';
+          c.fillStyle = wb.balance&&wb.balance.includes('DEMAND')?'#00c853':wb.balance&&wb.balance.includes('SUPPLY')?'#ff1744':'#ffc107';
+          c.font = 'bold 14px system-ui';
+          c.fillText((wb.ratio||0).toFixed(1)+'×', cx, cy);
+          c.fillStyle='rgba(255,255,255,.4)';
+          c.font='10px system-ui';
+          c.fillText('ratio', cx, cy+14);
+          c.restore();
+        }
+      }]
+    });
+  }
+
+  // ── CHART 4: Effort vs Result ──
+  if(erArr.length){
+    const erLabels = erArr.map((er,i)=> 'Bar '+(i+1));
+    const erSpread = erArr.map(er=> er.spread);
+    const erVol = erArr.map(er=> er.volume);
+    const maxSpread = Math.max(...erSpread, 1);
+    const maxVol = Math.max(...erVol, 1);
+    const normSpread = erSpread.map(s=> (s/maxSpread*100));
+    const normVol = erVol.map(v=> (v/maxVol*100));
+    const closeClr = erArr.map(er=> er.close_position>=0.6 ? '#00c853' : er.close_position<=0.4 ? '#ff1744' : '#ffc107');
+
+    _wkChart('wkEffortChart', {
+      type: 'bar',
+      data: {
+        labels: erLabels,
+        datasets: [
+          {
+            label: 'Effort (Volume %)',
+            data: normVol,
+            backgroundColor: 'rgba(33,150,243,.5)',
+            borderColor: '#2196f3',
+            borderWidth: 1,
+            borderRadius: 3,
+            order: 2,
+          },
+          {
+            label: 'Result (Spread %)',
+            data: normSpread,
+            backgroundColor: closeClr.map(c=>c+'80'),
+            borderColor: closeClr,
+            borderWidth: 1,
+            borderRadius: 3,
+            order: 1,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: {position:'bottom', labels:{font:{size:10}, boxWidth:12, padding:8}},
+          tooltip: {
+            callbacks: {
+              afterLabel: (ctx)=> {
+                const er = erArr[ctx.dataIndex];
+                return [
+                  'Close Position: '+(er.close_position*100).toFixed(0)+'% (0=Low, 100=High)',
+                  'Type: '+er.effort_result.replace(/_/g,' '),
+                  er.description
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          x: {grid:{display:false}},
+          y: {
+            grid:{color:'rgba(255,255,255,.05)'},
+            ticks: {callback:v=>v+'%'},
+            title: {display:true, text:'Normalized %', font:{size:10}, color:'rgba(255,255,255,.4)'}
+          }
+        }
+      }
+    });
+  }
+
+  // ── CHART 5: Shortening of Thrust ──
+  if(sh.detected && waves.length>=3){
+    const dir = sh.direction==='UP_EXHAUSTION' ? 'UP' : 'DOWN';
+    const relWaves = waves.filter(w=>w.direction===dir).slice(-5);
+    if(relWaves.length>=2){
+      const sLabels = relWaves.map((w,i)=> (dir==='UP'?'Rally ':'Drop ')+(i+1));
+      const sMoves = relWaves.map(w=> w.price_move);
+      const maxMove = sMoves[0] || 1;
+      const clr = dir==='UP' ? '#ff1744' : '#00c853';
+      _wkChart('wkShorteningChart', {
+        type: 'bar',
+        data: {
+          labels: sLabels,
+          datasets: [{
+            label: 'Price Distance (₹)',
+            data: sMoves,
+            backgroundColor: relWaves.map((w,i)=>{
+              const alpha = 0.3 + (i/relWaves.length)*0.5;
+              return clr + Math.round(alpha*255).toString(16).padStart(2,'0');
+            }),
+            borderColor: clr,
+            borderWidth: 1,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: {display:false},
+            tooltip: {
+              callbacks: {
+                afterLabel: (ctx)=>{
+                  const pctOfFirst = maxMove>0 ? ((sMoves[ctx.dataIndex]/maxMove)*100).toFixed(0) : 0;
+                  return pctOfFirst+'% of first wave\'s distance';
+                }
+              }
+            }
+          },
+          scales: {
+            x: {grid:{display:false}},
+            y: {
+              grid:{color:'rgba(255,255,255,.05)'},
+              title: {display:true, text:'Price Distance (₹)', font:{size:10}, color:'rgba(255,255,255,.4)'}
+            }
+          }
+        }
+      });
+    }
+  }
+
+  // ── CHART 6: Events Bubble Chart ──
+  if(events.length){
+    const eventDs = events.map(e=>({
+      x: e.confidence,
+      y: e.volume_ratio,
+      r: Math.max(6, Math.min(20, (e.price||100)/20)),
+      label: (eventNames[e.type]||e.type).replace(/🔻|🔺|🟢|🔴|💪|💀|🔍/g,'').trim(),
+      bullish: e.bullish,
+      price: e.price,
+    }));
+    _wkChart('wkEventsChart', {
+      type: 'bubble',
+      data: {
+        datasets: [{
+          label: 'Bullish Events',
+          data: eventDs.filter(e=>e.bullish),
+          backgroundColor: '#00c85360',
+          borderColor: '#00c853',
+          borderWidth: 1,
+        },{
+          label: 'Bearish Events',
+          data: eventDs.filter(e=>!e.bullish),
+          backgroundColor: '#ff174460',
+          borderColor: '#ff1744',
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: {position:'bottom', labels:{font:{size:10}, boxWidth:12, padding:8}},
+          tooltip: {
+            callbacks: {
+              label: (ctx)=>{
+                const pt = ctx.raw;
+                return [
+                  pt.label,
+                  'Confidence: '+pt.x+'%',
+                  'Volume: '+pt.y.toFixed(1)+'×',
+                  'Price: ₹'+((pt.price||0)).toFixed(2)
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: {display:true, text:'Confidence %', font:{size:10}, color:'rgba(255,255,255,.4)'},
+            grid:{color:'rgba(255,255,255,.05)'},
+            min: 0, max: 100
+          },
+          y: {
+            title: {display:true, text:'Volume Ratio (×)', font:{size:10}, color:'rgba(255,255,255,.4)'},
+            grid:{color:'rgba(255,255,255,.05)'},
+            min: 0
+          }
+        }
+      }
+    });
+  }
+
+  // ── CHART 7: Scoring Breakdown (Horizontal stacked) ──
+  const bonus = sc.wyckoff_bonus||0;
+  // Decompose bonus into components for visualization
+  const phaseComponent = ph.name==='ACCUMULATION'||ph.name==='MARKUP' ? Math.min(bonus,10) : ph.name==='DISTRIBUTION'||ph.name==='MARKDOWN' ? Math.max(bonus,-10) : 0;
+  const volComponent = vol.status==='CLIMAX'||vol.status==='SPIKE' ? (bonus>0?3:-3) : vol.status==='ABOVE_AVG'?2:0;
+  const waveComponent = wb.balance&&wb.balance.includes('DEMAND') ? Math.max(0,Math.min(5,bonus-phaseComponent-volComponent)) : wb.balance&&wb.balance.includes('SUPPLY') ? Math.min(0,Math.max(-5,bonus-phaseComponent-volComponent)) : 0;
+  const eventComponent = bonus - phaseComponent - volComponent - waveComponent;
+
+  const scoringLabels = ['Phase Alignment', 'Volume Character', 'Wave Balance', 'Events & Follow-Through'];
+  const scoringData = [phaseComponent, volComponent, waveComponent, eventComponent];
+  const scoringColors = scoringData.map(v=> v>0?'#00c853':v<0?'#ff1744':'#ffc10730');
+
+  _wkChart('wkScoringChart', {
+    type: 'bar',
+    data: {
+      labels: scoringLabels,
+      datasets: [{
+        data: scoringData,
+        backgroundColor: scoringColors,
+        borderColor: scoringColors.map(c=>c+'80'),
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {display:false},
+        tooltip: {
+          callbacks: {
+            label: (ctx)=> (ctx.raw>0?'+':'')+ctx.raw+' points'
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid:{color:'rgba(255,255,255,.05)'},
+          title: {display:true, text:'Points (negative = bearish, positive = bullish)', font:{size:10}, color:'rgba(255,255,255,.4)'},
+          suggestedMin: -15, suggestedMax: 15,
+        },
+        y: {grid:{display:false}, ticks:{font:{size:10}}}
+      }
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MARKET PROFILE / DALTON — Auction Context Layer
+   ═══════════════════════════════════════════════════════════════ */
+const _mpCharts = {};
+function _mpChart(id, cfg){
+  if(_mpCharts[id]) _mpCharts[id].destroy();
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  _mpCharts[id] = new Chart(ctx, cfg);
+}
+
+function renderMarketProfile(d){
+  const el = document.getElementById('marketProfileSection');
+  const mp = d.market_profile;
+  if(!mp){ el.innerHTML = ''; return; }
+
+  const va = mp.value_area || {};
+  const dt = mp.day_type || {};
+  const dp = mp.directional_performance || {};
+  const ms = mp.market_structure || {};
+  const otf = mp.one_timeframing || {};
+  const pe = mp.poor_extremes || {};
+  const hp = mp.high_probability || {};
+  const tti = hp.three_to_i || {};
+  const ne = hp.neutral_extreme || {};
+  const bbo = hp.balance_breakout || {};
+  const gp = mp.gap || {};
+  const ovp = mp.open_vs_prev || {};
+  const sigs = mp.dalton_signals || [];
+  const obs = mp.observations || [];
+  const cvBonus = mp.scoring?.cv_bonus || 0;
+  const vaSeq = mp.va_sequence || [];
+
+  // ── Color helpers ──
+  const bonusClr = cvBonus > 0 ? 'var(--bull)' : cvBonus < 0 ? 'var(--bear)' : 'var(--neutral)';
+  const msClr = ms.type==='TRENDING_UP'?'var(--bull)':ms.type==='TRENDING_DOWN'?'var(--bear)':ms.type==='BRACKETING'?'var(--neutral)':'#aaa';
+  const otfClr = otf.direction==='UP'?'var(--bull)':otf.direction==='DOWN'?'var(--bear)':'rgba(255,255,255,.4)';
+  const dpClr = ['VERY_STRONG','STRONG'].includes(dp.rating)?'var(--bull)':['VERY_WEAK','WEAK'].includes(dp.rating)?'var(--bear)':'var(--neutral)';
+
+  // ── Rich layman explanations ──
+  const dayExplains = {
+    'NONTREND': {icon:'😴',text:'<strong>Nontrend (Quiet) Day</strong> — Very little happened. Price barely moved, and volume was low. Think of it like a slow day at a shop — nobody came to buy or sell. <strong>Dalton says: "Stand aside."</strong> There is no opportunity here, and trading this day is like playing a lottery.',conviction:'No conviction from either side. Both buyers and sellers are sitting on the sidelines waiting for a catalyst.'},
+    'NEUTRAL': {icon:'⚖️',text:'<strong>Neutral (Balanced) Day</strong> — Both buyers AND sellers were active. Price extended in both directions, like a tug-of-war with neither side winning. The market is "undecided." This often happens before a big move — the market is gathering information.',conviction:'Equal conviction from both sides. Watch for which side wins tomorrow — that will reveal the true direction.'},
+    'NEUTRAL_EXTREME': {icon:'⚡',text:'<strong>Neutral-Extreme Day</strong> — Started balanced (both sides active) but ONE side dominated at the close. This is Dalton\'s <strong>"92% probability"</strong> setup — the market tipped its hand at the end. Like a jury that was undecided all day but reached a verdict at the last minute.',conviction:'<strong style="color:var(--accent)">HIGH CONVICTION:</strong> 92% chance the next session follows through in the direction of the close. One of Dalton\'s most reliable signals.'},
+    'NORMAL': {icon:'📊',text:'<strong>Normal Day</strong> — A standard, healthy trading day. The market found a "value area" early and most trading happened within it. About 70% of all volume was in the middle zone. Institutions set the tone early, then the market balanced.',conviction:'Moderate conviction. The market functioned normally — no extreme signals. Look at other metrics (one-timeframing, VA migration) for direction clues.'},
+    'NORMAL_VARIATION': {icon:'📈',text:'<strong>Normal Variation Day</strong> — Like a Normal day, but one side had a slight edge. The market initially balanced, then one group (buyers or sellers) pushed the range in one direction. Not as strong as a Trend day, but there IS a directional lean.',conviction:'The side that extended the range has a slight edge. If confirmed by other signals, follow that direction.'},
+    'TREND': {icon:'🚀',text:'<strong>TREND DAY — Maximum Conviction!</strong> One side completely dominated. Price opened at one extreme and marched all the way to the other extreme without looking back. Dalton: <strong>"The MOST COSTLY day to be wrong about."</strong> If you see a Trend day, absolutely do NOT fight it.',conviction:'<strong style="color:var(--bear)">DANGER:</strong> Trading against a Trend day is "financially dangerous." This is the strongest signal type. The market has spoken clearly.'},
+    'DOUBLE_DIST': {icon:'📍',text:'<strong>Double-Distribution Day</strong> — Price created TWO separate zones of value. The market started in one area, then an aggressive group of traders (the "Other Timeframe") pushed price to a completely new level. Think of it like a shop relocating mid-day to a new neighborhood.',conviction:'Very high conviction. The aggressive move to create a second distribution shows institutional intent. The new value area is where "smart money" wants price.'}
+  };
+  const dayInfo = dayExplains[dt.type] || {icon:'📊',text:'Standard market day.',conviction:'Analyzing...'};
+
+  const openExplains = {
+    'OPEN_DRIVE': {icon:'🏎️',emoji:'🟢',rank:'#1 (Highest)',text:'<strong>Open-Drive</strong> — Price opened and <strong>immediately charged in one direction</strong> without ever looking back. Like a sprinter off the blocks. Institutions placed aggressive orders right at the bell. This is the <strong>highest-conviction open</strong> — when you see this, the market has already decided.',tip:'Dalton: "Open-Drive is the most powerful. Enter EARLY or miss the move. The market is telegraphing its intent."'},
+    'OPEN_TEST_DRIVE': {icon:'🔍',emoji:'🟡',rank:'#2',text:'<strong>Open-Test-Drive</strong> — Price opened, <strong>briefly tested a nearby level</strong> (like checking if the door is locked), then reversed and drove hard the other way. A fake-out followed by the real move.',tip:'The test was a trap for those who jumped in too early. The DRIVE after the test shows the real intent. Second-most reliable open type.'},
+    'OPEN_REJECTION_REVERSE': {icon:'🔄',emoji:'🟡',rank:'#3',text:'<strong>Open-Rejection-Reverse</strong> — Price opened outside the previous range, but the market <strong>said "no thanks"</strong> and pushed it back. Imagine someone trying to sell ice cream in winter — they got rejected. Lower conviction than Drive/Test-Drive.',tip:'Dalton: "PATIENCE. Wait for the rotation back toward value before entering." Don\'t chase this one.'},
+    'OPEN_AUCTION': {icon:'🔔',emoji:'⚪',rank:'#4 (Lowest)',text:'<strong>Open-Auction</strong> — Price opened with <strong>no conviction</strong>. Buyers and sellers are both "feeling the market out," like shoppers at a bazaar comparing prices. The market hasn\'t decided what it wants yet.',tip:'No initial conviction means the market is in discovery mode. Wait for range development before trading. Often leads to a Normal or Neutral day.'}
+  };
+  const openInfo = openExplains[mp.open_type] || {icon:'🔔',emoji:'⚪',rank:'N/A',text:'Standard opening auction.',tip:'Wait for the market to show its hand.'};
+
+  const msExplains = {
+    'TRENDING_UP': {icon:'📈',text:'<strong>Uptrend Active</strong> — Value Areas are moving higher day after day, like stepping stones going uphill. Each day, buyers are willing to pay MORE than yesterday. Dalton: <strong>"Do NOT trade against a trend."</strong>',tip:'In a trend, buy pullbacks (dips). Do NOT short. The trend continues until Value Areas start overlapping.'},
+    'TRENDING_DOWN': {icon:'📉',text:'<strong>Downtrend Active</strong> — Value Areas are marching lower. Sellers are pressing and buyers are retreating. Each day price finds a LOWER "fair price."',tip:'In a downtrend, sell rallies. Do NOT try to "catch the falling knife." Wait for VAs to overlap before looking for a bottom.'},
+    'BRACKETING': {icon:'📦',text:`<strong>Bracketing (Range-Bound)</strong> — Price has been bouncing between the same two walls for <strong>${ms.bracket_days||'several'} days</strong>. Think of a ball bouncing between floor and ceiling — it goes up, comes back down, goes up again. Dalton: "Markets spend 70-80% of their time in brackets."`,tip:`Dalton: "Markets test bracket extremes 3-5 times on average before breaking out." Trade the bounces (buy low, sell high) OR wait for the breakout. The longer the bracket, the bigger the eventual breakout.`},
+    'TRANSITIONING': {icon:'🔄',text:'<strong>Transitioning</strong> — The market is at a <strong>crossroads</strong>. It\'s either about to start a new trend or settle into a bracket. Think of it like a car approaching a fork in the road — it hasn\'t committed to a direction yet.',tip:'Watch closely. The next 1-2 days will reveal whether we get a bracket or a trend. Look at one-timeframing and VA placement for clues.'}
+  };
+  const msInfo = msExplains[ms.type] || {icon:'🔄',text:'Analyzing market structure...',tip:'Wait for clarity.'};
+
+  // ── Activity type layman text ──
+  const actExplains = {
+    'INITIATIVE_BUYING':{icon:'🦁',clr:'var(--bull)',text:'<strong>Initiative Buying</strong> — Buyers are HUNTING. They\'re not waiting for lower prices — they\'re aggressively buying at current levels or higher. This is the strongest bullish signal. Like a buyer at an auction who keeps raising their paddle without waiting.',tip:'Dalton: "Initiative = they came hunting." These are institutional/professional buyers with conviction.'},
+    'INITIATIVE_SELLING':{icon:'🐻',clr:'var(--bear)',text:'<strong>Initiative Selling</strong> — Sellers are HUNTING. They\'re aggressively selling at current levels or lower without waiting for higher prices. Strongest bearish signal.',tip:'Institutional sellers with conviction. Do NOT try to buy when initiative selling is present.'},
+    'RESPONSIVE_BUYING':{icon:'🛒',clr:'rgba(0,200,83,.6)',text:'<strong>Responsive Buying</strong> — Buyers stepped in because prices dropped to "good value" levels. They\'re bargain hunting, not initiating. Like shoppers who only buy during sales.',tip:'Responsive buying is reactive, not proactive. It can slow a decline but doesn\'t necessarily start a new uptrend. Less conviction than initiative.'},
+    'RESPONSIVE_SELLING':{icon:'💰',clr:'rgba(255,23,68,.6)',text:'<strong>Responsive Selling</strong> — Sellers stepped in because prices rose to "expensive" levels. They\'re taking profits, not initiating new shorts. Like a shopkeeper who raised prices because demand was high.',tip:'Responsive selling can slow a rally but doesn\'t necessarily start a downtrend. Watch for initiative activity to confirm a reversal.'},
+    'MIXED':{icon:'🔀',clr:'rgba(255,255,255,.5)',text:'<strong>Mixed Activity</strong> — No clear buyer or seller dominance.',tip:'Both sides are present equally. Wait for clarity.'}
+  };
+  const actInfo = actExplains[mp.activity] || actExplains['MIXED'];
+
+  // ── Overnight inventory explanation ──
+  const oiExplains = {
+    'LONG':{icon:'🌙📈',clr:'var(--bull)',text:'Traders positioned <strong>LONG overnight</strong> (they bought). If too many are long, expect an <strong>inventory adjustment (dip)</strong> shortly after the open as weak hands sell.',tip:'If the market opens and does NOT dip despite long inventory = VERY STRONG signal. The market absorbed the selling.'},
+    'SHORT':{icon:'🌙📉',clr:'var(--bear)',text:'Traders positioned <strong>SHORT overnight</strong> (they sold). If too many are short, expect a <strong>short squeeze (pop)</strong> shortly after open.',tip:'If the market opens and does NOT pop despite short inventory = VERY WEAK signal.'},
+    'NEUTRAL':{icon:'🌙',clr:'rgba(255,255,255,.5)',text:'Overnight positioning is <strong>neutral</strong> — no significant bias.',tip:'No expected inventory adjustment at open.'}
+  };
+  const oiInfo = oiExplains[mp.overnight_inventory] || oiExplains['NEUTRAL'];
+
+  // ── Open vs Previous VA explanation ──
+  const ovpExplains = {
+    'WITHIN_VA': 'Opened <strong>inside yesterday\'s Value Area</strong> — market is accepting yesterday\'s prices as fair. Expect a balanced day unless a catalyst arrives.',
+    'WITHIN_RANGE': `Opened <strong>${ovp.location==='ABOVE'?'above':'below'} yesterday\'s Value Area but inside the range</strong> — slightly out of balance. The market is testing whether yesterday\'s value should shift.`,
+    'OUTSIDE_RANGE': `Opened <strong>completely outside yesterday\'s range ${ovp.location==='ABOVE'?'(above)':'(below)'}</strong> — market has declared yesterday\'s prices WRONG. This is a significant move and often leads to a Trend day.`
+  };
+
+  // ── Directional Performance explanation ──
+  const dpExplains = {
+    'VERY_STRONG': {emoji:'💪💪',text:'The market is doing an <strong>excellent job</strong> moving in its attempted direction. Volume is supporting the move and the Value Area confirms. This is a healthy, powerful trend leg.',tip:'Dalton rates this as the best-case scenario. All three components (direction, volume, value) agree.'},
+    'STRONG': {emoji:'💪',text:'Good directional conviction. Volume and VA are mostly supporting the move. The trend is healthy but not at maximum power.',tip:'A strong reading is a go-with signal. The market is functioning well.'},
+    'MODERATE': {emoji:'➡️',text:'Average directional performance. The move is happening but not convincingly. Volume or VA placement isn\'t fully confirming.',tip:'Moderate = "proceed with caution." The market could go either way.'},
+    'WEAK': {emoji:'⚠️',text:'Poor directional performance. The market is trying to move but <strong>failing</strong>. Volume is drying up or the Value Area is not cooperating.',tip:'A weak reading is a warning. The current direction may be exhausting. Watch for a reversal.'},
+    'VERY_WEAK': {emoji:'🚨',text:'<strong>Very Weak</strong> — The market is attempting to move but <strong>completely failing</strong>. Volume contradicts the direction and value is deteriorating. This is a loud warning that a reversal is likely.',tip:'Dalton: A very weak directional performance often precedes a sharp move in the OPPOSITE direction.'},
+    'NEUTRAL': {emoji:'⏸️',text:'No clear directional attempt. The market is balanced — not trying to go either way.',tip:'Neutral performance = balanced market. Wait for a signal.'}
+  };
+  const dpInfo = dpExplains[dp.rating] || dpExplains['NEUTRAL'];
+
+  // ── VA map for chart ──
+  const vaLabels = vaSeq.map((_,i) => 'Day '+(i+1));
+  const vaMap = {'HIGHER':2,'OVERLAPPING':1,'INSIDE':0,'OUTSIDE':0,'LOWER':-2};
+  const vaColors = vaSeq.map(v => v==='HIGHER'?'#00c853':v==='LOWER'?'#ff1744':'#ffc107');
+
+  // ── Rotation Factor explanation ──
+  const rf = mp.rotation_factor || 0;
+  const rfClr = rf > 2 ? 'var(--bull)' : rf < -2 ? 'var(--bear)' : 'var(--neutral)';
+  const rfText = rf > 4 ? 'Strong upward rotation — market strongly attempting to move higher.' :
+    rf > 2 ? 'Moderate upward rotation — buyers have a slight edge.' :
+    rf < -4 ? 'Strong downward rotation — market strongly attempting to move lower.' :
+    rf < -2 ? 'Moderate downward rotation — sellers have a slight edge.' :
+    'Neutral rotation — no clear directional attempt.';
+
+  // ── Profile shape explanation ──
+  const shapeExplains = {
+    'P_SHAPE': {icon:'🅿️',clr:'var(--bear)',text:'<strong>P-Shape (Short Covering)</strong> — Activity concentrated in the upper portion of the range. Dalton: <strong>"This is OLD business covering, NOT new buying."</strong> After a decline, shorts covered (bought back) their positions, pushing price up temporarily. But once they\'re done covering, the market often <strong>resumes falling</strong>.',tip:'⚠️ Do NOT mistake this for a genuine rally. P-shapes are deceptive — they look bullish but are actually weak.'},
+    'B_SHAPE': {icon:'🅱️',clr:'var(--bull)',text:'<strong>b-Shape (Long Liquidation)</strong> — Activity concentrated in the lower portion. After an advance, longs liquidated (sold) their positions, pushing price down temporarily. Once liquidation exhausts, the market often <strong>resumes rising</strong>.',tip:'Dalton: "Market corrects upward after liquidation exhausts itself. Offers a buying opportunity."'},
+    'ELONGATED': {icon:'⚠️',clr:'var(--neutral)',text:'<strong>Elongated Profile</strong> — The profile is stretched unusually far in one direction. Dalton D62: <strong>"When the profile becomes too elongated, the result is often THE OPPOSITE — a sharp reversal."</strong> Like a rubber band stretched too far.',tip:'Inventory is extremely one-sided. Watch for a sharp reversal as positions unwind.'},
+    'NORMAL': {icon:'📊',clr:'rgba(255,255,255,.5)',text:'<strong>Normal Shape</strong> — A balanced, bell-curve distribution. No unusual shape distortion. The market is healthy.',tip:'No shape-based warning signals.'}
+  };
+  const shapeInfo = shapeExplains[mp.profile_shape] || shapeExplains['NORMAL'];
+
+  // ── Gap explanation ──
+  const gapExplains = {
+    'BREAKAWAY': {icon:'💥',text:`<strong>Breakaway Gap ${gp.direction} (${fmt(gp.size_pct,2)}%)</strong> — A powerful gap that marks the <strong>start of a NEW trend</strong>. Price jumped over a barrier and left a "vacuum" behind. Dalton: "Gap = form of excess = strongest form of excess." Breakaway gaps rarely get filled.`,tip:'Trade WITH the gap direction. The bigger the gap, the less likely it fills. This gap is saying: "The old price level was wrong."'},
+    'ACCELERATION': {icon:'⚡',text:`<strong>Acceleration Gap ${gp.direction} (${fmt(gp.size_pct,2)}%)</strong> — A mid-trend gap confirming that the current move is <strong>gaining steam</strong>. Like a race car hitting boost mid-race. The trend is accelerating.`,tip:'Confirms the existing trend. Use the gap as a support/resistance level going forward.'},
+    'EXHAUSTION': {icon:'😵',text:`<strong>Exhaustion Gap ${gp.direction} (${fmt(gp.size_pct,2)}%)</strong> — A late-trend gap that signals the move is <strong>running out of fuel</strong>. Like a runner sprinting the last 100m — impressive but unsustainable. This gap often gets FILLED quickly as the trend reverses.`,tip:'⚠️ This gap is a warning. The trend may be ending. If this gap fills (price retraces back through it), that confirms exhaustion.'},
+    'NONE': {icon:'',text:'',tip:''}
+  };
+  const gapInfo = gapExplains[gp.type] || gapExplains['NONE'];
+
+  // ── Build high-probability setups HTML ──
+  let highProbHtml = '';
+  if(tti.active){
+    const tc = tti.direction==='BULLISH'?'var(--bull)':'var(--bear)';
+    const tb = tti.direction==='BULLISH'?'rgba(0,200,83,.08)':'rgba(255,23,68,.08)';
+    highProbHtml += `<div class="p-3 rounded mb-2" style="border-left:4px solid ${tc};background:${tb}">
+      <div class="d-flex align-items-center gap-2 mb-1"><span style="font-size:1.3rem">🎯</span>
+        <strong style="color:${tc};font-size:1rem">3-to-I Setup — ${tti.direction}</strong>
+        <span class="badge" style="background:${tc};color:#000;font-size:.72rem">94% / 97% Probability</span>
+      </div>
+      <div style="font-size:.85rem;line-height:1.6;margin-top:6px">
+        <strong>What this means:</strong> Three indicators all point the same way — initiative tail (strong rejection), initiative body (price moved decisively), and initiative range extension (new ground was covered). When all three agree, Dalton found:
+        <ul style="margin:6px 0 0 0;padding-left:18px">
+          <li><strong>94%</strong> of the time, the next day opens within or better than today\'s Value Area</li>
+          <li><strong>97%</strong> of the time, the next day CLOSES within or better than today\'s VA</li>
+        </ul>
+        <div style="margin-top:6px;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:6px">
+          💡 <strong>In plain English:</strong> This is as close to a "guaranteed" trade as you get in markets. Dalton calls it <strong>"a trade you almost have to do."</strong>
+        </div>
+      </div>
+    </div>`;
+  }
+  if(ne.active){
+    const nc = ne.direction==='BULLISH'?'var(--bull)':'var(--bear)';
+    const nb = ne.direction==='BULLISH'?'rgba(0,200,83,.08)':'rgba(255,23,68,.08)';
+    highProbHtml += `<div class="p-3 rounded mb-2" style="border-left:4px solid ${nc};background:${nb}">
+      <div class="d-flex align-items-center gap-2 mb-1"><span style="font-size:1.3rem">⚡</span>
+        <strong style="color:${nc};font-size:1rem">Neutral-Extreme Day — ${ne.direction}</strong>
+        <span class="badge" style="background:${nc};color:#000;font-size:.72rem">92% Probability</span>
+      </div>
+      <div style="font-size:.85rem;line-height:1.6;margin-top:6px">
+        <strong>What this means:</strong> Today was a Neutral day (both buyers and sellers active) but the close was at one extreme. The jury was undecided all day, but <strong>reached a verdict at the close</strong>.
+        <div style="margin-top:6px;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:6px">
+          💡 <strong>In plain English:</strong> 92% of the time, the next morning\'s first 90 minutes of trading will favor the direction of today\'s close. A reliable early-session setup.
+        </div>
+      </div>
+    </div>`;
+  }
+  if(bbo.active){
+    const bc = bbo.direction==='BULLISH'?'var(--bull)':'var(--bear)';
+    const bgb = bbo.direction==='BULLISH'?'rgba(0,200,83,.08)':'rgba(255,23,68,.08)';
+    highProbHtml += `<div class="p-3 rounded mb-2" style="border-left:4px solid ${bc};background:${bgb}">
+      <div class="d-flex align-items-center gap-2 mb-1"><span style="font-size:1.3rem">🚀</span>
+        <strong style="color:${bc};font-size:1rem">Balance-Area Breakout — ${bbo.direction}</strong>
+        <span class="badge" style="background:${bc};color:#000;font-size:.72rem">HIGH PROBABILITY</span>
+      </div>
+      <div style="font-size:.85rem;line-height:1.6;margin-top:6px">
+        <strong>What this means:</strong> The market was stuck in a bracket (bouncing between two walls) and just BROKE OUT. Like a spring being released — all the pent-up energy from the bracket is now unleashed.
+        <div style="margin-top:6px;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:6px">
+          💡 <strong>In plain English:</strong> Dalton calls this <strong>"a trade you almost have to do."</strong> Risk is minimal (stop just below the breakout point) and profit potential is very high. Traders trapped on the wrong side will amplify the move as they exit.
+        </div>
+      </div>
+    </div>`;
+  }
+  if(!highProbHtml){
+    highProbHtml = `<div style="padding:12px;background:rgba(255,255,255,.02);border-radius:8px">
+      <div style="font-size:.85rem;color:rgba(255,255,255,.5);line-height:1.6">
+        <i class="bi bi-info-circle me-1"></i><strong>No high-probability Dalton setups active today.</strong><br>
+        Dalton identified three rare but powerful patterns with 92-97% success rates. When they fire, they\'re the highest-conviction trades available:
+        <div class="row g-2 mt-2">
+          <div class="col-md-4"><div class="p-2 rounded" style="background:rgba(255,255,255,.03)"><strong>🎯 3-to-I</strong> (94-97%)<br><span style="font-size:.78rem;color:rgba(255,255,255,.4)">All 3 initiative measures aligned</span></div></div>
+          <div class="col-md-4"><div class="p-2 rounded" style="background:rgba(255,255,255,.03)"><strong>⚡ Neutral-Extreme</strong> (92%)<br><span style="font-size:.78rem;color:rgba(255,255,255,.4)">Balanced day, extreme close</span></div></div>
+          <div class="col-md-4"><div class="p-2 rounded" style="background:rgba(255,255,255,.03)"><strong>🚀 Balance Breakout</strong> (High)<br><span style="font-size:.78rem;color:rgba(255,255,255,.4)">Bracket escape with conviction</span></div></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Poor extremes HTML ──
+  let poorHtml = '';
+  if(pe.poor_high || pe.poor_low){
+    poorHtml += '<div class="row g-2">';
+    if(pe.poor_high){
+      const cnt = pe.consecutive_poor_highs;
+      const sev = cnt >= 3 ? '🔴 CRITICAL' : cnt >= 2 ? '🟠 WARNING' : '🟡 WATCH';
+      poorHtml += `<div class="col-md-6"><div class="p-2 rounded" style="background:rgba(255,23,68,.06);border:1px solid rgba(255,23,68,.15)">
+        <div class="d-flex align-items-center gap-2"><span class="badge" style="background:rgba(255,23,68,.15);color:var(--bear)">${sev}</span><strong style="font-size:.85rem">Poor High${cnt>1?' ×'+cnt:''}</strong></div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.6);margin-top:4px">The top of today\'s range has <strong>no selling tail</strong> — buyers just stopped rather than being pushed back. This means the upside auction is <strong>incomplete</strong> and price will likely revisit (and potentially exceed) this high.${cnt>=2?' <strong style="color:var(--bear)">'+cnt+' consecutive poor highs = EXPONENTIAL risk for shorts!</strong>':''}</div>
+      </div></div>`;
+    }
+    if(pe.poor_low){
+      const cnt = pe.consecutive_poor_lows;
+      const sev = cnt >= 3 ? '🔴 CRITICAL' : cnt >= 2 ? '🟠 WARNING' : '🟡 WATCH';
+      poorHtml += `<div class="col-md-6"><div class="p-2 rounded" style="background:rgba(0,200,83,.06);border:1px solid rgba(0,200,83,.15)">
+        <div class="d-flex align-items-center gap-2"><span class="badge" style="background:rgba(0,200,83,.15);color:var(--bull)">${sev}</span><strong style="font-size:.85rem">Poor Low${cnt>1?' ×'+cnt:''}</strong></div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.6);margin-top:4px">The bottom of today\'s range has <strong>no buying tail</strong> — sellers just stopped rather than being rejected. Downside auction is <strong>incomplete</strong>.${cnt>=2?' <strong style="color:var(--bear)">'+cnt+' consecutive poor lows = EXPONENTIAL risk for longs!</strong>':''}</div>
+      </div></div>`;
+    }
+    poorHtml += '</div>';
+  }
+
+  // ── Signals HTML ──
+  const sigsHtml = sigs.length ? sigs.map(s => {
+    const sc = s.direction==='BULLISH'?'var(--bull)':s.direction==='BEARISH'?'var(--bear)':'var(--neutral)';
+    const se = s.direction==='BULLISH'?'🟢':s.direction==='BEARISH'?'🔴':'🟡';
+    return `<div class="d-flex align-items-start gap-2 mb-2 p-2 rounded" style="background:rgba(255,255,255,.02)">
+      <span style="font-size:1rem;margin-top:2px">${se}</span>
+      <div>
+        <strong style="color:${sc};font-size:.85rem">${s.type?.replace(/_/g,' ') || 'SIGNAL'}</strong>
+        <span class="badge ms-2" style="background:rgba(255,255,255,.08);font-size:.65rem">${s.rule||''} · ${s.probability||'N/A'}</span>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.55);margin-top:2px">${s.description||''}</div>
+      </div>
+    </div>`;
+  }).join('') : '';
+
+  // ── Observations HTML ──
+  const obsHtml = obs.length ? obs.map(o => {
+    const oClr = o.includes('⚠️')?'rgba(255,193,7,.12)':o.includes('🔥')?'rgba(255,23,68,.08)':o.includes('🎯')?'rgba(0,200,83,.08)':'rgba(255,255,255,.03)';
+    return `<div class="p-2 rounded mb-1" style="background:${oClr};font-size:.82rem;line-height:1.6">${o}</div>`;
+  }).join('') : '';
+
+  // ── Directional Performance gauge value (0-100 scale) ──
+  const dpGaugeMap = {'VERY_STRONG':95,'STRONG':75,'MODERATE':50,'WEAK':25,'VERY_WEAK':5,'NEUTRAL':50};
+  const dpGauge = dpGaugeMap[dp.rating] || 50;
+  const dpGaugeClr = dpGauge > 70 ? 'var(--bull)' : dpGauge < 30 ? 'var(--bear)' : 'var(--neutral)';
+
+  // ── OTF streak visual ──
+  const otfMax = 7;
+  const otfFill = otf.days ? Math.min(otf.days / otfMax * 100, 100) : 0;
+
+  // ═══ BUILD THE FULL HTML ═══
+  el.innerHTML = `
+    <div class="card fade-in" style="border-color:rgba(0,150,255,.25)">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-color:rgba(0,150,255,.15)">
+        <span class="section-title" style="color:rgba(0,150,255,.9)"><i class="bi bi-bar-chart me-2"></i>MARKET PROFILE — DALTON AUCTION CONTEXT</span>
+        <div class="d-flex gap-2 flex-wrap">
+          <span class="badge" title="Cross-validation bonus from Dalton analysis" style="background:${bonusClr};color:#000;font-size:.75rem;cursor:help">CV Bonus: ${cvBonus>0?'+':''}${cvBonus}</span>
+          <span class="badge" title="Current market structure" style="background:${msClr};color:#000;font-size:.75rem;cursor:help">${(ms.type||'N/A').replace(/_/g,' ')}</span>
+          <span class="badge" title="Today's day type classification" style="background:rgba(255,255,255,.08);font-size:.72rem;cursor:help">${dt.type||'N/A'} Day</span>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <!-- ═══ EDUCATIONAL INTRO ═══ -->
+        <div class="edu-box" style="background:rgba(0,150,255,.06);border-color:rgba(0,150,255,.2);margin-bottom:16px;padding:12px 16px">
+          <div style="font-size:.9rem;font-weight:600;color:rgba(0,150,255,.9);margin-bottom:6px">📚 What is Market Profile? (Dalton — "Mind Over Markets")</div>
+          <div style="font-size:.84rem;line-height:1.7;color:rgba(255,255,255,.75)">
+            Market Profile shows <strong>WHERE the market accepts value</strong> — not just where price went, but where traders actually <strong>agreed to do business</strong>. Think of it like a grocery store:
+            <ul style="margin:6px 0;padding-left:18px">
+              <li><strong>Value Area (VA)</strong> = the price range where <strong>70% of all trading happened</strong>. This is the "popular aisle."</li>
+              <li><strong>Point of Control (POC)</strong> = the <strong>single most-traded price</strong>. The "bestselling item." This is the market's "fair price."</li>
+              <li><strong>Above VA</strong> = too expensive (sellers dominate). <strong>Below VA</strong> = too cheap (buyers dominate).</li>
+            </ul>
+            Dalton\'s key insight: <strong>Markets alternate between balance (70-80% of time) and imbalance (trends).</strong> The transition between them creates the highest-probability trades.
+          </div>
+        </div>
+
+        <!-- ═══ VALUE AREA VISUAL ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-distribute-vertical" style="color:rgba(0,150,255,.9);font-size:1.1rem"></i>
+              <strong class="mini-label" style="letter-spacing:1px">VALUE AREA & POINT OF CONTROL</strong>
+            </div>
+            <span class="badge" title="Where today opened relative to yesterday's Value Area" style="background:rgba(255,255,255,.06);font-size:.7rem;cursor:help">Open: ${(ovp.position||'').replace(/_/g,' ')} ${ovp.location||''}</span>
+          </div>
+          <div style="font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:10px;line-height:1.5">
+            The zone where <strong>70% of trading</strong> happened today. Price above VA High = expensive territory. Price below VA Low = bargain territory. The POC at the center is the "fairest price."
+          </div>
+
+          <!-- VA Price Ruler Chart -->
+          <div class="row g-3 align-items-center">
+            <div class="col-md-7">
+              <div style="position:relative;height:140px;background:rgba(255,255,255,.02);border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.06)">
+                <div id="mpVaRulerContainer" style="position:relative;height:100%;padding:10px 20px"></div>
+              </div>
+            </div>
+            <div class="col-md-5">
+              <div class="row g-2">
+                <div class="col-6 text-center">
+                  <div class="mini-label" style="color:rgba(255,255,255,.4)">VA High</div>
+                  <div style="font-size:1.2rem;font-weight:700;color:var(--bear)" title="Upper boundary of value area — selling pressure expected above this level">₹${fmt(va.va_high,2)}</div>
+                  <div style="font-size:.68rem;color:rgba(255,255,255,.3)">Sellers defend here</div>
+                </div>
+                <div class="col-6 text-center">
+                  <div class="mini-label" style="color:rgba(255,255,255,.4)">VA Low</div>
+                  <div style="font-size:1.2rem;font-weight:700;color:var(--bull)" title="Lower boundary of value area — buying support expected below">₹${fmt(va.va_low,2)}</div>
+                  <div style="font-size:.68rem;color:rgba(255,255,255,.3)">Buyers defend here</div>
+                </div>
+                <div class="col-12 text-center mt-1">
+                  <div class="mini-label" style="color:rgba(0,150,255,.7)">POC (Fair Price)</div>
+                  <div style="font-size:1.5rem;font-weight:700;color:rgba(0,150,255,.9)" title="Point of Control — the single price level where the most trading occurred. Acts like a magnet.">₹${fmt(va.poc,2)}</div>
+                  <div style="font-size:.68rem;color:rgba(255,255,255,.3)">Magnet price — attracts price back</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:.75rem;color:rgba(255,255,255,.4);margin-top:8px;line-height:1.5;border-top:1px solid rgba(255,255,255,.04);padding-top:6px">
+            💡 <strong>How to use:</strong> If price is above VA High → cautious (expensive zone, likely to pull back). If below VA Low → watch for bounce (cheap zone). POC acts as a <strong>magnet</strong> — price tends to return to it. ${ovpExplains[ovp.position]||''}
+          </div>
+        </div>
+
+        <!-- ═══ DAY TYPE ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span style="font-size:1.2rem">${dayInfo.icon}</span>
+            <strong class="mini-label" style="letter-spacing:1px">TODAY'S DAY TYPE</strong>
+            <span class="badge ms-auto" title="How confident the classification is" style="background:rgba(255,255,255,.08);font-size:.7rem;cursor:help">${dt.conviction||'N/A'} conviction</span>
+          </div>
+          <div style="font-size:.88rem;line-height:1.7;color:rgba(255,255,255,.75)">${dayInfo.text}</div>
+          <div style="margin-top:8px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:6px;font-size:.8rem;color:rgba(255,255,255,.55);line-height:1.5">
+            📏 <strong>Conviction Assessment:</strong> ${dayInfo.conviction}
+          </div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:6px">
+            Dalton identified 6 day types. Markets alternate between them. The pattern of day types reveals the market's evolving sentiment. A sequence of Normal days → Trend day is a classic pattern.
+          </div>
+        </div>
+
+        <!-- ═══ OPEN TYPE ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span style="font-size:1.2rem">${openInfo.icon}</span>
+            <strong class="mini-label" style="letter-spacing:1px">OPENING TYPE</strong>
+            <span class="badge ms-auto" style="background:rgba(255,255,255,.08);font-size:.68rem;cursor:help" title="Dalton ranks 4 open types by conviction: Open-Drive (#1 highest), Open-Test-Drive (#2), Open-Rejection-Reverse (#3), Open-Auction (#4 lowest)">Rank: ${openInfo.rank}</span>
+          </div>
+          <div style="font-size:.88rem;line-height:1.7;color:rgba(255,255,255,.75)">${openInfo.text}</div>
+          <div style="margin-top:8px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:6px;font-size:.8rem;color:rgba(255,255,255,.55);line-height:1.5">
+            💡 ${openInfo.tip}
+          </div>
+          <!-- Open type conviction ranking visual -->
+          <div style="margin-top:10px;display:flex;gap:4px;align-items:center">
+            ${['OPEN_DRIVE','OPEN_TEST_DRIVE','OPEN_REJECTION_REVERSE','OPEN_AUCTION'].map((t,i) => {
+              const active = mp.open_type === t;
+              const w = [40,30,20,10][i];
+              const bg = active ? 'rgba(0,150,255,.7)' : 'rgba(255,255,255,.06)';
+              const lbl = ['Drive','Test-Drive','Reject-Rev','Auction'][i];
+              return `<div style="flex:${w};text-align:center;padding:4px 2px;border-radius:4px;background:${bg};font-size:.6rem;color:${active?'#fff':'rgba(255,255,255,.3)'}">${lbl}</div>`;
+            }).join('')}
+          </div>
+          <div style="font-size:.6rem;color:rgba(255,255,255,.25);margin-top:2px;text-align:center">← Higher Conviction · · · Lower Conviction →</div>
+        </div>
+
+        <!-- ═══ MARKET STRUCTURE + ONE-TIMEFRAMING ROW ═══ -->
+        <div class="row g-3 mb-3">
+          <div class="col-lg-6">
+            <div class="p-3 rounded" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);height:100%">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span style="font-size:1.2rem">${msInfo.icon}</span>
+                <strong class="mini-label" style="letter-spacing:1px">MARKET STRUCTURE</strong>
+                <span class="badge ms-auto" style="background:${msClr};color:#000;font-size:.68rem">${(ms.type||'N/A').replace(/_/g,' ')}</span>
+              </div>
+              <div style="font-size:.85rem;line-height:1.7;color:rgba(255,255,255,.75)">${msInfo.text}</div>
+              <div style="margin-top:8px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:6px;font-size:.78rem;color:rgba(255,255,255,.5);line-height:1.5">
+                💡 ${msInfo.tip}
+              </div>
+              <div style="margin-top:8px;font-size:.72rem;color:rgba(255,255,255,.3)">
+                Dalton D41: Markets cycle between Trend → Bracket → Trend. They NEVER go directly from trend-up to trend-down. There is always a bracket (rest period) in between.
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="p-3 rounded" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);height:100%">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span style="font-size:1.2rem">${otf.direction==='UP'?'⬆️':otf.direction==='DOWN'?'⬇️':'↔️'}</span>
+                <strong class="mini-label" style="letter-spacing:1px">ONE-TIMEFRAMING</strong>
+                <span class="badge ms-auto" style="background:${otfClr};color:${otf.direction!=='NONE'?'#000':'rgba(255,255,255,.5)'};font-size:.68rem">${otf.direction||'NONE'}${otf.days?' · '+otf.days+' days':''}</span>
+              </div>
+              <div style="font-size:.85rem;line-height:1.7;color:rgba(255,255,255,.75)">
+                ${otf.direction==='UP'?'<strong>One-Timeframing UP</strong> — Each day\'s low is HIGHER than the previous day\'s low for <strong>'+otf.days+' consecutive days</strong>. Like climbing stairs — each step is higher than the last. Dalton: <strong>"It is financially dangerous to trade counter to one-timeframing."</strong>':
+                  otf.direction==='DOWN'?'<strong>One-Timeframing DOWN</strong> — Each day\'s high is LOWER than the previous day\'s high for <strong>'+otf.days+' consecutive days</strong>. The ceiling is dropping every day. Do NOT try to buy.':
+                  '<strong>No One-Timeframing</strong> — The market is rotating without directional dominance. Neither buyers nor sellers control every timeframe.'}
+              </div>
+              <!-- OTF Streak Meter -->
+              <div style="margin-top:10px">
+                <div class="d-flex justify-content-between" style="font-size:.65rem;color:rgba(255,255,255,.3)">
+                  <span>0 days</span>
+                  <span>Streak Strength</span>
+                  <span>${otfMax}+ days</span>
+                </div>
+                <div style="height:12px;border-radius:6px;background:rgba(255,255,255,.05);overflow:hidden;position:relative">
+                  <div style="height:100%;width:${otfFill}%;background:${otfClr};border-radius:6px;transition:width .6s ease"></div>
+                </div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.35);margin-top:4px">${otf.days>=5?'🔥 Extended streak — very strong directional dominance!':otf.days>=3?'Solid streak — direction is established.':otf.days>=2?'Early streak — watch for continuation.':'No active streak.'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ DIRECTIONAL PERFORMANCE (Full Section) ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span style="font-size:1.2rem">${dpInfo.emoji}</span>
+            <strong class="mini-label" style="letter-spacing:1px">DIRECTIONAL PERFORMANCE</strong>
+            <span class="badge ms-auto" style="background:${dpClr};color:#000;font-size:.72rem">${(dp.rating||'N/A').replace(/_/g,' ')} · Attempting ${dp.direction||'N/A'}</span>
+          </div>
+          <div style="font-size:.85rem;line-height:1.7;color:rgba(255,255,255,.75)">${dpInfo.text}</div>
+          <!-- Performance Gauge -->
+          <div style="margin-top:10px">
+            <div class="d-flex justify-content-between" style="font-size:.65rem;color:rgba(255,255,255,.3)">
+              <span>🔴 VERY WEAK</span><span>MODERATE</span><span>VERY STRONG 🟢</span>
+            </div>
+            <div style="height:16px;border-radius:8px;background:linear-gradient(to right, var(--bear) 0%, var(--neutral) 50%, var(--bull) 100%);overflow:hidden;position:relative">
+              <div style="position:absolute;left:${dpGauge}%;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #000;box-shadow:0 0 8px rgba(255,255,255,.5);transition:left .6s ease"></div>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:6px;font-size:.78rem;color:rgba(255,255,255,.5);line-height:1.5">
+            💡 ${dpInfo.tip}
+          </div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:6px">
+            Dalton D40: Directional performance combines 3 factors — attempted direction × volume change × Value Area placement. These create 30 possible combinations rated from "Very Strong" to "Very Weak."
+          </div>
+        </div>
+
+        <!-- ═══ ACTIVITY + OVERNIGHT INVENTORY ROW ═══ -->
+        <div class="row g-3 mb-3">
+          <div class="col-lg-6">
+            <div class="p-3 rounded" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);height:100%">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span style="font-size:1.2rem">${actInfo.icon}</span>
+                <strong class="mini-label" style="letter-spacing:1px">ACTIVITY TYPE (D67)</strong>
+                <span class="badge ms-auto" style="background:${actInfo.clr};color:#000;font-size:.68rem">${(mp.activity||'N/A').replace(/_/g,' ')}</span>
+              </div>
+              <div style="font-size:.85rem;line-height:1.7;color:rgba(255,255,255,.75)">${actInfo.text}</div>
+              <div style="margin-top:8px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:6px;font-size:.78rem;color:rgba(255,255,255,.5);line-height:1.5">
+                💡 ${actInfo.tip}
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="p-3 rounded" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);height:100%">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span style="font-size:1.2rem">${oiInfo.icon}</span>
+                <strong class="mini-label" style="letter-spacing:1px">OVERNIGHT INVENTORY (D58)</strong>
+                <span class="badge ms-auto" style="background:${oiInfo.clr};color:#000;font-size:.68rem">${mp.overnight_inventory||'NEUTRAL'}</span>
+              </div>
+              <div style="font-size:.85rem;line-height:1.7;color:rgba(255,255,255,.75)">${oiInfo.text}</div>
+              <div style="margin-top:8px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:6px;font-size:.78rem;color:rgba(255,255,255,.5);line-height:1.5">
+                💡 ${oiInfo.tip}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ VA MIGRATION CHART ═══ -->
+        ${vaSeq.length > 1 ? `
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-bar-chart-steps" style="color:rgba(0,150,255,.9);font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">VALUE AREA MIGRATION CHART (Last ${vaSeq.length} Days)</strong>
+          </div>
+          <div style="font-size:.82rem;color:rgba(255,255,255,.55);margin-bottom:10px;line-height:1.6">
+            This chart tracks where each day's Value Area sits relative to the previous day. Think of it as a <strong>"stepping stones" chart</strong>:
+            <strong style="color:#00c853">Green bars (Higher)</strong> = Value Area stepped UP (buyers winning).
+            <strong style="color:#ff1744">Red bars (Lower)</strong> = Value Area stepped DOWN (sellers winning).
+            <strong style="color:#ffc107">Yellow bars</strong> = Value Areas overlapped (balance/indecision).
+            <br>A streak of green bars = strong uptrend. A streak of yellow = bracket forming.
+          </div>
+          <div style="height:100px"><canvas id="mpVaSeqChart"></canvas></div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:6px">
+            VA Sequence: ${vaSeq.map(v => v==='HIGHER'?'↑':'LOWER'?'↓':'↔').join(' → ')} — ${vaSeq.filter(v=>v==='HIGHER').length} higher, ${vaSeq.filter(v=>v==='LOWER').length} lower, ${vaSeq.filter(v=>!['HIGHER','LOWER'].includes(v)).length} overlap/inside
+          </div>
+        </div>` : ''}
+
+        <!-- ═══ ADDITIONAL METRICS ROW ═══ -->
+        <div class="row g-3 mb-3">
+          <!-- POC Migration -->
+          <div class="col-md-3">
+            <div class="p-3 rounded" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);height:100%" title="Point of Control migration shows which side controls the 'fair price'. If POC moves up = buyers setting higher fair prices. Down = sellers.">
+              <div class="mini-label mb-1" style="font-size:.68rem">POC MIGRATION (D9)</div>
+              <div style="font-size:.95rem;font-weight:600;color:${mp.poc_migration==='MIGRATING_UP'?'var(--bull)':mp.poc_migration==='MIGRATING_DOWN'?'var(--bear)':'rgba(255,255,255,.5)'};margin-bottom:4px">
+                ${mp.poc_migration==='MIGRATING_UP'?'⬆️ Migrating UP':mp.poc_migration==='MIGRATING_DOWN'?'⬇️ Migrating DOWN':'↔️ Stationary'}
+              </div>
+              <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.4">${mp.poc_migration==='MIGRATING_UP'?'Fair price moving higher each day — buyers in control.':mp.poc_migration==='MIGRATING_DOWN'?'Fair price moving lower — sellers in control.':'Fair price is stable — balanced market.'}</div>
+            </div>
+          </div>
+          <!-- Profile Shape -->
+          <div class="col-md-3">
+            <div class="p-3 rounded" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);height:100%" title="${shapeInfo.tip}">
+              <div class="mini-label mb-1" style="font-size:.68rem">PROFILE SHAPE (D33-34)</div>
+              <div style="font-size:.95rem;font-weight:600;color:${shapeInfo.clr};margin-bottom:4px">
+                ${shapeInfo.icon} ${mp.profile_shape==='P_SHAPE'?'P-Shape':mp.profile_shape==='B_SHAPE'?'b-Shape':mp.profile_shape==='ELONGATED'?'Elongated ⚠️':'Normal'}
+              </div>
+              <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.4">${mp.profile_shape==='P_SHAPE'?'Short covering — NOT real buying.':mp.profile_shape==='B_SHAPE'?'Long liquidation — buying opportunity.':mp.profile_shape==='ELONGATED'?'Stretched — reversal possible.':'Healthy, balanced shape.'}</div>
+            </div>
+          </div>
+          <!-- Rotation Factor -->
+          <div class="col-md-3">
+            <div class="p-3 rounded" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);height:100%" title="Rotation Factor (D32): +1 for each higher high/low, -1 for each lower high/low over 5 days. Tells you WHICH WAY the market is TRYING to go (not how good a job it's doing).">
+              <div class="mini-label mb-1" style="font-size:.68rem">ROTATION FACTOR (D32)</div>
+              <div style="font-size:1.3rem;font-weight:700;color:${rfClr};margin-bottom:4px">${rf>0?'+':''}${rf}</div>
+              <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.4">${rfText}</div>
+            </div>
+          </div>
+          <!-- Gap Type -->
+          <div class="col-md-3">
+            <div class="p-3 rounded" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);height:100%" title="${gapInfo.tip}">
+              <div class="mini-label mb-1" style="font-size:.68rem">GAP TYPE (D53)</div>
+              <div style="font-size:.95rem;font-weight:600;margin-bottom:4px">
+                ${gp.type!=='NONE'?gapInfo.icon+' '+(gp.type||'').replace(/_/g,' ')+' '+gp.direction:'✅ No Gap'}
+              </div>
+              <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.4">${gp.type!=='NONE'?'Gap of '+fmt(gp.size_pct,2)+'%. '+gapInfo.tip:'No price gap from previous close. The market opened in continuity with yesterday.'}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ PROFILE SHAPE DETAIL (if not Normal) ═══ -->
+        ${mp.profile_shape !== 'NORMAL' ? `
+        <div class="p-3 rounded mb-3" style="background:${mp.profile_shape==='ELONGATED'?'rgba(255,193,7,.06)':'rgba(255,255,255,.02)'};border:1px solid ${mp.profile_shape==='ELONGATED'?'rgba(255,193,7,.15)':'rgba(255,255,255,.06)'}">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span style="font-size:1.1rem">${shapeInfo.icon}</span>
+            <strong class="mini-label" style="letter-spacing:1px">PROFILE SHAPE DETAIL</strong>
+          </div>
+          <div style="font-size:.85rem;line-height:1.7;color:rgba(255,255,255,.75)">${shapeInfo.text}</div>
+          <div style="margin-top:8px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:6px;font-size:.78rem;color:rgba(255,255,255,.5);line-height:1.5">
+            💡 ${shapeInfo.tip}
+          </div>
+        </div>` : ''}
+
+        <!-- ═══ GAP DETAIL (if gap exists) ═══ -->
+        ${gp.type !== 'NONE' ? `
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span style="font-size:1.1rem">${gapInfo.icon}</span>
+            <strong class="mini-label" style="letter-spacing:1px">GAP ANALYSIS</strong>
+          </div>
+          <div style="font-size:.85rem;line-height:1.7;color:rgba(255,255,255,.75)">${gapInfo.text}</div>
+          <div style="margin-top:8px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:6px;font-size:.78rem;color:rgba(255,255,255,.5);line-height:1.5">
+            💡 ${gapInfo.tip}
+          </div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:6px">
+            Dalton D53: "Gap = form of excess = STRONGEST form of excess." Gaps are invisible single prints — areas where NOBODY traded. The bigger the gap, the smaller the odds it will fill today.
+          </div>
+        </div>` : ''}
+
+        <!-- ═══ POOR EXTREMES ═══ -->
+        ${poorHtml ? `
+        <div class="p-3 rounded mb-3" style="background:rgba(255,193,7,.05);border:1px solid rgba(255,193,7,.15)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span style="font-size:1.1rem">⚠️</span>
+            <strong class="mini-label" style="letter-spacing:1px">INCOMPLETE AUCTIONS (POOR EXTREMES — D61)</strong>
+          </div>
+          <div style="font-size:.82rem;color:rgba(255,255,255,.55);margin-bottom:10px;line-height:1.6">
+            A "poor extreme" means the market stopped at a high or low WITHOUT being firmly rejected. Imagine someone walking up to a wall and just stopping, vs. being pushed back. The stopping (no tail) means the <strong>auction isn't finished</strong> — price will likely revisit that level.
+          </div>
+          ${poorHtml}
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:8px">
+            Dalton D61: "A single poor low = one data point (limited attention). Multiple successive poor lows = EXPONENTIAL RISK for longs." The market MUST complete its auction at these levels.
+          </div>
+        </div>` : ''}
+
+        <!-- ═══ HIGH-PROBABILITY SETUPS ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(0,150,255,.03);border:1px solid rgba(0,150,255,.12)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-bullseye" style="color:rgba(0,150,255,.9);font-size:1.2rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px;color:rgba(0,150,255,.8)">HIGH-PROBABILITY DALTON SETUPS</strong>
+          </div>
+          <div style="font-size:.82rem;color:rgba(255,255,255,.5);margin-bottom:10px;line-height:1.5">
+            These are Dalton's most powerful, statistically-backed patterns. They happen rarely, but when they fire, success rates are <strong>92-97%</strong>. Think of them as "alarm bells" that experienced traders wait for.
+          </div>
+          ${highProbHtml}
+        </div>
+
+        <!-- ═══ DALTON SIGNALS ═══ -->
+        ${sigsHtml ? `
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-broadcast" style="color:rgba(0,150,255,.9);font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">ACTIVE DALTON SIGNALS</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.45);margin-bottom:8px">These are specific, actionable signals generated by the Dalton analysis. Each references a specific rule from "Mind Over Markets."</div>
+          ${sigsHtml}
+        </div>` : ''}
+
+        <!-- ═══ ALL OBSERVATIONS (Expandable) ═══ -->
+        ${obsHtml ? `
+        <details class="mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:8px;padding:8px 12px">
+          <summary style="font-size:.85rem;color:rgba(255,255,255,.55);cursor:pointer;padding:4px 0">
+            📖 <strong>All Dalton Observations (${obs.length})</strong> — Each observation references a specific Dalton rule with the book quote. Click to expand.
+          </summary>
+          <div style="margin-top:10px;border-top:1px solid rgba(255,255,255,.05);padding-top:10px">${obsHtml}</div>
+        </details>` : ''}
+
+        <!-- ═══ DALTON SUMMARY ═══ -->
+        ${mp.summary ? `
+        <div class="p-3 rounded" style="background:rgba(0,150,255,.05);border:1px solid rgba(0,150,255,.15)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-clipboard-check" style="color:rgba(0,150,255,.9)"></i>
+            <strong class="mini-label" style="letter-spacing:1px;color:rgba(0,150,255,.8)">DALTON SUMMARY</strong>
+          </div>
+          <div style="font-size:.88rem;line-height:1.7;color:rgba(255,255,255,.7)">${mp.summary}</div>
+          <div style="margin-top:8px;font-size:.75rem;color:rgba(255,255,255,.3)">
+            Source: "Mind Over Markets" by James F. Dalton, Eric T. Jones & Robert B. Dalton (2012 Updated Edition). All rules D1-D75 implemented from cover-to-cover reading.
+          </div>
+        </div>` : ''}
+
+      </div>
+    </div>
+  `;
+
+  // ── Charts ──
+
+  // VA Price Ruler (visual bar showing VA within day's range)
+  const rulerEl = document.getElementById('mpVaRulerContainer');
+  if(rulerEl && va.va_high > 0){
+    const lastClose = d.price || va.poc;
+    const dayHigh = d.bb_score?.methods?.[0]?.details?.high || va.va_high * 1.02;
+    const dayLow = d.bb_score?.methods?.[0]?.details?.low || va.va_low * 0.98;
+    const fullRange = dayHigh - dayLow || 1;
+    const vaLowPct = ((va.va_low - dayLow) / fullRange * 100);
+    const vaHighPct = ((va.va_high - dayLow) / fullRange * 100);
+    const pocPct = ((va.poc - dayLow) / fullRange * 100);
+    const closePct = lastClose ? ((lastClose - dayLow) / fullRange * 100) : null;
+    rulerEl.innerHTML = `
+      <div style="position:absolute;left:15px;right:15px;top:8px;bottom:8px">
+        <!-- Full Range Bar -->
+        <div style="position:absolute;left:0;right:0;top:40%;height:20%;background:rgba(255,255,255,.06);border-radius:8px"></div>
+        <!-- Value Area -->
+        <div style="position:absolute;left:${vaLowPct}%;right:${100-vaHighPct}%;top:25%;height:50%;background:rgba(0,150,255,.2);border:1px solid rgba(0,150,255,.4);border-radius:6px;display:flex;align-items:center;justify-content:center">
+          <span style="font-size:.65rem;color:rgba(0,150,255,.8)">VALUE AREA (70%)</span>
+        </div>
+        <!-- POC Line -->
+        <div style="position:absolute;left:${pocPct}%;top:15%;bottom:15%;width:2px;background:rgba(0,150,255,.9);box-shadow:0 0 6px rgba(0,150,255,.5)"></div>
+        <div style="position:absolute;left:${pocPct}%;top:5%;transform:translateX(-50%);font-size:.6rem;color:rgba(0,150,255,.9);white-space:nowrap">POC ₹${fmt(va.poc,0)}</div>
+        <!-- Low label -->
+        <div style="position:absolute;left:0;bottom:0;font-size:.6rem;color:rgba(255,255,255,.3)">Low</div>
+        <!-- High label -->
+        <div style="position:absolute;right:0;bottom:0;font-size:.6rem;color:rgba(255,255,255,.3)">High</div>
+        <!-- VA Low marker -->
+        <div style="position:absolute;left:${vaLowPct}%;bottom:0;transform:translateX(-50%);font-size:.55rem;color:var(--bull)">VA Low</div>
+        <!-- VA High marker -->
+        <div style="position:absolute;left:${vaHighPct}%;bottom:0;transform:translateX(-50%);font-size:.55rem;color:var(--bear)">VA High</div>
+        ${closePct !== null ? `
+        <!-- Close marker -->
+        <div style="position:absolute;left:${Math.max(0,Math.min(100,closePct))}%;top:10%;bottom:10%;width:3px;background:var(--accent);border-radius:2px;box-shadow:0 0 6px var(--accent)"></div>
+        <div style="position:absolute;left:${Math.max(0,Math.min(100,closePct))}%;top:0;transform:translateX(-50%);font-size:.55rem;color:var(--accent);white-space:nowrap">Close</div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // VA Sequence Bar Chart
+  if(vaSeq.length > 1){
+    _mpChart('mpVaSeqChart', {
+      type: 'bar',
+      data: {
+        labels: vaLabels,
+        datasets: [{
+          data: vaSeq.map(v => vaMap[v] ?? 0),
+          backgroundColor: vaColors,
+          borderRadius: 6,
+          barPercentage: 0.6,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {display: false},
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const val = vaSeq[ctx.dataIndex];
+                const explains = {
+                  'HIGHER':'Value Area moved HIGHER (buyers winning)',
+                  'LOWER':'Value Area moved LOWER (sellers winning)',
+                  'OVERLAPPING':'Value Areas overlap (balance/indecision)',
+                  'INSIDE':'Today\'s VA inside yesterday\'s (contraction)',
+                  'OUTSIDE':'Today\'s VA wider than yesterday\'s (expansion)'
+                };
+                return explains[val] || val;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {grid:{color:'rgba(255,255,255,.05)'}, ticks:{font:{size:10},color:'rgba(255,255,255,.4)'}},
+          y: {
+            grid:{color:'rgba(255,255,255,.05)'},
+            ticks:{
+              callback: v => v===2?'↑ Higher':v===-2?'↓ Lower':v===1?'↔ Overlap':'Inside',
+              font:{size:9},
+              color:'rgba(255,255,255,.4)'
+            },
+            suggestedMin: -3, suggestedMax: 3
+          }
+        }
+      }
+    });
+  }
+}
+
+/* ─── TRIPLE COMPARISON (3-column) ─── */
+function renderTripleCompare(d){
+  const el = document.getElementById('tripleCompareSection');
+  const bb = d.bb_score, ta = d.ta_score, pa = d.pa_score;
+  const bbPct = Math.abs(bb.total), taPct = Math.abs(ta.total), paPct = Math.abs(pa.total);
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="section-title"><i class="bi bi-bar-chart-steps me-2" style="color:var(--accent)"></i>System Comparison — BB vs TA vs PA</span></div>
+      <div class="card-body">
+        <div class="d-flex gap-3 flex-wrap justify-content-center">
+          <div class="system-col system-bb">
+            <div class="text-center mb-2">
+              <div class="mini-label">Bollinger Bands</div>
+              <div class="indicator-val" style="color:#2196f3">${bb.total>0?'+':''}${fmt(bb.total,1)}</div>
+              <div class="mini-label">of ±100</div>
+            </div>
+            <div class="score-bar"><div class="score-fill" style="width:${bbPct}%;background:${barColor(bb.total)}"></div></div>
+            ${(bb.methods||[]).map(m=>`
+              <div class="mt-2 d-flex justify-content-between" style="font-size:.78rem">
+                <span class="text-secondary">${m.method.split('—')[1]||m.method}</span>
+                <span style="color:${scoreColor(m.score)}">${m.score>0?'+':''}${m.score}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="vs-divider">vs</div>
+
+          <div class="system-col system-ta">
+            <div class="text-center mb-2">
+              <div class="mini-label">Technical Analysis</div>
+              <div class="indicator-val" style="color:var(--accent2)">${ta.total>0?'+':''}${fmt(ta.total,1)}</div>
+              <div class="mini-label">of ±100</div>
+            </div>
+            <div class="score-bar"><div class="score-fill" style="width:${taPct}%;background:${barColor(ta.total)}"></div></div>
+            ${Object.entries(ta.categories||{}).map(([k,v])=>`
+              <div class="mt-2 d-flex justify-content-between" style="font-size:.78rem">
+                <span class="text-secondary">${k}</span>
+                <span style="color:${scoreColor(v.score||0)}">${(v.score||0)>0?'+':''}${fmt(v.score||0,1)}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="vs-divider">vs</div>
+
+          <div class="system-col system-pa">
+            <div class="text-center mb-2">
+              <div class="mini-label">Price Action</div>
+              <div class="indicator-val" style="color:var(--accent3)">${pa.total>0?'+':''}${fmt(pa.total,1)}</div>
+              <div class="mini-label">of ±100</div>
+            </div>
+            <div class="score-bar"><div class="score-fill" style="width:${paPct}%;background:${barColor(pa.total)}"></div></div>
+            ${Object.entries(pa.components||{}).map(([k,v])=>`
+              <div class="mt-2 d-flex justify-content-between" style="font-size:.78rem">
+                <span class="text-secondary">${v.label||k}</span>
+                <span style="color:${scoreColor(v.score||0)}">${(v.score||0)>0?'+':''}${fmt(v.score||0,1)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── BB METHODS DETAIL ─── */
+function renderBBMethods(d){
+  const el = document.getElementById('bbMethodsSection');
+  const methods = d.bb_score.methods || [];
+  const cardsHtml = methods.map(m=>{
+    const sc = m.score, mx = m.max;
+    const pct = Math.abs(sc)/mx*100;
+    return `
+      <div class="method-card">
+        <div class="d-flex justify-content-between align-items-center method-title">
+          <span style="color:#2196f3">${m.method}</span>
+          <span style="color:${scoreColor(sc)}">${sc>0?'+':''}${sc} / ${mx}</span>
+        </div>
+        <div class="score-bar mb-2"><div class="score-fill" style="width:${pct}%;background:${barColor(sc)}"></div></div>
+        ${(m.details||[]).map(d=>`<div style="font-size:.8rem;padding:2px 0">${d}</div>`).join('')}
+      </div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="section-title"><i class="bi bi-graph-up-arrow me-2" style="color:#2196f3"></i>Bollinger Band Methods (${fmt(d.bb_score.total,1)} / 100)</span>
+      </div>
+      <div class="card-body">${cardsHtml}</div>
+    </div>`;
+}
+
+/* ─── TA CATEGORIES DETAIL ─── */
+function renderTACategories(d){
+  const el = document.getElementById('taCategoriesSection');
+  const cats = d.ta_score.categories || {};
+  const cardsHtml = Object.entries(cats).map(([name,cat])=>{
+    const sc = cat.score||0, mx = cat.max||1;
+    const pct = Math.abs(sc)/mx*100;
+    return `
+      <div class="method-card">
+        <div class="d-flex justify-content-between align-items-center method-title">
+          <span style="color:var(--accent2)">${name.charAt(0).toUpperCase()+name.slice(1)}</span>
+          <span style="color:${scoreColor(sc)}">${sc>0?'+':''}${fmt(sc,1)} / ${mx}</span>
+        </div>
+        <div class="score-bar mb-2"><div class="score-fill" style="width:${pct}%;background:${barColor(sc)}"></div></div>
+        ${(cat.details||[]).map(d=>`<div style="font-size:.8rem;padding:2px 0">${d}</div>`).join('')}
+      </div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="section-title"><i class="bi bi-bar-chart-line me-2" style="color:var(--accent2)"></i>Technical Analysis Categories (${fmt(d.ta_score.total,1)} / 100)</span>
+      </div>
+      <div class="card-body">${cardsHtml}</div>
+    </div>`;
+}
+
+/* ─── PA COMPONENTS ─── */
+function renderPAComponents(d){
+  const el = document.getElementById('paComponentsSection');
+  const pa = d.pa_score;
+  const comps = pa.components || {};
+  const compHtml = Object.entries(comps).map(([k,v])=>{
+    const sc = v.score||0, mx = v.max||1;
+    const pctW = Math.abs(sc)/mx*100;
+    return `
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span style="font-size:.85rem">${v.label||k}</span>
+        <span style="font-size:.85rem;color:${scoreColor(sc)};min-width:60px;text-align:right">${sc>0?'+':''}${fmt(sc,1)} / ${mx}</span>
+      </div>
+      <div class="pa-comp-bar mb-3"><div class="pa-comp-fill" style="width:${pctW}%;background:${barColor(sc)}"></div></div>`;
+  }).join('');
+  const detailsHtml = (pa.details||[]).map(d=>`<div style="font-size:.82rem;padding:3px 0">${d}</div>`).join('');
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="section-title"><i class="bi bi-candlestick-chart me-2" style="color:var(--accent3)"></i>Price Action Components (${fmt(pa.total,1)} / 100)</span>
+        <span class="badge" style="background:${pa.total>0?'var(--bull)':pa.total<0?'var(--bear)':'#555'}">${pa.signal_type} ${pa.strength}</span>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-7">${compHtml}</div>
+          <div class="col-md-5">${detailsHtml}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── PA DETAILS (trend, bars, entry/exit) ─── */
+function renderPADetails(d){
+  const el = document.getElementById('paDetailsSection');
+  const pa = d.pa_data;
+  if(!pa){el.innerHTML='';return}
+
+  const entryHtml = pa.entry_price ? `
+    <div class="col-auto text-center">
+      <div class="mini-label">Entry</div>
+      <div class="indicator-val bull">${fmt(pa.entry_price,2)}</div>
+    </div>
+    <div class="col-auto text-center">
+      <div class="mini-label">Stop Loss</div>
+      <div class="indicator-val bear">${fmt(pa.stop_loss,2)}</div>
+    </div>
+    <div class="col-auto text-center">
+      <div class="mini-label">Target 1</div>
+      <div class="indicator-val bull">${fmt(pa.target_1,2)}</div>
+    </div>
+    <div class="col-auto text-center">
+      <div class="mini-label">Target 2</div>
+      <div class="indicator-val bull">${fmt(pa.target_2,2)}</div>
+    </div>
+    <div class="col-auto text-center">
+      <div class="mini-label">R:R</div>
+      <div class="indicator-val" style="color:var(--accent)">${fmt(pa.risk_reward,2)}</div>
+    </div>` : '';
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="section-title"><i class="bi bi-signpost-split me-2" style="color:var(--accent3)"></i>Price Action Details</span></div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-auto text-center">
+            <div class="mini-label">Always-In</div>
+            <div class="indicator-val" style="color:${pa.always_in==='LONG'?'var(--bull)':pa.always_in==='SHORT'?'var(--bear)':'var(--neutral)'}">${pa.always_in}</div>
+            <div class="mini-label">Score: ${fmt(pa.always_in_score,0)}</div>
+          </div>
+          <div class="col-auto text-center">
+            <div class="mini-label">Trend Phase</div>
+            <div class="indicator-val">${pa.trend_phase||'—'}</div>
+          </div>
+          <div class="col-auto text-center">
+            <div class="mini-label">Last Bar</div>
+            <div class="indicator-val" style="font-size:1rem">${pa.last_bar_type||'—'}</div>
+            <div class="mini-label">${pa.last_bar_signal?'⚡ SIGNAL BAR':''}</div>
+          </div>
+          <div class="col-auto text-center">
+            <div class="mini-label">Buy Pressure</div>
+            <div class="indicator-val bull">${fmt(pa.buying_pressure,1)}%</div>
+          </div>
+          <div class="col-auto text-center">
+            <div class="mini-label">Sell Pressure</div>
+            <div class="indicator-val bear">${fmt(pa.selling_pressure,1)}%</div>
+          </div>
+        </div>
+        ${entryHtml ? '<div class="row g-3 mb-3">'+entryHtml+'</div>' : ''}
+        ${pa.active_patterns && pa.active_patterns.length ? '<div class="mb-2"><span class="mini-label">Active Patterns:</span> '+pa.active_patterns.map(p=>'<span class="badge bg-secondary me-1">'+p+'</span>').join('')+'</div>' : ''}
+        ${pa.al_brooks_context ? '<div class="obs-card" style="border-left-color:var(--accent3)">'+pa.al_brooks_context+'</div>' : ''}
+        ${(pa.reasons||[]).slice(0,6).map(r=>'<div style="font-size:.82rem;padding:2px 0">'+r+'</div>').join('')}
+      </div>
+    </div>`;
+}
+
+/* ─── TARGET PRICES ─── */
+function renderTargetPrices(d){
+  const el = document.getElementById('targetSection');
+  const tp = d.target_prices;
+  if(!tp||!tp.targets||!tp.targets.length){el.innerHTML='';return}
+  const rows = tp.targets.map(t=>`
+    <tr>
+      <td>${t.label||'—'}</td>
+      <td class="${t.direction==='UP'?'bull':'bear'}">${fmt(t.price,2)}</td>
+      <td>${t.method||'—'}</td>
+      <td>${fmt(t.distance_pct,1)}%</td>
+    </tr>`).join('');
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="section-title"><i class="bi bi-bullseye me-2 bull"></i>Target Prices</span></div>
+      <div class="card-body">
+        <table class="table table-sm table-dark mb-0" style="font-size:.85rem">
+          <thead><tr><th>Target</th><th>Price</th><th>Method</th><th>Distance</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+/* ─── KEY INDICATORS ─── */
+function renderIndicators(d){
+  const el = document.getElementById('indicatorsSection');
+  const bb = d.bb_data, snap = d.snapshot;
+  if(!bb && !snap){el.innerHTML='';return}
+  const rows = [];
+  if(bb && bb.indicators){
+    const bi = bb.indicators;
+    rows.push(['Price', fmt(bi.price,2), '']);
+    rows.push(['BB Upper', fmt(bi.bb_upper,2), bi.price>bi.bb_upper?'<span class="bull">Above ✅</span>':'']);
+    rows.push(['BB Mid (20-SMA)', fmt(bi.bb_mid,2), '']);
+    rows.push(['BB Lower', fmt(bi.bb_lower,2), bi.price<bi.bb_lower?'<span class="bear">Below ⚠️</span>':'']);
+    rows.push(['BBW', fmt(bi.bbw,4), bi.bbw<0.08?'<span class="neutral">⚡ Narrow</span>':'']);
+    rows.push(['%b', fmt(bi.percent_b,3), '']);
+    rows.push(['CMF', fmt(bi.cmf,3), bi.cmf>0?'<span class="bull">+ve</span>':'<span class="bear">−ve</span>']);
+    rows.push(['MFI', fmt(bi.mfi,1), bi.mfi>50?'<span class="bull">&gt;50</span>':'<span class="bear">&lt;50</span>']);
+    rows.push(['SAR', fmt(bi.sar,2), bi.sar_bull?'<span class="bull">Bullish</span>':'<span class="bear">Bearish</span>']);
+  }
+  if(snap){
+    if(snap.rsi_14!=null) rows.push(['RSI(14)', fmt(snap.rsi_14,1), snap.rsi_14>70?'<span class="bear">OB</span>':snap.rsi_14<30?'<span class="bull">OS</span>':'']);
+    if(snap.macd_hist!=null) rows.push(['MACD Hist', fmt(snap.macd_hist,2), snap.macd_hist>0?'<span class="bull">+</span>':'<span class="bear">−</span>']);
+    if(snap.adx!=null) rows.push(['ADX', fmt(snap.adx,1), snap.adx>25?'<span class="bull">Strong trend</span>':'Weak']);
+  }
+  const tableHtml = rows.map(r=>`<tr><td class="text-secondary">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="section-title"><i class="bi bi-speedometer2 me-2" style="color:#2196f3"></i>Key Indicators</span></div>
+      <div class="card-body">
+        <table class="table table-sm table-dark mb-0" style="font-size:.85rem">
+          <thead><tr><th>Indicator</th><th>Value</th><th>Signal</th></tr></thead>
+          <tbody>${tableHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+/* ─── RISK ─── */
+function renderRisk(d){
+  const el = document.getElementById('riskSection');
+  const r = d.risk;
+  if(!r){el.innerHTML='';return}
+
+  const items = [];
+  if(r.position_size) items.push(['Position Size', r.position_size.shares + ' shares @ ₹' + fmt(r.position_size.entry_price,2)]);
+  if(r.stop_loss) items.push(['Stop Loss', '₹' + fmt(r.stop_loss.price,2) + ' (' + r.stop_loss.method + ')']);
+  if(r.max_loss) items.push(['Max Loss', '₹' + fmt(r.max_loss,0)]);
+  if(r.risk_pct) items.push(['Risk %', fmt(r.risk_pct,2) + '%']);
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="section-title"><i class="bi bi-shield-exclamation me-2 bear"></i>Risk Management</span></div>
+      <div class="card-body">
+        <div class="row g-3">
+          ${items.map(([lbl,val])=>`<div class="col-md-3 col-6"><div class="mini-label">${lbl}</div><div style="font-size:1rem;font-weight:600">${val}</div></div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>

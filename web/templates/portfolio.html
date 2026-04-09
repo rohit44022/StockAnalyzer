@@ -7,6 +7,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root {
     --bs-body-bg:#0d1117; --bs-body-color:#c9d1d9;
@@ -87,6 +88,38 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 /* Tabs */
 .nav-pills .nav-link{color:#8b949e;border-radius:8px}
 .nav-pills .nav-link.active{background:rgba(88,166,255,.15);color:var(--b)}
+
+/* Chart containers */
+.chart-container{position:relative;width:100%;max-height:220px}
+.chart-container canvas{max-height:220px}
+
+/* Tooltip for indicators */
+.tip-wrap{position:relative;cursor:help}
+.tip-wrap .tip-text{visibility:hidden;opacity:0;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  background:#1c2333;color:#c9d1d9;border:1px solid var(--card-border);border-radius:8px;padding:8px 12px;
+  font-size:.78rem;line-height:1.5;width:260px;z-index:1100;transition:opacity .2s;box-shadow:0 4px 12px rgba(0,0,0,.4);pointer-events:none}
+.tip-wrap:hover .tip-text{visibility:visible;opacity:1}
+.tip-wrap .tip-text::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  border:6px solid transparent;border-top-color:#1c2333}
+
+/* Visual ruler */
+.price-ruler{position:relative;height:36px;background:linear-gradient(90deg,rgba(248,81,73,.12),rgba(210,153,34,.08),rgba(63,185,80,.12));border-radius:6px;overflow:visible;margin:8px 0}
+.ruler-mark{position:absolute;top:0;bottom:0;width:2px;border-radius:1px}
+.ruler-mark .ruler-label{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:.6rem;white-space:nowrap}
+.ruler-mark .ruler-price{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font-size:.6rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.ruler-current{width:3px;background:var(--b);z-index:5}
+.ruler-current::before{content:'▼';position:absolute;top:-14px;left:50%;transform:translateX(-50%);color:var(--b);font-size:.7rem}
+
+/* Dalton section */
+.dalton-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:12px}
+.dalton-metric{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.dalton-metric:last-child{border-bottom:none}
+.dalton-metric .dm-label{min-width:140px;font-size:.8rem;color:#8b949e}
+.dalton-metric .dm-value{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:.85rem}
+.dalton-metric .dm-explain{font-size:.75rem;color:#8b949e;margin-left:auto;max-width:320px;text-align:right}
+
+/* Health gauge */
+.health-gauge{position:relative;width:140px;height:70px;overflow:hidden;margin:0 auto}
 </style>
 </head>
 <body>
@@ -187,6 +220,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
           <div class="analysis-panel mb-3">
             <div class="text-secondary small text-uppercase mb-1">Recommendation</div>
             <div class="rec-action" id="recAction"></div>
+            <div id="recExplain" class="small mt-2 mb-2" style="line-height:1.6;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,.03)"></div>
             <div class="text-secondary small mt-1">Strength: <span class="font-mono fw-bold" id="recStrength"></span></div>
             <div class="text-secondary small">Strategy: <span class="font-mono" id="recStrategy"></span></div>
             <div class="d-flex flex-wrap gap-2 mt-2" id="recMeta"></div>
@@ -214,9 +248,15 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
               <span>Risk:Reward <span class="font-mono fw-bold text-info" id="rrRatio"></span></span>
               <span>52W High <span class="font-mono fw-bold" id="high52w"></span></span>
             </div>
+            <!-- Visual Ruler: Where is my price right now? -->
+            <div class="mt-3">
+              <div class="small text-secondary mb-1"><i class="bi bi-rulers me-1"></i>Price Position — Where is your stock right now?</div>
+              <div id="targetRuler"></div>
+              <div class="small text-secondary mt-1" id="rulerExplain"></div>
+            </div>
           </div>
 
-          <!-- Holding Info -->
+          <!-- Holding Info with P&L Gauge -->
           <div class="analysis-panel">
             <div class="text-secondary small text-uppercase mb-2">Holding Summary</div>
             <div class="row g-2">
@@ -225,14 +265,20 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
               <div class="col-6"><small class="text-secondary">P&L</small><div class="font-mono fw-bold" id="holdPnl"></div></div>
               <div class="col-6"><small class="text-secondary">Holding Days</small><div class="font-mono fw-bold" id="holdDays"></div></div>
             </div>
+            <!-- P&L Gauge -->
+            <div class="mt-3 text-center">
+              <div class="chart-container" style="max-height:120px;max-width:200px;margin:0 auto"><canvas id="pnlGaugeChart"></canvas></div>
+              <div class="small mt-1" id="holdExplain" style="color:var(--bs-body-color);line-height:1.6"></div>
+            </div>
           </div>
         </div>
 
         <!-- RIGHT: Indicators + Cross-Strategy -->
         <div class="col-lg-7">
-          <!-- Current Indicators -->
+          <!-- Current Indicators (hover any pill for explanation) -->
           <div class="analysis-panel mb-3">
-            <div class="text-secondary small text-uppercase mb-2">Current Technical Indicators (Daily)</div>
+            <div class="text-secondary small text-uppercase mb-1">Current Technical Indicators (Daily)</div>
+            <div class="small mb-2" style="color:#8b949e">Hover over any indicator below to see what it means in plain English.</div>
             <div class="d-flex flex-wrap gap-2" id="indicatorPills"></div>
           </div>
 
@@ -252,6 +298,196 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
           <div class="analysis-panel">
             <div class="text-secondary small text-uppercase mb-2">All Strategies — Current Signals</div>
             <div class="row g-2" id="allStratsRow"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════ MULTI-SYSTEM ANALYSIS (Triple + PA) ═══════ -->
+      <div id="multiSystemSection" style="display:none;" class="mt-3">
+
+        <!-- Master Plain-Language Summary -->
+        <div class="analysis-panel mb-3" style="border-left:3px solid var(--b)">
+          <div class="d-flex align-items-center mb-2">
+            <h6 class="mb-0 text-info"><i class="bi bi-lightbulb me-2"></i>What This Means For You</h6>
+            <span class="badge ms-auto font-mono" id="msConsensus"></span>
+          </div>
+          <div class="d-flex gap-2 mb-2">
+            <span class="ind-pill"><span class="text-secondary">Direction</span><span class="ind-val fw-bold" id="msDirection"></span></span>
+            <span class="ind-pill"><span class="text-secondary">Action</span><span class="ind-val fw-bold" id="msAction"></span></span>
+            <span class="ind-pill"><span class="text-secondary">Avg Confidence</span><span class="ind-val font-mono" id="msConfidence"></span></span>
+            <span class="ind-pill"><span class="text-secondary">Agreement</span><span class="ind-val font-mono" id="msAgreement"></span></span>
+          </div>
+          <div id="msPlainText" class="small" style="line-height:1.7"></div>
+        </div>
+
+        <div class="row g-3">
+          <!-- LEFT: System Verdicts -->
+          <div class="col-lg-5">
+            <!-- All Systems at a Glance -->
+            <div class="analysis-panel mb-3">
+              <div class="text-secondary small text-uppercase mb-2"><i class="bi bi-diagram-3 me-1"></i>Multi-System Verdicts</div>
+              <div id="systemVerdictsRow"></div>
+            </div>
+
+            <!-- Price Action Targets -->
+            <div class="analysis-panel">
+              <div class="text-secondary small text-uppercase mb-2"><i class="bi bi-bullseye me-1"></i>Price Action Levels</div>
+              <table class="table table-sm table-dark mb-0" style="font-size:.85rem">
+                <thead><tr><th>Level</th><th>Price</th></tr></thead>
+                <tbody id="paTargetBody"></tbody>
+              </table>
+              <div class="mt-2 d-flex justify-content-between small text-secondary">
+                <span>PA Risk:Reward <span class="font-mono fw-bold text-info" id="paRR"></span></span>
+                <span>Always-In <span class="font-mono fw-bold" id="paAlwaysIn"></span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Price Action Detail + Triple Score -->
+          <div class="col-lg-7">
+            <!-- Price Action (Al Brooks) -->
+            <div class="analysis-panel mb-3">
+              <div class="text-secondary small text-uppercase mb-2"><i class="bi bi-bar-chart-steps me-1"></i>Price Action Analysis (Al Brooks Method)</div>
+              <div class="d-flex flex-wrap gap-2 mb-2" id="paBadges"></div>
+              <div id="paContext" class="small mb-2" style="line-height:1.6"></div>
+              <div id="paPatterns"></div>
+              <div id="paReasons" class="mt-2"></div>
+            </div>
+
+            <!-- Triple Engine Score Breakdown with Radar Chart -->
+            <div class="analysis-panel">
+              <div class="text-secondary small text-uppercase mb-2"><i class="bi bi-speedometer me-1"></i>Triple Conviction Score Breakdown</div>
+              <div class="row g-3">
+                <div class="col-6">
+                  <div class="chart-container" style="max-height:180px"><canvas id="scoreRadarChart"></canvas></div>
+                </div>
+                <div class="col-6">
+                  <div id="tripleScoreBars"></div>
+                </div>
+              </div>
+              <div class="d-flex flex-wrap gap-2 mt-2" id="tripleMetaBadges"></div>
+              <div class="small mt-2" id="tripleExplain" style="color:var(--bs-body-color);line-height:1.6"></div>
+            </div>
+
+            <!-- Wyckoff/Weis Volume-Phase Analysis — Rich Detail -->
+            <div class="analysis-panel mt-3" id="wyckoffPanel" style="display:none;">
+              <div class="d-flex align-items-center mb-3">
+                <h6 class="mb-0" style="color:orange"><i class="bi bi-moisture me-2"></i>Wyckoff / Weis Volume Analysis</h6>
+                <span class="badge ms-2" style="background:rgba(255,165,0,.15);color:orange;font-size:.65rem">[WEIS]</span>
+                <span class="badge ms-1 font-mono" id="wkBonusBadge" style="font-size:.65rem"></span>
+              </div>
+
+              <!-- Phase Card -->
+              <div class="p-3 rounded mb-3" id="wkPhaseCard" style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02)">
+                <div class="d-flex align-items-center mb-2">
+                  <span class="badge me-2" id="wkPhaseBadge" style="font-size:.9rem;font-weight:700"></span>
+                  <span class="text-secondary small">&mdash; Wyckoff Market Phase</span>
+                </div>
+                <div id="wkPhaseExplain" class="small mb-2" style="line-height:1.7;color:var(--bs-body-color)"></div>
+                <div id="wkPhaseAction" class="small" style="line-height:1.7"></div>
+              </div>
+
+              <!-- Volume Story -->
+              <div class="p-3 rounded mb-3" style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02)">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-soundwave me-2" style="color:orange;font-size:1.1rem"></i>
+                  <strong class="small text-uppercase text-secondary">Volume Story</strong>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mb-2" id="wkVolBadges"></div>
+                <div id="wkVolExplain" class="small" style="line-height:1.7;color:var(--bs-body-color)"></div>
+              </div>
+
+              <!-- Wave Balance & Shortening -->
+              <div class="p-3 rounded mb-3" style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02)">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-tsunami me-2" style="color:orange;font-size:1.1rem"></i>
+                  <strong class="small text-uppercase text-secondary">Weis Wave Analysis</strong>
+                </div>
+                <div id="wkWaveContent" class="small" style="line-height:1.7;color:var(--bs-body-color)"></div>
+              </div>
+
+              <!-- Wyckoff Events -->
+              <div class="mb-3" id="wkEventsSection" style="display:none">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-lightning-charge me-2" style="color:orange;font-size:1.1rem"></i>
+                  <strong class="small text-uppercase text-secondary">Key Wyckoff Events Detected</strong>
+                </div>
+                <div id="wyckoffEvents"></div>
+              </div>
+
+              <!-- Layman Hints -->
+              <div class="p-3 rounded" style="border:1px solid rgba(255,165,0,.15);background:rgba(255,165,0,.04)">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-lightbulb me-2" style="color:orange;font-size:1.1rem"></i>
+                  <strong class="small text-uppercase" style="color:orange">What This Means In Plain English</strong>
+                </div>
+                <div id="wyckoffHints" class="small" style="line-height:1.8"></div>
+              </div>
+            </div>
+
+            <!-- ═══════ DALTON MARKET PROFILE SECTION ═══════ -->
+            <div class="analysis-panel mt-3" id="daltonPanel" style="display:none;">
+              <div class="d-flex align-items-center mb-3">
+                <h6 class="mb-0" style="color:var(--c)"><i class="bi bi-grid-3x3-gap me-2"></i>Dalton Market Profile</h6>
+                <span class="badge ms-2" style="background:rgba(57,210,192,.15);color:var(--c);font-size:.65rem">[DALTON]</span>
+                <span class="badge ms-1 font-mono" id="daltonBonusBadge" style="font-size:.65rem"></span>
+              </div>
+
+              <!-- Value Area Ruler -->
+              <div class="dalton-card mb-3">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-rulers me-2" style="color:var(--c);font-size:1.1rem"></i>
+                  <strong class="small text-uppercase text-secondary">Value Area — The Fair Price Zone</strong>
+                </div>
+                <div id="daltonVARuler"></div>
+                <div id="daltonVAExplain" class="small mt-2" style="line-height:1.6;color:var(--bs-body-color)"></div>
+              </div>
+
+              <!-- Day Type + Open Type -->
+              <div class="dalton-card mb-3">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-calendar-day me-2" style="color:var(--c);font-size:1.1rem"></i>
+                  <strong class="small text-uppercase text-secondary">Day Classification</strong>
+                </div>
+                <div id="daltonDayMetrics"></div>
+              </div>
+
+              <!-- Market Structure + Directional Performance -->
+              <div class="dalton-card mb-3">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-signpost-2 me-2" style="color:var(--c);font-size:1.1rem"></i>
+                  <strong class="small text-uppercase text-secondary">Market Structure & Direction</strong>
+                </div>
+                <div id="daltonStructureMetrics"></div>
+              </div>
+
+              <!-- High-Probability Setups -->
+              <div id="daltonHighProbSection" style="display:none" class="dalton-card mb-3">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-lightning-charge me-2" style="color:var(--c);font-size:1.1rem"></i>
+                  <strong class="small text-uppercase text-secondary">High-Probability Setups</strong>
+                </div>
+                <div id="daltonHighProb"></div>
+              </div>
+
+              <!-- Signals & Observations -->
+              <div class="dalton-card mb-3">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-binoculars me-2" style="color:var(--c);font-size:1.1rem"></i>
+                  <strong class="small text-uppercase text-secondary">Dalton Observations</strong>
+                </div>
+                <div id="daltonObservations"></div>
+              </div>
+
+              <!-- Summary in plain English -->
+              <div class="p-3 rounded" style="border:1px solid rgba(57,210,192,.15);background:rgba(57,210,192,.04)">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-lightbulb me-2" style="color:var(--c);font-size:1.1rem"></i>
+                  <strong class="small text-uppercase" style="color:var(--c)">What Dalton's Market Profile Tells You</strong>
+                </div>
+                <div id="daltonPlainText" class="small" style="line-height:1.8"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -545,6 +781,34 @@ function renderAnalysis(data) {
     document.getElementById('recStrength').textContent = rec.strength;
     document.getElementById('recStrategy').textContent = STRATEGY_NAMES[rec.strategy_code] || rec.strategy_code;
 
+    // Layman explanation for the recommendation
+    const recExpl = document.getElementById('recExplain');
+    if (recExpl) {
+        const explMap = {
+            'SELL': {
+                'STRONG': 'Multiple indicators are telling you to <strong style="color:var(--r)">exit this position</strong>. The selling pressure is significant and your capital may be at risk. Consider acting soon.',
+                'MODERATE': 'There\'s a <strong style="color:var(--r)">sell signal</strong> but it\'s not overwhelming. Some indicators suggest weakness. You could partially sell or tighten your stop loss.',
+                'WEAK': 'A <strong style="color:var(--y)">mild sell signal</strong> is present. The stock is showing some weakness but it\'s not critical yet. Keep monitoring closely.'
+            },
+            'HOLD': {
+                'STRONG': 'The indicators say to <strong style="color:var(--g)">keep holding</strong> with confidence! Your buying strategy is still intact and signals remain supportive.',
+                'MODERATE': '<strong style="color:var(--b)">Continue holding</strong> — the signals are mixed but lean towards staying in the position. Watch for any changes.',
+                'WEAK': '<strong style="color:var(--y)">Hold for now</strong>, but the conviction is low. The stock isn\'t showing strong signals in either direction. Stay alert.'
+            },
+            'ADD': {
+                'STRONG': 'Conditions look favorable to <strong style="color:var(--g)">add more shares</strong>! The same strategy that triggered your initial buy is showing renewed strength.',
+                'MODERATE': 'There\'s an opportunity to <strong style="color:var(--b)">add to your position</strong>, though conviction is moderate. Consider a smaller addition.',
+                'WEAK': 'A mild add signal is present, but <strong style="color:var(--y)">don\'t go big</strong> — the conviction isn\'t strong enough for aggressive adding.'
+            },
+            'BUY': {
+                '_default': 'A <strong style="color:var(--g)">fresh buy signal</strong> is active for this position. The strategy conditions that initially triggered your buy are firing again.'
+            }
+        };
+        const actionMap = explMap[rec.action] || explMap['HOLD'];
+        const txt = actionMap[rec.strength] || actionMap['_default'] || actionMap['MODERATE'] || '';
+        recExpl.innerHTML = txt;
+    }
+
     // Entry Quality + Momentum badges
     const recMeta = document.getElementById('recMeta');
     if (recMeta) {
@@ -609,6 +873,9 @@ function renderAnalysis(data) {
     document.getElementById('rrRatio').textContent = `1:${tgt.risk_reward}`;
     document.getElementById('high52w').textContent = fmtINR2(tgt.high_52w);
 
+    // ═══════ TARGET PRICE VISUAL RULER ═══════
+    renderTargetRuler(tgt, ind.price, hold.buy_price);
+
     // Holding info
     document.getElementById('holdInvested').textContent = fmtINR(hold.invested);
     document.getElementById('holdCurrent').textContent = fmtINR(hold.current_value);
@@ -617,20 +884,31 @@ function renderAnalysis(data) {
     pnlEl.style.color = pnlColor(hold.pnl_amount);
     document.getElementById('holdDays').textContent = `${hold.days} days`;
 
-    // Indicator pills
+    // P&L Gauge Chart
+    renderPnlGauge(hold);
+
+    // Indicator pills WITH LAYMAN TOOLTIPS
     const ip = document.getElementById('indicatorPills');
-    const pills = [
-        ['Price', fmt(ind.price), null],
-        ['%b', fmt(ind.percent_b,4), ind.percent_b>0.8?'var(--g)':ind.percent_b<0.2?'var(--r)':'var(--b)'],
-        ['MFI', fmt(ind.mfi,1), ind.mfi>60?'var(--g)':ind.mfi<40?'var(--r)':'var(--y)'],
-        ['CMF', fmt(ind.cmf,4), ind.cmf>0?'var(--g)':'var(--r)'],
-        ['BBW', fmt(ind.bbw,4), null],
-        ['SAR', fmt(ind.sar) + (ind.sar_bull?' ▲':' ▼'), ind.sar_bull?'var(--g)':'var(--r)'],
-        ['Squeeze', ind.squeeze_on?'ON':'OFF', ind.squeeze_on?'var(--y)':'var(--g)'],
-        ['Volume', Number(ind.volume).toLocaleString('en-IN'), ind.volume>ind.vol_sma50?'var(--g)':'var(--r)'],
+    const pillData = [
+        ['Price', fmt(ind.price), null,
+         'The current market price of your stock. Compare this to your Buy Price to see if you\'re in profit or loss.'],
+        ['%b', fmt(ind.percent_b,4), ind.percent_b>0.8?'var(--g)':ind.percent_b<0.2?'var(--r)':'var(--b)',
+         `%b shows where the price is relative to Bollinger Bands (0=bottom band, 1=top band). Current: ${fmt(ind.percent_b,4)}. ${ind.percent_b>0.8?'Above 0.8 = price is near the TOP of its normal range — strong momentum but could be getting stretched.':ind.percent_b<0.2?'Below 0.2 = price is near the BOTTOM — it\'s oversold, could bounce soon.':'Between 0.2-0.8 = price is in the middle zone — no extreme signal.'}`],
+        ['MFI', fmt(ind.mfi,1), ind.mfi>60?'var(--g)':ind.mfi<40?'var(--r)':'var(--y)',
+         `Money Flow Index = measures buying/selling pressure using BOTH price AND volume (0-100 scale). Current: ${fmt(ind.mfi,1)}. ${ind.mfi>60?'Above 60 = strong buying pressure — money is flowing INTO the stock.':ind.mfi<40?'Below 40 = weak buying pressure — money flowing OUT. Caution.':'Between 40-60 = balanced, no strong pressure either way.'}`],
+        ['CMF', fmt(ind.cmf,4), ind.cmf>0?'var(--g)':'var(--r)',
+         `Chaikin Money Flow = are the big players (institutions) buying or selling? ${ind.cmf>0?'POSITIVE ('+fmt(ind.cmf,4)+') = institutions are buying — money flowing in. Bullish.':'NEGATIVE ('+fmt(ind.cmf,4)+') = institutions are selling — money flowing out. Bearish.'} Think of it as: is "smart money" supporting this stock?`],
+        ['BBW', fmt(ind.bbw,4), null,
+         `Bollinger Band Width measures volatility (how much the price swings). Current: ${fmt(ind.bbw,4)}. A VERY LOW BBW means the stock is in a "squeeze" — like a coiled spring ready to explode in either direction. A HIGH BBW means the stock is already moving a lot.`],
+        ['SAR', fmt(ind.sar) + (ind.sar_bull?' ▲':' ▼'), ind.sar_bull?'var(--g)':'var(--r)',
+         `Parabolic SAR = a trailing stop-loss indicator. ${ind.sar_bull?'▲ BULLISH — the SAR dots are BELOW the price, acting as support. The trend is UP.':'▼ BEARISH — the SAR dots are ABOVE the price, acting as resistance. The trend is DOWN.'} When SAR flips from one side to the other, it\'s a strong signal the trend has changed.`],
+        ['Squeeze', ind.squeeze_on?'ON':'OFF', ind.squeeze_on?'var(--y)':'var(--g)',
+         `Bollinger Band Squeeze = volatility compression. ${ind.squeeze_on?'🟡 SQUEEZE IS ON — the bands are very tight, meaning the stock is "coiling up" like a spring. A big move is coming, but we don\'t know which direction yet. This is when Method I traders get ready.':'🟢 No squeeze — normal volatility. The stock can move freely in either direction.'}`],
+        ['Volume', Number(ind.volume).toLocaleString('en-IN'), ind.volume>ind.vol_sma50?'var(--g)':'var(--r)',
+         `Today\'s trading volume vs 50-day average. ${ind.volume>ind.vol_sma50?'ABOVE average — more people are trading this stock than usual. High volume confirms the current move.':'BELOW average — fewer people trading than usual. Low volume means less conviction behind the price move.'} Volume is like the "fuel" behind a price move.`],
     ];
-    ip.innerHTML = pills.map(([label, val, clr]) =>
-        `<div class="ind-pill"><span class="text-secondary">${label}</span><span class="ind-val" ${clr?`style="color:${clr}"`:''}>​${val}</span></div>`
+    ip.innerHTML = pillData.map(([label, val, clr, tip]) =>
+        `<div class="ind-pill tip-wrap"><span class="text-secondary">${label}</span><span class="ind-val" ${clr?`style="color:${clr}"`:''}>​${val}</span><div class="tip-text">${tip}</div></div>`
     ).join('');
 
     // Buying strategy status
@@ -683,11 +961,858 @@ function renderAnalysis(data) {
             </div>
         </div>
     `).join('');
+
+    // ═══════ MULTI-SYSTEM ANALYSIS RENDER ═══════
+    renderMultiSystem(data.multi_system || {});
+}
+
+function renderMultiSystem(ms) {
+    const section = document.getElementById('multiSystemSection');
+    if (!ms || !ms.master_summary) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+
+    const summary = ms.master_summary;
+    const hybrid = ms.hybrid || {};
+    const triple = ms.triple || {};
+    const pa = ms.price_action || {};
+
+    // Direction colors
+    const dirClr = d => d==='BULLISH'?'var(--g)':d==='BEARISH'?'var(--r)':'var(--y)';
+    const verdictClr = v => {
+        if (!v) return 'var(--y)';
+        if (v.includes('BUY') || v.includes('BULL')) return 'var(--g)';
+        if (v.includes('SELL') || v.includes('BEAR')) return 'var(--r)';
+        return 'var(--y)';
+    };
+
+    // Master Summary
+    const consBadge = document.getElementById('msConsensus');
+    const consCls = summary.consensus==='STRONG'?'var(--g)':summary.consensus==='MODERATE'?'var(--y)':'var(--r)';
+    consBadge.textContent = summary.consensus + ' CONSENSUS';
+    consBadge.style.cssText = `background:${consCls};color:#000;font-weight:700;font-size:.75rem`;
+
+    const dirEl = document.getElementById('msDirection');
+    dirEl.textContent = summary.direction;
+    dirEl.style.color = dirClr(summary.direction);
+
+    const actEl = document.getElementById('msAction');
+    actEl.textContent = summary.action_word;
+    actEl.style.color = dirClr(summary.direction);
+
+    document.getElementById('msConfidence').textContent = summary.avg_confidence + '%';
+    document.getElementById('msAgreement').textContent = summary.agreement;
+
+    // Plain text paragraphs — color each line by bullish/bearish keywords
+    const ptDiv = document.getElementById('msPlainText');
+    ptDiv.innerHTML = summary.plain_text.map(line => {
+        const ll = line.toLowerCase();
+        const bullKw = ['buy','bullish','upward','strong position','looks good','markup','trending up','higher','initiative buying','sweet spot','uptrend','long'];
+        const bearKw = ['sell','bearish','downward','markdown','trending down','lower','initiative selling','distribution','downtrend','short','warning','risk','caution','exit'];
+        const isBull = bullKw.some(w => ll.includes(w));
+        const isBear = bearKw.some(w => ll.includes(w));
+        const borderClr = isBull ? 'var(--g)' : isBear ? 'var(--r)' : 'transparent';
+        const bg = isBull ? 'rgba(63,185,80,.04)' : isBear ? 'rgba(248,81,73,.04)' : 'transparent';
+        return `<p class="mb-1 ps-2" style="color:var(--bs-body-color);border-left:2px solid ${borderClr};background:${bg};border-radius:2px">${line}</p>`;
+    }).join('');
+
+    // System Verdicts Cards
+    const svRow = document.getElementById('systemVerdictsRow');
+    const systems = [
+        { name: 'Triple (BB+TA+PA)', score: triple.score, max: triple.max_score||390,
+          verdict: triple.verdict, conf: triple.confidence, icon: 'bi-layers' },
+        { name: 'Price Action', score: pa.pa_score, max: 100,
+          verdict: pa.signal==='BUY'?'BUY':pa.signal==='SELL'?'SELL':'HOLD',
+          conf: pa.confidence, icon: 'bi-bar-chart-steps' },
+    ];
+    svRow.innerHTML = systems.map(s => {
+        const pct = s.max ? Math.abs(s.score||0)/s.max*100 : 0;
+        const barClr = (s.score||0)>0?'var(--g)':(s.score||0)<0?'var(--r)':'var(--y)';
+        return `
+        <div class="d-flex align-items-center mb-2 p-2 rounded" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border)">
+            <div style="width:40px"><i class="bi ${s.icon}" style="font-size:1.3rem;color:var(--b)"></i></div>
+            <div class="flex-grow-1">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small fw-semibold">${s.name}</span>
+                    <span class="font-mono small fw-bold" style="color:${verdictClr(s.verdict)}">${s.verdict||'N/A'}</span>
+                </div>
+                <div class="progress mt-1" style="height:6px;background:rgba(255,255,255,.06)">
+                    <div class="progress-bar" style="width:${Math.min(pct,100)}%;background:${barClr}"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                    <span class="font-mono" style="font-size:.7rem;color:${barClr}">${s.score>0?'+':''}${fmt(s.score)}/${s.max}</span>
+                    <span class="font-mono" style="font-size:.7rem">Conf: ${s.conf||0}%</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // PA Target table
+    const ptb = document.getElementById('paTargetBody');
+    ptb.innerHTML = '';
+    const paLevels = [
+        ['PA Stop Loss', pa.stop_loss, 'var(--r)'],
+        ['PA Target 1', pa.target_1, 'var(--g)'],
+        ['PA Target 2', pa.target_2, 'var(--b)'],
+    ];
+    paLevels.forEach(([label, price, clr]) => {
+        if (price) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><span style="color:${clr}"><i class="bi bi-dash-lg me-1"></i>${label}</span></td><td class="font-mono fw-bold">${fmtINR2(price)}</td>`;
+            ptb.appendChild(tr);
+        }
+    });
+    document.getElementById('paRR').textContent = pa.risk_reward ? `1:${fmt(pa.risk_reward)}` : 'N/A';
+    const aiEl = document.getElementById('paAlwaysIn');
+    aiEl.textContent = pa.always_in || 'N/A';
+    aiEl.style.color = (pa.always_in==='BULLISH'||pa.always_in==='LONG')?'var(--g)':(pa.always_in==='BEARISH'||pa.always_in==='SHORT')?'var(--r)':'var(--y)';
+
+    // PA Badges
+    const paBadges = document.getElementById('paBadges');
+    const sigClr = pa.signal==='BUY'?'buy':pa.signal==='SELL'?'sell':'hold';
+    const trendBg = pa.trend==='BULL'?'rgba(63,185,80,.15)':pa.trend==='BEAR'?'rgba(248,81,73,.15)':'rgba(255,255,255,.08)';
+    const trendFg = pa.trend==='BULL'?'var(--g)':pa.trend==='BEAR'?'var(--r)':'inherit';
+    const strBg = pa.strength==='STRONG'?'rgba(63,185,80,.15)':pa.strength==='WEAK'?'rgba(248,81,73,.15)':'rgba(210,153,34,.15)';
+    const strFg = pa.strength==='STRONG'?'var(--g)':pa.strength==='WEAK'?'var(--r)':'var(--y)';
+    const aiBg = (pa.always_in==='LONG'||pa.always_in==='BULLISH')?'rgba(63,185,80,.15)':(pa.always_in==='SHORT'||pa.always_in==='BEARISH')?'rgba(248,81,73,.15)':'rgba(255,255,255,.08)';
+    const aiFg = (pa.always_in==='LONG'||pa.always_in==='BULLISH')?'var(--g)':(pa.always_in==='SHORT'||pa.always_in==='BEARISH')?'var(--r)':'inherit';
+    paBadges.innerHTML = `
+        <span class="badge badge-${sigClr}">${pa.signal||'N/A'}</span>
+        <span class="badge" style="background:rgba(188,140,255,.15);color:#bc8cff">${pa.setup||'N/A'}</span>
+        <span class="badge" style="background:${strBg};color:${strFg}">Strength: ${pa.strength||'N/A'}</span>
+        <span class="badge" style="background:rgba(255,255,255,.08)">Bar: ${pa.bar_type||'N/A'}</span>
+        <span class="badge" style="background:${trendBg};color:${trendFg}">Trend: ${pa.trend||'N/A'}</span>
+        <span class="badge" style="background:${aiBg};color:${aiFg}">Always-In: ${pa.always_in||'N/A'}</span>
+    `;
+
+    // PA Context
+    document.getElementById('paContext').innerHTML = pa.context
+        ? `<p class="mb-1 small text-secondary">${pa.context}</p>`
+          + (pa.bar_desc ? `<p class="mb-0 small text-secondary"><strong>Last Bar:</strong> ${pa.bar_desc}</p>` : '')
+        : '<span class="text-secondary small">No price action context available.</span>';
+
+    // PA Patterns
+    const patDiv = document.getElementById('paPatterns');
+    if (pa.patterns && pa.patterns.length) {
+        patDiv.innerHTML = '<span class="small text-secondary me-1">Patterns:</span>' +
+            pa.patterns.map(p => `<span class="badge ms-1" style="background:rgba(188,140,255,.15);color:#bc8cff;font-size:.7rem">${p}</span>`).join('');
+    } else {
+        patDiv.innerHTML = '';
+    }
+
+    // PA Reasons
+    const prDiv = document.getElementById('paReasons');
+    if (pa.reasons && pa.reasons.length) {
+        prDiv.innerHTML = pa.reasons.map(r => {
+            const rl = r.toLowerCase();
+            const isBull = rl.includes('long')||rl.includes('buy')||rl.includes('bull')||rl.includes('breakout')||rl.includes('double bottom');
+            const isBear = rl.includes('short')||rl.includes('sell')||rl.includes('bear')||rl.includes('breakdown')||rl.includes('double top');
+            const clz = isBull?'green':isBear?'red':'blue';
+            const ico = isBull?'arrow-up-circle-fill':isBear?'arrow-down-circle-fill':'arrow-right-short';
+            return `<div class="confirm-item ${clz}"><i class="bi bi-${ico} me-1"></i>${r}</div>`;
+        }).join('');
+    } else {
+        prDiv.innerHTML = '';
+    }
+
+    // Triple Score Breakdown Bars
+    const tsb = document.getElementById('tripleScoreBars');
+    const components = [
+        { label: 'Bollinger Bands', score: triple.bb_score||0, max: 100, color: '#58a6ff' },
+        { label: 'Technical Analysis', score: triple.ta_score||0, max: 100, color: '#3fb950' },
+        { label: 'Price Action', score: triple.pa_score||0, max: 100, color: '#bc8cff' },
+    ];
+    tsb.innerHTML = components.map(c => {
+        const pct = c.max ? Math.abs(c.score)/c.max*100 : 0;
+        const scoreClr = c.score>0?'var(--g)':c.score<0?'var(--r)':'var(--y)';
+        const barClr = c.score>0?c.color:c.score<0?'var(--r)':'var(--y)';
+        const icon = c.score>0?'▲':c.score<0?'▼':'●';
+        return `
+        <div class="mb-2">
+            <div class="d-flex justify-content-between small">
+                <span>${c.label}</span>
+                <span class="font-mono fw-bold" style="color:${scoreClr}">${icon} ${c.score>0?'+':''}${fmt(c.score)}/${c.max}</span>
+            </div>
+            <div class="progress" style="height:8px;background:rgba(255,255,255,.06)">
+                <div class="progress-bar" style="width:${Math.max(Math.min(pct,100),3)}%;background:${barClr}"></div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // Triple meta badges
+    const tmb = document.getElementById('tripleMetaBadges');
+    const totalScore = triple.score || 0;
+    const totalMax = triple.max_score || 360;
+    const tClr = totalScore>0?'var(--g)':totalScore<0?'var(--r)':'var(--y)';
+    const alignClr = (triple.alignment||'').includes('TRIPLE')?'var(--g)':(triple.alignment||'').includes('DUAL')?'var(--y)':'var(--r)';
+    tmb.innerHTML = `
+        <span class="ind-pill"><span class="text-secondary">Total</span><span class="ind-val font-mono fw-bold" style="color:${tClr}">${totalScore>0?'+':''}${fmt(totalScore)}/${totalMax}</span></span>
+        <span class="ind-pill"><span class="text-secondary">Verdict</span><span class="ind-val fw-bold" style="color:${verdictClr(triple.verdict)}">${triple.verdict||'N/A'}</span></span>
+        <span class="ind-pill"><span class="text-secondary">Alignment</span><span class="ind-val fw-bold" style="color:${alignClr}">${(triple.alignment||'N/A').replace(/_/g,' ')}</span></span>
+        <span class="ind-pill"><span class="text-secondary">Confidence</span><span class="ind-val font-mono">${triple.confidence||0}%</span></span>
+    `;
+
+    // Score Radar Chart
+    renderScoreRadar(triple);
+
+    // ═══════ WYCKOFF/WEIS RENDER — RICH DETAIL ═══════
+    const wk = ms.wyckoff;
+    const wkPanel = document.getElementById('wyckoffPanel');
+    if (wk && wk.phase && wk.phase !== 'UNKNOWN') {
+        wkPanel.style.display = 'block';
+
+        // Color maps
+        const phClrMap = {'ACCUMULATION':'var(--g)','MARKUP':'#58a6ff','DISTRIBUTION':'var(--r)','MARKDOWN':'#ff6b6b','RANGING':'var(--y)'};
+        const phClr = phClrMap[wk.phase] || 'var(--y)';
+        const biasClr = wk.bias==='BULLISH'?'var(--g)':wk.bias==='BEARISH'?'var(--r)':'var(--y)';
+
+        // ── Bonus badge ──
+        const bonusBadge = document.getElementById('wkBonusBadge');
+        bonusBadge.style.background = wk.bonus>0?'rgba(63,185,80,.15)':wk.bonus<0?'rgba(248,81,73,.15)':'rgba(255,255,255,.08)';
+        bonusBadge.style.color = wk.bonus>0?'var(--g)':wk.bonus<0?'var(--r)':'var(--y)';
+        bonusBadge.textContent = `Conviction Bonus: ${wk.bonus>0?'+':''}${wk.bonus||0} pts`;
+
+        // ── Phase Card ──
+        document.getElementById('wkPhaseBadge').style.background = phClr;
+        document.getElementById('wkPhaseBadge').style.color = '#000';
+        document.getElementById('wkPhaseBadge').textContent = `${wk.phase} (${wk.sub_phase||''})`;
+
+        // Phase explanations — detailed layman text per phase + sub_phase
+        const phaseExplains = {
+            'ACCUMULATION': {
+                'EARLY': 'After a big decline, the stock has stopped falling and is now moving sideways. This sideways movement is the early stage where smart investors START to quietly buy — but nothing is confirmed yet. Think of it like bargain hunters arriving at a sale early, but the crowd hasn\'t noticed yet.',
+                'MIDDLE': 'The stock is in a clear sideways range after a decline. There are emerging signs that smart money is buying — either a panic selling climax happened (which they bought), or a Spring (shakeout trap) tested the lows. We\'re in the middle of the process; confirmation is building.',
+                'LATE': 'Accumulation is nearly complete! Both a Spring (shakeout) and Sign of Strength have been detected. Smart money has loaded their positions and the stock is about to break upward into a Markup (uptrend) phase. This is a HIGH-PROBABILITY buy zone.',
+                '_default': 'Smart money appears to be quietly buying this stock while most people are still scared. Accumulation phases happen after big drops — they\'re the "quiet before the storm" before a big up-move.'
+            },
+            'MARKUP': {
+                'EARLY': 'The stock is starting to climb — higher highs and higher lows are forming, like a staircase going up. But the move isn\'t fully confirmed by volume yet. Think of a plane gaining speed on the runway — it LOOKS like takeoff, but we need to see it actually lift off (volume expanding on rallies).',
+                'MIDDLE': 'The uptrend is real and developing. Buyers have shown their strength with a Sign of Strength (SOS) bar — a big strong green bar with heavy volume. But volume hasn\'t consistently supported EVERY rally yet. Think of a plane that just left the ground — climbing, but not at cruising altitude yet.',
+                'CONFIRMED': 'This is the SWEET SPOT of an uptrend. Prices are climbing with genuine buying pressure behind them. Volume expands when the stock goes up and shrinks when it dips — exactly what a healthy uptrend looks like. Think of a river flowing strongly in one direction.',
+                'LATE': 'The uptrend has been running for a while and is getting mature — like a marathon runner approaching the finish line. Still moving fast, but there are signs of fatigue. Watch for each rally covering less distance than the previous one (shortening of thrust) or a huge volume bar that closes near the low (Buying Climax).',
+                '_default': 'The stock is in an uptrend — prices are making higher highs and higher lows. This is the "profit phase" where the move from accumulation plays out.'
+            },
+            'DISTRIBUTION': {
+                'EARLY': 'After a big rally, the stock has stopped climbing and is moving sideways. This COULD be just a pause, or it could be the beginning of smart money quietly selling. No clear confirmation yet — watch for an Upthrust (failed breakout) or Buying Climax.',
+                'MIDDLE': 'Warning signs are mounting. The stock is in a sideways range after a big advance, and either an Upthrust (breakout trap) or Buying Climax has been detected. Smart money appears to be offloading positions. Think of it like party hosts quietly leaving while guests are still celebrating.',
+                'LATE': 'Distribution is nearly complete! Both an Upthrust and Sign of Weakness have appeared. Smart money has sold most of their holdings. A breakdown into Markdown (downtrend) is likely imminent. This is a HIGH-PROBABILITY sell/exit zone.',
+                '_default': 'Smart money appears to be quietly selling this stock while most people are still excited. Distribution happens after big rallies — it\'s the "party ending" before a potential decline.'
+            },
+            'MARKDOWN': {
+                'EARLY': 'The stock is starting to decline — lower highs and lower lows are forming. But the downtrend isn\'t fully confirmed yet. It could be a temporary pullback.',
+                'MIDDLE': 'The downtrend is real. A Sign of Weakness (SOW) bar confirms sellers are in control. Avoid buying at this stage.',
+                'CONFIRMED': 'The stock is in a confirmed downtrend. Volume expands on declines and contracts on bounces. Any bounce on low volume is NOT a buying opportunity — it\'s smart money selling the last of their shares.',
+                'LATE': 'The downtrend has been running for a while. Watch for signs of exhaustion: panic selling with extreme volume (Selling Climax), or shorter drops each time. The bottom may be forming.',
+                '_default': 'The stock is declining. Supply is overwhelming demand and smart money is no longer supporting the price.'
+            },
+            'RANGING': {
+                '_default': 'The stock is moving sideways without a clear direction. The market is undecided. Watch for Wyckoff events (Springs, Upthrusts) to reveal which side will win.'
+            }
+        };
+        const phGroup = phaseExplains[wk.phase] || phaseExplains['RANGING'];
+        const expText = phGroup[wk.sub_phase] || phGroup['_default'] || '';
+        document.getElementById('wkPhaseExplain').textContent = expText;
+
+        // Phase-specific action advice
+        const phaseActions = {
+            'ACCUMULATION': `<span style="color:var(--g)"><i class="bi bi-check-circle me-1"></i><strong>Action:</strong> This is a potential buying zone. Look for Springs (shakeout traps) and tests on low volume as entry signals. The lower the risk, the higher the reward from this phase.</span>`,
+            'MARKUP': {
+                'EARLY': `<span style="color:#58a6ff"><i class="bi bi-eye me-1"></i><strong>Action:</strong> Watch closely. If the next rally comes on increasing volume, the markup is likely real — consider buying. If volume stays flat, be cautious — this could be a false start.</span>`,
+                'MIDDLE': `<span style="color:#58a6ff"><i class="bi bi-hand-thumbs-up me-1"></i><strong>Action:</strong> Hold existing positions. Look for volume to pick up on the NEXT rally to confirm the move is strengthening.</span>`,
+                'CONFIRMED': `<span style="color:var(--g)"><i class="bi bi-trophy me-1"></i><strong>Action:</strong> HOLD with confidence! Small dips on low volume (LPS = Last Point of Support) are buying opportunities, not reasons to panic. If a dip happens on HIGH volume, that's a warning.</span>`,
+                'LATE': `<span style="color:var(--y)"><i class="bi bi-exclamation-triangle me-1"></i><strong>Action:</strong> DO NOT add new buys. Tighten stops on existing positions. The uptrend is mature — protect your profits. Watch for transition into Distribution (sideways range).</span>`,
+            },
+            'DISTRIBUTION': `<span style="color:var(--r)"><i class="bi bi-shield-exclamation me-1"></i><strong>Action:</strong> Be on high alert. Consider taking profits or tightening stops. Any breakout above resistance without volume is likely a TRAP (Upthrust).</span>`,
+            'MARKDOWN': `<span style="color:var(--r)"><i class="bi bi-x-circle me-1"></i><strong>Action:</strong> Avoid buying. If you're holding, consider exiting on bounces. Rally attempts on low volume are selling opportunities, not buying opportunities.</span>`,
+            'RANGING': `<span style="color:var(--y)"><i class="bi bi-hourglass-split me-1"></i><strong>Action:</strong> Wait for a clear signal. Watch for Springs (bullish) or Upthrusts (bearish) to tell you which way this resolves.</span>`,
+        };
+        let actionHtml = phaseActions[wk.phase] || '';
+        if (typeof actionHtml === 'object') actionHtml = actionHtml[wk.sub_phase] || Object.values(actionHtml)[0] || '';
+        document.getElementById('wkPhaseAction').innerHTML = actionHtml;
+
+        // ── Volume Story ──
+        const volClrMap = {'CLIMAX':'var(--r)','SPIKE':'orange','ABOVE_AVG':'var(--g)','NORMAL':'var(--y)','DRYUP':'#888'};
+        const volClr = volClrMap[wk.volume?.status||''] || 'var(--y)';
+        const trendIcon = {'INCREASING':'bi-graph-up-arrow','DECREASING':'bi-graph-down-arrow','FLAT':'bi-dash-lg'}[wk.volume?.trend||''] || 'bi-dash-lg';
+
+        document.getElementById('wkVolBadges').innerHTML = `
+            <span class="badge" style="background:${volClr};color:#000;font-weight:700"><i class="bi bi-soundwave me-1"></i>${wk.volume?.status||'N/A'} Volume (${wk.volume?.ratio||0}×)</span>
+            <span class="badge" style="background:rgba(255,255,255,.08)"><i class="bi ${trendIcon} me-1"></i>Trend: ${wk.volume?.trend||'N/A'}</span>
+            <span class="badge" style="background:rgba(255,255,255,.08)">Bias: <span style="color:${biasClr};font-weight:600">${wk.bias||'N/A'}</span></span>
+            <span class="badge" style="background:rgba(255,255,255,.08)">Phase Confidence: ${wk.confidence||0}%</span>
+        `;
+
+        const volExplains = {
+            'CLIMAX': `<strong style="color:var(--r)">⚡ Climax Volume Detected (${wk.volume?.ratio||0}× average)!</strong><br>This is extreme — volume is at levels that usually mark TURNING POINTS. When you see climax volume, it means one side (buyers or sellers) is going "all in." The close position of the bar tells you who won: close near the high = buyers won; close near the low = sellers won. After a climax, the market often reverses or consolidates.`,
+            'SPIKE': `<strong style="color:orange">📊 Volume Spike (${wk.volume?.ratio||0}× average)</strong><br>Significantly above average. Big players are active. This level of volume usually means institutional investors are making moves. Watch the price action carefully — the direction of this bar matters a lot.`,
+            'ABOVE_AVG': `<strong style="color:var(--g)">✅ Above Average Volume (${wk.volume?.ratio||0}× average)</strong><br>Healthy activity level. This is the "Goldilocks zone" — enough volume to trust the price movement, but not so much that it signals panic or euphoria. Good confirmation of whatever the price is doing.`,
+            'NORMAL': `<strong style="color:var(--y)">📉 Normal Volume (${wk.volume?.ratio||0}× average)</strong><br>Nothing special happening on the volume front. The stock is trading at its usual activity level. No strong conviction from either buyers or sellers right now.`,
+            'DRYUP': `<strong style="color:#888">🏜️ Volume Dry-Up (${wk.volume?.ratio||0}× average)</strong><br>Very quiet trading. Almost nobody is buying or selling. Like the calm before a storm — when volume dries up this much, it often precedes a BIG move. The $64,000 question is: which direction? Combined with Bollinger Band squeeze, this becomes a very powerful timing signal.`,
+        };
+        document.getElementById('wkVolExplain').innerHTML = volExplains[wk.volume?.status||''] || wk.volume?.description || '';
+
+        // ── Wave Balance & Shortening ──
+        const wb = wk.wave_balance || {};
+        const sh = wk.shortening || {};
+        let waveHtml = '';
+
+        // Wave balance
+        if (wb.balance) {
+            const wbClr = wb.balance.includes('DEMAND')?'var(--g)':wb.balance.includes('SUPPLY')?'var(--r)':'var(--y)';
+            const upVol = wb.up_volume ? (wb.up_volume/1000).toFixed(0)+'K' : '?';
+            const dnVol = wb.down_volume ? (wb.down_volume/1000).toFixed(0)+'K' : '?';
+            const wbRatio = wb.ratio ? wb.ratio.toFixed(1) : '?';
+
+            const wbExplains = {
+                'DEMAND_DOMINANT': `Buyers are clearly winning the war. Up-wave cumulative volume (${upVol}) is <strong>${wbRatio}× greater</strong> than down-wave volume (${dnVol}). This means when the stock goes up, it does so with MUCH more participation than when it goes down. Think of a tug-of-war where one side has way more people pulling. <strong style="color:var(--g)">Bullish.</strong>`,
+                'SLIGHT_DEMAND': `Buyers have a slight edge. Up-wave volume outpaces down-wave volume, but not overwhelmingly. The tug-of-war is leaning bullish but could shift.`,
+                'SUPPLY_DOMINANT': `Sellers are clearly winning. Down-wave cumulative volume (${dnVol}) is <strong>${wbRatio}× greater</strong> than up-wave volume (${upVol}). When the stock drops, there's serious participation. <strong style="color:var(--r)">Bearish.</strong>`,
+                'SLIGHT_SUPPLY': `Sellers have a slight edge. Down-wave volume outpaces up-wave volume, but not overwhelmingly. The situation leans bearish but could shift.`,
+                'BALANCED': `Buyers and sellers are evenly matched. Neither side has a clear advantage. The tug-of-war is dead even — watch for a catalyst to break the stalemate.`,
+            };
+            waveHtml += `<div class="mb-3"><strong style="color:${wbClr}"><i class="bi bi-tsunami me-1"></i>Wave Balance: ${wb.balance.replace(/_/g,' ')}</strong><br>${wbExplains[wb.balance] || wb.description || ''}</div>`;
+
+            // Visual bar
+            const upPct = wb.up_volume && wb.down_volume ? Math.round(wb.up_volume/(wb.up_volume+wb.down_volume)*100) : 50;
+            waveHtml += `<div class="d-flex align-items-center gap-2 mb-3">
+                <span class="small" style="color:var(--g);min-width:60px">Buyers ${upPct}%</span>
+                <div style="flex:1;height:10px;border-radius:5px;overflow:hidden;display:flex;">
+                    <div style="width:${upPct}%;background:var(--g)"></div>
+                    <div style="width:${100-upPct}%;background:var(--r)"></div>
+                </div>
+                <span class="small" style="color:var(--r);min-width:60px;text-align:right">Sellers ${100-upPct}%</span>
+            </div>`;
+        }
+
+        // Shortening of thrust
+        if (sh.detected) {
+            const shClr = sh.direction === 'UP_EXHAUSTION' ? 'var(--r)' : 'var(--g)';
+            const shIcon = sh.direction === 'UP_EXHAUSTION' ? 'bi-battery-half' : 'bi-battery-charging';
+            const shExplains = {
+                'UP_EXHAUSTION': `<strong style="color:var(--r)"><i class="bi ${shIcon} me-1"></i>⚠️ Shortening of Upward Thrust!</strong><br>The last ${sh.waves_analyzed||3} upward pushes are each covering LESS distance than the one before. Imagine a bouncing ball — each bounce is shorter. The rally is losing momentum (thrust ratio: ${((sh.thrust_ratio||0)*100).toFixed(0)}% of first wave). ${sh.volume_increasing ? '<strong>Danger:</strong> Volume is INCREASING while thrust shortens — buyers are spending more ammunition but getting nowhere. This is a strong exhaustion signal.' : 'Volume is not increasing, which makes this a moderate warning.'} Severity: <strong>${sh.severity}</strong>.`,
+                'DOWN_EXHAUSTION': `<strong style="color:var(--g)"><i class="bi ${shIcon} me-1"></i>📈 Shortening of Downward Thrust!</strong><br>The last ${sh.waves_analyzed||3} downward pushes are each covering LESS distance. Sellers are running out of ammunition (thrust ratio: ${((sh.thrust_ratio||0)*100).toFixed(0)}% of first wave). Each drop is smaller than the last — like a ball that keeps bouncing but can't go as far down. ${sh.volume_increasing ? 'Volume is increasing but the price drops are getting smaller — sellers are putting in MORE effort for LESS result.' : ''} The decline may be ending. Severity: <strong>${sh.severity}</strong>.`,
+            };
+            waveHtml += shExplains[sh.direction] || `<strong>Shortening detected:</strong> ${sh.description}`;
+        } else {
+            waveHtml += `<span class="text-secondary"><i class="bi bi-check-circle me-1"></i>No shortening of thrust detected — the current wave pattern is healthy.</span>`;
+        }
+
+        document.getElementById('wkWaveContent').innerHTML = waveHtml;
+
+        // ── Events ──
+        const evSection = document.getElementById('wkEventsSection');
+        const evDiv = document.getElementById('wyckoffEvents');
+        const events = wk.events || [];
+        if (events.length) {
+            evSection.style.display = 'block';
+            evDiv.innerHTML = events.map(e => {
+                const eClr = e.bullish ? 'var(--g)' : 'var(--r)';
+                const eBg = e.bullish ? 'rgba(63,185,80,.06)' : 'rgba(248,81,73,.06)';
+                const eventNames = {
+                    'SC': '🔻 Selling Climax', 'BC': '🔺 Buying Climax',
+                    'SPRING': '🟢 Spring (Shakeout)', 'UPTHRUST': '🔴 Upthrust (Trap)',
+                    'SOS': '💪 Sign of Strength', 'SOW': '💀 Sign of Weakness',
+                    'TEST': '🔍 Successful Test'
+                };
+                return `<div class="p-2 rounded mb-2" style="border-left:3px solid ${eClr};background:${eBg}">
+                    <div class="d-flex align-items-center mb-1">
+                        <strong style="color:${eClr};font-size:.9rem">${eventNames[e.type]||e.type}</strong>
+                        <span class="badge ms-2" style="background:rgba(255,255,255,.08);font-size:.7rem">${e.confidence}% confidence</span>
+                        <span class="badge ms-1" style="background:rgba(255,255,255,.08);font-size:.7rem">@ ₹${fmt(e.price)}</span>
+                        <span class="badge ms-1" style="background:rgba(255,255,255,.08);font-size:.7rem">Vol: ${fmt(e.volume_ratio,1)}×</span>
+                    </div>
+                    <div class="small" style="color:var(--bs-body-color);line-height:1.6">${e.description}</div>
+                </div>`;
+            }).join('');
+        } else {
+            evSection.style.display = 'block';
+            evDiv.innerHTML = '<div class="text-secondary small p-2"><i class="bi bi-info-circle me-1"></i>No significant Wyckoff events (Springs, Upthrusts, Climaxes) detected in recent price bars. This is normal — these are rare, high-value signals that only appear at key turning points.</div>';
+        }
+
+        // ── Layman Hints ──
+        const hDiv = document.getElementById('wyckoffHints');
+        const hints = wk.hints || [];
+        if (hints.length) {
+            hDiv.innerHTML = hints.map((h, i) =>
+                `<div class="mb-2 ${i===0?'':'pt-2'}" ${i>0?'style="border-top:1px solid rgba(255,165,0,.1)"':''}><i class="bi bi-lightbulb-fill me-1" style="color:orange"></i><span>${h}</span></div>`
+            ).join('');
+        } else {
+            hDiv.innerHTML = '<span class="text-secondary">No additional insights available.</span>';
+        }
+    } else {
+        wkPanel.style.display = 'none';
+    }
+
+    // ═══════ DALTON MARKET PROFILE RENDER ═══════
+    renderDaltonProfile(ms);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CHART INSTANCES (destroy before recreate)
+// ═══════════════════════════════════════════════════════════════
+let pnlGaugeInstance = null;
+let radarInstance = null;
+
+// ═══════════════════════════════════════════════════════════════
+//  TARGET PRICE VISUAL RULER
+// ═══════════════════════════════════════════════════════════════
+function renderTargetRuler(tgt, currentPrice, buyPrice) {
+    const container = document.getElementById('targetRuler');
+    if (!container || !tgt) return;
+
+    const levels = [
+        { label:'Stop', price:tgt.stop_loss, color:'var(--r)' },
+        { label:'BB Low', price:tgt.bb_lower, color:'var(--r)' },
+        { label:'Buy', price:buyPrice, color:'var(--y)' },
+        { label:'BB Mid', price:tgt.bb_mid, color:'var(--y)' },
+        { label:'BB Up', price:tgt.bb_upper, color:'var(--g)' },
+        { label:'+1σ', price:tgt.target_1_sigma, color:'var(--b)' },
+        { label:'+3σ', price:tgt.target_3_sigma, color:'var(--p)' },
+        { label:'52W H', price:tgt.high_52w, color:'var(--o)' },
+    ].filter(l => l.price != null && l.price > 0);
+
+    if (!levels.length) { container.innerHTML = ''; return; }
+
+    const allPrices = [...levels.map(l=>l.price), currentPrice].filter(p=>p>0);
+    const minP = Math.min(...allPrices) * 0.98;
+    const maxP = Math.max(...allPrices) * 1.02;
+    const range = maxP - minP || 1;
+    const pct = p => ((p - minP) / range * 100).toFixed(1);
+
+    let html = '<div class="price-ruler">';
+    levels.forEach(l => {
+        const left = pct(l.price);
+        html += `<div class="ruler-mark" style="left:${left}%;background:${l.color}"><div class="ruler-label" style="color:${l.color}">${l.label}</div><div class="ruler-price" style="color:${l.color}">₹${fmt(l.price,0)}</div></div>`;
+    });
+    // Current price marker
+    const curLeft = pct(currentPrice);
+    html += `<div class="ruler-mark ruler-current" style="left:${curLeft}%"><div class="ruler-price" style="color:var(--b);font-weight:700">₹${fmt(currentPrice,0)} NOW</div></div>`;
+    html += '</div>';
+    container.innerHTML = html;
+
+    // Explain
+    const explEl = document.getElementById('rulerExplain');
+    if (explEl) {
+        if (currentPrice > tgt.bb_upper) explEl.innerHTML = '🟢 Your stock is <strong>above the upper Bollinger Band</strong> — it\'s in strong upward momentum. Watch for pullbacks.';
+        else if (currentPrice > tgt.bb_mid) explEl.innerHTML = '📈 Your stock is <strong>above the middle band</strong> — it\'s in the upper half of its normal range. Trending positively.';
+        else if (currentPrice > tgt.bb_lower) explEl.innerHTML = '📊 Your stock is <strong>between the lower and middle bands</strong> — it\'s in the lower half of its range. Could be a buying opportunity or a warning sign depending on other indicators.';
+        else explEl.innerHTML = '🔴 Your stock is <strong>below the lower band</strong> — it\'s oversold. This could bounce back or continue falling. Check other signals.';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  P&L GAUGE (Doughnut Chart)
+// ═══════════════════════════════════════════════════════════════
+function renderPnlGauge(hold) {
+    const canvas = document.getElementById('pnlGaugeChart');
+    if (!canvas) return;
+    if (pnlGaugeInstance) { pnlGaugeInstance.destroy(); pnlGaugeInstance = null; }
+
+    const pnlPct = hold.pnl_pct || 0;
+    const absP = Math.min(Math.abs(pnlPct), 50); // cap at 50% for gauge
+    const clr = pnlPct >= 0 ? '#3fb950' : '#f85149';
+    const remaining = 50 - absP;
+
+    pnlGaugeInstance = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: [absP, remaining],
+                backgroundColor: [clr, 'rgba(255,255,255,.06)'],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            circumference: 180,
+            rotation: -90,
+            cutout: '75%',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false },
+            }
+        },
+        plugins: [{
+            id: 'pnlCenter',
+            afterDraw(chart) {
+                const { ctx, chartArea: { left, right, top, bottom } } = chart;
+                const cx = (left + right) / 2;
+                const cy = bottom - 5;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 16px JetBrains Mono, monospace';
+                ctx.fillStyle = clr;
+                ctx.fillText(`${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%`, cx, cy);
+                ctx.restore();
+            }
+        }]
+    });
+
+    // Layman explanation
+    const el = document.getElementById('holdExplain');
+    if (el) {
+        const days = hold.days || 0;
+        const dailyReturn = days > 0 ? (pnlPct / days).toFixed(3) : '0';
+        const annualized = days > 0 ? ((pnlPct / days) * 365).toFixed(1) : '0';
+        if (pnlPct > 10) el.innerHTML = `<strong style="color:var(--g)">Excellent!</strong> Your investment is up ${fmt(pnlPct)}% in ${days} days (≈${annualized}% annualized). This is outperforming most investments.`;
+        else if (pnlPct > 0) el.innerHTML = `<strong style="color:var(--g)">In Profit.</strong> You're up ${fmt(pnlPct)}% in ${days} days (≈${dailyReturn}% per day). ${pnlPct < 3 ? 'Small gains — hold and let the trade play out.' : 'Healthy gains — watch for target prices to book profits.'}`;
+        else if (pnlPct > -5) el.innerHTML = `<strong style="color:var(--y)">Slight Loss.</strong> Down ${fmt(Math.abs(pnlPct))}% in ${days} days. This is normal market fluctuation. ${days < 10 ? 'Give the trade more time.' : 'Check if your buying strategy still supports holding.'}`;
+        else if (pnlPct > -10) el.innerHTML = `<strong style="color:var(--r)">Warning.</strong> Your position is down ${fmt(Math.abs(pnlPct))}%. Review the recommendation above — if multiple systems say SELL, consider cutting losses to protect capital.`;
+        else el.innerHTML = `<strong style="color:var(--r)">Significant Loss (${fmt(Math.abs(pnlPct))}%).</strong> This is a large drawdown. Strongly review the SELL signals. Consider whether your stop loss should have already been triggered. Capital preservation is key.`;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SCORE RADAR CHART (BB vs TA vs PA)
+// ═══════════════════════════════════════════════════════════════
+function renderScoreRadar(triple) {
+    const canvas = document.getElementById('scoreRadarChart');
+    if (!canvas || !triple) return;
+    if (radarInstance) { radarInstance.destroy(); radarInstance = null; }
+
+    const bb = Math.max(0, triple.bb_score || 0);
+    const ta = Math.max(0, triple.ta_score || 0);
+    const pa = Math.max(0, triple.pa_score || 0);
+
+    radarInstance = new Chart(canvas, {
+        type: 'radar',
+        data: {
+            labels: ['Bollinger Bands', 'Technical Analysis', 'Price Action'],
+            datasets: [{
+                label: 'Score',
+                data: [bb, ta, pa],
+                backgroundColor: 'rgba(88,166,255,.15)',
+                borderColor: '#58a6ff',
+                borderWidth: 2,
+                pointBackgroundColor: ['#58a6ff', '#3fb950', '#bc8cff'],
+                pointBorderColor: '#fff',
+                pointBorderWidth: 1,
+                pointRadius: 5,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: { stepSize: 25, display: false },
+                    grid: { color: 'rgba(255,255,255,.08)' },
+                    angleLines: { color: 'rgba(255,255,255,.08)' },
+                    pointLabels: { color: '#8b949e', font: { size: 10 } }
+                }
+            }
+        }
+    });
+
+    // Layman explanation for triple score
+    const el = document.getElementById('tripleExplain');
+    if (el) {
+        const total = triple.score || 0;
+        const max = triple.max_score || 390;
+        const pct = max ? Math.abs(total)/max*100 : 0;
+        const bbS = triple.bb_score||0, taS = triple.ta_score||0, paS = triple.pa_score||0;
+        let txt = '';
+        if (total > 0 && pct >= 50) txt = `<strong style="color:var(--g)">Strong Bullish.</strong> The radar chart shows all three analysis systems leaning positive. BB=${fmt(bbS,0)}, TA=${fmt(taS,0)}, PA=${fmt(paS,0)} out of 100 each. When all three systems agree, the signal is highly reliable.`;
+        else if (total > 0) txt = `<strong style="color:var(--g)">Mildly Bullish.</strong> The combined score is positive but not overwhelming (${total}/${max}). Some systems are more convinced than others — look at the radar shape. A lopsided shape means disagreement.`;
+        else if (total < 0 && pct >= 50) txt = `<strong style="color:var(--r)">Strong Bearish.</strong> All systems are leaning negative. This is a warning sign. The more negative the score, the stronger the selling pressure detected by our analysis.`;
+        else if (total < 0) txt = `<strong style="color:var(--y)">Mildly Bearish.</strong> The combined score is slightly negative (${total}/${max}). Not an emergency, but watch for deterioration.`;
+        else txt = `<strong style="color:var(--y)">Neutral.</strong> The three systems are balanced — no clear direction. The radar shows roughly even readings. When this happens, it's best to hold and wait for a clearer signal.`;
+        el.innerHTML = txt;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DALTON MARKET PROFILE RENDERING
+// ═══════════════════════════════════════════════════════════════
+function renderDaltonProfile(ms) {
+    const d = ms.dalton;
+    const panel = document.getElementById('daltonPanel');
+    if (!d || !panel) { if(panel) panel.style.display='none'; return; }
+    panel.style.display = 'block';
+
+    // Bonus badge
+    const bonus = d.scoring?.cv_bonus || 0;
+    const bb = document.getElementById('daltonBonusBadge');
+    bb.style.background = bonus>0?'rgba(63,185,80,.15)':bonus<0?'rgba(248,81,73,.15)':'rgba(255,255,255,.08)';
+    bb.style.color = bonus>0?'var(--g)':bonus<0?'var(--r)':'var(--y)';
+    bb.textContent = `CV Bonus: ${bonus>0?'+':''}${bonus} pts`;
+
+    // ── Value Area Ruler ──
+    const vaR = document.getElementById('daltonVARuler');
+    const va = d.value_area || {};
+    const currentPrice = ms.price_action?.pa_score != null ? null : null; // We'll get it from indicators
+    const vaHtml = `
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small text-secondary">VA Low</span>
+            <span class="font-mono fw-bold" style="color:var(--r)">₹${fmt(va.va_low)}</span>
+            <span class="small text-secondary mx-2">← Fair Value Zone →</span>
+            <span class="font-mono fw-bold" style="color:var(--g)">₹${fmt(va.va_high)}</span>
+            <span class="small text-secondary">VA High</span>
+        </div>
+        <div style="height:14px;border-radius:7px;background:linear-gradient(90deg,rgba(248,81,73,.15),rgba(57,210,192,.2),rgba(63,185,80,.15));position:relative;overflow:visible">
+            <div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:3px;background:var(--c);border-radius:2px;transform:translateX(-50%)" title="POC (Fair Price)"></div>
+        </div>
+        <div class="text-center mt-1 small"><span style="color:var(--c)">POC (Fair Price): <strong class="font-mono">₹${fmt(va.poc)}</strong></span></div>
+    `;
+    vaR.innerHTML = vaHtml;
+
+    const vaExpl = document.getElementById('daltonVAExplain');
+    vaExpl.innerHTML = `<strong>Value Area</strong> is the price range where 70% of trading happened — it's where the market agrees the stock is "fairly priced." If the stock trades <strong>above VA High (₹${fmt(va.va_high)})</strong>, buyers are aggressive. <strong>Below VA Low (₹${fmt(va.va_low)})</strong>, sellers are in control. The <strong style="color:var(--c)">POC (₹${fmt(va.poc)})</strong> is the single "fairest" price — the price with the most trading activity.`;
+
+    // ── Day Classification ──
+    const dayMetrics = document.getElementById('daltonDayMetrics');
+    const dt = d.day_type || {};
+    const ot = d.open_type || 'UNKNOWN';
+    const ovp = d.open_vs_prev || {};
+    const oi = d.overnight_inventory || 'NEUTRAL';
+    const ps = d.profile_shape || 'NORMAL';
+    const rf = d.rotation_factor || 0;
+
+    const dayTypeExplains = {
+        'NONTREND': 'Very quiet day — the price barely moved. Like a sleeping market. Usually happens before a big move.',
+        'NEUTRAL': 'Balanced day — buyers and sellers equally matched. No one is winning the tug of war.',
+        'NEUTRAL_EXTREME': 'Started balanced but ended with a strong push in one direction — ⚡ 92% probability of follow-through tomorrow!',
+        'NORMAL': 'A typical trading day — some movement but nothing extreme. The market is acting normally.',
+        'NORMAL_VARIATION': 'Slightly expanded range — more movement than typical. One side has a slight edge.',
+        'TREND': 'Strong directional day — one side completely dominated. The price moved strongly in one direction with expanding value.',
+        'DOUBLE_DIST': 'Two separate value areas formed — the market broke out of one range and found a new one. Very significant!'
+    };
+    const openTypeExplains = {
+        'OPEN_DRIVE': '🚀 Opened and immediately moved strongly in one direction — very strong conviction from the start.',
+        'OPEN_TEST_DRIVE': '🔍 Opened, tested one direction, then drove the other way — smart money tested the waters first.',
+        'OPEN_REJECTION_REVERSE': '↩️ Opened in one direction but was rejected and reversed — a sign the initial move was wrong.',
+        'OPEN_AUCTION': '⚖️ Opened with back-and-forth trading — market exploring for fair value. Most common type.'
+    };
+    const profileExplains = {
+        'P_SHAPE': '📊 P-Shape (Buying Tail) — aggressive buying at lower prices pushed the value area up. Bullish tone.',
+        'B_SHAPE': '📊 B-Shape (Selling Tail) — aggressive selling at higher prices pushed value area down. Bearish tone.',
+        'ELONGATED': '📊 Elongated — thin, stretched profile. Strong trend day with no pause. One side dominated completely.',
+        'NORMAL': '📊 Normal bell curve — balanced distribution. No extreme behavior.'
+    };
+    const oiExplains = {
+        'LONG': 'Positions came into today leaning LONG (bullish). If the open confirms, expect upside. If it reverses, overnight longs may bail.',
+        'SHORT': 'Positions came into today leaning SHORT (bearish). If it opens down, shorts profit. If it reverses up, shorts may cover (bullish squeeze).',
+        'NEUTRAL': 'No clear overnight bias — the market starts fresh today.'
+    };
+
+    // Determine overall Dalton bias for context-aware coloring
+    const daltonBias = (d.activity||'').includes('BUYING') ? 'BULL' : (d.activity||'').includes('SELLING') ? 'BEAR' : 'NEUTRAL';
+    const dtClr = dt.type==='TREND' ? (daltonBias==='BULL'?'var(--g)':'var(--r)') : dt.type==='NONTREND'?'var(--r)' : dt.type==='NEUTRAL_EXTREME' ? (daltonBias==='BULL'?'var(--g)':'var(--r)') : 'var(--b)';
+    const psClr = ps==='P_SHAPE'?'var(--g)':ps==='B_SHAPE'?'var(--r)':'var(--y)';
+    // Open Drive in direction of bias = bullish, Open Rejection Reverse = bearish
+    const otClr = ot==='OPEN_DRIVE' ? (daltonBias==='BULL'?'var(--g)':'var(--r)') : ot==='OPEN_TEST_DRIVE' ? (daltonBias==='BULL'?'var(--g)':'var(--r)') : ot==='OPEN_REJECTION_REVERSE'?'var(--r)':'var(--y)';
+
+    dayMetrics.innerHTML = `
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">Day Type <div class="tip-text">Dalton classifies each day into types based on range and value area placement. This tells you WHO is in control today.</div></div>
+            <div class="dm-value" style="color:${dtClr}">${dt.type||'N/A'}</div>
+            <div class="dm-explain">${dayTypeExplains[dt.type]||''}</div>
+        </div>
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">Day Conviction <div class="tip-text">How confident is the day-type classification? HIGH/VERY_HIGH means the pattern is clear and reliable.</div></div>
+            <div class="dm-value" style="color:${dt.conviction==='VERY_HIGH'||dt.conviction==='HIGH'?'var(--g)':'var(--y)'}">${dt.conviction||'N/A'}</div>
+            <div class="dm-explain">How clearly the day fits its classification</div>
+        </div>
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">Open Type <div class="tip-text">How the market opened tells you about initial sentiment. Open Drives are strongest, Open Auctions are weakest.</div></div>
+            <div class="dm-value" style="color:${otClr}">${ot.replace(/_/g,' ')}</div>
+            <div class="dm-explain">${openTypeExplains[ot]||''}</div>
+        </div>
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">Profile Shape <div class="tip-text">The shape of today's price distribution. P-shape = buying pressure below (bullish). B-shape = selling pressure above (bearish).</div></div>
+            <div class="dm-value" style="color:${psClr}">${ps.replace(/_/g,' ')}</div>
+            <div class="dm-explain">${profileExplains[ps]||''}</div>
+        </div>
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">Overnight Inventory <div class="tip-text">Were traders positioned long or short coming into today? This affects how the stock reacts to the open.</div></div>
+            <div class="dm-value" style="color:${oi==='LONG'?'var(--g)':oi==='SHORT'?'var(--r)':'var(--y)'}">${oi}</div>
+            <div class="dm-explain">${oiExplains[oi]||''}</div>
+        </div>
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">Rotation Factor <div class="tip-text">Measures how many times price rotated across the half-hour periods. Positive = bullish rotation. Negative = bearish rotation.</div></div>
+            <div class="dm-value" style="color:${rf>0?'var(--g)':rf<0?'var(--r)':'var(--y)'}">${rf>0?'+':''}${rf}</div>
+            <div class="dm-explain">${rf>0?'Positive rotation — bullish price action dominates':rf<0?'Negative rotation — bearish price action dominates':'Flat rotation — no directional bias'}</div>
+        </div>
+    `;
+
+    // ── Market Structure & Direction ──
+    const structMetrics = document.getElementById('daltonStructureMetrics');
+    const mkt = d.market_structure || {};
+    const dp = d.directional_performance || {};
+    const otf = d.one_timeframing || {};
+    const pe = d.poor_extremes || {};
+    const poc_m = d.poc_migration || 'STATIONARY';
+    const va_seq = d.va_sequence || [];
+
+    const msExplains = {
+        'TRENDING_UP': '📈 Value areas are consistently moving HIGHER — this is an uptrend in market profile terms. Strong buying pressure.',
+        'TRENDING_DOWN': '📉 Value areas are consistently moving LOWER — downtrend. Sellers are in control.',
+        'BRACKETING': `⬜ Price is stuck in a RANGE for ${mkt.bracket_days||0} days — like a ball bouncing between two walls. A breakout is coming, but which way?`,
+        'TRANSITIONING': '🔄 The market is shifting from one regime to another — watch for the new direction to reveal itself.'
+    };
+    const dpExplains = {
+        'VERY_STRONG': 'Exceptional directional conviction — the market moved strongly with volume and range expansion.',
+        'STRONG': 'Good directional movement — one side clearly has the advantage today.',
+        'MODERATE': 'Decent directional attempt — some conviction but not overwhelming.',
+        'WEAK': 'Weak directional attempt — tried to move but couldn\'t sustain it.',
+        'VERY_WEAK': 'Almost no directional conviction — a limp, unconvincing attempt.',
+        'NEUTRAL': 'No clear direction — the market is balanced.'
+    };
+    const dpDirClr = dp.direction==='UP'?'var(--g)':dp.direction==='DOWN'?'var(--r)':'var(--y)';
+    const dpClr = (dp.rating==='VERY_STRONG'||dp.rating==='STRONG') ? dpDirClr : dp.rating==='WEAK'||dp.rating==='VERY_WEAK'?'var(--r)':'var(--y)';
+    const otfClr = otf.direction==='UP'?'var(--g)':otf.direction==='DOWN'?'var(--r)':'var(--y)';
+
+    structMetrics.innerHTML = `
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">Market Structure <div class="tip-text">Is the market trending or stuck in a range? Trending = directional opportunity. Bracketing = range-bound, wait for breakout.</div></div>
+            <div class="dm-value" style="color:${mkt.type?.includes('UP')?'var(--g)':mkt.type?.includes('DOWN')?'var(--r)':'var(--y)'}">${(mkt.type||'N/A').replace(/_/g,' ')}</div>
+            <div class="dm-explain">${msExplains[mkt.type]||''}</div>
+        </div>
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">Direction <div class="tip-text">Dalton's 30-relationship directional performance test. Looks at 30 different metrics to gauge directional conviction.</div></div>
+            <div class="dm-value" style="color:${dp.direction==='UP'?'var(--g)':dp.direction==='DOWN'?'var(--r)':'var(--y)'}">${dp.direction||'N/A'} — <span style="color:${dpClr}">${dp.rating||'N/A'}</span></div>
+            <div class="dm-explain">${dpExplains[dp.rating]||''}</div>
+        </div>
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">One-Timeframing <div class="tip-text">When each 30-min bar sets a higher high (OTF UP) or lower low (OTF DOWN). Like a staircase — very bullish or bearish.</div></div>
+            <div class="dm-value" style="color:${otfClr}">${otf.direction||'NONE'}${otf.days?' ('+otf.days+' days)':''}</div>
+            <div class="dm-explain">${otf.direction==='UP'?'Price making higher highs every period — strong upward staircase':''}${otf.direction==='DOWN'?'Price making lower lows every period — falling staircase':''}${otf.direction==='NONE'||!otf.direction?'No consistent staircase pattern — mixed price action':''}</div>
+        </div>
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">POC Migration <div class="tip-text">Is the "fair price" (POC) moving up, down, or staying put? Migrating POC = the market is repricing the stock.</div></div>
+            <div class="dm-value" style="color:${poc_m==='MIGRATING_UP'?'var(--g)':poc_m==='MIGRATING_DOWN'?'var(--r)':'var(--y)'}">${poc_m.replace(/_/g,' ')}</div>
+            <div class="dm-explain">${poc_m==='MIGRATING_UP'?'Fair price is moving UP — market repricing stock higher':''}${poc_m==='MIGRATING_DOWN'?'Fair price is moving DOWN — market repricing lower':''}${poc_m==='STATIONARY'?'Fair price is stable — no repricing happening':''}</div>
+        </div>
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">Poor Extremes <div class="tip-text">A "poor high" or "poor low" means the extreme wasn't strong and will likely be revisited. Multiple consecutive poor extremes = high probability target.</div></div>
+            <div class="dm-value">${pe.poor_high?'<span style="color:var(--g)">Poor High'+(pe.consecutive_poor_highs>1?' (×'+pe.consecutive_poor_highs+')':'')+'</span>':'<span style="color:var(--r)">Good High</span>'} / ${pe.poor_low?'<span style="color:var(--r)">Poor Low'+(pe.consecutive_poor_lows>1?' (×'+pe.consecutive_poor_lows+')':'')+'</span>':'<span style="color:var(--g)">Good Low</span>'}</div>
+            <div class="dm-explain">${pe.poor_high?'<span style="color:var(--g)">Bullish:</span> High likely to be retested — unfinished business above ':''}${pe.poor_low?'<span style="color:var(--r)">Bearish:</span> Low likely to be retested — unfinished business below':''}${!pe.poor_high&&!pe.poor_low?'Both extremes are strong — support & resistance both held':''}</div>
+        </div>
+        <div class="dalton-metric">
+            <div class="dm-label tip-wrap">VA Sequence <div class="tip-text">The sequence of Value Area relationships over recent days. "HIGHER HIGHER HIGHER" = clear uptrend. Mixed = choppy.</div></div>
+            <div class="dm-value font-mono" style="font-size:.75rem">${va_seq.length ? va_seq.slice(-5).map(v=>'<span style="color:'+(v==='HIGHER'?'var(--g)':v==='LOWER'?'var(--r)':'var(--y)')+'">'+v+'</span>').join(' → ') : 'N/A'}</div>
+            <div class="dm-explain">${va_seq.length >= 3 && va_seq.slice(-3).every(v=>v==='HIGHER')?'Value areas moving consistently higher — uptrend confirmed':''}${va_seq.length >= 3 && va_seq.slice(-3).every(v=>v==='LOWER')?'Value areas moving consistently lower — downtrend confirmed':''}${va_seq.length < 3 || !(va_seq.slice(-3).every(v=>v==='HIGHER')||va_seq.slice(-3).every(v=>v==='LOWER'))?'Mixed value area pattern — no clear direction':''}</div>
+        </div>
+    `;
+
+    // ── High-Probability Setups ──
+    const hpSection = document.getElementById('daltonHighProbSection');
+    const hpDiv = document.getElementById('daltonHighProb');
+    const hp = d.high_probability || {};
+    const ti = hp.three_to_i || {};
+    const ne = hp.neutral_extreme || {};
+    const bbo = hp.balance_breakout || {};
+    const gap = d.gap || {};
+    const hasHP = ti.active || ne.active || bbo.active || (gap.type && gap.type !== 'NONE');
+
+    if (hasHP) {
+        hpSection.style.display = 'block';
+        let hpHtml = '';
+        if (ti.active) {
+            const tiClr = ti.direction==='BULLISH'?'var(--g)':'var(--r)';
+            hpHtml += `<div class="p-2 rounded mb-2" style="border-left:3px solid ${tiClr};background:rgba(57,210,192,.04)">
+                <strong style="color:${tiClr}">⚡ 3-to-I Day (${ti.direction})</strong>
+                <div class="small mt-1">Three days of narrow range followed by a wide-range day. <strong>94% probability</strong> of continuation! This is one of Dalton's highest-probability patterns. ${ti.direction==='BULLISH'?'Expect upward follow-through.':'Expect downward follow-through.'}</div>
+            </div>`;
+        }
+        if (ne.active) {
+            const neClr = ne.direction==='BULLISH'?'var(--g)':'var(--r)';
+            hpHtml += `<div class="p-2 rounded mb-2" style="border-left:3px solid ${neClr};background:rgba(57,210,192,.04)">
+                <strong style="color:${neClr}">⚡ Neutral-Extreme Day (${ne.direction})</strong>
+                <div class="small mt-1">The day started balanced but ended with a strong push. <strong>92% probability</strong> of follow-through tomorrow! The late-day conviction is a very powerful signal.</div>
+            </div>`;
+        }
+        if (bbo.active) {
+            const bboClr = bbo.direction==='BULLISH'?'var(--g)':'var(--r)';
+            hpHtml += `<div class="p-2 rounded mb-2" style="border-left:3px solid ${bboClr};background:rgba(57,210,192,.04)">
+                <strong style="color:${bboClr}">⚡ Balance-Area Breakout (${bbo.direction})</strong>
+                <div class="small mt-1">Price broke out of a bracketing (sideways) range. This is like a ball finally breaking through a wall — ${bbo.direction==='BULLISH'?'expect upward continuation':'expect downward continuation'}. The longer the bracket, the more powerful the breakout.</div>
+            </div>`;
+        }
+        if (gap.type && gap.type !== 'NONE') {
+            const gapExplains = {
+                'BREAKAWAY': `🚀 <strong>Breakaway Gap (${gap.direction})</strong> — A powerful gap that signals the start of a NEW trend. These gaps rarely fill. Size: ${fmt(gap.size_pct,2)}%.`,
+                'ACCELERATION': `⚡ <strong>Acceleration Gap (${gap.direction})</strong> — An existing trend just got stronger. The move is gaining speed. Size: ${fmt(gap.size_pct,2)}%.`,
+                'EXHAUSTION': `💨 <strong>Exhaustion Gap (${gap.direction})</strong> — The current trend may be running out of steam. These gaps often fill, marking a potential reversal. Size: ${fmt(gap.size_pct,2)}%.`
+            };
+            const gapClr = gap.direction==='UP'?'var(--g)':'var(--r)';
+            hpHtml += `<div class="p-2 rounded mb-2" style="border-left:3px solid ${gapClr};background:rgba(57,210,192,.04)">
+                <div class="small">${gapExplains[gap.type]||'Gap: '+gap.type}</div>
+            </div>`;
+        }
+        hpDiv.innerHTML = hpHtml;
+    } else {
+        hpSection.style.display = 'none';
+    }
+
+    // ── Observations ──
+    const obsDiv = document.getElementById('daltonObservations');
+    const signals = d.dalton_signals || [];
+    const obs = d.observations || [];
+    let obsHtml = '';
+    signals.forEach(sig => {
+        const sClr = sig.type==='BULLISH'||sig.direction==='BULLISH'?'var(--g)':sig.type==='BEARISH'||sig.direction==='BEARISH'?'var(--r)':'var(--y)';
+        obsHtml += `<div class="confirm-item ${sig.type==='BULLISH'||sig.direction==='BULLISH'?'green':sig.type==='BEARISH'||sig.direction==='BEARISH'?'red':'blue'}"><i class="bi bi-${sig.type==='BULLISH'||sig.direction==='BULLISH'?'arrow-up-circle':'arrow-down-circle'} me-1"></i><strong>${sig.name||sig.type||'Signal'}</strong>: ${sig.description||sig.message||JSON.stringify(sig)}</div>`;
+    });
+    if (obs.length) {
+        obs.forEach(o => {
+            const ol = o.toLowerCase();
+            const bullWords = ['bullish','above','higher','buying','initiative buying','uptrend','trending up','migrating higher','acceleration','up ('];
+            const bearWords = ['bearish','below','lower','selling','initiative selling','downtrend','trending down','migrating lower','exhaustion','down ('];
+            const isBull = bullWords.some(w => ol.includes(w));
+            const isBear = bearWords.some(w => ol.includes(w));
+            const oClr = isBull ? 'green' : isBear ? 'red' : 'blue';
+            const oIcon = isBull ? 'arrow-up-circle-fill' : isBear ? 'arrow-down-circle-fill' : 'eye';
+            obsHtml += `<div class="confirm-item ${oClr}"><i class="bi bi-${oIcon} me-1"></i>${o}</div>`;
+        });
+    }
+    if (!obsHtml) obsHtml = '<div class="text-secondary small p-2"><i class="bi bi-info-circle me-1"></i>No significant Dalton signals detected today.</div>';
+    obsDiv.innerHTML = obsHtml;
+
+    // ── Plain English Summary ──
+    const plainDiv = document.getElementById('daltonPlainText');
+    const summary = d.summary || '';
+    let plainHtml = '';
+
+    // Build comprehensive plain text explanation
+    const actExplains = {
+        'INITIATIVE_BUYING': '🟢 <strong>Initiative Buying</strong> — aggressive buyers are pushing the price into new highs. They\'re not waiting for good prices, they\'re chasing. This is bullish conviction.',
+        'INITIATIVE_SELLING': '🔴 <strong>Initiative Selling</strong> — aggressive sellers are pushing the price to new lows. They\'re not waiting for rallies to sell — they\'re dumping. Bearish conviction.',
+        'RESPONSIVE_BUYING': '🟡 <strong>Responsive Buying</strong> — buyers are stepping in at low prices (bargain hunting) but not aggressively pushing higher. They\'re waiting for the price to come to them.',
+        'RESPONSIVE_SELLING': '🟡 <strong>Responsive Selling</strong> — sellers are taking profits at high prices but not aggressively dumping. They\'re waiting for price to come to them.',
+        'MIXED': '⚪ <strong>Mixed Activity</strong> — both initiative and responsive activity present. The market is undecided about direction.'
+    };
+
+    const actClr = (d.activity||'').includes('BUYING') ? 'var(--g)' : (d.activity||'').includes('SELLING') ? 'var(--r)' : 'var(--y)';
+    plainHtml += `<div class="mb-2" style="border-left:3px solid ${actClr};padding-left:10px">${actExplains[d.activity] || ''}</div>`;
+    if (summary) {
+        const sumClr = daltonBias==='BULL' ? 'var(--g)' : daltonBias==='BEAR' ? 'var(--r)' : 'var(--y)';
+        plainHtml += `<div class="mb-2 p-2 rounded" style="border-left:3px solid ${sumClr};background:rgba(255,255,255,.02)">${summary}</div>`;
+    }
+
+    // Additional context
+    if (pe.poor_high && pe.consecutive_poor_highs > 1) {
+        plainHtml += `<div class="mb-1" style="color:var(--r)"><i class="bi bi-exclamation-triangle me-1"></i>${pe.consecutive_poor_highs} consecutive poor highs detected — high probability that the high will be probed again (bullish for now).</div>`;
+    }
+    if (pe.poor_low && pe.consecutive_poor_lows > 1) {
+        plainHtml += `<div class="mb-1" style="color:var(--g)"><i class="bi bi-exclamation-triangle me-1"></i>${pe.consecutive_poor_lows} consecutive poor lows detected — high probability that the low will be probed again (bearish risk).</div>`;
+    }
+    if (!plainHtml.trim()) plainHtml = '<span class="text-secondary">No additional Dalton insights for today.</span>';
+    plainDiv.innerHTML = plainHtml;
 }
 
 function hideAnalysis() {
     document.getElementById('analysisSection').style.display = 'none';
     selectedPid = null;
+    // Cleanup chart instances
+    if (pnlGaugeInstance) { pnlGaugeInstance.destroy(); pnlGaugeInstance = null; }
+    if (radarInstance) { radarInstance.destroy(); radarInstance = null; }
+    // Hide dynamic panels
+    const dp = document.getElementById('daltonPanel');
+    if (dp) dp.style.display = 'none';
 }
 
 // ═══════════════════════════════════════════════════════════════

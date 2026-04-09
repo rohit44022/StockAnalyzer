@@ -462,11 +462,11 @@
                 <a href="/ta" class="btn btn-outline-info btn-sm ms-2">
                     <i class="bi bi-bar-chart-line me-1"></i> Technical Analysis
                 </a>
-                <a href="/hybrid" class="btn btn-outline-secondary btn-sm ms-2" style="border-color:#7c4dff;color:#7c4dff">
-                    <i class="bi bi-lightning-charge-fill me-1"></i> Hybrid BB+TA Engine
-                </a>
                 <a href="/pa" class="btn btn-outline-secondary btn-sm ms-2" style="border-color:#f0883e;color:#f0883e">
                     <i class="bi bi-candlestick-chart me-1"></i> Price Action (Al Brooks)
+                </a>
+                <a href="/triple" class="btn btn-outline-secondary btn-sm ms-2" style="border-color:#e040fb;color:#e040fb">
+                    <i class="bi bi-triangle-fill me-1"></i> Triple BB+TA+PA
                 </a>
             </div>
         </div>
@@ -1076,7 +1076,7 @@
               <p class="text-secondary mt-3" style="font-size:0.78rem;">
                 <i class="bi bi-info-circle me-1"></i>
                 This runs a <strong>full deep analysis</strong> on every qualifying stock: BB pattern + Murphy's TA (6 categories)
-                + Hybrid cross-validation + Risk/Reward assessment. This takes a moment because quality analysis cannot be rushed.
+                + Triple cross-validation + Risk/Reward assessment. This takes a moment because quality analysis cannot be rushed.
               </p>
             </div>
             <!-- Results (shown after analysis completes) -->
@@ -1161,7 +1161,7 @@
 
     /* ═══════════════════════════════════════════════════════════════
        BUY-ONLY MODE — Trade decision filter (does NOT change core logic)
-       All engines (BB I-IV, TA, Hybrid, Quant, PA) still compute fully.
+       All engines (BB I-IV, TA, Triple, Quant, PA) still compute fully.
        This only controls which scan results are SHOWN to the user.
        ═══════════════════════════════════════════════════════════════ */
     const buyOnlyToggle = document.getElementById('buyOnlyToggle');
@@ -1566,7 +1566,7 @@
        1. User clicks "Top 5 Picks" button on any method card
        2. We open the Top Picks modal and connect to a Server-Sent Events stream
        3. The server scans ALL stocks, pre-filters by BB confidence, then
-          runs deep analysis (full TA + Hybrid Engine) on each qualifying stock
+          runs deep analysis (full TA + Triple Engine) on each qualifying stock
        4. We show live progress: "Analyzing 25/80 stocks..."
        5. When done, we render 5 detailed cards ranked by Composite Score
        ═══════════════════════════════════════════════════════════════ */
@@ -1657,7 +1657,7 @@
                 document.getElementById('tpProgressText').textContent =
                     `Deep-analyzing ${msg.done} of ${msg.total} stocks... (${msg.ticker.replace('.NS','')})`;
                 document.getElementById('tpPhaseText').textContent =
-                    'Running full Technical Analysis + Hybrid BB+TA Engine on each stock...';
+                    'Running full Technical Analysis + Triple BB+TA+PA Engine on each stock...';
             }
             else if (msg.type === 'result') {
                 // Analysis complete — render results
@@ -1694,7 +1694,7 @@
      *     · 6 component score bars with explanations
      *     · Key reasons (why this stock was picked)
      *     · Warnings (red flags to watch out for)
-     *     · BB/TA/Hybrid verdicts side by side
+     *     · BB/TA/Triple verdicts side by side
      *     · Target prices and stop-loss levels
      *     · Action items (what to actually DO)
      *     · Click-through link to full analysis page
@@ -1721,7 +1721,7 @@
                 <div class="tp-no-picks">
                     <i class="bi bi-emoji-neutral"></i>
                     <h5>No qualifying picks found</h5>
-                    <p>${data.message || 'No stocks scored high enough across all analysis layers (BB + TA + Hybrid + Risk/Reward). This is actually normal — the system has very high standards. Try a different method or wait for better market conditions.'}</p>
+                    <p>${data.message || 'No stocks scored high enough across all analysis layers (BB + TA + Triple + Risk/Reward). This is actually normal — the system has very high standards. Try a different method or wait for better market conditions.'}</p>
                 </div>
             `;
             document.getElementById('tpFooter').textContent = 'Analysis complete — no stocks met the quality threshold.';
@@ -1743,7 +1743,7 @@
      * ├─────────────────────────────────────────┤
      * │ BB Strategy ████████░░ 85     (25%)     │  ← 6 score component bars
      * │ TA Score    ██████░░░░ 72     (25%)     │     Each shows: name, bar, value, weight
-     * │ Hybrid      ███████░░░ 78     (20%)     │     Plus a "hint" explaining what it means
+     * │ Triple      ███████░░░ 78     (20%)     │     Plus a "hint" explaining what it means
      * │ Risk/Reward ██████████ 90     (15%)     │
      * │ Agreement   ████████░░ 80     (10%)     │
      * │ Data Quality████████░░ 85      (5%)     │
@@ -1753,7 +1753,7 @@
      * │ ✅ All engines agree — high conviction   │
      * │ ⚠️ Data is 3 days old                   │  ← Warnings (yellow — caveats)
      * ├─────────────────────────────────────────┤
-     * │ BB: 🚀 BUY  │ TA: STRONG BUY │ Hybrid: │  ← Verdict badges
+     * │ BB: 🚀 BUY  │ TA: STRONG BUY │ Triple: │  ← Verdict badges
      * │              │                │ BUY     │
      * ├─────────────────────────────────────────┤
      * │ Target: ₹2,650 (+8.2%) | SL: ₹2,320   │  ← Price targets & stop loss
@@ -1790,7 +1790,7 @@
             'F':  'F (0-39): Failing — do not recommend, signals mostly against'
         };
         const gradeTooltip = gradeDesc[pick.grade] || 'Composite grade based on all analysis engines';
-        const scoreTooltip = `Composite Score: ${score.toFixed(1)}/100\nWeighted: BB (20%) + TA (20%) + Hybrid (15%) + Price Action (15%) + R/R (15%) + Agreement (10%) + Data (5%)`;
+        const scoreTooltip = `Composite Score: ${score.toFixed(1)}/100\nWeighted: BB (20%) + TA (20%) + Triple (15%) + Price Action (15%) + R/R (15%) + Agreement (10%) + Data (5%)`;
 
         // Short grade label for legend
         const gradeLegend = {
@@ -1800,11 +1800,11 @@
 
         // Build component bars
         const comps = pick.components || {};
-        const compOrder = ['bb_strategy','ta_score','hybrid_score','pa_score','risk_reward','signal_agreement','data_quality'];
+        const compOrder = ['bb_strategy','ta_score','triple_score','pa_score','risk_reward','signal_agreement','data_quality'];
         const compLabels = {
             bb_strategy: 'BB Strategy',
             ta_score: 'TA Score',
-            hybrid_score: 'Hybrid Score',
+            triple_score: 'Triple Score',
             pa_score: 'Price Action',
             risk_reward: 'Risk/Reward',
             signal_agreement: 'Agreement',
@@ -1834,7 +1834,7 @@
         // Build verdict badges
         const bbSig = pick.bb_signal_type || '—';
         const taVerdict = pick.ta_verdict || '—';
-        const hybridVerdict = pick.hybrid_verdict || '—';
+        const hybridVerdict = pick.triple_verdict || '—';
 
         function verdictColor(v) {
             if (!v) return '#8b949e';
@@ -1845,6 +1845,70 @@
             if (u.includes('SELL')) return '#ff7b72';
             return '#d29922';
         }
+
+        // ── TRIPLE CONVICTION VERDICT (computed from existing pick data) ──
+        const tripleVerdictHtml = (function(){
+            // Gather directions from all 3 systems
+            const bbDir = (pick.bb_signal_type||'').toUpperCase();
+            const taDir = (pick.ta_verdict||'').toUpperCase();
+            const paDir = pick.pa_data && pick.pa_data.success ? (pick.pa_data.signal_type||'').toUpperCase() : '';
+
+            const isBuyLike = v => v.includes('BUY');
+            const isSellLike = v => v.includes('SELL');
+
+            const systems = [
+                {name:'BB', dir:bbDir, score:pick.bb_confidence||0},
+                {name:'TA', dir:taDir, score:pick.ta_score||0},
+                {name:'PA', dir:paDir, score:pick.pa_data?pick.pa_data.confidence||0:0},
+            ];
+
+            const buyVotes = systems.filter(s=>isBuyLike(s.dir)).length;
+            const sellVotes = systems.filter(s=>isSellLike(s.dir)).length;
+            const hasPa = pick.pa_data && pick.pa_data.success;
+
+            let tripleVerdict, tripleEmoji, tripleColor, tripleExplain;
+            if(buyVotes === 3){
+                tripleVerdict = 'STRONG BUY'; tripleEmoji = '🟢🟢🟢'; tripleColor = '#3fb950';
+                tripleExplain = 'All 3 engines agree — BUY. Maximum conviction.';
+            } else if(sellVotes === 3){
+                tripleVerdict = 'STRONG SELL'; tripleEmoji = '🔴🔴🔴'; tripleColor = '#f85149';
+                tripleExplain = 'All 3 engines agree — SELL. Maximum bearish conviction.';
+            } else if(buyVotes >= 2){
+                tripleVerdict = 'BUY'; tripleEmoji = '🟢🟢'; tripleColor = '#56d364';
+                tripleExplain = `${buyVotes}/3 engines say BUY. Majority bullish.`;
+            } else if(sellVotes >= 2){
+                tripleVerdict = 'SELL'; tripleEmoji = '🔴🔴'; tripleColor = '#ff7b72';
+                tripleExplain = `${sellVotes}/3 engines say SELL. Majority bearish.`;
+            } else {
+                tripleVerdict = 'MIXED'; tripleEmoji = '🟡'; tripleColor = '#d29922';
+                tripleExplain = 'Engines disagree — no consensus. Wait for clarity.';
+            }
+
+            // Cross-system verdict from PA engine (if available)
+            const csVerdict = pick.pa_data ? (pick.pa_data.cross_system||{}).combined_verdict||'' : '';
+            const csConf = pick.pa_data ? (pick.pa_data.cross_system||{}).combined_confidence||0 : 0;
+
+            // Summary badges for each system
+            const sysBadges = systems.map(s => {
+                if(!s.dir) return '';
+                const c = isBuyLike(s.dir) ? '#3fb950' : isSellLike(s.dir) ? '#f85149' : '#d29922';
+                return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:0.68rem;background:${c}18;color:${c};border:1px solid ${c}33"><strong>${s.name}</strong> ${s.dir.replace('STRONG ','⚡')}</span>`;
+            }).filter(Boolean).join(' ');
+
+            return `
+                <div class="tp-triple-verdict" style="border:1px solid ${tripleColor}33;border-radius:10px;padding:12px 14px;margin:10px 0;background:${tripleColor}0A">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:0.8rem;font-weight:700;color:#c9d1d9">⚡ Triple Conviction</span>
+                            <span style="font-size:0.9rem;font-weight:800;padding:3px 12px;border-radius:6px;background:${tripleColor}22;color:${tripleColor};border:1px solid ${tripleColor}44">${tripleEmoji} ${tripleVerdict}</span>
+                        </div>
+                        ${csVerdict ? `<span style="font-size:0.68rem;color:#8b949e">Cross-System: <strong style="color:${verdictColor(csVerdict)}">${csVerdict}</strong> (${csConf}%)</span>` : ''}
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">${sysBadges}</div>
+                    <div style="font-size:0.72rem;color:#8b949e;line-height:1.5">${tripleExplain}${hasPa?'':' <em>(PA data unavailable — verdict based on BB + TA only)</em>'}</div>
+                </div>
+            `;
+        })();
 
         // Build targets section
         let targetHtml = '';
@@ -1894,7 +1958,7 @@
             <!-- REASONS & WARNINGS -->
             <div class="tp-reasons">${reasonsHtml}${warningsHtml}</div>
 
-            <!-- VERDICT BADGES: BB / TA / Hybrid / PA side by side -->
+            <!-- VERDICT BADGES: BB / TA / Triple / PA side by side -->
             <div class="tp-verdicts">
                 <div class="tp-verdict-item">
                     <span class="tp-verdict-label">BB ${method}:</span>
@@ -1905,8 +1969,8 @@
                     <span class="tp-verdict-value" style="color:${verdictColor(taVerdict)}">${taVerdict} (${pick.ta_score >= 0 ? '+' : ''}${pick.ta_score||0})</span>
                 </div>
                 <div class="tp-verdict-item">
-                    <span class="tp-verdict-label">Hybrid:</span>
-                    <span class="tp-verdict-value" style="color:${verdictColor(hybridVerdict)}">${hybridVerdict} (${pick.hybrid_combined_score >= 0 ? '+' : ''}${pick.hybrid_combined_score||0}/245)</span>
+                    <span class="tp-verdict-label">Triple:</span>
+                    <span class="tp-verdict-value" style="color:${verdictColor(hybridVerdict)}">${hybridVerdict} (${pick.triple_combined_score >= 0 ? '+' : ''}${pick.triple_combined_score||0}/390)</span>
                 </div>
                 ${pick.pa_data && pick.pa_data.success ? `
                 <div class="tp-verdict-item">
@@ -1976,6 +2040,9 @@
                 </div>
                 `;
             })()}
+
+            <!-- TRIPLE CONVICTION VERDICT — computed from BB + TA + PA -->
+            ${tripleVerdictHtml}
 
             <!-- TARGET PRICES & STOP LOSS -->
             ${targetHtml}

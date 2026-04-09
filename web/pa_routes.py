@@ -65,8 +65,8 @@ def api_pa_analysis(ticker: str):
     # Get TA data
     ta_data = None
     try:
-        from hybrid_engine import run_hybrid_analysis
-        hyb = run_hybrid_analysis(df_ind if df_ind is not None else df, ticker=ticker)
+        from hybrid_pa_engine import run_triple_analysis
+        hyb = run_triple_analysis(df_ind if df_ind is not None else df, ticker=ticker)
         ta_data = hyb.get("ta_signal")
     except Exception:
         pass

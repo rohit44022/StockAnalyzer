@@ -1,8 +1,8 @@
 """
-hybrid_routes.py — Flask Blueprint for the Hybrid BB + TA Analysis Module.
+triple_routes.py — Flask Blueprint for BB + TA + PA Triple Conviction Engine.
 
-Routes: /hybrid, /api/hybrid/analyze
-Blueprint name: 'hybrid'
+Routes: /triple, /api/triple/analyze
+Blueprint name: 'triple'
 """
 
 import sys, os, json, math
@@ -19,7 +19,7 @@ from bb_squeeze.config import CSV_DIR
 from hybrid_pa_engine import run_triple_analysis
 
 
-hybrid_bp = Blueprint("hybrid", __name__, template_folder="templates")
+triple_bp = Blueprint("triple", __name__, template_folder="templates")
 
 
 def _safe_json(obj):
@@ -42,16 +42,16 @@ def _safe_json(obj):
     return obj
 
 
-@hybrid_bp.route("/hybrid")
-def hybrid_dashboard():
-    """Redirect to Triple Conviction dashboard."""
-    from flask import redirect, url_for
-    return redirect("/triple")
+@triple_bp.route("/triple")
+def triple_dashboard():
+    """Serve the Triple Conviction Engine dashboard."""
+    tickers = sorted(get_all_tickers_from_csv(CSV_DIR))
+    return render_template("triple_dashboard.html", tickers=tickers)
 
 
-@hybrid_bp.route("/api/hybrid/analyze")
-def hybrid_analyze():
-    """Perform full hybrid BB + TA analysis for a given ticker."""
+@triple_bp.route("/api/triple/analyze")
+def triple_analyze():
+    """Perform full BB + TA + PA triple analysis for a given ticker."""
     raw = request.args.get("ticker", "").strip()
     if not raw:
         return jsonify({"error": "ticker parameter required"}), 400
@@ -62,7 +62,10 @@ def hybrid_analyze():
         return jsonify({"error": f"No data found for {ticker}"}), 404
 
     capital = float(request.args.get("capital", 500000))
-    result = run_triple_analysis(df, ticker=ticker, capital=capital)
+    try:
+        result = run_triple_analysis(df, ticker=ticker, capital=capital)
+    except Exception as e:
+        return jsonify({"error": f"Analysis failed for {ticker}: {str(e)}"}), 500
 
     if "error" in result:
         return jsonify(result), 400

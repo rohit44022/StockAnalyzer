@@ -83,7 +83,7 @@ def test_2_scorer_direction_awareness():
     # Simulate a strongly BEARISH stock
     bearish_ta = {"score": -60, "verdict": "STRONG SELL", "categories": {}}
     bearish_hybrid = {
-        "hybrid_verdict": {"verdict": "STRONG SELL", "score": -120},
+        "triple_verdict": {"verdict": "STRONG SELL", "score": -120},
         "target_prices": {"risk_reward_ratio": 2.5},
     }
     bearish_freshness = {"trading_days_stale": 1}
@@ -118,7 +118,7 @@ def test_2_scorer_direction_awareness():
     # Simulate a strongly BULLISH stock
     bullish_ta = {"score": 60, "verdict": "STRONG BUY", "categories": {}}
     bullish_hybrid = {
-        "hybrid_verdict": {"verdict": "STRONG BUY", "score": 120},
+        "triple_verdict": {"verdict": "STRONG BUY", "score": 120},
         "target_prices": {"risk_reward_ratio": 2.5},
     }
 
@@ -220,7 +220,7 @@ def test_4_live_api_m3_sell():
     for pick in result["picks"]:
         bb_type = pick.get("bb_signal_type", "?")
         ta_v = pick.get("ta_verdict", "?")
-        hyb_v = pick.get("hybrid_verdict", "?")
+        hyb_v = pick.get("triple_verdict", "?")
         score = pick.get("composite_score", 0)
         grade = pick.get("grade", "?")
 

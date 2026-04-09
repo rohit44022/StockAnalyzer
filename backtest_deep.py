@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore")
 from bb_squeeze.indicators import compute_all_indicators
 from bb_squeeze.signals import analyze_signals
 from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
-from hybrid_engine import run_hybrid_analysis
+from hybrid_pa_engine import run_triple_analysis
 
 # ═══════════════════════════════════════════════════════════════
 #  CONFIG
@@ -111,11 +111,11 @@ def analyze_stock_one_offset(csv_path: str, offset: int) -> List[TestResult]:
         except Exception:
             pass
 
-        # Hybrid + TA
+        # Triple Engine (BB + TA + PA)
         try:
-            hybrid = run_hybrid_analysis(df_train.copy(), ticker=ticker)
+            hybrid = run_triple_analysis(df_train.copy(), ticker=ticker)
             if "error" not in hybrid:
-                hv = hybrid.get("hybrid_verdict", {})
+                hv = hybrid.get("triple_verdict", {})
                 verdict = hv.get("verdict", "HOLD")
                 h_conf = _nan_safe(hv.get("confidence", 0))
 

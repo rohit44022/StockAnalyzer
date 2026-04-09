@@ -374,7 +374,7 @@ def _detect_w_bottoms(df: pd.DataFrame, lookback: int = M3_W_LOOKBACK) -> List[P
     prices = window["Low"].values.astype(float)
     pct_b  = window["Percent_B"].values.astype(float)
     mfi_vals = window["MFI"].values.astype(float)
-    dates  = window.index
+    dates  = pd.to_datetime(window["Date"]).values if "Date" in window.columns else window.index
 
     local_lows = _find_local_lows(prices, order=2)
 
@@ -407,9 +407,9 @@ def _detect_w_bottoms(df: pd.DataFrame, lookback: int = M3_W_LOOKBACK) -> List[P
             if first_at_lower and second_above_lower and price_holds:
                 strength = "strong" if mfi_diverges else "moderate"
                 desc = (
-                    f"W-Bottom ({strength}): First low on {dates[idx1].strftime('%d-%b')} "
+                    f"W-Bottom ({strength}): First low on {pd.Timestamp(dates[idx1]).strftime('%d-%b')} "
                     f"at ₹{price1:.2f} (%b={pb1:.2f}, tagged lower band). "
-                    f"Second low on {dates[idx2].strftime('%d-%b')} "
+                    f"Second low on {pd.Timestamp(dates[idx2]).strftime('%d-%b')} "
                     f"at ₹{price2:.2f} (%b={pb2:.2f}, held ABOVE lower band). "
                 )
                 if mfi_diverges:
@@ -426,8 +426,8 @@ def _detect_w_bottoms(df: pd.DataFrame, lookback: int = M3_W_LOOKBACK) -> List[P
                 patterns.append(PatternMatch(
                     name="W-BOTTOM",
                     start_idx=idx1, end_idx=idx2,
-                    start_date=dates[idx1].strftime("%Y-%m-%d"),
-                    end_date=dates[idx2].strftime("%Y-%m-%d"),
+                    start_date=pd.Timestamp(dates[idx1]).strftime("%Y-%m-%d"),
+                    end_date=pd.Timestamp(dates[idx2]).strftime("%Y-%m-%d"),
                     description=desc,
                 ))
 
@@ -452,7 +452,7 @@ def _detect_m_tops(df: pd.DataFrame, lookback: int = M3_W_LOOKBACK) -> List[Patt
     prices = window["High"].values.astype(float)
     pct_b  = window["Percent_B"].values.astype(float)
     mfi_vals = window["MFI"].values.astype(float)
-    dates  = window.index
+    dates  = pd.to_datetime(window["Date"]).values if "Date" in window.columns else window.index
 
     local_highs = _find_local_highs(prices, order=2)
 
@@ -484,9 +484,9 @@ def _detect_m_tops(df: pd.DataFrame, lookback: int = M3_W_LOOKBACK) -> List[Patt
             if first_at_upper and second_below_upper and price_matches:
                 strength = "strong" if mfi_diverges else "moderate"
                 desc = (
-                    f"M-Top ({strength}): First high on {dates[idx1].strftime('%d-%b')} "
+                    f"M-Top ({strength}): First high on {pd.Timestamp(dates[idx1]).strftime('%d-%b')} "
                     f"at ₹{price1:.2f} (%b={pb1:.2f}, tagged upper band). "
-                    f"Second high on {dates[idx2].strftime('%d-%b')} "
+                    f"Second high on {pd.Timestamp(dates[idx2]).strftime('%d-%b')} "
                     f"at ₹{price2:.2f} (%b={pb2:.2f}, FAILED to reach upper band). "
                 )
                 if mfi_diverges:
@@ -503,8 +503,8 @@ def _detect_m_tops(df: pd.DataFrame, lookback: int = M3_W_LOOKBACK) -> List[Patt
                 patterns.append(PatternMatch(
                     name="M-TOP",
                     start_idx=idx1, end_idx=idx2,
-                    start_date=dates[idx1].strftime("%Y-%m-%d"),
-                    end_date=dates[idx2].strftime("%Y-%m-%d"),
+                    start_date=pd.Timestamp(dates[idx1]).strftime("%Y-%m-%d"),
+                    end_date=pd.Timestamp(dates[idx2]).strftime("%Y-%m-%d"),
                     description=desc,
                 ))
 
@@ -765,7 +765,7 @@ def _detect_band_walk(
 
     closes  = window["Close"].values.astype(float)
     pct_b   = window["Percent_B"].values.astype(float)
-    dates   = window.index
+    dates   = pd.to_datetime(window["Date"]).values if "Date" in window.columns else window.index
 
     if band == "upper":
         band_vals = window["BB_Upper"].values.astype(float)
@@ -812,8 +812,8 @@ def _detect_band_walk(
             name=f"WALK-{direction.upper()}",
             start_idx=first_touch,
             end_idx=last_touch,
-            start_date=dates[first_touch].strftime("%Y-%m-%d"),
-            end_date=dates[last_touch].strftime("%Y-%m-%d"),
+            start_date=pd.Timestamp(dates[first_touch]).strftime("%Y-%m-%d"),
+            end_date=pd.Timestamp(dates[last_touch]).strftime("%Y-%m-%d"),
             description=desc,
         )
 

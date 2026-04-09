@@ -103,8 +103,8 @@ nav a.active{color:var(--accent)!important;font-weight:600}
     </a>
     <a href="/" class="text-decoration-none text-light ms-3">Home</a>
     <a href="/ta" class="text-decoration-none text-light">TA Module</a>
-    <a href="/hybrid" class="text-decoration-none text-light">Hybrid BB+TA</a>
     <a href="/pa" class="text-decoration-none active">Price Action</a>
+    <a href="/triple" class="text-decoration-none text-light">Triple BB+TA+PA</a>
     <a href="/portfolio" class="text-decoration-none text-light">Portfolio</a>
     <a href="/trades" class="text-decoration-none text-light">Trades</a>
   </div>
@@ -201,7 +201,7 @@ nav a.active{color:var(--accent)!important;font-weight:600}
         <div class="pipeline-step">
           <span class="step-num">Step 7</span>
           <span class="step-name">Cross-Validation</span>
-          <span class="step-desc">PA signal checked against BB Squeeze, TA, and Hybrid engines</span>
+          <span class="step-desc">PA signal checked against BB Squeeze, TA, and Triple engines</span>
         </div>
       </div>
     </div>
@@ -228,7 +228,7 @@ nav a.active{color:var(--accent)!important;font-weight:600}
         </div>
         <div class="concept-card">
           <strong><i class="bi bi-shield-check me-1" style="color:#42a5f5"></i> Cross-Validation</strong>
-          <span>PA signal compared with Bollinger Band, TA, and Hybrid engines. When all 3 agree, confidence gets +15% bonus. Conflicts apply -10% penalty.</span>
+          <span>PA signal compared with Bollinger Band, TA, and Triple engines. When all 3 agree, confidence gets +15% bonus. Conflicts apply -10% penalty.</span>
         </div>
         <div class="concept-card">
           <strong><i class="bi bi-cash-stack me-1" style="color:var(--bull)"></i> Price Levels</strong>
@@ -584,7 +584,7 @@ nav a.active{color:var(--accent)!important;font-weight:600}
       <div class="guide-grid">
         <div class="guide-item"><i class="bi bi-bullseye"></i><span><strong>Signal Details</strong> — The core trading signal: BUY/SELL/HOLD, how strong it is, how confident the system is, and what setup triggered it.</span></div>
         <div class="guide-item"><i class="bi bi-cash-stack"></i><span><strong>Price Levels</strong> — Where to enter, where to place your stop loss, and two profit targets based on risk multiples and measured moves.</span></div>
-        <div class="guide-item"><i class="bi bi-diagram-3"></i><span><strong>Cross-System</strong> — Does Bollinger Band, TA, and Hybrid agree with the PA signal? More agreement = higher conviction.</span></div>
+        <div class="guide-item"><i class="bi bi-diagram-3"></i><span><strong>Cross-System</strong> — Does Bollinger Band, TA, and Triple agree with the PA signal? More agreement = higher conviction.</span></div>
         <div class="guide-item"><i class="bi bi-arrow-up-right"></i><span><strong>Trend State</strong> — The market's current direction, always-in lean, phase (spike/channel/range), and buyer vs seller pressure.</span></div>
         <div class="guide-item"><i class="bi bi-puzzle"></i><span><strong>Patterns & Bars</strong> — What patterns are active (H2, wedge, flags), last bar type, and whether we're in breakout mode.</span></div>
         <div class="guide-item"><i class="bi bi-bar-chart-fill"></i><span><strong>Score Breakdown</strong> — The 8 factors that make up the confidence score, each weighted differently. Green = supportive, red = weak.</span></div>
@@ -644,7 +644,7 @@ nav a.active{color:var(--accent)!important;font-weight:600}
             <div class="card-desc">Compares this PA signal against 3 other independent analysis engines. When multiple systems agree, the signal is much more reliable. <span style="color:var(--bull)"><i class="bi bi-check-circle-fill"></i> Agree</span> = same direction. <span style="color:var(--bear)"><i class="bi bi-x-circle-fill"></i> Conflict</span> = opposite direction.</div>
             <div class="detail-row"><span class="field-label">BB Squeeze <i class="bi bi-question-circle info-icon" title="Does the Bollinger Band Squeeze strategy agree with the PA signal? BB methods detect volatility contraction (squeeze) and expansion (breakout). AGREE means BB sees the same direction."></i></span><span id="xBB">—</span></div>
             <div class="detail-row"><span class="field-label">Technical Analysis <i class="bi bi-question-circle info-icon" title="Does the TA module agree? TA uses RSI, MACD, moving averages, ADX, and other indicators. If TA and PA both say BUY, the signal has multi-methodology confirmation."></i></span><span id="xTA">—</span></div>
-            <div class="detail-row"><span class="field-label">Hybrid Engine <i class="bi bi-question-circle info-icon" title="Does the combined BB+TA hybrid engine agree? Hybrid blends Bollinger Band and Technical Analysis into a single verdict. Agreement here means all classical indicators support the PA signal."></i></span><span id="xHybrid">—</span></div>
+            <div class="detail-row"><span class="field-label">Triple Engine <i class="bi bi-question-circle info-icon" title="Does the combined BB+TA+PA triple engine agree? Triple blends Bollinger Band, Technical Analysis, and Price Action into a single verdict. Agreement here means all systems support the signal."></i></span><span id="xHybrid">—</span></div>
             <div class="detail-row"><span class="field-label">Cross Bonus <i class="bi bi-question-circle info-icon" title="Points added (+) or subtracted (-) from confidence based on inter-system agreement. All agree = +15. Partial agree = +5. Conflict = -10. This rewards signals confirmed by multiple methodologies."></i></span><span id="xBonus">—</span></div>
             <div class="detail-row"><span class="field-label">Combined Conf. <i class="bi bi-question-circle info-icon" title="Final confidence after applying cross-system bonuses/penalties. This is the most important number — it's the PA confidence adjusted by whether other engines agree or disagree."></i></span><span id="xCombConf" class="fw-bold">—</span></div>
             <div class="mt-2 small text-secondary" id="xVerdict"></div>

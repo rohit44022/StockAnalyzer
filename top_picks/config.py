@@ -17,7 +17,7 @@ just because the Bollinger Band said "BUY" (one signal), we check:
   2. TA Score (25%)           — Does Murphy's Technical Analysis agree?
      Think of this as: "Did the reference check go well?"
 
-  3. Hybrid Score (20%)       — When we combine BB + TA, is there agreement?
+  3. Triple Score (20%)       — When we combine BB + TA + PA, is there agreement?
      Think of this as: "Do all the interviewers agree on this candidate?"
 
   4. Risk/Reward (15%)        — Is the potential profit much bigger than the risk?
@@ -45,7 +45,7 @@ A stock scoring 85+ is an EXCELLENT pick. 70-85 is GOOD. Below 50 is WEAK.
 WEIGHTS = {
     "bb_strategy":      0.20,   # 20% — How strong is the BB pattern?
     "ta_score":         0.20,   # 20% — Murphy's technical analysis verdict
-    "hybrid_score":     0.15,   # 15% — Combined BB+TA cross-validation score
+    "triple_score":     0.15,   # 15% — Combined BB+TA+PA cross-validation score
     "pa_score":         0.15,   # 15% — Al Brooks Price Action analysis
     "risk_reward":      0.15,   # 15% — Potential profit vs potential loss
     "signal_agreement": 0.10,   # 10% — Do ALL engines agree on direction?
@@ -135,15 +135,14 @@ FRESHNESS_SCORE_MAP = [
 ]
 
 # ═══════════════════════════════════════════════════════════════
-# HYBRID ENGINE SCORING NORMALIZATION
+# TRIPLE ENGINE SCORING NORMALIZATION
 # ═══════════════════════════════════════════════════════════════
-# The hybrid engine returns scores from -230 to +245.
-# Positive max = bb:100 + ta:100 + agreement:45 = 245
-# Negative min = bb:-100 + ta:-100 + agreement:-30 = -230
-# We use separate constants for accurate normalization.
+# The triple engine returns scores from -390 to +390.
+# Positive max = bb:100 + ta:100 + pa:100 + cross-validation:90 = 390
+# Negative min = bb:-100 + ta:-100 + pa:-100 + cross-validation:-90 = -390
 
-HYBRID_MAX_SCORE = 245
-HYBRID_MIN_SCORE = -230
+TRIPLE_MAX_SCORE = 390
+TRIPLE_MIN_SCORE = -390
 
 # ═══════════════════════════════════════════════════════════════
 # PARALLEL PROCESSING

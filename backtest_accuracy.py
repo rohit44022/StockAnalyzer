@@ -35,7 +35,7 @@ warnings.filterwarnings("ignore")
 from bb_squeeze.indicators import compute_all_indicators
 from bb_squeeze.signals import analyze_signals
 from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
-from hybrid_engine import run_hybrid_analysis
+from hybrid_pa_engine import run_triple_analysis
 
 # ═══════════════════════════════════════════════════════════════
 #  CONFIG
@@ -184,13 +184,13 @@ def analyze_stock_at_cutoff(csv_path: str, offset: int) -> List[SignalOutcome]:
             pass
 
         # ────────────────────────────────────────────
-        # 3) Hybrid Engine + TA
+        # 3) Triple Engine + TA + PA
         # ────────────────────────────────────────────
         try:
-            hybrid = run_hybrid_analysis(df_train.copy(), ticker=ticker)
+            hybrid = run_triple_analysis(df_train.copy(), ticker=ticker)
             if "error" not in hybrid:
-                # Hybrid verdict
-                hv = hybrid.get("hybrid_verdict", {})
+                # Triple verdict
+                hv = hybrid.get("triple_verdict", {})
                 verdict = hv.get("verdict", "HOLD")
                 h_conf = _nan_safe(hv.get("confidence", 0))
                 h_score = _nan_safe(hv.get("score", 0))

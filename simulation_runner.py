@@ -56,8 +56,8 @@ from technical_analysis.signals import generate_signal as generate_ta_signal
 from technical_analysis.risk_manager import generate_risk_report
 from technical_analysis.target_price import calculate_target_prices
 
-# ── Hybrid engine ──
-from hybrid_engine import run_hybrid_analysis
+# ── Triple engine ──
+from hybrid_pa_engine import run_triple_analysis
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -738,42 +738,42 @@ def test_target_prices(ticker, ta_data, errors):
 
 
 # ═══════════════════════════════════════════════════════════════
-#  MODULE 10: HYBRID ENGINE
+#  MODULE 10: TRIPLE CONVICTION ENGINE
 # ═══════════════════════════════════════════════════════════════
 
 def test_hybrid_engine(ticker, df_raw, errors):
-    """Test the full Hybrid BB + TA engine."""
-    mod = "hybrid_engine"
+    """Test the full Triple BB + TA + PA engine."""
+    mod = "triple_engine"
     try:
-        result = run_hybrid_analysis(df_raw.copy(), ticker=normalise_ticker(ticker))
+        result = run_triple_analysis(df_raw.copy(), ticker=normalise_ticker(ticker))
     except Exception as ex:
         errors.append(SimulationError(mod, ticker, "CRASH",
-                                       f"run_hybrid_analysis crashed: {ex}",
+                                       f"run_triple_analysis crashed: {ex}",
                                        traceback.format_exc()))
         return None
 
     if not result or not isinstance(result, dict):
         errors.append(SimulationError(mod, ticker, "CRASH",
-                                       "run_hybrid_analysis returned None"))
+                                       "run_triple_analysis returned None"))
         return None
 
     if "error" in result:
         errors.append(SimulationError(mod, ticker, "CRASH",
-                                       f"Hybrid engine error: {result['error']}"))
+                                       f"Triple engine error: {result['error']}"))
         return None
 
-    # Extract hybrid_verdict sub-dict
-    hv = result.get("hybrid_verdict", {})
+    # Extract triple_verdict sub-dict
+    hv = result.get("triple_verdict", {})
     valid_verdicts = ["SUPER STRONG BUY", "SUPER STRONG SELL", "STRONG BUY", "BUY",
                       "HOLD / WAIT", "WEAK HOLD", "SELL", "STRONG SELL", "HOLD"]
     verdict = hv.get("verdict", "") if isinstance(hv, dict) else ""
     if verdict not in valid_verdicts:
         errors.append(SimulationError(mod, ticker, "INCONSISTENCY",
-                                       f"Invalid hybrid verdict: '{verdict}'"))
+                                       f"Invalid triple verdict: '{verdict}'"))
 
-    # Combined score (max 245)
+    # Combined score (max 390)
     score = hv.get("score", 0) if isinstance(hv, dict) else 0
-    e = _check_range(score, "combined_score", -245, 245, ticker, mod)
+    e = _check_range(score, "combined_score", -390, 390, ticker, mod)
     if e: errors.append(e)
 
     # Confidence
@@ -785,13 +785,13 @@ def test_hybrid_engine(ticker, df_raw, errors):
     freshness = result.get("data_freshness")
     if freshness is None:
         errors.append(SimulationError(mod, ticker, "INCONSISTENCY",
-                                       "No data_freshness in hybrid result"))
+                                       "No data_freshness in triple result"))
 
     # Cross-validation should be present
     cv = result.get("cross_validation")
     if cv is None:
         errors.append(SimulationError(mod, ticker, "WARNING",
-                                       "No cross_validation in hybrid result"))
+                                       "No cross_validation in triple result"))
 
     return result
 
@@ -954,22 +954,22 @@ def test_cross_validation(ticker, bb_sig, ta_signal, hybrid_result, errors):
     ta_price = ta_signal.get("scores", {}).get("trend", {}).get("details", "")
     hybrid_price = hybrid_result.get("current_price") or hybrid_result.get("indicators", {}).get("close")
 
-    hv = hybrid_result.get("hybrid_verdict", {})
+    hv = hybrid_result.get("triple_verdict", {})
     if isinstance(hv, dict):
-        # Check hybrid max_score is 245
+        # Check triple max_score is 390
         max_score = hv.get("max_score")
-        if max_score is not None and max_score != 245:
+        if max_score is not None and max_score != 390:
             errors.append(SimulationError(mod, ticker, "INCONSISTENCY",
-                                           f"Hybrid max_score={max_score}, expected 245"))
+                                           f"Triple max_score={max_score}, expected 390"))
 
         # Verify confidence is derived from score
         score = hv.get("score", 0)
         if score is not None:
-            expected_conf = round(abs(score) / 245 * 100, 1)
+            expected_conf = round(abs(score) / 390 * 100, 1)
             actual_conf = hv.get("confidence", 0)
             if actual_conf is not None and abs(actual_conf - expected_conf) > 1.0:
                 errors.append(SimulationError(mod, ticker, "MATH_ERROR",
-                                               f"Hybrid confidence={actual_conf} but expected ~{expected_conf} from score={score}/245"))
+                                               f"Triple confidence={actual_conf} but expected ~{expected_conf} from score={score}/390"))
 
     # Check that hybrid BB score components are present
     bb_score = hybrid_result.get("bb_score")
@@ -1177,8 +1177,8 @@ def run_single_ticker(ticker, pass_num):
                                        f"Exception: {ex}", traceback.format_exc()))
 
     if hybrid:
-        hv = hybrid.get("hybrid_verdict", {})
-        summary["results"]["hybrid"] = {
+        hv = hybrid.get("triple_verdict", {})
+        summary["results"]["triple"] = {
             "verdict": hv.get("verdict") if isinstance(hv, dict) else None,
             "combined_score": _safe_val(hv.get("score")) if isinstance(hv, dict) else None,
             "confidence": _safe_val(hv.get("confidence")) if isinstance(hv, dict) else None,

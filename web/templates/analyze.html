@@ -179,7 +179,7 @@
             </div>
         </div>
 
-        <!-- ═══════════ CROSS-SYSTEM SCORES (TA + Hybrid + PA) ═══════════ -->
+        <!-- ═══════════ CROSS-SYSTEM SCORES (TA + Triple + PA) ═══════════ -->
         <div class="row g-3 mb-3" id="crossSystemRow" style="display:none;">
             <div class="col-lg-4">
                 <div class="card h-100">
@@ -197,11 +197,11 @@
             </div>
             <div class="col-lg-4">
                 <div class="card h-100">
-                    <div class="card-header"><i class="bi bi-shuffle"></i> Hybrid Engine Verdict</div>
+                    <div class="card-header"><i class="bi bi-shuffle"></i> Triple Conviction Verdict</div>
                     <div class="card-body" id="hybridScoreCard">
                         <div class="text-center mb-2">
                             <span class="display-6 fw-bold font-mono" id="hybridScoreVal" style="color:var(--y)">—</span>
-                            <span class="text-secondary small">/245</span>
+                            <span class="text-secondary small">/390</span>
                         </div>
                         <div class="score-bar mb-2"><div class="score-fill" id="hybridScoreBar" style="width:0%;background:var(--y)"></div></div>
                         <div class="small fw-bold mb-1" id="hybridVerdict" style="color:var(--y)">—</div>
@@ -752,7 +752,7 @@
             renderQuantStrategy(DATA.quant);
         }
 
-        /* ─── Cross-System Scores (TA + Hybrid + PA) ─── */
+        /* ─── Cross-System Scores (TA + Triple + PA) ─── */
         try { renderCrossSystemScores(); } catch(e) { console.error('renderCrossSystemScores error:', e); }
     }
 
@@ -1254,7 +1254,7 @@
         container.innerHTML = html;
     }
 
-    // ═══════════ CROSS-SYSTEM SCORES (TA + Hybrid + PA) ═══════════
+    // ═══════════ CROSS-SYSTEM SCORES (TA + Triple + PA) ═══════════
     function renderCrossSystemScores() {
         const hyb = DATA.hybrid;
         const pa = DATA.pa;
@@ -1295,16 +1295,16 @@
             document.getElementById('taCategories').innerHTML = catHtml || '<span class="text-secondary">No category data</span>';
         }
 
-        // ── Hybrid Verdict Card ──
-        if (hyb && hyb.hybrid_verdict) {
-            const hv = hyb.hybrid_verdict;
+        // ── Triple Verdict Card ──
+        if (hyb && (hyb.triple_verdict || hyb.hybrid_verdict)) {
+            const hv = hyb.triple_verdict || hyb.hybrid_verdict;
             const combined = hv.score || 0;
             const verdict = hv.verdict || 'HOLD';
             const conf = hv.confidence || 0;
             const color = scColor(combined, 0, 50);
             document.getElementById('hybridScoreVal').textContent = (combined >= 0 ? '+' : '') + Math.round(combined);
             document.getElementById('hybridScoreVal').style.color = color;
-            const pct = Math.max(0, Math.min(100, (combined + 230) / 475 * 100));
+            const pct = Math.max(0, Math.min(100, (combined + 390) / 780 * 100));
             document.getElementById('hybridScoreBar').style.width = pct + '%';
             document.getElementById('hybridScoreBar').style.background = color;
             document.getElementById('hybridVerdict').textContent = verdict;
@@ -1314,9 +1314,10 @@
             const cv = hyb.cross_validation || {};
             const bbT = hyb.bb_score ? hyb.bb_score.total : '—';
             const taT = hyb.ta_score ? hyb.ta_score.total : '—';
+            const paT = hyb.pa_score ? hyb.pa_score.total : '—';
             const agree = cv.agreement_score != null ? cv.agreement_score : '—';
             document.getElementById('hybridDetails').innerHTML =
-                `<div style="font-size:.78rem;">BB: ${bbT}/100 &nbsp;|&nbsp; TA: ${taT}/100 &nbsp;|&nbsp; Agreement: ${agree >= 0 ? '+' : ''}${agree}</div>
+                `<div style="font-size:.78rem;">BB: ${bbT}/100 &nbsp;|&nbsp; TA: ${taT}/100 &nbsp;|&nbsp; PA: ${paT}/100 &nbsp;|&nbsp; Agree: ${agree >= 0 ? '+' : ''}${agree}</div>
                  <div style="font-size:.78rem;">Confidence: <strong>${conf}%</strong> &nbsp;|&nbsp; Direction: <strong>${cv.direction || '—'}</strong></div>`;
         }
 

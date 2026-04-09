@@ -1,0 +1,126 @@
+TRIPLE ENGINE BACKTEST — 200 stocks, 8 workers
+Window: 250 bars | Step: 10 | Cooldown: 15 | Max Hold: 40
+Direction: ALL (BUY + SELL)
+==========================================================================
+  [50/200] 1.1 stocks/sec | 870 trades | elapsed 45s
+  [100/200] 1.4 stocks/sec | 1,764 trades | elapsed 70s
+  [150/200] 1.7 stocks/sec | 2,767 trades | elapsed 90s
+  [200/200] 1.8 stocks/sec | 3,907 trades | elapsed 112s
+
+  Completed: 200/200 in 112s (1.8 stocks/sec)
+  Total trades: 3,907
+
+==========================================================================
+   TRIPLE CONVICTION ENGINE — BACKTEST REPORT
+   BB (100) + TA (100) + PA (100) + Cross-Validation (±60) = 360 max
+   ALL directions | 200 stocks scanned | 174 with signals
+==========================================================================
+
+                         ═══ OVERALL RESULTS ═══                          
+--------------------------------------------------------------------------
+  Total Trades          : 3,907
+  Wins (target hit)     : 1,717
+  Losses (stop hit)     : 1,889
+  Breakevens (trail BE) : 289
+  Timeout Wins          : 9
+  Timeout Losses        : 3
+  Win Rate              : 47.5%
+  Adjusted Win Rate     : 47.6%  (timeout_win = 0.5 credit)
+  Profit Factor         : 1.14
+  Avg P&L per Trade     : +0.32%
+  Avg Win P&L           : +6.01%
+  Avg Loss P&L          : -4.83%
+  Total Cumulative P&L  : +1,256%
+  Avg Bars Held         : 4.9
+  Max Consecutive Wins  : 13
+  Max Consecutive Losses: 14
+  Max Drawdown          : 144.83%
+  GRADE                 : C
+
+                         ═══ DIRECTION SPLIT ═══                          
+--------------------------------------------------------------------------
+  BUY  trades:  2,165  WR:  44.0%  avg P&L: +0.67%
+  SELL trades:  1,742  WR:  43.9%  avg P&L: -0.11%
+
+                        ═══ BY TRIPLE VERDICT ═══                         
+--------------------------------------------------------------------------
+  Verdict                 Trades   Wins     WR%   Avg P&L     PF
+  ────────────────────────────────────────────────────────────
+  SUPER STRONG BUY           807    350   43.4%    +0.71%  1.33
+  STRONG BUY               1,358    602   44.3%    +0.64%  1.30
+  STRONG SELL              1,578    695   44.0%    -0.10%  0.96
+  SUPER STRONG SELL          164     70   42.7%    -0.20%  0.92
+
+                           ═══ BY ALIGNMENT ═══                           
+--------------------------------------------------------------------------
+  Alignment               Trades   Wins     WR%   Avg P&L
+  ────────────────────────────────────────────────────
+  TRIPLE_ALIGNED           2,638  1,143   43.3%    +0.16%
+  DOUBLE_ALIGNED           1,233    558   45.3%    +0.66%
+  CONFLICTING                 17      7   41.2%    -0.37%
+  SINGLE                      19      9   47.4%    +1.64%
+
+                           ═══ BY BB PHASE ═══                            
+--------------------------------------------------------------------------
+  COMPRESSION                  8 trades  WR:  12.5%  avg P&L: -1.93%
+  DIRECTION                  342 trades  WR:  45.0%  avg P&L: +0.53%
+  EXPLOSION                1,321 trades  WR:  42.6%  avg P&L: +0.28%
+  NORMAL                   2,236 trades  WR:  44.7%  avg P&L: +0.32%
+
+                          ═══ BY PA STRENGTH ═══                          
+--------------------------------------------------------------------------
+  STRONG                     780 trades  WR:  44.5%  avg P&L: -0.02%
+  MODERATE                 2,329 trades  WR:  45.4%  avg P&L: +0.51%
+  WEAK                       776 trades  WR:  39.3%  avg P&L: +0.09%
+
+                         ═══ BY PA ALWAYS-IN ═══                          
+--------------------------------------------------------------------------
+  LONG                     1,290 trades  WR:  45.7%  avg P&L: +0.75%
+  SHORT                    1,706 trades  WR:  44.0%  avg P&L: -0.10%
+  FLAT                       911 trades  WR:  41.3%  avg P&L: +0.51%
+
+                        ═══ BY CONFIDENCE TIER ═══                        
+--------------------------------------------------------------------------
+  MODERATE (40-69)           364 trades  WR:  41.8%  avg P&L: +0.46%
+  LOW (<40)                3,543 trades  WR:  44.2%  avg P&L: +0.31%
+
+                         ═══ BY SCORE BUCKET ═══                          
+--------------------------------------------------------------------------
+  130+ (SUPER STRONG)               807 trades  WR:  43.4%  avg P&L: +0.71%
+  80-129 (STRONG)                 1,360 trades  WR:  44.4%  avg P&L: +0.65%
+  45-79 (MODERATE)                    4 trades  WR:  75.0%  avg P&L: +3.44%
+  -44 to -80 (SELL)                   8 trades  WR:  50.0%  avg P&L: -0.06%
+  -80 to -130 (STRONG SELL)       1,579 trades  WR:  44.1%  avg P&L: -0.10%
+  <-130 (SUPER STRONG SELL)         164 trades  WR:  42.7%  avg P&L: -0.20%
+
+                 ═══ SYSTEM AGREEMENT (BB + TA + PA) ═══                  
+--------------------------------------------------------------------------
+  Systems Agree    Trades  % Total     WR%   Avg P&L
+  ──────────────────────────────────────────────────
+  2_of_3            1,599    40.9%   46.8%    +0.73%
+  3_of_3            2,308    59.1%   41.9%    +0.04%
+
+                          ═══ BY EXIT METHOD ═══                          
+--------------------------------------------------------------------------
+  STOP              1,885 ( 48.2%)  avg P&L: -4.83%
+  TARGET_1          1,086 ( 27.8%)  avg P&L: +5.16%
+  TARGET_2            490 ( 12.5%)  avg P&L: +8.93%
+  TRAIL_BE            289 (  7.4%)  avg P&L: +0.00%
+  TRAIL_STOP          141 (  3.6%)  avg P&L: +2.45%
+  BAND_TAG              4 (  0.1%)  avg P&L: -3.34%
+  TIMEOUT              12 (  0.3%)  avg P&L: +3.68%
+
+                      ═══ RELIABILITY SCORECARD ═══                       
+==========================================================================
+  Win Rate (47.5%):                  11.2/20 pts
+  Profit Factor (1.14):              8.5/20 pts
+  Avg P&L (+0.32%):                 6.6/15 pts
+  Alignment Signal Spread (+2pp): 4.7/15 pts
+  Agreement Quality (floor 42%, all+ve=Y, spread +4.9pp): 11/15 pts
+  Max Drawdown (30.0R, 200-trade window, raw 145%): 10.7/15 pts
+  ──────────────────────────────────────────────────
+  TOTAL RELIABILITY SCORE: 52.7/100
+  VERDICT: FAIR — Usable with risk management
+==========================================================================
+
+  Results saved to: /Users/rttripathirttripathi/Rohit/coding/StockCode/ historical_data/backtest_triple_results.json

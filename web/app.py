@@ -30,7 +30,7 @@ from bb_squeeze.fundamentals import fetch_fundamentals
 from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
 from bb_squeeze.quant_strategy import run_quant_analysis
 from bb_squeeze.config import CSV_DIR
-from hybrid_engine import run_hybrid_analysis
+from hybrid_pa_engine import run_triple_analysis
 from price_action.engine import run_price_action_analysis, pa_result_to_dict
 from bb_squeeze.trade_db import init_db as _init_trade_db, add_trade, get_all_trades, get_trade, delete_trade, update_trade
 from bb_squeeze.trade_calculator import calculate_trade, calculate_fy_summary
@@ -44,12 +44,14 @@ from web.ta_routes import ta_bp
 from web.hybrid_routes import hybrid_bp
 from web.top_picks_routes import top_picks_bp
 from web.pa_routes import pa_bp
+from web.triple_routes import triple_bp
 
 app = Flask(__name__)
 app.register_blueprint(ta_bp)
 app.register_blueprint(hybrid_bp)
 app.register_blueprint(top_picks_bp)
 app.register_blueprint(pa_bp)
+app.register_blueprint(triple_bp)
 
 # Ensure DBs exist
 _init_trade_db()
@@ -443,10 +445,10 @@ def api_analyze(ticker_raw):
     except Exception:
         pass
 
-    # Hybrid Analysis (BB + TA cross-validated)
-    hybrid = None
+    # Triple Conviction Analysis (BB + TA + PA cross-validated)
+    triple = None
     try:
-        hybrid = run_hybrid_analysis(df, ticker=ticker)
+        triple = run_triple_analysis(df, ticker=ticker)
     except Exception:
         pass
 
@@ -460,11 +462,11 @@ def api_analyze(ticker_raw):
             "confidence": sig.confidence,
             "phase": sig.phase,
         }
-        ta_data_for_pa = hybrid.get("ta_signal") if hybrid else None
+        ta_data_for_pa = triple.get("ta_signal") if triple else None
         pa_raw = run_price_action_analysis(
             df=df, ticker=ticker,
             bb_data=bb_data_for_pa, ta_data=ta_data_for_pa,
-            hybrid_data=hybrid,
+            hybrid_data=triple,
         )
         pa = pa_result_to_dict(pa_raw)
     except Exception:
@@ -479,7 +481,8 @@ def api_analyze(ticker_raw):
         "fundamentals": _fund_dict(fd),
         "chart":        chart,
         "quant":        quant,
-        "hybrid":       hybrid,
+        "hybrid":       triple,
+        "triple":       triple,
         "pa":           pa,
         "data_freshness": freshness,
     })

@@ -117,19 +117,40 @@ def _score_trend(snap: dict, trend: dict) -> dict:
 #  MOMENTUM SCORE  (20 points max)
 # ═══════════════════════════════════════════════════════════════
 
-def _score_momentum(snap: dict) -> dict:
-    """Score oscillators: RSI, MACD, Stochastic, Williams %R, CCI, ROC."""
+def _score_momentum(snap: dict, trend: dict = None) -> dict:
+    """Score oscillators: RSI, MACD, Stochastic, Williams %R, CCI, ROC.
+
+    Murphy Ch 10: "Oscillators are subordinate to basic trend analysis."
+    In strong uptrends, overbought readings are expected and NOT bearish.
+    In strong downtrends, oversold readings are expected and NOT bullish.
+    "Trade in the direction of the overriding market trend."
+    """
     score = 0.0
     details = []
     max_pts = WEIGHT_MOMENTUM
+
+    # Murphy Ch 10: Determine if oscillator extremes should be penalized
+    # "In strong uptrends, overbought can stay overbought — don't sell prematurely"
+    primary_trend = (trend or {}).get("primary", "SIDEWAYS")
+    trend_strength = (trend or {}).get("strength", "")
+    strong_uptrend = (primary_trend == "UPTREND" and "STRONG" in str(trend_strength).upper())
+    strong_downtrend = (primary_trend == "DOWNTREND" and "STRONG" in str(trend_strength).upper())
 
     # RSI
     rsi = _safe(snap.get("rsi"))
     if rsi is not None:
         if rsi < RSI_OVERSOLD:
-            score += 3; details.append(f"✅ RSI={rsi:.0f} OVERSOLD — bounce likely")
+            if strong_downtrend:
+                score += 0.5  # Murphy: oversold is expected in strong downtrend — weak signal
+                details.append(f"⚠️ RSI={rsi:.0f} OVERSOLD but in strong downtrend — bounce unreliable")
+            else:
+                score += 3; details.append(f"✅ RSI={rsi:.0f} OVERSOLD — bounce likely")
         elif rsi > RSI_OVERBOUGHT:
-            score -= 3; details.append(f"❌ RSI={rsi:.0f} OVERBOUGHT — correction likely")
+            if strong_uptrend:
+                score += 0.5  # Murphy: overbought is NORMAL in strong uptrend — don't penalize
+                details.append(f"✅ RSI={rsi:.0f} overbought but in strong uptrend — momentum confirms trend")
+            else:
+                score -= 3; details.append(f"❌ RSI={rsi:.0f} OVERBOUGHT — correction likely")
         elif 50 < rsi < RSI_OVERBOUGHT:
             score += 1; details.append(f"✅ RSI={rsi:.0f} bullish zone (50–70)")
         elif RSI_OVERSOLD < rsi < 50:
@@ -155,9 +176,17 @@ def _score_momentum(snap: dict) -> dict:
     stoch_d = _safe(snap.get("stoch_d"))
     if stoch_k is not None:
         if stoch_k < STOCH_OVERSOLD:
-            score += 2; details.append(f"✅ Stochastic %K={stoch_k:.0f} OVERSOLD")
+            if strong_downtrend:
+                score += 0.5
+                details.append(f"⚠️ Stochastic %K={stoch_k:.0f} OVERSOLD — weak in strong downtrend")
+            else:
+                score += 2; details.append(f"✅ Stochastic %K={stoch_k:.0f} OVERSOLD")
         elif stoch_k > STOCH_OVERBOUGHT:
-            score -= 2; details.append(f"❌ Stochastic %K={stoch_k:.0f} OVERBOUGHT")
+            if strong_uptrend:
+                score += 0.5
+                details.append(f"✅ Stochastic %K={stoch_k:.0f} overbought — normal in strong uptrend")
+            else:
+                score -= 2; details.append(f"❌ Stochastic %K={stoch_k:.0f} OVERBOUGHT")
 
         if stoch_k is not None and stoch_d is not None:
             if stoch_k > stoch_d:
@@ -177,9 +206,15 @@ def _score_momentum(snap: dict) -> dict:
     cci = _safe(snap.get("cci"))
     if cci is not None:
         if cci > CCI_OVERBOUGHT:
-            score -= 1; details.append(f"❌ CCI={cci:.0f} ABOVE +100 (extended)")
+            if strong_uptrend:
+                details.append(f"✅ CCI={cci:.0f} ABOVE +100 — strong momentum in uptrend")
+            else:
+                score -= 1; details.append(f"❌ CCI={cci:.0f} ABOVE +100 (extended)")
         elif cci < CCI_OVERSOLD:
-            score += 1; details.append(f"✅ CCI={cci:.0f} BELOW -100 (oversold)")
+            if strong_downtrend:
+                details.append(f"⚠️ CCI={cci:.0f} BELOW -100 — weak in strong downtrend")
+            else:
+                score += 1; details.append(f"✅ CCI={cci:.0f} BELOW -100 (oversold)")
 
     # ROC
     roc = _safe(snap.get("roc"))
@@ -197,11 +232,20 @@ def _score_momentum(snap: dict) -> dict:
 #  VOLUME SCORE  (15 points max)
 # ═══════════════════════════════════════════════════════════════
 
-def _score_volume(snap: dict, vol_analysis: dict) -> dict:
-    """Score volume indicators: OBV, A/D, Volume ratio."""
+def _score_volume(snap: dict, vol_analysis: dict, trend: dict = None) -> dict:
+    """Score volume indicators: OBV, A/D, Volume ratio.
+
+    Murphy Ch 7: "Volume should increase or expand in the direction of
+    the existing price trend."  High volume on rallies in uptrend = bullish.
+    High volume on declines in downtrend = bearish.
+    High volume AGAINST the trend = warning sign.
+    """
     score = 0.0
     details = []
     max_pts = WEIGHT_VOLUME
+
+    # Murphy Ch 7: Determine established trend for volume confirmation
+    primary_trend = (trend or {}).get("primary", "SIDEWAYS")
 
     # OBV trend
     obv_trend = vol_analysis.get("obv_trend", "")
@@ -210,18 +254,32 @@ def _score_volume(snap: dict, vol_analysis: dict) -> dict:
     elif "BEARISH" in obv_trend:
         score -= 3; details.append("❌ OBV falling (distribution — smart money selling)")
 
-    # Volume level
+    # Volume level — Murphy: volume must confirm the TREND direction
     vol_ratio = vol_analysis.get("volume_ratio", 1.0)
     vol_status = vol_analysis.get("volume_status", "NORMAL")
     if vol_status in ("HIGH", "VERY HIGH"):
-        # High volume confirms the move direction
         roc = _safe(snap.get("roc"))
         if roc is not None and roc > 0:
-            score += 2; details.append(f"✅ Volume {vol_ratio:.1f}x avg — confirms upward move")
-        elif roc is not None:
-            score -= 2; details.append(f"❌ Volume {vol_ratio:.1f}x avg — confirms downward move")
+            if primary_trend == "UPTREND":
+                score += 2; details.append(f"✅ Volume {vol_ratio:.1f}x avg on UP move in uptrend — trend confirmed (Murphy Ch 7)")
+            else:
+                score += 1.5; details.append(f"✅ Volume {vol_ratio:.1f}x avg — confirms upward move")
+        elif roc is not None and roc < 0:
+            if primary_trend == "DOWNTREND":
+                score -= 2; details.append(f"❌ Volume {vol_ratio:.1f}x avg on DOWN move in downtrend — trend confirmed (Murphy Ch 7)")
+            elif primary_trend == "UPTREND":
+                score -= 2.5; details.append(f"⚠️ Volume {vol_ratio:.1f}x avg on DOWN move in uptrend — WARNING: distribution (Murphy Ch 7)")
+            else:
+                score -= 1.5; details.append(f"❌ Volume {vol_ratio:.1f}x avg — confirms downward move")
     elif vol_status == "LOW":
-        details.append(f"⚠️ Volume {vol_ratio:.1f}x avg — low participation (weak conviction)")
+        if primary_trend == "UPTREND":
+            roc = _safe(snap.get("roc"))
+            if roc is not None and roc > 0:
+                score -= 0.5; details.append(f"⚠️ Volume {vol_ratio:.1f}x avg LOW on rally — weakening upside pressure (Murphy Ch 7)")
+            else:
+                details.append(f"Volume {vol_ratio:.1f}x avg — light on pullback (normal in uptrend)")
+        else:
+            details.append(f"⚠️ Volume {vol_ratio:.1f}x avg — low participation (weak conviction)")
 
     # VWAP
     vwap = _safe(snap.get("vwap"))
@@ -429,8 +487,8 @@ def generate_signal(
     """
     # Score each category
     trend_score = _score_trend(snap, trend)
-    momentum_score = _score_momentum(snap)
-    volume_score = _score_volume(snap, vol_analysis)
+    momentum_score = _score_momentum(snap, trend)
+    volume_score = _score_volume(snap, vol_analysis, trend)
     pattern_score = _score_patterns(chart_patterns, candle_patterns, divergences)
     sr_score = _score_support_resistance(snap, sr_data, fib_data)
     risk_score = _score_risk(snap, trend)

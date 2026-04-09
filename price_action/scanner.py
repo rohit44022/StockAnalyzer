@@ -85,12 +85,12 @@ def scan_single_stock(
             except Exception:
                 pass
 
-        # Get Hybrid data
+        # Get Triple (hybrid) data
         hybrid_data = None
         if include_hybrid:
             try:
-                from hybrid_engine import run_hybrid_analysis
-                hybrid_data = run_hybrid_analysis(df_ind, ticker=ticker)
+                from hybrid_pa_engine import run_triple_analysis
+                hybrid_data = run_triple_analysis(df_ind, ticker=ticker)
             except Exception:
                 pass
 

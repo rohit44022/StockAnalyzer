@@ -67,7 +67,7 @@ from bb_squeeze.indicators import compute_all_indicators as compute_bb_indicator
 from bb_squeeze.signals import analyze_signals as generate_bb_signal
 from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
 from bb_squeeze.config import CSV_DIR
-from hybrid_engine import run_hybrid_analysis
+from hybrid_pa_engine import run_triple_analysis
 
 # ── Our own modules ──
 from top_picks.config import (
@@ -75,7 +75,6 @@ from top_picks.config import (
     TOP_N, MIN_COMPOSITE_SCORE, MAX_WORKERS, DEFAULT_CAPITAL,
 )
 from top_picks.scorer import compute_composite_score
-from price_action.engine import run_price_action_analysis, pa_result_to_dict
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -396,73 +395,75 @@ def _deep_analyze_stock(
         if df is None or len(df) < MIN_DATA_BARS:
             return None
 
-        # Step 2: Run Hybrid Engine
+        # Step 2: Run Triple Conviction Engine (BB + TA + PA + Wyckoff)
         # This is the HEAVY call — internally it runs:
         #   - compute_bb_indicators() → BB bands, %b, BBW, CMF, MFI, SAR, etc.
         #   - analyze_signals() → M1 squeeze detection
         #   - run_all_strategies() → M2/M3/M4 pattern detection
         #   - compute_all_ta_indicators() → 40+ TA indicators
         #   - generate_ta_signal() → 6-category TA scoring
-        #   - cross_validate() → BB vs TA agreement check
+        #   - Price Action (Al Brooks) → bar-by-bar analysis
+        #   - cross_validate() → BB vs TA vs PA agreement check
+        #   - Wyckoff/Weis context layer
         #   - risk report + target prices
-        hybrid = run_hybrid_analysis(df, ticker=ticker, capital=capital)
+        triple = run_triple_analysis(df, ticker=ticker, capital=capital)
 
-        if "error" in hybrid:
+        if "error" in triple:
             return None
 
-        # Step 2b: Run Price Action (Al Brooks) Analysis
+        # Step 2b: Extract PA data from triple result (already computed inside triple)
         pa_flat = None
         try:
-            bb_cross = None
-            bb_data_raw = hybrid.get("bb_data", {})
-            if bb_data_raw:
-                bb_cross = {
-                    "buy_signal": bb_data_raw.get("buy_signal", False),
-                    "sell_signal": bb_data_raw.get("sell_signal", False),
-                    "direction_lean": bb_data_raw.get("direction_lean", ""),
-                    "confidence": bb_data_raw.get("confidence", 0),
-                    "phase": bb_data_raw.get("phase", ""),
-                }
-            ta_cross = hybrid.get("ta_signal")
-            pa_result_obj = run_price_action_analysis(
-                df=df, ticker=ticker,
-                bb_data=bb_cross, ta_data=ta_cross, hybrid_data=hybrid,
-            )
-            if pa_result_obj and pa_result_obj.success:
-                pa_dict = pa_result_to_dict(pa_result_obj)
-                # Flatten key fields for scorer and frontend
+            pa_raw = triple.get("pa_data", {})
+            pa_scored = triple.get("pa_score", {})
+            if pa_raw and pa_raw.get("signal_type"):
                 pa_flat = {
                     "success": True,
-                    "pa_score": pa_result_obj.pa_score,
-                    "confidence": pa_result_obj.confidence,
-                    "pa_verdict": pa_dict.get("signal", {}).get("pa_verdict", "HOLD"),
-                    "signal_type": pa_result_obj.signal_type,
-                    "signal_strength": pa_dict.get("signal", {}).get("strength", ""),
-                    "setup_type": pa_dict.get("signal", {}).get("setup", ""),
-                    "always_in": pa_dict.get("trend", {}).get("always_in", ""),
-                    "trend_direction": pa_dict.get("trend", {}).get("direction", ""),
-                    "trend_phase": pa_dict.get("trend", {}).get("phase", ""),
-                    "patterns": pa_dict.get("patterns", {}).get("active", []),
-                    "al_brooks_context": pa_dict.get("al_brooks_context", ""),
-                    "last_bar": pa_dict.get("last_bar", {}),
-                    "breakout": pa_dict.get("breakout", {}),
-                    "channel": pa_dict.get("channel", {}),
-                    "scoring": pa_dict.get("scoring", {}),
-                    "two_leg": pa_dict.get("two_leg", {}),
-                    "reasons": pa_dict.get("reasons", []),
-                    "price_levels": pa_dict.get("price_levels", {}),
-                    "cross_system": pa_dict.get("cross_system", {}),
+                    "pa_score": pa_raw.get("pa_score", 0),
+                    "confidence": pa_raw.get("confidence", 0),
+                    "pa_verdict": pa_raw.get("signal_type", "HOLD"),
+                    "signal_type": pa_raw.get("signal_type", ""),
+                    "signal_strength": pa_raw.get("strength", ""),
+                    "setup_type": pa_raw.get("setup_type", ""),
+                    "always_in": pa_raw.get("always_in", ""),
+                    "trend_direction": pa_raw.get("trend_direction", ""),
+                    "trend_phase": pa_raw.get("trend_phase", ""),
+                    "patterns": pa_raw.get("active_patterns", []),
+                    "al_brooks_context": pa_raw.get("al_brooks_context", ""),
+                    "last_bar": {
+                        "type": pa_raw.get("last_bar_type", ""),
+                        "is_signal": pa_raw.get("last_bar_signal", False),
+                    },
+                    "breakout": {
+                        "in_breakout": pa_raw.get("in_breakout", False),
+                        "direction": pa_raw.get("breakout_direction", ""),
+                    },
+                    "channel": {},
+                    "scoring": pa_scored,
+                    "two_leg": {
+                        "complete": pa_raw.get("two_leg_complete", False),
+                        "measured_move_target": pa_raw.get("measured_move_target"),
+                    },
+                    "reasons": pa_raw.get("reasons", []),
+                    "price_levels": {
+                        "entry": pa_raw.get("entry_price"),
+                        "stop_loss": pa_raw.get("stop_loss"),
+                        "target_1": pa_raw.get("target_1"),
+                        "target_2": pa_raw.get("target_2"),
+                        "risk_reward": pa_raw.get("risk_reward"),
+                    },
+                    "cross_system": triple.get("cross_validation", {}),
                 }
         except Exception:
             pass
 
-        # Step 3: Extract individual components from hybrid output
-        ta_signal = hybrid.get("ta_signal", {})
-        data_freshness = hybrid.get("data_freshness", {})
-        hybrid_verdict = hybrid.get("hybrid_verdict", {})
-        bb_data = hybrid.get("bb_data", {})
-        risk = hybrid.get("risk", {})
-        target_prices = hybrid.get("target_prices", {})
+        # Step 3: Extract individual components from triple output
+        ta_signal = triple.get("ta_signal", {})
+        data_freshness = triple.get("data_freshness", {})
+        triple_verdict = triple.get("triple_verdict", {})
+        bb_data = triple.get("bb_data", {})
+        risk = triple.get("risk", {})
+        target_prices = triple.get("target_prices", {})
         ta_categories = ta_signal.get("categories", {})
 
         # Step 4: Compute composite score (this calls scorer.py)
@@ -470,7 +471,7 @@ def _deep_analyze_stock(
             bb_confidence=bb_confidence,
             bb_signal_type=bb_signal_type,
             ta_signal=ta_signal,
-            hybrid_result=hybrid,
+            hybrid_result=triple,
             data_freshness=data_freshness,
             method=method,
             signal_filter=signal_filter,
@@ -504,8 +505,8 @@ def _deep_analyze_stock(
                     "max": _safe(cat_data.get("max", 0)),
                 }
 
-        # Hybrid verdict details
-        hv = hybrid_verdict if isinstance(hybrid_verdict, dict) else {}
+        # Triple verdict details
+        tv = triple_verdict if isinstance(triple_verdict, dict) else {}
 
         return {
             # ── Identification ──
@@ -534,14 +535,15 @@ def _deep_analyze_stock(
             "ta_categories": category_summary,
             "ta_action_items": action_items[:5],  # Top 5 action items
 
-            # ── Hybrid Data ──
-            "hybrid_verdict": hv.get("verdict", "UNKNOWN"),
-            "hybrid_combined_score": _safe(hv.get("score", 0)),
-            "hybrid_confidence": _safe(hv.get("confidence", 0)),
-            "hybrid_bb_total": _safe(hybrid.get("bb_score", {}).get("total", 0)),
-            "hybrid_ta_total": _safe(hybrid.get("ta_score", {}).get("total", 0)),
-            "hybrid_agreement": _safe(
-                hybrid.get("cross_validation", {}).get("agreement_score", 0)
+            # ── Triple Conviction Data ──
+            "triple_verdict": tv.get("verdict", "UNKNOWN"),
+            "triple_combined_score": _safe(tv.get("score", 0)),
+            "triple_confidence": _safe(tv.get("confidence", 0)),
+            "triple_bb_total": _safe(triple.get("bb_score", {}).get("total", 0)),
+            "triple_ta_total": _safe(triple.get("ta_score", {}).get("total", 0)),
+            "triple_pa_total": _safe(triple.get("pa_score", {}).get("total", 0)),
+            "triple_agreement": _safe(
+                triple.get("cross_validation", {}).get("agreement_score", 0)
             ),
 
             # ── Risk/Reward Data ──

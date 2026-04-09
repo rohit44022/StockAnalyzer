@@ -106,10 +106,14 @@ VROC_PERIOD       = 14     # Volume Rate of Change
 VWAP_PERIOD       = 20     # Rolling VWAP lookback
 
 # ═══════════════════════════════════════════════════════════════
-#  FIBONACCI LEVELS  (Murphy Ch 4)
+#  FIBONACCI & DOW RETRACEMENT LEVELS  (Murphy Ch 4, Ch 19 #8)
 # ═══════════════════════════════════════════════════════════════
-FIB_RETRACEMENT = [0.0, 0.236, 0.382, 0.500, 0.618, 0.786, 1.0]
+# Murphy Ch 19 checklist item #8: "33%, 50%, 66% retracements" (Dow Theory)
+# Combined with Fibonacci levels for comprehensive coverage.
+FIB_RETRACEMENT = [0.0, 0.236, 0.333, 0.382, 0.500, 0.618, 0.667, 0.786, 1.0]
 FIB_EXTENSION   = [1.0, 1.272, 1.618, 2.0, 2.618]
+# Dow Theory retracements (Murphy): 33%, 50%, 66%
+DOW_RETRACEMENT = [0.333, 0.500, 0.667]
 
 # ═══════════════════════════════════════════════════════════════
 #  PIVOT POINTS

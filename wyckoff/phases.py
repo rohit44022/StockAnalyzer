@@ -4,36 +4,43 @@ wyckoff/phases.py — Wyckoff Market Phase & Event Detection
 
 TRUTHFULNESS AUDIT
 ──────────────────
-Source Book: David H. Weis, "Trades About to Happen" (Wiley, 2013)
+Source Book: Rubén Villahermosa, "The Wyckoff Methodology in Depth" (2019)
 
-Weis teaches Richard Wyckoff's method of reading price and volume.
+Villahermosa teaches Richard Wyckoff's method of reading price and volume
+through a systematic framework: 3 Laws, 7 Events, 5 Phases (A-E), and
+4 Schematics (Accumulation #1/#2, Distribution #1/#2).
+
 The core cycle (Accumulation → Markup → Distribution → Markdown)
-is a FOUNDATIONAL Wyckoff concept that Weis covers throughout
-the book (Chapters 1-11). The events detected here (SC, BC, Spring,
-Upthrust, SOS, SOW, Test) are ALL explicitly discussed by Weis.
+is a FOUNDATIONAL Wyckoff concept that Villahermosa covers throughout
+the book (Parts 1-8). The events detected here (SC, BC, Spring,
+Upthrust, SOS, SOW, Test) correspond to Villahermosa's 7 Events:
+Preliminary Support/Supply, Climax, Automatic Reaction, Secondary Test,
+Shaking (Spring/UTAD), Breakout (SOS/SOW), and Confirmation.
 
 IMPORTANT:
-- Weis reads bars VISUALLY and in CONTEXT. He does not give
+- Villahermosa reads bars VISUALLY and in CONTEXT. He does not give
   algorithmic detection rules with numeric thresholds.
 - All numeric parameters (spread percentiles, volume multiples,
   close-position thresholds) are [CALIBRATION] — our quantification
-  of Weis's qualitative concepts. See config.py for details.
-- Quotes attributed to "Weis" below are PARAPHRASES of his teaching
-  concepts, not direct verbatim quotations. Marked [PARAPHRASE].
+  of Villahermosa's qualitative concepts. See config.py for details.
+- Descriptions below are PARAPHRASES of his teaching concepts,
+  not direct verbatim quotations. Marked [VILLAHERMOSA].
 - Sub-phases (EARLY/MIDDLE/CONFIRMED/LATE) are [INFERRED] from
-  Weis's descriptions of how phases progress, but he does not
-  name them this way.
+  Villahermosa's descriptions of how phases progress, but he does not
+  name them this way. He uses Phase A through Phase E.
 
-Wyckoff's Market Cycle (as taught by Weis):
+Wyckoff's Market Cycle (as taught by Villahermosa):
   ┌─────────────┐     ┌──────────┐     ┌──────────────┐     ┌──────────┐
   │ ACCUMULATION │ ──→ │  MARKUP  │ ──→ │ DISTRIBUTION │ ──→ │ MARKDOWN │
-  │ (Smart buy)  │     │ (Trend ↑)│     │ (Smart sell) │     │ (Trend ↓)│
+  │ (Comp. Man   │     │ (Trend ↑)│     │ (Comp. Man   │     │ (Trend ↓)│
+  │  buying)     │     │          │     │  selling)    │     │          │
   └─────────────┘     └──────────┘     └──────────────┘     └──────────┘
          ↑                                                        │
          └────────────────────────────────────────────────────────┘
 
 Each phase has specific volume-price signatures that tell you
-WHERE you are in the cycle.
+WHERE you are in the cycle. Villahermosa maps Creek/Ice levels
+as key structural reference points within each structure.
 """
 
 from __future__ import annotations
@@ -114,7 +121,7 @@ def _close_position(high: float, low: float, close: float) -> float:
 def _is_in_range(df: pd.DataFrame, lookback: int = RANGE_LOOKBACK,
                  threshold: float = RANGE_THRESHOLD_PCT) -> Tuple[bool, float, float]:
     """
-    [WEIS] Detect if price is in a trading range.
+    [VILLAHERMOSA] Detect if price is in a trading range.
 
     A trading range exists when:
       - Price has been oscillating within a relatively narrow band
@@ -142,10 +149,10 @@ def _is_in_range(df: pd.DataFrame, lookback: int = RANGE_LOOKBACK,
 
 def detect_selling_climax(df: pd.DataFrame) -> Optional[WyckoffEvent]:
     """
-    [WEIS] Selling Climax (SC) — potential end of markdown.
+    [VILLAHERMOSA] Selling Climax (SC) — potential end of markdown.
 
-    Source: Weis — Ch. 4 (bar reading), Ch. 8 (chart studies).
-      Weis teaches that a SC shows panicked selling being absorbed by
+    Source: Villahermosa — Part 6 (Events), Event 2: Climax.
+      Villahermosa teaches that a SC shows panicked selling being absorbed by
       informed buyers. He describes it as a wide-spread down bar with
       heavy volume where the close recovers toward the high of the bar.
 
@@ -156,7 +163,7 @@ def detect_selling_climax(df: pd.DataFrame) -> Optional[WyckoffEvent]:
       1. Wide spread bar (top 20% of recent spreads) — [CALIBRATION]
       2. Very high volume (≥2× average) — [CALIBRATION]
       3. Close in upper 40% of bar (buying coming in) — [CALIBRATION]
-      4. Prior bars showed declining prices (context of downtrend) — [WEIS]
+      4. Prior bars showed declining prices (context of downtrend) — [VILLAHERMOSA]
     """
     if len(df) < 20:
         return None
@@ -212,12 +219,12 @@ def detect_selling_climax(df: pd.DataFrame) -> Optional[WyckoffEvent]:
 
 def detect_buying_climax(df: pd.DataFrame) -> Optional[WyckoffEvent]:
     """
-    [WEIS] Buying Climax (BC) — potential end of markup.
+    [VILLAHERMOSA] Buying Climax (BC) — potential end of markup.
 
-    Source: Weis — Ch. 4 (bar reading), Ch. 8 (chart studies).
+    Source: Villahermosa — Part 6 (Events), Event 2: Climax.
       Mirror of Selling Climax. Wide spread up bar with extreme volume
       but close near the low — euphoric buyers are being sold to by
-      smart money.
+      the Composite Man.
 
     Our algorithmic rules (all thresholds are [CALIBRATION]):
       1. Wide spread bar (top 20% of recent spreads)
@@ -276,24 +283,24 @@ def detect_buying_climax(df: pd.DataFrame) -> Optional[WyckoffEvent]:
 
 def detect_spring(df: pd.DataFrame, support: float, dominant_trend: str = "FLAT") -> Optional[WyckoffEvent]:
     """
-    [WEIS] Spring — high-probability Wyckoff buy signal.
+    [VILLAHERMOSA] Spring — high-probability Wyckoff buy signal.
 
-    Source: Weis — Ch. 5, "The Spring" / "Shakeout."
-      Weis teaches that a spring is a break below the low of a
+    Source: Villahermosa — Part 6 (Events), Event 5: Shaking.
+      Villahermosa teaches that a spring is a break below the low of a
       trading range that quickly reverses. Volume should be low,
       proving there is no real supply.
 
-    [WEIS Ch. 5] "Springs in an UPTREND have the highest success rate."
-      Weis emphasizes trend context: springs within a larger uptrend
+    [VILLAHERMOSA Part 6] "Springs in an UPTREND have the highest success rate."
+      Villahermosa emphasizes trend context: springs within a larger uptrend
       (pullback to support) are far more reliable than springs at the
       bottom of a downtrend where supply may still overwhelm.
 
     Our algorithmic rules:
-      1. Price breaks BELOW support level — [WEIS]
+      1. Price breaks BELOW support level (Ice) — [VILLAHERMOSA]
       2. Penetration is small (< 3% of support) — [CALIBRATION]
-      3. Price reverses and closes back near/above support — [WEIS]
-      4. Volume on the break is LOW (< 1.2× average) — [WEIS concept, CALIBRATION threshold]
-      5. Trend context adjusts confidence — [WEIS Ch. 5]
+      3. Price reverses and closes back near/above support — [VILLAHERMOSA]
+      4. Volume on the break is LOW (< 1.2× average) — [VILLAHERMOSA concept, CALIBRATION threshold]
+      5. Trend context adjusts confidence — [VILLAHERMOSA Part 6]
 
     [INFERRED — CONFLUENCE with Brooks]
     Al Brooks calls this a "failed breakout below range" — the strongest
@@ -323,7 +330,7 @@ def detect_spring(df: pd.DataFrame, support: float, dominant_trend: str = "FLAT"
             # Did it reverse? (close back near or above support)
             reversal = (close - low) / support if support > 0 else 0
             if reversal >= SPRING_MIN_REVERSAL_PCT and close >= support * 0.99:
-                # Low volume? (the key Weis requirement)
+                # Low volume? (the key Villahermosa requirement for Spring Type #1)
                 low_vol = vol_ratio <= SPRING_VOLUME_MAX_RATIO
                 conf = 40  # Base confidence for price pattern
                 if low_vol:
@@ -335,7 +342,7 @@ def detect_spring(df: pd.DataFrame, support: float, dominant_trend: str = "FLAT"
                 else:
                     conf += 5
 
-                # [WEIS Ch. 5] Trend context: springs in uptrends succeed more
+                # [VILLAHERMOSA Part 6] Trend context: springs in uptrends succeed more
                 trend_note = ""
                 if dominant_trend == "UP":
                     conf += 10  # Spring within uptrend = highest probability
@@ -369,14 +376,14 @@ def detect_spring(df: pd.DataFrame, support: float, dominant_trend: str = "FLAT"
 
 def detect_upthrust(df: pd.DataFrame, resistance: float, dominant_trend: str = "FLAT") -> Optional[WyckoffEvent]:
     """
-    [WEIS] Upthrust — high-probability Wyckoff sell signal.
+    [VILLAHERMOSA] Upthrust — high-probability Wyckoff sell signal.
 
-    Source: Weis — Ch. 6, "The Upthrust."
+    Source: Villahermosa — Part 6 (Events), Event 5: Shaking (UTAD).
       Mirror of Spring. Price breaks above resistance on low volume
       then reverses — traps breakout buyers.
 
-    [WEIS Ch. 6] "Upthrusts in a DOWNTREND have the highest success rate."
-      Weis emphasizes trend context: upthrusts within a larger downtrend
+    [VILLAHERMOSA Part 6] "Upthrusts in a DOWNTREND have the highest success rate."
+      Villahermosa emphasizes trend context: upthrusts within a larger downtrend
       (rally to resistance) are far more reliable than upthrusts at the
       top of an uptrend where demand may still overwhelm.
 
@@ -415,7 +422,7 @@ def detect_upthrust(df: pd.DataFrame, resistance: float, dominant_trend: str = "
                 else:
                     conf += 5
 
-                # [WEIS Ch. 6] Trend context: upthrusts in downtrends succeed more
+                # [VILLAHERMOSA Part 6] Trend context: upthrusts in downtrends succeed more
                 trend_note = ""
                 if dominant_trend == "DOWN":
                     conf += 10  # Upthrust within downtrend = highest probability
@@ -450,10 +457,10 @@ def detect_upthrust(df: pd.DataFrame, resistance: float, dominant_trend: str = "
 def detect_test(df: pd.DataFrame, reference_price: float,
                 reference_volume: float, test_type: str = "SUPPORT") -> Optional[WyckoffEvent]:
     """
-    [WEIS] Test of Supply/Demand — confirmation event.
+    [VILLAHERMOSA] Test of Supply/Demand — confirmation event.
 
-    Source: Weis — Ch. 5, "Secondary Test" (tested after spring).
-      Weis teaches that after a spring or selling climax, price must
+    Source: Villahermosa — Part 6 (Events), Event 4: Test.
+      Villahermosa teaches that after a spring or selling climax, price must
       come back and test that area. If the test shows LESS volume than
       the original event, it confirms supply/demand has been removed.
 
@@ -512,10 +519,10 @@ def detect_test(df: pd.DataFrame, reference_price: float,
 
 def assess_follow_through(df: pd.DataFrame, event: WyckoffEvent, bars_after: int = 3) -> dict:
     """
-    [WEIS Ch. 5-6] Follow-through assessment — "the deciding factor."
+    [VILLAHERMOSA Part 6] Follow-through assessment — "the deciding factor."
 
-    Source: Weis — Ch. 5, 6. After a spring, upthrust, or breakout,
-      the NEXT few bars reveal whether the move is genuine. Weis calls
+    Source: Villahermosa — Part 6-7. After a spring, upthrust, or breakout,
+      the NEXT few bars reveal whether the move is genuine. Villahermosa calls
       follow-through "the deciding factor" for whether to act on a setup.
 
     Checks the bars AFTER the detected event for:
@@ -569,7 +576,7 @@ def assess_follow_through(df: pd.DataFrame, event: WyckoffEvent, bars_after: int
         quality = "WEAK"
         direction = "up" if event.bullish else "down"
         desc = (f"WEAK/NO follow-through after {event.event_type}: price did not convincingly "
-                f"move {direction}. The setup may be failing — Weis calls this 'the deciding factor.'")
+                f"move {direction}. The setup may be failing — Villahermosa calls this 'the deciding factor.'")
 
     return {
         "follow_through": "YES" if quality in ("STRONG", "MODERATE") else "NO",
@@ -583,10 +590,10 @@ def assess_follow_through(df: pd.DataFrame, event: WyckoffEvent, bars_after: int
 
 def detect_absorption(df: pd.DataFrame, support: float, resistance: float) -> Optional[WyckoffEvent]:
     """
-    [WEIS Ch. 7] Absorption — one of the three core Wyckoff patterns.
+    [VILLAHERMOSA] Absorption — one of the core Wyckoff patterns.
 
-    Source: Weis — Ch. 7, absorption within a trading range.
-      Weis describes absorption as supply being absorbed by demand
+    Source: Villahermosa — Part 7 (Structures), absorption within a trading range.
+      Villahermosa describes absorption as supply being absorbed by demand
       (or vice versa) WITHIN the range, without a spring or upthrust.
 
     Six clues for absorption (from the book):
@@ -688,10 +695,10 @@ def detect_absorption(df: pd.DataFrame, support: float, resistance: float) -> Op
 
 def detect_change_in_behavior(df: pd.DataFrame) -> Optional[WyckoffEvent]:
     """
-    [WEIS Ch. 4] Change in Behavior — the "first" or "largest" opposite-direction event.
+    [VILLAHERMOSA Part 5] Change in Behavior — the "first" or "largest" opposite-direction event.
 
-    Source: Weis — Ch. 4 (bar reading).
-      Weis teaches that a "change in behavior" is the first significant
+    Source: Villahermosa — Part 5 (Laws), Part 6 (Events).
+      Villahermosa teaches that a "change in behavior" is the first significant
       bar in the OPPOSITE direction of the prevailing trend. It signals
       that the opposing side is waking up.
 
@@ -776,25 +783,23 @@ def detect_change_in_behavior(df: pd.DataFrame) -> Optional[WyckoffEvent]:
 
 def detect_sign_of_strength(df: pd.DataFrame) -> Optional[WyckoffEvent]:
     """
-    [POST-WYCKOFF] Sign of Strength (SOS) — confirms accumulation is complete.
+    [VILLAHERMOSA] Sign of Strength (SOS) — confirms accumulation is complete.
 
-    Source: Post-Wyckoff course terminology.
-      Weis describes the bar behavior (wide spread up bar, heavy volume,
-      strong close) but does not use the label "SOS." The detection logic
-      captures the behavior Weis teaches; the naming is from later courses.
-
-    [PARAPHRASE] "An SOS is a wide-spread up bar on increasing volume
-     that signals markup is about to begin."
+    Source: Villahermosa — Part 6 (Events), Event 6: Breakout.
+      Villahermosa describes the SOS as a wide spread up bar, heavy volume,
+      strong close that signals the Composite Man's campaign is transitioning
+      from accumulation to markup. This corresponds to Event 6 (Breakout)
+      in his 7-event framework, occurring in Phase D.
 
     Our algorithmic rules:
-      1. Up bar (close > open) — [WEIS]
+      1. Up bar (close > open) — [VILLAHERMOSA]
       2. Wide spread (≥60th percentile) — [CALIBRATION]
       3. Above-average volume (≥1.3×) — [CALIBRATION]
       4. Close in upper 30% of bar (≥0.7 position) — [CALIBRATION]
 
     [INFERRED — CONFLUENCE with Bollinger]
     Note about BB squeeze confluence is our integration insight,
-    not from Weis's book.
+    not from Villahermosa's book.
     """
     if len(df) < 10:
         return None
@@ -837,15 +842,16 @@ def detect_sign_of_strength(df: pd.DataFrame) -> Optional[WyckoffEvent]:
 
 def detect_sign_of_weakness(df: pd.DataFrame) -> Optional[WyckoffEvent]:
     """
-    [POST-WYCKOFF] Sign of Weakness (SOW) — confirms distribution is complete.
+    [VILLAHERMOSA] Sign of Weakness (SOW) — confirms distribution is complete.
 
-    Source: Post-Wyckoff course terminology.
+    Source: Villahermosa — Part 6 (Events), Event 6: Breakout (bearish variant).
       Mirror of SOS. Wide spread down bar on increasing volume
       signals that the markdown phase is about to begin.
-      Weis describes this bar behavior; the "SOW" label is from later courses.
+      Villahermosa describes this as the Composite Man's distribution
+      campaign reaching completion, occurring in Phase D of Distribution.
 
     Our algorithmic rules (all thresholds are [CALIBRATION]):
-      1. Down bar (close < open) — [WEIS]
+      1. Down bar (close < open) — [VILLAHERMOSA]
       2. Wide spread (≥60th percentile) — [CALIBRATION]
       3. Above-average volume (≥1.3×) — [CALIBRATION]
       4. Close in lower 30% of bar (≤0.3 position) — [CALIBRATION]
@@ -895,43 +901,44 @@ def detect_sign_of_weakness(df: pd.DataFrame) -> Optional[WyckoffEvent]:
 
 def identify_wyckoff_phase(df: pd.DataFrame) -> WyckoffPhase:
     """
-    [WEIS] Identify the current Wyckoff market phase.
+    [VILLAHERMOSA] Identify the current Wyckoff market phase.
 
-    Source: Weis — throughout "Trades About to Happen" (Chapters 1-11).
-      Weis teaches four phases of the market cycle. The principles
-      below are all from the book; the algorithmic IMPLEMENTATION
-      (thresholds, swing-window size, prior-trend detection) is
-      [INFERRED] — our quantification of Weis's visual bar reading.
+    Source: Villahermosa — throughout "The Wyckoff Methodology in Depth" (Parts 1-8).
+      Villahermosa teaches four phases of the market cycle with 5 sub-phases
+      (A-E) within each structure. The principles below are all from the book;
+      the algorithmic IMPLEMENTATION (thresholds, swing-window size, prior-trend
+      detection) is [INFERRED] — our quantification of Villahermosa's visual reading.
 
     [INFERRED] Sub-phases (EARLY/MIDDLE/CONFIRMED/LATE):
-      Weis describes how phases PROGRESS (e.g., accumulation starts
-      with a SC, then springs test support, then SOS breaks out).
-      Our sub-phase labels formalize this progression but the specific
-      names are our invention, not Weis's terminology.
+      Villahermosa describes how phases PROGRESS using Phase A-E:
+      Phase A = Stopping (SC/BC + AR), Phase B = Building the Cause,
+      Phase C = Test (Spring/UTAD), Phase D = Trend within Range (SOS/SOW),
+      Phase E = Trend out of Range. Our sub-phase labels map to this but
+      use simplified names for the scoring engine.
 
-    Phase Identification Principles from Weis:
+    Phase Identification Principles from Villahermosa:
 
     1. ACCUMULATION:
-       - Price in a trading range AFTER a decline — [WEIS]
-       - Volume decreases on down-waves, increases on up-waves — [WEIS]
-       - Springs and successful tests confirm accumulation — [WEIS]
-       - SOS bar breaks above range → Markup begins — [WEIS]
+       - Price in a trading range AFTER a decline — [VILLAHERMOSA]
+       - Volume decreases on down-waves, increases on up-waves — [VILLAHERMOSA]
+       - Springs and successful tests confirm accumulation — [VILLAHERMOSA]
+       - SOS bar breaks above Creek → Markup begins — [VILLAHERMOSA]
 
     2. MARKUP:
-       - Price making higher highs and higher lows — [WEIS]
-       - Volume expands on rallies, contracts on pullbacks — [WEIS]
-       - LPS concept (pullback on low volume) — [WEIS]
+       - Price making higher highs and higher lows — [VILLAHERMOSA]
+       - Volume expands on rallies, contracts on pullbacks — [VILLAHERMOSA]
+       - LPS concept (pullback on low volume) — [VILLAHERMOSA]
 
     3. DISTRIBUTION:
-       - Price in a trading range AFTER an advance — [WEIS]
-       - Volume increases on down-waves, decreases on up-waves — [WEIS]
-       - Upthrusts and failed tests confirm distribution — [WEIS]
-       - SOW bar breaks below range → Markdown begins — [WEIS]
+       - Price in a trading range AFTER an advance — [VILLAHERMOSA]
+       - Volume increases on down-waves, decreases on up-waves — [VILLAHERMOSA]
+       - Upthrusts and failed tests confirm distribution — [VILLAHERMOSA]
+       - SOW bar breaks below Ice → Markdown begins — [VILLAHERMOSA]
 
     4. MARKDOWN:
-       - Price making lower highs and lower lows — [WEIS]
-       - Volume expands on declines, contracts on rallies — [WEIS]
-       - LPSY concept (rally to resistance on low volume) — [WEIS]
+       - Price making lower highs and lower lows — [VILLAHERMOSA]
+       - Volume expands on declines, contracts on rallies — [VILLAHERMOSA]
+       - LPSY concept (rally to resistance on low volume) — [VILLAHERMOSA]
     """
     if df is None or len(df) < PHASE_MIN_BARS:
         return WyckoffPhase("UNKNOWN", "UNKNOWN", 0,
@@ -1005,7 +1012,7 @@ def identify_wyckoff_phase(df: pd.DataFrame) -> WyckoffPhase:
         upthrust = detect_upthrust(df, range_high, dominant_trend=prior_trend)
         if upthrust:
             events.append(upthrust)
-        # [WEIS Ch. 7] Absorption detection within the trading range
+        # [VILLAHERMOSA Part 7] Absorption detection within the trading range
         absorption = detect_absorption(df, range_low, range_high)
         if absorption:
             events.append(absorption)
@@ -1017,7 +1024,7 @@ def identify_wyckoff_phase(df: pd.DataFrame) -> WyckoffPhase:
     if sow:
         events.append(sow)
 
-    # [WEIS Ch. 4] Change in behavior — first/largest opposite-direction bar
+    # [VILLAHERMOSA Part 5] Change in behavior — first/largest opposite-direction bar
     cib = detect_change_in_behavior(df)
     if cib:
         events.append(cib)

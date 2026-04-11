@@ -35,6 +35,11 @@ from bb_squeeze.strategy_config import (
 from hybrid_pa_engine import run_triple_analysis
 from price_action.engine import run_price_action_analysis
 
+# Vince Risk Management
+from vince.optimal_f import find_optimal_f_empirical, compute_by_products
+from vince.risk_metrics import position_sizing, historical_volatility, drawdown_analysis, time_to_goal
+from vince.statistics import runs_test, serial_correlation
+
 
 # ═══════════════════════════════════════════════════════════════
 #  HELPERS
@@ -456,7 +461,7 @@ def _run_multi_system(df_raw: pd.DataFrame, ticker: str, buy_price: float) -> di
             "ta_score":    _safe(triple.get("ta_score", {}).get("total", 0)),
             "pa_score":    _safe(pa_s.get("total", 0)),
         }
-        # [WEIS] Extract Wyckoff data from triple engine
+        # [VILLAHERMOSA] Extract Wyckoff data from triple engine
         wyckoff_raw = triple.get("wyckoff")
         if wyckoff_raw:
             wk_phase = wyckoff_raw.get("phase", {})
@@ -668,7 +673,7 @@ def _build_master_summary(systems: dict, buy_price: float) -> dict:
     if pa_patterns:
         plain_lines.append(f"Active price patterns: {', '.join(pa_patterns[:3])}.")
 
-    # [WEIS] Wyckoff phase context
+    # [VILLAHERMOSA] Wyckoff phase context
     wyckoff = systems.get("wyckoff")
     if wyckoff and wyckoff.get("phase", "UNKNOWN") != "UNKNOWN":
         wk_phase = wyckoff.get("phase", "UNKNOWN")
@@ -794,6 +799,172 @@ def _score_grade(pct: float) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════
+#  VINCE RISK & MONEY MANAGEMENT PER POSITION
+# ═══════════════════════════════════════════════════════════════
+
+def _compute_vince_risk(
+    ticker: str,
+    buy_price: float,
+    quantity: int,
+    account_equity: float = 100000,
+    period: int = 252,
+) -> dict:
+    """
+    Compute Vince risk metrics for a single portfolio position.
+
+    Combines optimal f, position sizing, drawdown, volatility,
+    and dependency tests into a single risk profile dict.
+
+    Returns dict with keys:
+      optimal_f, biggest_loss, geometric_mean, twr, ahpr, sd_hpr,
+      position_sizing (at 50% f), drawdown, volatility,
+      sizing_status, risk_grade, dependency (runs + serial corr),
+      time_to_double, kelly_f
+    """
+    df = load_stock_data(ticker, csv_dir=CSV_DIR)
+    if df is None or len(df) < 50:
+        return {"error": f"Insufficient data for Vince analysis on {ticker}"}
+
+    closes = df["Close"].tail(period + 1).values.astype(float)
+    if len(closes) < 20:
+        return {"error": "Not enough price history"}
+
+    daily_changes = list(np.diff(closes))
+    last_price = float(closes[-1])
+
+    result = {}
+
+    # ── Optimal f ──
+    opt = find_optimal_f_empirical(daily_changes)
+    result["optimal_f"] = opt["optimal_f"]
+    result["biggest_loss"] = opt["biggest_loss"]
+
+    if opt["optimal_f"] <= 0:
+        result["error"] = "Could not compute optimal f"
+        return result
+
+    # ── By-products ──
+    bp = compute_by_products(daily_changes, opt["optimal_f"])
+    result["geometric_mean"] = bp.get("geometric_mean")
+    result["twr"] = bp.get("twr")
+    result["ahpr"] = bp.get("ahpr")
+    result["sd_hpr"] = bp.get("sd_hpr")
+
+    # ── Position sizing at 50% f (conservative) ──
+    ps = position_sizing(account_equity, opt["optimal_f"],
+                         opt["biggest_loss"], last_price, 0.5)
+    result["position_sizing"] = ps
+    recommended = ps.get("shares_to_buy", 0)
+    result["recommended_shares"] = recommended
+    result["risk_per_trade"] = ps.get("risk_per_trade")
+    result["f_dollar"] = ps.get("f_dollar")
+
+    # ── Sizing status ──
+    if quantity > 0 and recommended > 0:
+        ratio = quantity / recommended
+        if ratio > 1.3:
+            result["sizing_status"] = "OVERSIZED"
+        elif ratio < 0.7:
+            result["sizing_status"] = "UNDERSIZED"
+        else:
+            result["sizing_status"] = "OPTIMAL"
+        result["sizing_ratio"] = round(ratio, 2)
+    else:
+        result["sizing_status"] = "N/A"
+        result["sizing_ratio"] = 0
+
+    # ── Drawdown ──
+    eq = [account_equity]
+    for t in daily_changes:
+        eq.append(eq[-1] + t)
+    dd = drawdown_analysis(eq)
+    result["max_drawdown_pct"] = dd.get("max_drawdown_pct")
+    result["current_drawdown_pct"] = dd.get("current_drawdown_pct", 0)
+    result["avg_drawdown_pct"] = dd.get("avg_drawdown_pct")
+
+    # ── Volatility ──
+    if len(closes) > 21:
+        vol = historical_volatility(list(closes))
+        result["volatility_pct"] = vol.get("current_volatility_pct")
+        result["avg_volatility_pct"] = vol.get("average_volatility_pct")
+        result["volatility_label"] = (
+            "HIGH" if vol.get("current_volatility_pct", 0) > vol.get("average_volatility_pct", 999) * 1.5
+            else "LOW" if vol.get("current_volatility_pct", 0) < vol.get("average_volatility_pct", 0) * 0.5
+            else "NORMAL"
+        )
+
+    # ── Time to double ──
+    gm = bp.get("geometric_mean", 0)
+    if gm and gm > 1:
+        ttd = time_to_goal(gm, 2.0)
+        result["time_to_double"] = ttd.get("trades_needed")
+
+    # ── Kelly fraction ──
+    wins = [t for t in daily_changes if t > 0]
+    losses = [t for t in daily_changes if t < 0]
+    if wins and losses:
+        wp = len(wins) / len(daily_changes)
+        wlr = (sum(wins) / len(wins)) / abs(sum(losses) / len(losses))
+        kelly = wp - (1 - wp) / wlr if wlr > 0 else 0
+        result["kelly_f"] = round(kelly, 4)
+
+    # ── Dependency tests (runs + serial corr) ──
+    rt = runs_test(daily_changes)
+    sc = serial_correlation(daily_changes)
+    result["dependency"] = {
+        "runs_independent": rt.get("is_random"),
+        "serial_corr": sc.get("correlation"),
+        "serial_significant": sc.get("is_dependent"),
+    }
+
+    # ── Overall risk grade (mathematical composite) ──
+    # Grade = f(max_drawdown, volatility, sizing_status, optimal_f)
+    score = 0
+    # Drawdown contribution (0-30): lower drawdown = safer
+    max_dd = abs(result.get("max_drawdown_pct", 0))
+    if max_dd < 5:
+        score += 30
+    elif max_dd < 15:
+        score += 20
+    elif max_dd < 30:
+        score += 10
+
+    # Volatility contribution (0-25)
+    vol_pct = result.get("volatility_pct", 0)
+    if vol_pct and vol_pct < 20:
+        score += 25
+    elif vol_pct and vol_pct < 35:
+        score += 15
+    elif vol_pct and vol_pct < 50:
+        score += 5
+
+    # Sizing contribution (0-25)
+    if result.get("sizing_status") == "OPTIMAL":
+        score += 25
+    elif result.get("sizing_status") == "UNDERSIZED":
+        score += 15
+    # OVERSIZED gets 0
+
+    # Geometric mean contribution (0-20): > 1 means profitable system
+    if gm and gm > 1.001:
+        score += 20
+    elif gm and gm > 1.0:
+        score += 10
+
+    if score >= 75:
+        result["risk_grade"] = "LOW RISK"
+    elif score >= 50:
+        result["risk_grade"] = "MODERATE RISK"
+    elif score >= 25:
+        result["risk_grade"] = "HIGH RISK"
+    else:
+        result["risk_grade"] = "VERY HIGH RISK"
+    result["risk_score"] = score
+
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════
 #  MAIN ANALYSIS FUNCTION
 # ═══════════════════════════════════════════════════════════════
 
@@ -880,6 +1051,11 @@ def analyze_position(position: dict) -> dict:
     df_raw = load_stock_data(ticker, csv_dir=CSV_DIR)
     multi_sys = _run_multi_system(df_raw, ticker, buy_price) if df_raw is not None and len(df_raw) >= 60 else {}
 
+    # 10. Vince Risk & Money Management
+    vince_risk = _compute_vince_risk(
+        ticker, buy_price, int(position["quantity"]),
+    )
+
     return {
         "position":                position,
         "indicators":              indicators,
@@ -900,6 +1076,7 @@ def analyze_position(position: dict) -> dict:
         "recommendation":  rec,
         "targets":         targets,
         "multi_system":    multi_sys,
+        "vince_risk":      vince_risk,
         "holding": {
             "days":          days,
             "buy_price":     buy_price,

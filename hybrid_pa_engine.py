@@ -70,7 +70,7 @@ from technical_analysis.target_price import calculate_target_prices
 # ── Price Action System ──
 from price_action.engine import run_price_action_analysis, PriceActionResult
 
-# ── Wyckoff/Weis System (David Weis — Volume-Phase Context Layer) ──
+# ── Wyckoff/Villahermosa System (Rubén Villahermosa — Volume-Phase Context Layer) ──
 from wyckoff.engine import run_wyckoff_analysis, wyckoff_to_dict
 
 # ── Market Profile System (James Dalton — Auction Context Layer) ──
@@ -353,7 +353,7 @@ def _triple_cross_validate(
 ) -> dict:
     """
     Triple cross-validation across BB, TA, and PA systems,
-    enhanced by Wyckoff/Weis phase context and Dalton Market Profile
+    enhanced by Wyckoff/Villahermosa phase context and Dalton Market Profile
     auction context.
 
     Scoring matrix:
@@ -370,7 +370,7 @@ def _triple_cross_validate(
       Volume confirms across systems:    +5         (real participation)
 
     Context layers (NOT separate scores — they enhance/reduce conviction):
-      [WEIS]   Wyckoff phase + volume:   ±30        (phase context)
+      [VILLAHERMOSA]   Wyckoff phase + volume:   ±30        (phase context)
       [DALTON] Market Profile auction:   ±35        (value/auction context)
 
     Final result clamped to [-125, +125] for combined context layers.
@@ -490,8 +490,8 @@ def _triple_cross_validate(
             "Volume is the lie detector — when it confirms price structure, the signal is real."
         )
 
-    # ── [WEIS] Wyckoff Phase & Volume Context Layer (±30 pts) ──
-    # Blends Weis volume-spread analysis into cross-validation.
+    # ── [VILLAHERMOSA] Wyckoff Phase & Volume Context Layer (±30 pts) ──
+    # Blends Villahermosa volume-spread analysis into cross-validation.
     # This does NOT create a 4th score — it adds context that strengthens
     # or weakens the existing agreement based on Wyckoff phase and volume truth.
     wyckoff_bonus = 0
@@ -501,68 +501,68 @@ def _triple_cross_validate(
         wyckoff_bias = wyckoff_result.bias
         phase_name = wyckoff_result.phase.phase
 
-        # [WEIS] Phase confirms direction = bonus, contradicts = penalty
+        # [VILLAHERMOSA] Phase confirms direction = bonus, contradicts = penalty
         if wyckoff_bonus != 0:
             agreement_score += wyckoff_bonus
             if wyckoff_bonus > 0:
                 observations.append(
-                    f"📊 [WEIS] Wyckoff {phase_name} phase adds +{wyckoff_bonus} conviction. "
+                    f"📊 [VILLAHERMOSA] Wyckoff {phase_name} phase adds +{wyckoff_bonus} conviction. "
                     f"{wyckoff_result.phase.description}"
                 )
             else:
                 observations.append(
-                    f"📊 [WEIS] Wyckoff {phase_name} phase adds {wyckoff_bonus} penalty. "
+                    f"📊 [VILLAHERMOSA] Wyckoff {phase_name} phase adds {wyckoff_bonus} penalty. "
                     f"{wyckoff_result.phase.description}"
                 )
 
-        # [CONFLUENCE — WEIS + BOLLINGER] Squeeze + Accumulation = explosive buy
+        # [CONFLUENCE — VILLAHERMOSA + BOLLINGER] Squeeze + Accumulation = explosive buy
         if bb_squeeze_active and phase_name == "ACCUMULATION":
             agreement_score += 8
             observations.append(
-                "🔥 [CONFLUENCE — WEIS + BOLLINGER] BB Squeeze INSIDE Wyckoff Accumulation! "
+                "🔥 [CONFLUENCE — VILLAHERMOSA + BOLLINGER] BB Squeeze INSIDE Wyckoff Accumulation! "
                 "When volatility compresses while smart money accumulates, the breakout "
                 "is typically explosive. This is the highest-confluence buy setup."
             )
         elif bb_squeeze_active and phase_name == "DISTRIBUTION":
             agreement_score -= 8
             observations.append(
-                "⚠️ [CONFLUENCE — WEIS + BOLLINGER] BB Squeeze INSIDE Wyckoff Distribution! "
+                "⚠️ [CONFLUENCE — VILLAHERMOSA + BOLLINGER] BB Squeeze INSIDE Wyckoff Distribution! "
                 "Smart money is distributing while volatility compresses. The breakout "
                 "may be a trap — watch for upthrust patterns."
             )
 
-        # [CONFLUENCE — WEIS + BROOKS] Spring + PA failed breakdown = max buy
+        # [CONFLUENCE — VILLAHERMOSA + BROOKS] Spring + PA failed breakdown = max buy
         has_spring = any(e.event_type == "SPRING" for e in wyckoff_result.phase.events)
         has_upthrust = any(e.event_type == "UPTHRUST" for e in wyckoff_result.phase.events)
 
         if has_spring and pa_always_in == "LONG":
             agreement_score += 6
             observations.append(
-                "🎯 [CONFLUENCE — WEIS + BROOKS] Wyckoff Spring + PA Always-In Long! "
-                "Brooks' failed breakdown confirmed by Weis' low-volume shakeout. "
+                "🎯 [CONFLUENCE — VILLAHERMOSA + BROOKS] Wyckoff Spring + PA Always-In Long! "
+                "Brooks' failed breakdown confirmed by Villahermosa's low-volume shakeout. "
                 "Smart money just bought the dip. Maximum-probability buy."
             )
         elif has_upthrust and pa_always_in == "SHORT":
             agreement_score -= 6
             observations.append(
-                "🎯 [CONFLUENCE — WEIS + BROOKS] Wyckoff Upthrust + PA Always-In Short! "
-                "Brooks' failed breakout confirmed by Weis' low-demand trap. "
+                "🎯 [CONFLUENCE — VILLAHERMOSA + BROOKS] Wyckoff Upthrust + PA Always-In Short! "
+                "Brooks' failed breakout confirmed by Villahermosa's low-demand trap. "
                 "Smart money just sold the top. Maximum-probability sell."
             )
 
-        # [WEIS] Shortening of thrust warning
+        # [VILLAHERMOSA] Shortening of thrust warning
         if wyckoff_result.shortening.get("detected"):
             sdir = wyckoff_result.shortening.get("direction", "")
             if "UP_EXHAUSTION" in sdir and bb_total > 10:
                 agreement_score -= 5
                 observations.append(
-                    "⚠️ [WEIS] Shortening of upward thrust detected — upward pushes losing "
+                    "⚠️ [VILLAHERMOSA] Shortening of upward thrust detected — upward pushes losing "
                     "momentum despite positive BB signal. The rally may be exhausting."
                 )
             elif "DOWN_EXHAUSTION" in sdir and bb_total < -10:
                 agreement_score += 5
                 observations.append(
-                    "📊 [WEIS] Shortening of downward thrust — selling pressure weakening "
+                    "📊 [VILLAHERMOSA] Shortening of downward thrust — selling pressure weakening "
                     "despite negative BB signal. A bottom may be forming."
                 )
 
@@ -640,7 +640,7 @@ def _triple_cross_validate(
                 "negative! Institutional conviction for downside."
             )
 
-        # ── [CONFLUENCE — DALTON + WEIS] ──
+        # ── [CONFLUENCE — DALTON + VILLAHERMOSA] ──
         # 3-to-I + Wyckoff phase alignment = nuclear conviction
         if mp_result.is_3_to_i and wyckoff_result is not None:
             phase_name = wyckoff_result.phase.phase
@@ -648,15 +648,15 @@ def _triple_cross_validate(
             if tti_dir == "BULLISH" and phase_name in ("ACCUMULATION", "MARKUP"):
                 agreement_score += 6
                 observations.append(
-                    f"🔥 [CONFLUENCE — DALTON + WEIS] 3-to-I BULLISH + Wyckoff {phase_name}! "
-                    f"Dalton's highest-probability setup (94%/97%) confirmed by Weis phase. "
+                    f"🔥 [CONFLUENCE — DALTON + VILLAHERMOSA] 3-to-I BULLISH + Wyckoff {phase_name}! "
+                    f"Dalton's highest-probability setup (94%/97%) confirmed by Villahermosa phase. "
                     f"This is as close to a guaranteed trade as markets get."
                 )
             elif tti_dir == "BEARISH" and phase_name in ("DISTRIBUTION", "MARKDOWN"):
                 agreement_score -= 6
                 observations.append(
-                    f"🔥 [CONFLUENCE — DALTON + WEIS] 3-to-I BEARISH + Wyckoff {phase_name}! "
-                    f"Dalton's highest-probability setup confirmed by Weis distribution. "
+                    f"🔥 [CONFLUENCE — DALTON + VILLAHERMOSA] 3-to-I BEARISH + Wyckoff {phase_name}! "
+                    f"Dalton's highest-probability setup confirmed by Villahermosa distribution. "
                     f"Maximum bearish conviction."
                 )
 
@@ -778,7 +778,7 @@ def run_triple_analysis(
       1. Compute BB indicators → BB signal + strategies → BB score (100 pts)
       2. Compute TA indicators → TA signal → TA score (100 pts)
       3. Classify PA bars → patterns → trend → channels → breakouts → PA score (100 pts)
-      3.5 Run Wyckoff/Weis analysis → phase + volume context (bonus layer)
+      3.5 Run Wyckoff/Villahermosa analysis → phase + volume context (bonus layer)
       3.6 Run Market Profile analysis → auction + value context (bonus layer)
       4. Triple cross-validate + Wyckoff + Dalton → agreement bonus (±125 pts)
       5. Combined score → final verdict → full response
@@ -845,8 +845,8 @@ def run_triple_analysis(
     pa_total = pa_scored["total"]
 
     # ══════════════════════════════════════════════════════════
-    #  STEP 3.5: WYCKOFF/WEIS ANALYSIS (Phase + Volume Context)
-    #  [WEIS] Not a 4th score — a cross-validation enhancer
+    #  STEP 3.5: WYCKOFF/VILLAHERMOSA ANALYSIS (Phase + Volume Context)
+    #  [VILLAHERMOSA] Not a 4th score — a cross-validation enhancer
     # ══════════════════════════════════════════════════════════
     try:
         wyckoff = run_wyckoff_analysis(df, ticker=ticker)
@@ -974,7 +974,7 @@ def run_triple_analysis(
         },
         "pa_score": pa_scored,
 
-        # ── Wyckoff/Weis Context Layer ──
+        # ── Wyckoff/Villahermosa Context Layer ──
         "wyckoff": wyckoff_to_dict(wyckoff) if wyckoff else None,
 
         # ── Market Profile / Dalton Context Layer ──

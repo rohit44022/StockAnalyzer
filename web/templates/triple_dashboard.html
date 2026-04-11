@@ -47,24 +47,42 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif}
 nav a.active{color:var(--accent)!important;font-weight:600}
 .pa-comp-bar{height:6px;border-radius:3px;background:#333;overflow:hidden;margin-top:4px}
 .pa-comp-fill{height:100%;border-radius:3px}
+/* ══ UNIFIED NAV ══ */
+.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
+.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
+@keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
+@keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
+.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
+.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+.sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 </style>
 </head>
 <body>
 
 <div id="loading"><div class="spinner-border" style="width:3rem;height:3rem;color:var(--accent)"></div></div>
 
-<!-- NAV -->
-<nav class="py-2 px-4 border-bottom border-secondary" style="background:rgba(15,15,26,.95)">
-  <div class="d-flex align-items-center gap-3 flex-wrap">
-    <a href="/triple" class="text-decoration-none fw-bold" style="font-size:1.1rem;color:var(--accent)">
-      <i class="bi bi-triangle-fill"></i> Triple Engine
-    </a>
-    <a href="/" class="text-decoration-none text-light ms-3">Home</a>
-    <a href="/ta" class="text-decoration-none text-light">TA Module</a>
-    <a href="/pa" class="text-decoration-none text-light">Price Action</a>
-    <a href="/triple" class="text-decoration-none active">Triple BB+TA+PA</a>
-    <a href="/portfolio" class="text-decoration-none text-light">Portfolio</a>
-    <a href="/trades" class="text-decoration-none text-light">Trades</a>
+<!-- ═══ UNIFIED NAVBAR ═══ -->
+<nav class="sc-nav">
+  <div class="container-fluid d-flex align-items-center px-3 gap-2">
+    <a class="sc-brand" href="/">हिरण्य</a>
+    <div class="sc-links">
+      <a class="sc-link" href="/">Home</a>
+      <a class="sc-link" href="/ta">TA</a>
+      <a class="sc-link" href="/pa">Price Action</a>
+      <a class="sc-link active" href="/triple">Triple</a>
+      <a class="sc-link" href="/trades">Trades</a>
+      <a class="sc-link" href="/portfolio">Portfolio</a>
+      <a class="sc-link" href="/risk-management">Risk</a>
+      <a class="sc-link" href="/mental-game">Mental</a>
+    </div>
+    <div class="sc-right">
+      <span class="sc-clock" id="clockSpan"></span>
+    </div>
   </div>
 </nav>
 
@@ -467,7 +485,7 @@ function renderCrossValidation(d){
     </div>`;
 }
 
-/* ─── WYCKOFF / WEIS VOLUME ANALYSIS — RICH CHARTS + DETAIL ─── */
+/* ─── WYCKOFF / VILLAHERMOSA VOLUME ANALYSIS — RICH CHARTS + DETAIL ─── */
 // Track chart instances so we can destroy/recreate
 const _wkCharts = {};
 function _wkChart(id, cfg){
@@ -497,6 +515,7 @@ function renderWyckoff(d){
   const waves = wk.waves || [];
   const erArr = wk.effort_result || [];
   const ft = wk.follow_through || {};
+  const v = wk.villahermosa || {};
 
   // Colors
   const phClrMap = {'ACCUMULATION':'#00c853','MARKUP':'#2196f3','DISTRIBUTION':'#ff1744','MARKDOWN':'#ff6b6b','RANGING':'#ffc107'};
@@ -610,15 +629,52 @@ function renderWyckoff(d){
   }
 
   // ── Hints
+  function _hintStyle(h){
+    const t=h.toLowerCase();
+    // Phase hints
+    if(t.startsWith('the market is currently')){
+      if(/markup|accumulation|bullish/.test(t)) return {c:'#00c853',bg:'rgba(0,200,83,.06)',icon:'📈'};
+      if(/distribution|markdown|bearish/.test(t)) return {c:'#ff1744',bg:'rgba(255,23,68,.06)',icon:'📉'};
+      if(/ranging|undecided|unclear/.test(t)) return {c:'#ffc107',bg:'rgba(255,193,7,.06)',icon:'⏸️'};
+    }
+    // MARKUP explainer
+    if(t.includes('markup means')) return {c:'#2196f3',bg:'rgba(33,150,243,.06)',icon:'📘'};
+    // Volume
+    if(t.startsWith('volume is')){
+      if(/climax|extreme/.test(t)) return {c:'#ff1744',bg:'rgba(255,23,68,.06)',icon:'🔴'};
+      if(/spike|unusual/.test(t)) return {c:'#ff9800',bg:'rgba(255,152,0,.06)',icon:'🟠'};
+      if(/dryup|quiet|calm/.test(t)) return {c:'#9c27b0',bg:'rgba(156,39,176,.06)',icon:'🟣'};
+      return {c:'#00c853',bg:'rgba(0,200,83,.06)',icon:'🟢'};
+    }
+    // Wave balance
+    if(/buyers are putting|bullish sign/.test(t)) return {c:'#00c853',bg:'rgba(0,200,83,.06)',icon:'💪'};
+    if(/sellers are putting|bearish sign/.test(t)) return {c:'#ff1744',bg:'rgba(255,23,68,.06)',icon:'⚠️'};
+    // Shortening of thrust
+    if(/upward pushes.*weaker|rally.*running out/.test(t)) return {c:'#ff9800',bg:'rgba(255,152,0,.06)',icon:'⚡'};
+    if(/downward pushes.*weaker|decline.*ending/.test(t)) return {c:'#4caf50',bg:'rgba(76,175,80,.06)',icon:'⚡'};
+    // Events — bullish
+    if(/spring|trap for sellers|composite man.*bought/.test(t)) return {c:'#00c853',bg:'rgba(0,200,83,.06)',icon:'🪤'};
+    if(/panic selling.*close.*high|potential bottom/.test(t)) return {c:'#00c853',bg:'rgba(0,200,83,.06)',icon:'🔻'};
+    if(/sprinter|strong upward|move up is real/.test(t)) return {c:'#00c853',bg:'rgba(0,200,83,.06)',icon:'🚀'};
+    if(/double-check|confirming the prior/.test(t)) return {c:'#2196f3',bg:'rgba(33,150,243,.06)',icon:'🔍'};
+    if(/absorbed|absorption|quietly taking/.test(t)) return {c:'#2196f3',bg:'rgba(33,150,243,.06)',icon:'🧽'};
+    if(/change in behavior|waking up|trend change/.test(t)) return {c:'#ffc107',bg:'rgba(255,193,7,.06)',icon:'🔄'};
+    // Events — bearish
+    if(/upthrust|trap for buyers|composite man.*sold/.test(t)) return {c:'#ff1744',bg:'rgba(255,23,68,.06)',icon:'🪤'};
+    if(/euphoric buying.*close.*low|potential top/.test(t)) return {c:'#ff1744',bg:'rgba(255,23,68,.06)',icon:'🔺'};
+    if(/dam breaking|strong downward|move down is real/.test(t)) return {c:'#ff1744',bg:'rgba(255,23,68,.06)',icon:'💥'};
+    // Default
+    return {c:'orange',bg:'rgba(255,165,0,.06)',icon:'💡'};
+  }
   const hintsHtml = hints.length
-    ? hints.map(h=>`<div class="obs-card" style="border-left-color:orange">${h}</div>`).join('')
+    ? hints.map(h=>{const s=_hintStyle(h);return `<div class="obs-card" style="border-left-color:${s.c};background:${s.bg}"><span style="margin-right:4px">${s.icon}</span>${h}</div>`;}).join('')
     : '';
 
   // ═══════ BUILD FULL HTML — with chart containers ═══════
   el.innerHTML = `
     <div class="card" style="border-color:rgba(255,165,0,.25)">
       <div class="card-header d-flex justify-content-between align-items-center" style="border-bottom-color:rgba(255,165,0,.15)">
-        <span class="section-title"><i class="bi bi-moisture me-2" style="color:orange"></i>Wyckoff / Weis Volume Analysis <span class="badge" style="background:rgba(255,165,0,.15);color:orange;font-size:.65rem;margin-left:6px">[WEIS]</span></span>
+        <span class="section-title"><i class="bi bi-moisture me-2" style="color:orange"></i>Wyckoff / Villahermosa Volume Analysis <span class="badge" style="background:rgba(255,165,0,.15);color:orange;font-size:.65rem;margin-left:6px">[VILLAHERMOSA]</span></span>
         <span class="badge" style="background:${bonusClr};font-size:.75rem">${(sc.wyckoff_bonus||0)>0?'+':''}${sc.wyckoff_bonus||0} pts conviction</span>
       </div>
       <div class="card-body">
@@ -667,14 +723,14 @@ function renderWyckoff(d){
           <div style="font-size:.8rem;color:${actionClr}">${actionText}</div>
         </div>
 
-        <!-- ═══ CHART 2: Weis Wave Volume Chart ═══ -->
+        <!-- ═══ CHART 2: Wyckoff Wave Volume Chart ═══ -->
         <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
           <div class="d-flex align-items-center gap-2 mb-2">
             <i class="bi bi-bar-chart-fill" style="color:orange;font-size:1.1rem"></i>
-            <strong class="mini-label" style="letter-spacing:1px">WEIS WAVE VOLUME — UP vs DOWN</strong>
+            <strong class="mini-label" style="letter-spacing:1px">WYCKOFF WAVE VOLUME — UP vs DOWN</strong>
           </div>
           <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.5">
-            Each bar = one Weis Wave (directional swing). <strong style="color:#00c853">Green (UP)</strong> = demand. <strong style="color:#ff1744">Red (DOWN)</strong> = supply. Compare heights to see who dominates.
+            Each bar = one Wyckoff Wave (directional swing). <strong style="color:#00c853">Green (UP)</strong> = demand. <strong style="color:#ff1744">Red (DOWN)</strong> = supply. Compare heights to see who dominates.
           </div>
           <div style="height:160px"><canvas id="wkWaveChart"></canvas></div>
           <details class="mt-2" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">
@@ -820,10 +876,948 @@ function renderWyckoff(d){
         </div>
 
         <!-- Plain English Hints + Summary inline -->
-        ${hintsHtml || wk.summary ? '<div class="p-2 rounded mt-2" style="background:rgba(255,165,0,.04);border:1px solid rgba(255,165,0,.12)">' +
+        ${hintsHtml || wk.summary ? (() => {
+          const _sm = (wk.summary||'').toLowerCase();
+          const _sc = /markup|accumulation/.test(_sm) ? '#00c853' : /distribution|markdown/.test(_sm) ? '#ff1744' : 'orange';
+          const _si = /markup|accumulation/.test(_sm) ? 'bi-graph-up-arrow' : /distribution|markdown/.test(_sm) ? 'bi-graph-down-arrow' : 'bi-journal-text';
+          return '<div class="p-2 rounded mt-2" style="background:rgba(255,165,0,.04);border:1px solid rgba(255,165,0,.12)">' +
           (hintsHtml ? '<div class="d-flex align-items-center gap-2 mb-1"><i class="bi bi-lightbulb-fill" style="color:orange;font-size:.85rem"></i><strong class="mini-label" style="color:orange;letter-spacing:1px;font-size:.7rem">INSIGHTS</strong></div>'+hintsHtml : '') +
-          (wk.summary ? '<div style="font-size:.8rem;line-height:1.5;margin-top:4px"><i class="bi bi-journal-text me-1" style="color:orange"></i><strong style="color:orange">Summary:</strong> '+wk.summary+'</div>' : '') +
-          '</div>' : ''}
+          (wk.summary ? '<div class="p-2 rounded mt-1" style="font-size:.8rem;line-height:1.5;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)"><i class="bi '+_si+' me-1" style="color:'+_sc+'"></i><strong style="color:'+_sc+'">📋 Summary:</strong> '+wk.summary+'</div>' : '') +
+          '</div>';
+        })() : ''}
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!--  VILLAHERMOSA 20-SECTION DEEP DIVE                     -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div class="mt-3 mb-2 d-flex align-items-center gap-2">
+          <i class="bi bi-book-half" style="color:orange;font-size:1.2rem"></i>
+          <strong style="color:orange;letter-spacing:1px;font-size:.85rem">VILLAHERMOSA — 20-SECTION DEEP ANALYSIS</strong>
+          <span class="badge" style="background:rgba(255,165,0,.15);color:orange;font-size:.6rem">From "The Wyckoff Methodology in Depth" by Rubén Villahermosa</span>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!--  BEGINNER'S GUIDE TO VILLAHERMOSA/WYCKOFF ANALYSIS      -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <details class="p-3 rounded mb-3" style="background:rgba(255,165,0,.04);border:1px dashed rgba(255,165,0,.3)">
+          <summary class="d-flex align-items-center gap-2" style="cursor:pointer;list-style:none">
+            <i class="bi bi-mortarboard-fill" style="color:orange;font-size:1.2rem"></i>
+            <strong style="color:orange;font-size:.85rem;letter-spacing:1px">BEGINNER'S GUIDE — HOW TO READ THIS ANALYSIS</strong>
+            <span style="font-size:.7rem;color:rgba(255,255,255,.4)">— Click here if you are new to Wyckoff / Villahermosa</span>
+          </summary>
+          <div style="margin-top:14px;font-size:.78rem;color:rgba(255,255,255,.6);line-height:1.8">
+
+            <div class="p-2 rounded mb-3" style="background:rgba(255,165,0,.06);border:1px solid rgba(255,165,0,.15)">
+              <strong style="color:orange;font-size:.82rem">What is this analysis?</strong><br>
+              This dashboard uses the <strong>Wyckoff Method</strong> as taught in <strong>Villahermosa's book</strong> to answer one question:
+              <strong style="color:#ffc107">"What are big institutional investors (banks, hedge funds, mutual funds) doing with this stock — and should I follow them?"</strong>
+              In simple terms: big players move the market. They buy quietly at low prices, push prices up, sell quietly at high prices, then let prices fall.
+              If you can figure out WHERE they are in this cycle, you can trade alongside them instead of being their victim.
+            </div>
+
+            <strong style="color:orange;font-size:.82rem">THE BIG PICTURE — Stocks move in 4 repeating phases, like seasons:</strong>
+            <div class="row g-2 my-2">
+              <div class="col-md-3"><div class="p-2 rounded text-center" style="background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2)">
+                <strong style="color:#00c853;font-size:.8rem">1. ACCUMULATION</strong><br>
+                <span style="font-size:.72rem">Big players quietly BUY shares at low prices while the public is scared and selling. The stock looks like it is going nowhere — sideways and boring.<br><strong>Analogy:</strong> Like a developer buying land in a cheap neighborhood before renovation begins.</span>
+              </div></div>
+              <div class="col-md-3"><div class="p-2 rounded text-center" style="background:rgba(33,150,243,.08);border:1px solid rgba(33,150,243,.2)">
+                <strong style="color:#2196f3;font-size:.8rem">2. MARKUP</strong><br>
+                <span style="font-size:.72rem">Once big players own enough shares, they let the price rise. News becomes positive, everyone starts noticing the stock.<br><strong>Analogy:</strong> The neighborhood gets trendy. Everyone wants to move in. Prices rise fast.</span>
+              </div></div>
+              <div class="col-md-3"><div class="p-2 rounded text-center" style="background:rgba(255,23,68,.08);border:1px solid rgba(255,23,68,.2)">
+                <strong style="color:#ff1744;font-size:.8rem">3. DISTRIBUTION</strong><br>
+                <span style="font-size:.72rem">Big players quietly SELL their shares at high prices while the public is excited and buying. The stock looks like it is holding at highs — stable and safe (but it is not).<br><strong>Analogy:</strong> The developer sells all the renovated houses at peak prices to new buyers.</span>
+              </div></div>
+              <div class="col-md-3"><div class="p-2 rounded text-center" style="background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.2)">
+                <strong style="color:#ff6b6b;font-size:.8rem">4. MARKDOWN</strong><br>
+                <span style="font-size:.72rem">Once big players have sold, they let the price fall. News becomes negative, everyone panics and sells at losses.<br><strong>Analogy:</strong> The neighborhood bubble bursts. New buyers are stuck with overpriced houses.</span>
+              </div></div>
+            </div>
+            <div class="p-2 rounded mb-3" style="background:rgba(0,200,83,.05);border-left:3px solid #00c853">
+              <strong style="color:#00c853">YOUR GOAL:</strong> Buy during late Accumulation (Phase C-D). Ride the Markup (Phase E). Exit before Distribution completes.
+            </div>
+
+            <strong style="color:orange;font-size:.82rem">WITHIN EACH PHASE — 5 Sub-Phases (A through E):</strong>
+            <div class="d-flex flex-wrap gap-1 my-2">
+              <span class="badge px-2 py-1" style="background:rgba(255,255,255,.06);font-size:.72rem;line-height:1.4"><strong>Phase A</strong> = STOPPING<br>The old trend is losing steam. First signs that supply/demand is shifting.</span>
+              <span class="badge px-2 py-1" style="background:rgba(255,255,255,.06);font-size:.72rem;line-height:1.4"><strong>Phase B</strong> = BUILDING<br>Sideways range where big players slowly accumulate or distribute. Longest phase.</span>
+              <span class="badge px-2 py-1" style="background:rgba(255,255,255,.06);font-size:.72rem;line-height:1.4"><strong>Phase C</strong> = TESTING<br>The decisive moment! Springs (fake breakdowns) or UTADs (fake breakouts) happen here.</span>
+              <span class="badge px-2 py-1" style="background:rgba(255,255,255,.06);font-size:.72rem;line-height:1.4"><strong>Phase D</strong> = BREAKING OUT<br>Signs of Strength (SOS) or Weakness (SOW). The new trend reveals itself.</span>
+              <span class="badge px-2 py-1" style="background:rgba(255,255,255,.06);font-size:.72rem;line-height:1.4"><strong>Phase E</strong> = TRENDING<br>Full trend in motion. Ride it until you see new Phase A events (stopping signs).</span>
+            </div>
+
+            <strong style="color:orange;font-size:.82rem">KEY TERMS GLOSSARY — The words you will see below:</strong>
+            <div class="row g-2 my-2">
+              <div class="col-md-6"><div class="p-2 rounded" style="background:rgba(255,255,255,.03);font-size:.72rem;line-height:1.6">
+                <strong style="color:#ffc107">Composite Man</strong> = All big institutions merged into one imaginary mega-investor. Think of him as the casino — he always has an edge.<br>
+                <strong style="color:#ffc107">Spring</strong> = A fake breakdown below support that scares retail traders into selling. It is the Composite Man's trap to buy cheap shares from panicked sellers.<br>
+                <strong style="color:#ffc107">UTAD</strong> (Upthrust After Distribution) = A fake breakout above resistance that excites retail into buying. It is the Composite Man selling to excited newcomers.<br>
+                <strong style="color:#ffc107">Volume</strong> = Number of shares traded. High volume = big players acting. Low volume = retail traders shuffling. Volume reveals the TRUTH behind price moves.
+              </div></div>
+              <div class="col-md-6"><div class="p-2 rounded" style="background:rgba(255,255,255,.03);font-size:.72rem;line-height:1.6">
+                <strong style="color:#ffc107">Creek</strong> = The resistance ceiling. When price jumps above it with high volume = bullish breakout ("Jumping the Creek").<br>
+                <strong style="color:#ffc107">Ice</strong> = The support floor. When price falls below it with high volume = bearish breakdown ("Falling Through the Ice").<br>
+                <strong style="color:#ffc107">SOS</strong> (Sign of Strength) = First real evidence that buyers are winning. A strong bar breaking above resistance.<br>
+                <strong style="color:#ffc107">SOW</strong> (Sign of Weakness) = First real evidence that sellers are winning. A strong bar breaking below support.<br>
+                <strong style="color:#ffc107">LPS/LPSY</strong> = Last pullback before the trend. This is the ideal entry point (like the last chance to get on the train).
+              </div></div>
+            </div>
+
+            <strong style="color:orange;font-size:.82rem">HOW TO USE THIS DASHBOARD:</strong>
+            <div class="p-2 rounded mt-1 mb-2" style="background:rgba(255,255,255,.03);font-size:.72rem;line-height:1.6">
+              <strong>1.</strong> <strong style="color:orange">Charts below</strong> give you a quick visual picture — bigger/greener shapes = stronger setup.<br>
+              <strong>2.</strong> <strong style="color:orange">20 sections after charts</strong> give detailed analysis — each has a "click to expand" for deeper rules from the book.<br>
+              <strong>3.</strong> <strong style="color:#ff1744">Section 16 (Pre-Trade Checklist)</strong> is the MOST IMPORTANT — it scores 8 conditions and tells you whether to trade.<br>
+              <strong>4.</strong> <strong style="color:#ff1744">Section 20 (Do Not Trade)</strong> is your safety net — if ANY condition is triggered, stand aside completely.<br>
+              <strong>5.</strong> <strong style="color:#ffc107">The #1 Rule:</strong> Always trade WITH the Composite Man, never against him. If you cannot tell what he is doing, do not trade.
+            </div>
+          </div>
+        </details>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!--  VILLAHERMOSA VISUAL CHARTS DASHBOARD                  -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div class="p-3 rounded mb-4" style="background:rgba(255,165,0,.02);border:1px solid rgba(255,165,0,.1)">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-bar-chart-line" style="color:orange;font-size:1.1rem"></i>
+            <strong style="color:orange;font-size:.82rem;letter-spacing:1px">VISUAL ANALYSIS DASHBOARD</strong>
+            <span style="font-size:.68rem;color:rgba(255,255,255,.35)">— Pictorial summary of Villahermosa analysis</span>
+          </div>
+
+          <!-- Row 1: Structure Health Radar + Pre-Trade Alignment Ring -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="p-2 rounded h-100" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="bi bi-shield-check" style="color:orange"></i>
+                  <strong style="font-size:.75rem;color:orange;letter-spacing:.5px">STRUCTURE HEALTH RADAR</strong>
+                </div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.5">
+                  <strong style="color:rgba(255,255,255,.6)">What this shows:</strong> A spider-web chart scoring 5 aspects of this stock's Wyckoff health (0-100 each). A bigger, fuller web shape = healthier and more tradeable setup.<br>
+                  <strong style="color:rgba(255,255,255,.6)">The 5 axes:</strong> <em>Phase Clarity</em> (is the trend phase well-defined?), <em>Volume Conviction</em> (is trading volume confirming the move?), <em>Wave Dominance</em> (are buying or selling waves winning?), <em>Event Quality</em> (have key Wyckoff events triggered?), <em>Structure Integrity</em> (is the pattern holding without failures?).<br>
+                  <strong style="color:rgba(255,255,255,.6)">How to read:</strong> Compare the colored shape (current) to the dashed outline (ideal). The closer they match, the higher probability your trade has.
+                </div>
+                <div style="height:220px"><canvas id="wkHealthRadar"></canvas></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="p-2 rounded h-100" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="bi bi-clipboard2-check" style="color:orange"></i>
+                  <strong style="font-size:.75rem;color:orange;letter-spacing:.5px">PRE-TRADE ALIGNMENT (§16)</strong>
+                </div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.5">
+                  <strong style="color:rgba(255,255,255,.6)">What this shows:</strong> The MOST important chart — it answers "Should I trade this stock right now?" It checks 8 conditions from Villahermosa's pre-trade checklist.<br>
+                  <strong style="color:rgba(255,255,255,.6)">How to read:</strong> Green = conditions that say YES. The center number (e.g. 5/8) is your verdict. <strong style="color:#00c853">5+ = Full size trade.</strong> <strong style="color:#ffc107">4 = 75% size.</strong> <strong style="color:#ff9800">3 = 50% only.</strong> <strong style="color:#ff1744">Below 3 = DO NOT TRADE.</strong><br>
+                  <strong style="color:rgba(255,255,255,.6)">Think of it as:</strong> A traffic light for your money. More green filling = safer to proceed. Mostly grey = red light, stand aside.
+                </div>
+                <div style="height:220px"><canvas id="wkAlignChart"></canvas></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 2: Three Laws + Trading Zones + Creek/Ice -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div class="p-2 rounded h-100" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="bi bi-diagram-3-fill" style="color:orange"></i>
+                  <strong style="font-size:.75rem;color:orange;letter-spacing:.5px">THREE LAWS (§2)</strong>
+                </div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.5">
+                  <strong style="color:rgba(255,255,255,.6)">What this shows:</strong> Scores (0-100) for Wyckoff's 3 universal laws that govern ALL price movement. Longer bar = that law favors you more.<br>
+                  <strong style="color:rgba(255,255,255,.6)">The 3 laws:</strong> <em>Supply/Demand</em> — are more people wanting to buy or sell? <em>Cause/Effect</em> — has enough sideways time built up to fuel a big move? <em>Effort/Result</em> — does trading volume match the price movement?<br>
+                  <strong style="color:rgba(255,255,255,.6)">Key insight:</strong> If all 3 bars are long and green, the setup is strong. If they conflict or are short, the market is undecided.
+                </div>
+                <div style="height:150px"><canvas id="wkLawsChart"></canvas></div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="p-2 rounded h-100" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="bi bi-geo-alt-fill" style="color:orange"></i>
+                  <strong style="font-size:.75rem;color:orange;letter-spacing:.5px">TRADING ZONES (§7)</strong>
+                </div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.5">
+                  <strong style="color:rgba(255,255,255,.6)">What this shows:</strong> Villahermosa says there are 3 opportunities to enter any trade — like 3 doors to the same destination.<br>
+                  <strong style="color:rgba(255,255,255,.6)">The 3 zones:</strong> <em>Zone 1</em> (Phase C) = earliest entry, highest reward but riskiest. <em>Zone 2</em> (Phase D) = Wyckoff's FAVORITE — confirmed breakout, best balance. <em>Zone 3</em> (Phase E) = safest entry but smallest reward.<br>
+                  <strong style="color:rgba(255,255,255,.6)">How to read:</strong> BRIGHT/highlighted bars = the zone this stock is currently in. Grey/dim bars = not yet available. If no zone is highlighted, the stock is not ready to trade.
+                </div>
+                <div style="height:150px"><canvas id="wkZonesChart"></canvas></div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="p-2 rounded h-100" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="bi bi-water" style="color:orange"></i>
+                  <strong style="font-size:.75rem;color:orange;letter-spacing:.5px">CREEK & ICE MAP (§8)</strong>
+                </div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.5">
+                  <strong style="color:rgba(255,255,255,.6)">What this shows:</strong> Three critical price levels on a horizontal scale — Ice (support floor), Current Price (where the stock is now), and Creek (resistance ceiling).<br>
+                  <strong style="color:rgba(255,255,255,.6)">How to read:</strong> Price near Creek and pushing up = bullish signal. Price near Ice and falling = bearish signal. A break ABOVE the Creek with strong volume = strong buy signal ("Jumping the Creek"). A break BELOW the Ice = strong sell signal ("Falling Through the Ice").<br>
+                  <strong style="color:rgba(255,255,255,.6)">Think of it as:</strong> The Creek is a dam — when it breaks, price floods higher. The Ice is a frozen lake — when it cracks, price falls through.
+                </div>
+                <div style="height:150px"><canvas id="wkCreekIceChart"></canvas></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 3: Composite Man + Phase Volume + Position Scaling -->
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="p-2 rounded h-100" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="bi bi-person-fill-gear" style="color:orange"></i>
+                  <strong style="font-size:.75rem;color:orange;letter-spacing:.5px">COMPOSITE MAN (§1)</strong>
+                </div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.5">
+                  <strong style="color:rgba(255,255,255,.6)">What this shows:</strong> What the "Composite Man" (all big institutions combined into one imaginary mega-player) is PROBABLY doing right now. The LARGEST petal = most likely action.<br>
+                  <strong style="color:rgba(255,255,255,.6)">The 5 actions:</strong> <em>Accumulating</em> (secretly buying cheap shares), <em>Marking Up</em> (pushing price higher), <em>Distributing</em> (secretly selling expensive shares), <em>Marking Down</em> (pushing price lower), <em>Testing</em> (probing who gives up first).<br>
+                  <strong style="color:rgba(255,255,255,.6)">YOUR job:</strong> Follow the biggest petal. If he is accumulating, buy with him. If distributing, sell with him or stay away.
+                </div>
+                <div style="height:150px"><canvas id="wkCMPolar"></canvas></div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="p-2 rounded h-100" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="bi bi-soundwave" style="color:orange"></i>
+                  <strong style="font-size:.75rem;color:orange;letter-spacing:.5px">PHASE VOLUME MATCH (§12)</strong>
+                </div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.5">
+                  <strong style="color:rgba(255,255,255,.6)">What this shows:</strong> A gauge measuring whether actual trading volume matches what Villahermosa says this Wyckoff phase SHOULD have. Like checking if symptoms match a diagnosis.<br>
+                  <strong style="color:rgba(255,255,255,.6)">How to read:</strong> <strong style="color:#00c853">Green (70%+)</strong> = volume is normal for this phase, analysis is reliable. <strong style="color:#ffc107">Yellow (45-70%)</strong> = some mismatch, be cautious. <strong style="color:#ff1744">Red (below 45%)</strong> = volume does not fit, the phase identification may be wrong.<br>
+                  <strong style="color:rgba(255,255,255,.6)">Why it matters:</strong> If volume does not confirm the phase, your entire analysis could be based on a wrong assumption. Treat low scores as a warning.
+                </div>
+                <div style="height:150px"><canvas id="wkPhaseVolGauge"></canvas></div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="p-2 rounded h-100" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="bi bi-sliders" style="color:orange"></i>
+                  <strong style="font-size:.75rem;color:orange;letter-spacing:.5px">POSITION SCALING (§13)</strong>
+                </div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.45);margin-bottom:6px;line-height:1.5">
+                  <strong style="color:rgba(255,255,255,.6)">What this shows:</strong> How to split your total investment across 3 entry zones — so you never bet everything at once.<br>
+                  <strong style="color:rgba(255,255,255,.6)">How to read:</strong> Zone 1: 33% (small initial position when the Spring/UTAD tests). Zone 2: 50% (BIGGEST add after the stock confirms with a breakout). Zone 3: 25% (final small add during the confirmed trend). Bright bars = zones already active for this stock.<br>
+                  <strong style="color:rgba(255,255,255,.6)">Think of it as:</strong> Like poker — you do not go all-in on a hunch. You bet small first, then increase ONLY when you have strong evidence you are right.
+                </div>
+                <div style="height:150px"><canvas id="wkScalingChart"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ SECTION 1: COMPOSITE MAN ═══ -->
+        ${v.composite_man ? (()=>{
+          const cm = v.composite_man;
+          const cmClr = cm.action==='ACCUMULATING'?'#00c853':cm.action==='DISTRIBUTING'?'#ff1744':cm.action==='MARKING_UP'?'#2196f3':cm.action==='MARKING_DOWN'?'#ff6b6b':'#ffc107';
+          return '<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+              '<i class="bi bi-person-fill-gear" style="color:orange;font-size:1.1rem"></i>' +
+              '<strong class="mini-label" style="letter-spacing:1px">§1 COMPOSITE MAN — WHAT ARE BIG PLAYERS DOING?</strong>' +
+              '<span class="badge ms-auto" style="background:'+cmClr+';color:#000;font-weight:700">'+cm.action.replace(/_/g,' ')+'</span>' +
+            '</div>' +
+            '<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">' +
+              '<strong>What is the Composite Man?</strong> Imagine combining ALL the big institutional investors (banks, hedge funds, insurance companies) into ONE SINGLE mega-investor. ' +
+              'That is the "Composite Man" — a concept from Wyckoff to understand what smart money is doing. <strong>Your job: figure out what the Composite Man is doing and do the same.</strong>' +
+              '<div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">' +
+                '<span style="font-size:.73rem;line-height:1.6;display:block">' +
+                  '<strong style="color:orange">🏠 Real-World Analogy:</strong> Think of the stock market like a poker game. The Composite Man is the player who can see everyone\'s cards AND has the most chips. He controls the game. By studying volume and price action, YOU can peek at his cards too — volume spikes reveal when he is acting, and price patterns reveal what he is planning.' +
+                  '<br><strong style="color:#ffc107">💡 Why This Matters:</strong> About 90% of retail traders lose money because they unknowingly trade AGAINST the Composite Man. When he deliberately creates a Spring (fake breakdown), retail traders panic and sell — and the Composite Man buys their shares at a discount. If you understand his playbook, you stop being his victim and start profiting alongside him.' +
+                  '<br><strong style="color:#00c853">🎯 What To Look For:</strong> Check the badge at the top right of this section — it shows what the Composite Man is likely doing (ACCUMULATING, DISTRIBUTING, MARKING UP, MARKING DOWN, or TESTING). If it says ACCUMULATING → this is a potential BUY. If DISTRIBUTING → potential SELL or stay away.' +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="p-2 rounded mb-2" style="border-left:3px solid '+cmClr+';background:'+cmClr+'08">' +
+              '<div style="font-size:.85rem;line-height:1.7">'+cm.description+'</div>' +
+            '</div>' +
+            (cm.counterparty ? '<div class="p-2 rounded mb-2" style="border-left:3px solid #ffc107;background:rgba(255,193,7,.05)">' +
+              '<strong style="color:#ffc107;font-size:.8rem"><i class="bi bi-arrow-left-right me-1"></i>Counterparty Trap Detected!</strong>' +
+              '<div style="font-size:.82rem;line-height:1.6;margin-top:4px">'+cm.counterparty+'</div></div>' : '') +
+            '<details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">' +
+              '<summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 How to think like the Composite Man (click to expand)</summary>' +
+              '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">' +
+                '<strong>Rule CM1:</strong> Before every trade, ask: "What is the Composite Man likely doing?" If accumulating → BUY with him. If distributing → SELL with him.<br>' +
+                '<strong>Rule CM2 — Counterparty Trap:</strong> The Composite Man NEEDS someone to buy from or sell to. Springs create panic sellers (CM buys from them). Upthrusts create excited buyers (CM sells to them).<br>' +
+                '<strong>Rule CM3 — Path of Least Resistance:</strong> After a Spring, if the retest shows LOW volume → path is clear, enter. HIGH volume → more testing needed, wait.<br>' +
+                '<strong>Rule CM4 — Stock Transfer:</strong> Accumulation transfers stock from weak hands (fearful retail) to strong hands (patient institutions). Decreasing volume in a range = this transfer is happening.' +
+              '</div>' +
+            '</details>' +
+          '</div>';
+        })() : ''}
+
+        <!-- ═══ SECTION 2: WYCKOFF 3 LAWS ═══ -->
+        ${v.three_laws ? (()=>{
+          const tl = v.three_laws;
+          const sdClr = tl.supply_demand.includes('DEMAND')?'#00c853':tl.supply_demand.includes('SUPPLY')?'#ff1744':'#ffc107';
+          const ceEffect = tl.cause_effect.expected_effect;
+          const ceClr = ceEffect==='LARGE'?'#00c853':ceEffect==='SMALL'?'#ff6b6b':'#ffc107';
+          return '<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+              '<i class="bi bi-diagram-3-fill" style="color:orange;font-size:1.1rem"></i>' +
+              '<strong class="mini-label" style="letter-spacing:1px">§2 WYCKOFF\'S 3 FUNDAMENTAL LAWS</strong>' +
+            '</div>' +
+            '<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">' +
+              'These 3 laws govern ALL price movement. Every chart pattern, every indicator — they all trace back to these laws. Understand them and you understand the market.' +
+              '<div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">' +
+                '<span style="font-size:.73rem;line-height:1.6;display:block">' +
+                  '<strong style="color:orange">🏠 Real-World Analogy:</strong> Think of these 3 laws like laws of physics. <strong>Law 1 (Supply/Demand)</strong> is like gravity — more buyers than sellers pulls price UP, more sellers pulls it DOWN. <strong>Law 2 (Cause/Effect)</strong> is like compressing a spring toy — the longer you hold it compressed (sideways range), the further it shoots when released (the trend). <strong>Law 3 (Effort/Result)</strong> is like pushing a car — if you push hard (high volume) but the car barely moves (small price change), something is blocking it (absorption).' +
+                  '<br><strong style="color:#ffc107">💡 Why This Matters:</strong> If all 3 laws point in the same direction, you have a highly reliable trade. If they conflict (e.g., demand is strong but effort does not match result), the market is confused — and confused markets eat your money. Wait for clarity.' +
+                  '<br><strong style="color:#00c853">🎯 What To Look For:</strong> In the 3 colored boxes below, check if Supply/Demand favors your direction, if Cause has been building long enough, and if Effort matches Result. All three green = strong signal. Any red = caution.' +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="row g-2 mb-2">' +
+              '<div class="col-md-4"><div class="p-2 rounded h-100" style="border:1px solid '+sdClr+'40;background:'+sdClr+'08">' +
+                '<div class="d-flex align-items-center gap-1 mb-1"><i class="bi bi-arrow-left-right" style="color:'+sdClr+'"></i><strong style="color:'+sdClr+';font-size:.78rem">LAW 1: SUPPLY & DEMAND</strong></div>' +
+                '<div style="font-size:.75rem;line-height:1.5;color:rgba(255,255,255,.6)">' +
+                  'Price rises when <strong style="color:#00c853">demand</strong> (buyers) overpowers <strong style="color:#ff1744">supply</strong> (sellers). ' +
+                  'Price falls when supply overwhelms demand. Sideways = they are balanced.<br>' +
+                  '<strong>Current:</strong> <span style="color:'+sdClr+'">'+tl.supply_demand.replace(/_/g,' ')+'</span>' +
+                '</div>' +
+              '</div></div>' +
+              '<div class="col-md-4"><div class="p-2 rounded h-100" style="border:1px solid '+ceClr+'40;background:'+ceClr+'08">' +
+                '<div class="d-flex align-items-center gap-1 mb-1"><i class="bi bi-hourglass-split" style="color:'+ceClr+'"></i><strong style="color:'+ceClr+';font-size:.78rem">LAW 2: CAUSE & EFFECT</strong></div>' +
+                '<div style="font-size:.75rem;line-height:1.5;color:rgba(255,255,255,.6)">' +
+                  'Every sideways range (the CAUSE) produces a trend move (the EFFECT). <strong>Longer range = bigger trend.</strong> ' +
+                  'Like compressing a spring — the more time spent coiling, the further it shoots.<br>' +
+                  '<strong>Structure:</strong> <span style="color:'+ceClr+'">'+tl.cause_effect.cause_duration+' → Expected Effect: '+ceEffect+'</span>' +
+                '</div>' +
+              '</div></div>' +
+              '<div class="col-md-4"><div class="p-2 rounded h-100" style="border:1px solid rgba(255,165,0,.4);background:rgba(255,165,0,.05)">' +
+                '<div class="d-flex align-items-center gap-1 mb-1"><i class="bi bi-bar-chart-steps" style="color:orange"></i><strong style="color:orange;font-size:.78rem">LAW 3: EFFORT vs RESULT</strong></div>' +
+                '<div style="font-size:.75rem;line-height:1.5;color:rgba(255,255,255,.6)">' +
+                  '<strong>Effort</strong> = volume (activity). <strong>Result</strong> = price move (distance). ' +
+                  'Big effort + small result = someone blocking the move (absorption). Small effort + big result = path is clear.<br>' +
+                  '<strong>Volume status:</strong> <span style="color:orange">'+tl.effort_result+'</span>' +
+                '</div>' +
+              '</div></div>' +
+            '</div>' +
+            '<details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">' +
+              '<summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 Deep dive: 4 scenarios at any price level (click to expand)</summary>' +
+              '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">' +
+                '<table style="width:100%;font-size:.72rem;border-collapse:collapse"><thead><tr style="border-bottom:1px solid rgba(255,255,255,.1)">' +
+                '<th style="padding:3px 6px;text-align:left">Scenario</th><th>Volume</th><th>Spread</th><th>Close</th><th>Meaning</th></tr></thead><tbody>' +
+                '<tr style="color:#00c853"><td style="padding:3px 6px">Initiative Buying</td><td>HIGH</td><td>Wide</td><td>Near High</td><td>Aggressive buyers = bullish ✅</td></tr>' +
+                '<tr style="color:#ff1744"><td style="padding:3px 6px">Initiative Selling</td><td>HIGH</td><td>Wide</td><td>Near Low</td><td>Aggressive sellers = bearish ⚠️</td></tr>' +
+                '<tr style="color:#888"><td style="padding:3px 6px">Lack of Demand</td><td>LOW</td><td>Narrow</td><td>Middle</td><td>No buyers = potential weakness</td></tr>' +
+                '<tr style="color:#888"><td style="padding:3px 6px">Lack of Supply</td><td>LOW</td><td>Narrow</td><td>Middle</td><td>No sellers = potential strength</td></tr>' +
+                '</tbody></table>' +
+              '</div>' +
+            '</details>' +
+          '</div>';
+        })() : ''}
+
+        <!-- ═══ SECTIONS 5+6: SCHEMATICS ═══ -->
+        ${v.schematic && v.schematic.type !== 'UNKNOWN' ? (()=>{
+          const sk = v.schematic;
+          const skClr = sk.type.includes('ACCUMULATION')?'#00c853':'#ff1744';
+          const isAcc = sk.type.includes('ACCUMULATION');
+          return '<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+              '<i class="bi bi-clipboard2-data" style="color:orange;font-size:1.1rem"></i>' +
+              '<strong class="mini-label" style="letter-spacing:1px">§5-6 WYCKOFF SCHEMATIC — WHICH PATTERN IS THIS?</strong>' +
+              '<span class="badge ms-auto" style="background:'+skClr+';color:#000;font-weight:700">'+sk.type.replace(/_/g,' ')+'</span>' +
+            '</div>' +
+            '<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">' +
+              '<strong>What is a Schematic?</strong> Villahermosa identifies 2 blueprints for accumulation and 2 for distribution. ' +
+              'Knowing WHICH one you are in tells you what to expect next — like knowing which act of a play you are watching.' +
+              '<div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">' +
+                '<span style="font-size:.73rem;line-height:1.6;display:block">' +
+                  '<strong style="color:orange">🏠 Real-World Analogy:</strong> Think of a schematic like a blueprint for a house. Before a house is built, the architect draws a plan showing each room and step. Similarly, Wyckoff structures follow predictable blueprints. If you know WHICH blueprint (schematic) the stock is following, you can predict the next "room" (event) before the stock gets there. Schematic #1 has a dramatic Spring/UTAD (the classic trap). Schematic #2 skips the trap (buyers/sellers are so strong they do not let price stretch). Both lead to the same destination — a new trend.' +
+                  '<br><strong style="color:#ffc107">💡 Why This Matters:</strong> If you know it is Schematic #1, you wait for the Spring/UTAD before entering — this gives you the BEST price. If Schematic #2, you enter earlier on a higher low/lower high because the trap is not coming. Wrong schematic = wrong entry, wrong stop, wrong expectations.' +
+                  '<br><strong style="color:#00c853">🎯 What To Look For:</strong> Check the badge above — it tells you which schematic has been identified. Then read the expanding explanation below to understand what event should come next in the sequence.' +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="p-2 rounded mb-2" style="border-left:3px solid '+skClr+';background:'+skClr+'08">' +
+              '<div style="font-size:.85rem;line-height:1.7">'+sk.description+'</div>' +
+            '</div>' +
+            '<details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">' +
+              '<summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 How to distinguish Schematic #1 vs #2 (click to expand)</summary>' +
+              '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">' +
+                (isAcc ?
+                  '<strong style="color:#00c853">Accumulation #1 (with Spring):</strong> PS → SC → AR → ST → <u>SPRING</u> → Test → SOS/JAC → LPS/BUEC → Uptrend. The Spring breaks below SC low — TEXTBOOK pattern, easiest to spot.<br>' +
+                  '<strong style="color:#00c853">Accumulation #2 (without Spring):</strong> PS → SC → AR → ST → <u>HIGHER LOW (LPS)</u> → SOS/JAC → Uptrend. NO dramatic Spring. Buyers so strong they don\'t let price drop. Harder to identify but equally bullish.<br>' +
+                  '<strong>How to tell:</strong> #1 = price breaks below the Selling Climax low. #2 = price makes a higher low inside the range.'
+                :
+                  '<strong style="color:#ff1744">Distribution #1 (with UTAD):</strong> PSY → BC → AR → ST → <u>UTAD</u> → Test → SOW → LPSY → Downtrend. The UTAD breaks above BC high — classic head-fake.<br>' +
+                  '<strong style="color:#ff1744">Distribution #2 (without UTAD):</strong> PSY → BC → AR → ST → <u>LOWER HIGH (LPSY)</u> → SOW → Downtrend. Sellers so strong price can\'t even reach highs.<br>' +
+                  '<strong>How to tell:</strong> #1 = price breaks above the Buying Climax high. #2 = price makes a lower high inside the range.'
+                ) +
+              '</div>' +
+            '</details>' +
+          '</div>';
+        })() : ''}
+
+        <!-- ═══ SECTION 7: 3 TRADING ZONES ═══ -->
+        ${v.trading_zone ? (()=>{
+          const tz = v.trading_zone;
+          const zoneClr = tz.zone===1?'#ffc107':tz.zone===2?'#00c853':tz.zone===3?'#2196f3':'#888';
+          return '<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid '+zoneClr+'30">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+              '<i class="bi bi-geo-alt-fill" style="color:orange;font-size:1.1rem"></i>' +
+              '<strong class="mini-label" style="letter-spacing:1px">§7 THREE TRADING ZONES — WHERE TO ENTER</strong>' +
+              (tz.zone ? '<span class="badge ms-auto" style="background:'+zoneClr+';color:#000;font-weight:700">ZONE '+tz.zone+'</span>' : '') +
+            '</div>' +
+            '<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">' +
+              '<strong>What are Trading Zones?</strong> Villahermosa defines 3 zones where you can enter a trade, each with different risk/reward profiles. ' +
+              'Think of them as 3 doors to the same destination — the earliest door has the most reward but least certainty.' +
+              '<div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">' +
+                '<span style="font-size:.73rem;line-height:1.6;display:block">' +
+                  '<strong style="color:orange">🏠 Real-World Analogy:</strong> Think of buying a house being constructed. <strong>Zone 1</strong> = buying during foundation work (very cheap, but the building might not get finished — highest risk, highest reward). <strong>Zone 2</strong> = buying when walls and roof are up (mid-price, you can see it WILL be finished — best balance of risk and reward, <u>Wyckoff\'s favorite</u>). <strong>Zone 3</strong> = buying the finished house (full price, no risk of construction failure, but you pay a premium).' +
+                  '<br><strong style="color:#ffc107">💡 Why This Matters:</strong> Your entry zone determines EVERYTHING — your stop loss distance, position size, risk/reward ratio, and how much drawdown you might face. Entering in the wrong zone means either too much risk or not enough reward.' +
+                  '<br><strong style="color:#00c853">🎯 What To Look For:</strong> Check the badge and the zone comparison table below. If you are in Zone 2 (the star zone), this is the highest-probability Wyckoff entry. If no zone is active yet, be patient — the stock is not ready.' +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="p-2 rounded mb-2" style="border-left:3px solid '+zoneClr+';background:'+zoneClr+'08">' +
+              '<strong style="color:'+zoneClr+';font-size:.85rem">'+tz.name+'</strong>' +
+              '<div style="font-size:.85rem;line-height:1.7;margin-top:4px">'+tz.description+'</div>' +
+              '<div class="d-flex flex-wrap gap-2 mt-2">' +
+                '<span class="badge" style="background:rgba(255,255,255,.1);font-size:.72rem">R:R: '+tz.risk_reward+'</span>' +
+                '<span class="badge" style="background:rgba(255,255,255,.1);font-size:.72rem">Size: '+tz.position_size+'</span>' +
+              '</div>' +
+            '</div>' +
+            '<details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">' +
+              '<summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 Compare all 3 zones (click to expand)</summary>' +
+              '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">' +
+                '<table style="width:100%;font-size:.72rem;border-collapse:collapse"><thead><tr style="border-bottom:1px solid rgba(255,255,255,.1)">' +
+                '<th style="padding:3px 6px;text-align:left">Zone</th><th>Phase</th><th>R:R</th><th>Reliability</th><th>Best For</th></tr></thead><tbody>' +
+                '<tr style="color:#ffc107"><td style="padding:3px 6px"><strong>Zone 1</strong></td><td>Phase C (Shake)</td><td>3:1+</td><td>Lowest</td><td>Aggressive traders, small size</td></tr>' +
+                '<tr style="color:#00c853"><td style="padding:3px 6px"><strong>Zone 2 ★</strong></td><td>Phase D (Confirm)</td><td>2:1</td><td>High</td><td>Wyckoff\'s PREFERRED entry</td></tr>' +
+                '<tr style="color:#2196f3"><td style="padding:3px 6px"><strong>Zone 3</strong></td><td>Phase E (Trend)</td><td>1.5:1</td><td>Highest</td><td>Conservative, add to winners</td></tr>' +
+                '</tbody></table>' +
+              '</div>' +
+            '</details>' +
+          '</div>';
+        })() : ''}
+
+        <!-- ═══ SECTION 8: CREEK & BUEC ═══ -->
+        ${v.creek_ice ? (()=>{
+          const ci = v.creek_ice;
+          return '<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+              '<i class="bi bi-water" style="color:orange;font-size:1.1rem"></i>' +
+              '<strong class="mini-label" style="letter-spacing:1px">§8 CREEK & ICE — KEY STRUCTURAL LEVELS</strong>' +
+            '</div>' +
+            '<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">' +
+              '<strong>What are Creek and Ice?</strong> These are the critical price levels that define the boundaries of a Wyckoff structure. ' +
+              'Crossing the Creek (resistance) confirms accumulation. Breaking the Ice (support) confirms distribution. Like crossing a finish line.' +
+              '<div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">' +
+                '<span style="font-size:.73rem;line-height:1.6;display:block">' +
+                  '<strong style="color:orange">🏠 Real-World Analogy:</strong> Imagine a river (the <strong style="color:#2196f3">Creek</strong>) and a frozen lake (the <strong style="color:#ff1744">Ice</strong>). The Creek is above you — to confirm that accumulation worked, the stock must "jump across" the Creek to the other side (higher prices). This crossing is called <strong>JAC</strong> (Jump Across the Creek). The Ice is below you — if the stock "falls through" the Ice, it means distribution is confirmed and prices will fall. This is called <strong>FTI</strong> (Fall Through the Ice).' +
+                  '<br><strong style="color:#ffc107">💡 Why This Matters:</strong> These levels are the two most important prices on the chart. Everything before them is preparation. The moment price crosses Creek or Ice with strong volume, the verdict is in. This is WHERE most professional Wyckoff traders place their entries — right after the crossing, on the pullback test (called BUEC or LPSY).' +
+                  '<br><strong style="color:#00c853">🎯 What To Look For:</strong> Look at the Creek and Ice price levels shown in the blue and red boxes below. Compare them to the current stock price. If price is pushing toward the Creek from below → potential buy setup. If price is threatening the Ice from above → potential sell setup.' +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="row g-2 mb-2">' +
+              '<div class="col-md-6"><div class="p-2 rounded h-100" style="border:1px solid rgba(33,150,243,.3);background:rgba(33,150,243,.05)">' +
+                '<div class="d-flex align-items-center gap-1 mb-1">' +
+                  '<i class="bi bi-arrow-up-circle-fill" style="color:#2196f3"></i>' +
+                  '<strong style="color:#2196f3;font-size:.8rem">THE CREEK (Resistance)</strong>' +
+                  (ci.creek ? '<span class="badge ms-auto" style="background:#2196f350">₹'+ci.creek.toFixed(2)+'</span>' : '') +
+                '</div>' +
+                '<div style="font-size:.78rem;line-height:1.6;color:rgba(255,255,255,.6)">'+ci.creek_desc+'</div>' +
+                '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:4px"><strong>JAC</strong> = "Jump Across the Creek" = bullish breakout above resistance. <strong>BUEC</strong> = "Back Up to Edge of Creek" = pullback test after breakout.</div>' +
+              '</div></div>' +
+              '<div class="col-md-6"><div class="p-2 rounded h-100" style="border:1px solid rgba(255,23,68,.3);background:rgba(255,23,68,.05)">' +
+                '<div class="d-flex align-items-center gap-1 mb-1">' +
+                  '<i class="bi bi-arrow-down-circle-fill" style="color:#ff1744"></i>' +
+                  '<strong style="color:#ff1744;font-size:.8rem">THE ICE (Support)</strong>' +
+                  (ci.ice ? '<span class="badge ms-auto" style="background:#ff174450">₹'+ci.ice.toFixed(2)+'</span>' : '') +
+                '</div>' +
+                '<div style="font-size:.78rem;line-height:1.6;color:rgba(255,255,255,.6)">'+ci.ice_desc+'</div>' +
+                '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:4px"><strong>FTI</strong> = "Fall Through the Ice" = bearish breakdown below support. <strong>LPSY</strong> = rally back to test the broken Ice from below.</div>' +
+              '</div></div>' +
+            '</div>' +
+            '<details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">' +
+              '<summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 BUEC Entry Rules — Wyckoff\'s Preferred (click to expand)</summary>' +
+              '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">' +
+                '<strong>The BUEC is the same as LPS</strong> — it is the pullback after the SOS/JAC breakout. Ideal conditions:<br>' +
+                '1. Narrow bar ranges on the pullback (no urgency)<br>' +
+                '2. Low volume on pullback (< 75% of breakout volume)<br>' +
+                '3. Price holds ABOVE the Creek (does not re-enter the range)<br>' +
+                '4. → <strong>BUY at the BUEC</strong>. Stop below LPS and below broken Creek.<br>' +
+                '<strong style="color:#ff1744">Failed Creek Break:</strong> If price tries to break Creek but faces high volume opposition → price falls back → structure NOT confirmed. Wait for re-test or reversal.' +
+              '</div>' +
+            '</details>' +
+          '</div>';
+        })() : ''}
+
+        <!-- ═══ SECTION 10: RE-ACCUMULATION vs DISTRIBUTION ═══ -->
+        ${v.reaccum_dist && v.reaccum_dist.type !== 'N/A' ? (()=>{
+          const rd = v.reaccum_dist;
+          const rdClr = rd.type==='RE_ACCUMULATION'?'#00c853':rd.type==='DISTRIBUTION'?'#ff1744':'#ffc107';
+          return '<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid '+rdClr+'30">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+              '<i class="bi bi-arrow-repeat" style="color:orange;font-size:1.1rem"></i>' +
+              '<strong class="mini-label" style="letter-spacing:1px">§10 RE-ACCUMULATION vs DISTRIBUTION — THE CRITICAL QUESTION</strong>' +
+              '<span class="badge ms-auto" style="background:'+rdClr+';color:#000;font-weight:700">'+rd.type.replace(/_/g,' ')+'</span>' +
+            '</div>' +
+            '<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">' +
+              '<strong>The Problem:</strong> After an uptrend pauses into a sideways range, is this a temporary rest stop (re-accumulation → uptrend continues) ' +
+              'or a top (distribution → downtrend begins)? <strong>This is the HARDEST distinction in Wyckoff analysis.</strong>' +
+              '<div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">' +
+                '<span style="font-size:.73rem;line-height:1.6;display:block">' +
+                  '<strong style="color:orange">🏠 Real-World Analogy:</strong> Imagine you are on a road trip driving uphill. You come to a flat plateau. Is this a <strong style="color:#00c853">rest stop</strong> (you will continue climbing after a break) or have you reached the <strong style="color:#ff1744">mountain peak</strong> (it is all downhill from here)? From the plateau, both look the same initially. The clues are in volume: if activity is decreasing calmly at the rest stop = re-accumulation. If activity stays high and chaotic at the plateau = distribution (big players unloading).' +
+                  '<br><strong style="color:#ffc107">💡 Why This Matters:</strong> Getting this wrong is one of the most expensive mistakes in trading. If you think it is a rest stop (and hold/add to your position) but it is actually the peak, you will ride the stock all the way down.' +
+                  '<br><strong style="color:#00c853">🎯 What To Look For:</strong> Check the badge and the comparison table in the expandable section. Key signs: decreasing volume + higher lows = rest stop (bullish). Persistently high volume + lower highs = the peak (bearish). Wait for the breakout direction to confirm.' +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="p-2 rounded mb-2" style="border-left:3px solid '+rdClr+';background:'+rdClr+'08">' +
+              '<div style="font-size:.85rem;line-height:1.7">'+rd.description+'</div>' +
+              (rd.signals.length ? '<div class="mt-1" style="font-size:.75rem;color:rgba(255,255,255,.5)"><strong>Signals detected:</strong> '+rd.signals.join('; ')+'</div>' : '') +
+            '</div>' +
+            '<details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">' +
+              '<summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 How to distinguish them (click to expand)</summary>' +
+              '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">' +
+                '<table style="width:100%;font-size:.72rem;border-collapse:collapse"><thead><tr style="border-bottom:1px solid rgba(255,255,255,.1)">' +
+                '<th style="padding:3px 6px;text-align:left">Signal</th><th>Re-accumulation ✅</th><th>Distribution ⚠️</th></tr></thead><tbody>' +
+                '<tr><td style="padding:3px 6px">Volume</td><td style="color:#00c853">Decreasing progressively</td><td style="color:#ff1744">Persistently high/volatile</td></tr>' +
+                '<tr><td style="padding:3px 6px">Internal lows</td><td style="color:#00c853">Higher lows (buyers strong)</td><td style="color:#ff1744">Testing or breaking lows</td></tr>' +
+                '<tr><td style="padding:3px 6px">Internal highs</td><td style="color:#00c853">Holding near resistance</td><td style="color:#ff1744">Lower highs (sellers strong)</td></tr>' +
+                '<tr><td style="padding:3px 6px">Selling waves</td><td style="color:#00c853">Diminishing each time</td><td style="color:#ff1744">Increasing each time</td></tr>' +
+                '<tr><td style="padding:3px 6px">Spring behavior</td><td style="color:#00c853">Quick, clean recovery</td><td style="color:#ff1744">Slow, messy recovery</td></tr>' +
+                '</tbody></table>' +
+                '<div class="mt-1"><strong>The definitive test:</strong> Upward breakout with expanding volume = re-accumulation. Downward breakout = distribution. Until breakout occurs, use the above signals to BIAS your expectations.</div>' +
+              '</div>' +
+            '</details>' +
+          '</div>';
+        })() : ''}
+
+        <!-- ═══ SECTION 11: FAILED STRUCTURE ═══ -->
+        ${v.failed_structure && v.failed_structure.detected ? (()=>{
+          const fs = v.failed_structure;
+          return '<div class="p-3 rounded mb-3" style="background:rgba(255,23,68,.06);border:2px solid rgba(255,23,68,.4)">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+              '<i class="bi bi-exclamation-triangle-fill" style="color:#ff1744;font-size:1.3rem"></i>' +
+              '<strong class="mini-label" style="letter-spacing:1px;color:#ff1744">⚠️ §11 FAILED STRUCTURE DETECTED!</strong>' +
+              '<span class="badge ms-auto" style="background:#ff1744;color:#000;font-weight:700">'+fs.type.replace(/_/g,' ')+'</span>' +
+            '</div>' +
+            '<div class="p-2 rounded mb-2" style="border-left:3px solid #ff1744;background:rgba(255,23,68,.08)">' +
+              '<div style="font-size:.85rem;line-height:1.7">'+fs.description+'</div>' +
+            '</div>' +
+            '<div style="font-size:.78rem;color:rgba(255,255,255,.6);line-height:1.6">' +
+              '<strong>What is a Failed Structure?</strong> Sometimes the Composite Man\'s plan doesn\'t work out — the Spring or UTAD fails, ' +
+              'and price continues in the original direction. This is CRITICAL to recognize: <strong>if your thesis is wrong, get out immediately.</strong> ' +
+              'Do NOT hope for a recovery. Wait for a complete new Phase A before re-entering.' +
+            '</div>' +
+            '<div class="mt-2 p-2 rounded" style="background:rgba(255,23,68,.04);border-left:3px solid rgba(255,23,68,.3)">' +
+              '<span style="font-size:.73rem;line-height:1.6;display:block">' +
+                '<strong style="color:orange">🏠 Real-World Analogy:</strong> Think of a building that fails its structural inspection. If cracks appear in the foundation, you do NOT continue construction — you evacuate, tear it down, and start over with a new foundation. Similarly, when a Wyckoff structure "fails" (Spring breaks its low again, or UTAD breaks its high), the original analysis is invalid. Do not try to save the trade or hope for recovery. Exit completely and wait for a new Phase A (new foundation) to form.' +
+                '<br><strong style="color:#ff1744">🚨 What To Do RIGHT NOW:</strong> This is an emergency signal. If you have an open position based on the previous structure, <strong>exit it immediately</strong>. Do not average down. Do not set a wider stop. Accept the small loss and protect your capital for the next opportunity.' +
+              '</span>' +
+            '</div>' +
+          '</div>';
+        })() : '<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">' +
+          '<div class="d-flex align-items-center gap-2 mb-2">' +
+            '<i class="bi bi-shield-check" style="color:#00c853;font-size:1.1rem"></i>' +
+            '<strong class="mini-label" style="letter-spacing:1px">§11 FAILED STRUCTURE CHECK</strong>' +
+            '<span class="badge ms-auto" style="background:#00c853;color:#000">NO FAILURE</span>' +
+          '</div>' +
+          '<div style="font-size:.78rem;color:rgba(255,255,255,.5);line-height:1.6">' +
+            '<strong>What is a Failed Structure?</strong> When a Spring breaks its own low, or a UTAD breaks its own high, the original thesis is WRONG. ' +
+            'Currently: <strong style="color:#00c853">No structural failure detected</strong> — the structure is holding as expected.' +
+            '<div class="mt-2 p-2 rounded" style="background:rgba(0,200,83,.04);border-left:3px solid rgba(0,200,83,.3)">' +
+              '<span style="font-size:.73rem;line-height:1.6;display:block">' +
+                '<strong style="color:orange">🏠 Real-World Analogy:</strong> This is like a building structural inspection. The inspector checks if the foundation, walls, and roof are sound. Right now — <strong style="color:#00c853">everything looks good, the building is structurally sound</strong>. No cracks detected. The Wyckoff pattern is holding its expected shape, which means the analysis in the other sections above is reliable.' +
+                '<br><strong style="color:#00c853">🎯 This is GOOD news:</strong> You can trust the other section readings. Continue with the pre-trade checklist (§16) to decide whether to trade. If a failure DOES appear later, this section will turn red with an emergency warning telling you to exit immediately.' +
+              '</span>' +
+            '</div>' +
+          '</div>' +
+          '<details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px;margin-top:6px">' +
+            '<summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 Types of structure failure (click to expand)</summary>' +
+            '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">' +
+              '<strong>Failed Accumulation:</strong> Spring test shows HIGH volume → price breaks below Spring low → accumulation has failed → EXIT all longs.<br>' +
+              '<strong>Failed Distribution:</strong> UTAD test shows HIGH volume → price breaks above UTAD high → distribution has failed → EXIT all shorts.<br>' +
+              '<strong>Failed Breakout (Phase D):</strong> SOS/SOW appears to break Creek/Ice then reverses → the "break" was actually a new Shaking event. Reverse your bias.<br>' +
+              '<strong>ST Failure:</strong> Secondary Test volume ≥ Climax volume → Phase A is NOT complete → need more testing.' +
+            '</div>' +
+          '</details>' +
+        '</div>'}
+
+        <!-- ═══ SECTION 12: PHASE VOLUME BEHAVIOR ═══ -->
+        ${v.phase_volume ? (()=>{
+          const pv = v.phase_volume;
+          const pvClr = pv.assessment==='HEALTHY'||pv.assessment==='CONFIRMS_DIST'?'#00c853':pv.assessment==='WATCH'||pv.assessment==='POSSIBLE_REACCUM'?'#ffc107':'#2196f3';
+          return '<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+              '<i class="bi bi-soundwave" style="color:orange;font-size:1.1rem"></i>' +
+              '<strong class="mini-label" style="letter-spacing:1px">§12 PHASE VOLUME BEHAVIOR — IS VOLUME NORMAL FOR THIS PHASE?</strong>' +
+              '<span class="badge ms-auto" style="background:'+pvClr+';color:#000;font-weight:600">'+pv.assessment+'</span>' +
+            '</div>' +
+            '<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">' +
+              '<strong>Why does volume matter per phase?</strong> Each Wyckoff phase has a SPECIFIC volume signature. If volume doesn\'t match what\'s expected, ' +
+              'the phase may not be what it appears. Like checking if rain matches a cloud — no rain means maybe it isn\'t really a rain cloud.' +
+              '<div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">' +
+                '<span style="font-size:.73rem;line-height:1.6;display:block">' +
+                  '<strong style="color:orange">🏠 Real-World Analogy:</strong> Think of a doctor checking your blood pressure. A healthy 30-year-old should have ~120/80. If yours is 180/100, the doctor knows something is wrong — even if you feel fine. Similarly, each Wyckoff phase has "normal" volume levels. If actual volume does not match, the diagnosis (phase identification) might be wrong, and you could be trading based on a false assumption.' +
+                  '<br><strong style="color:#ffc107">💡 Why This Matters:</strong> If you think the stock is in Phase D (breakout) but volume is LOW, it probably is not a real breakout — it could be a trap. Volume is the lie detector of the market. It confirms or contradicts what price is telling you.' +
+                  '<br><strong style="color:#00c853">🎯 What To Look For:</strong> Compare the "Expected" and "Actual" boxes below. If they match = the phase identification is trustworthy. If they conflict = treat the analysis with caution and wait for clearer confirmation.' +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="row g-2">' +
+              '<div class="col-md-6"><div class="p-2 rounded" style="border-left:3px solid #2196f3;background:rgba(33,150,243,.05)">' +
+                '<strong style="font-size:.78rem;color:#2196f3">Expected:</strong>' +
+                '<div style="font-size:.78rem;line-height:1.5;color:rgba(255,255,255,.6)">'+pv.expected+'</div>' +
+              '</div></div>' +
+              '<div class="col-md-6"><div class="p-2 rounded" style="border-left:3px solid '+pvClr+';background:'+pvClr+'08">' +
+                '<strong style="font-size:.78rem;color:'+pvClr+'">Actual:</strong>' +
+                '<div style="font-size:.78rem;line-height:1.5;color:rgba(255,255,255,.6)">'+pv.actual+'</div>' +
+              '</div></div>' +
+            '</div>' +
+            '<details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px;margin-top:6px">' +
+              '<summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 Expected volume for all 5 phases (click to expand)</summary>' +
+              '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">' +
+                '<strong>Phase A:</strong> PS = first volume increase. SC/BC = HIGHEST volume. AR = less than climax. ST = MUST be less than climax.<br>' +
+                '<strong>Phase B:</strong> Volume should DECREASE progressively (absorption). Spikes at range extremes are normal.<br>' +
+                '<strong>Phase C:</strong> Spring/UTAD volume < Climax volume. Test volume < Spring/UTAD volume. Lower = better signal.<br>' +
+                '<strong>Phase D:</strong> Breakout = INCREASING vol + wide bars. Pullback (LPS/LPSY) = DECREASING vol + narrow bars.<br>' +
+                '<strong>Phase E:</strong> Impulses expand volume. Corrections contract volume. If corrections expand volume → trend ending.<br>' +
+                '<strong>Key difference:</strong> Accumulation vol DECREASES throughout. Distribution vol stays PERSISTENTLY HIGH.' +
+              '</div>' +
+            '</details>' +
+          '</div>';
+        })() : ''}
+
+        <!-- ═══ SECTION 13: POSITION MANAGEMENT ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-sliders" style="color:orange;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">§13 POSITION MANAGEMENT — PROTECT YOUR CAPITAL</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">
+            <strong>What is Position Management?</strong> It's HOW you manage your trade after entering — where to set your safety net (stop loss),
+            where to take profits, and how to add to winning positions. <strong>This is what separates professionals from gamblers.</strong>
+            <div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">
+              <span style="font-size:.73rem;line-height:1.6;display:block">
+                <strong style="color:orange">🏠 Real-World Analogy:</strong> Think of poker. A professional poker player does not go all-in on every hand. They make small bets first (Zone 1 entry), increase when their hand looks good (Zone 2 add), and make their final bet when they are nearly certain (Zone 3 add). If the hand turns bad, they fold early (stop loss) instead of hoping for a miracle card. The three boxes below show the three pillars of position management: how much to bet (Position Sizing), when to increase your bet (Scaling In), and when to cash out (Take Profit).
+                <br><strong style="color:#ffc107">💡 Why This Matters:</strong> Professional traders risk only 1% of their account per trade. This means even if you are wrong 50 times in a row, you still have half your money left. Amateurs risk too much and get wiped out by a few bad trades.
+                <br><strong style="color:#00c853">🎯 What To Look For:</strong> Use the formula in the Position Sizing box to calculate YOUR exact share count. Follow the Scaling In rules to build your position gradually. Use the Take Profit methods to lock in gains before the trend reverses.
+              </span>
+            </div>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-md-4"><div class="p-2 rounded h-100" style="border:1px solid rgba(33,150,243,.3);background:rgba(33,150,243,.05)">
+              <strong style="color:#2196f3;font-size:.78rem"><i class="bi bi-calculator me-1"></i>Position Sizing</strong>
+              <div style="font-size:.75rem;line-height:1.5;color:rgba(255,255,255,.6);margin-top:4px">
+                <strong>Rule PM2:</strong> Risk only 1% of your account per trade.<br>
+                Formula: <span style="color:#ffc107">Position Size = (1% of Account) ÷ (Entry − Stop Loss)</span><br>
+                Example: ₹5,00,000 account × 1% = ₹5,000 risk. If stop is ₹20 away → buy 250 shares max.
+              </div>
+            </div></div>
+            <div class="col-md-4"><div class="p-2 rounded h-100" style="border:1px solid rgba(0,200,83,.3);background:rgba(0,200,83,.05)">
+              <strong style="color:#00c853;font-size:.78rem"><i class="bi bi-graph-up me-1"></i>Scaling In</strong>
+              <div style="font-size:.75rem;line-height:1.5;color:rgba(255,255,255,.6);margin-top:4px">
+                <strong>Rule PM5:</strong> Build position across zones:<br>
+                Zone 1 (Phase C): 25-50% initial position<br>
+                Zone 2 (Phase D): Add 25-50% when confirmed<br>
+                Zone 3 (Phase E): Add 25% on pullbacks<br>
+                Move stop to breakeven after Zone 2 triggers.
+              </div>
+            </div></div>
+            <div class="col-md-4"><div class="p-2 rounded h-100" style="border:1px solid rgba(255,193,7,.3);background:rgba(255,193,7,.05)">
+              <strong style="color:#ffc107;font-size:.78rem"><i class="bi bi-cash-stack me-1"></i>Take Profit Methods</strong>
+              <div style="font-size:.75rem;line-height:1.5;color:rgba(255,255,255,.6);margin-top:4px">
+                <strong>Rule PM4:</strong><br>
+                1. Climactic volume bar → FULL EXIT<br>
+                2. Phase A of new structure → EXIT<br>
+                3. Previous highs/lows → PARTIAL exit<br>
+                4. Structure width measurement → FULL exit area<br>
+                5. Trail stop below each new LPS (uptrend)
+              </div>
+            </div></div>
+          </div>
+          <details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">
+            <summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 Stop loss placement by entry type (click to expand)</summary>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">
+              ${v.stop_rules ? v.stop_rules.map(function(sr){ return '<div class="mb-1"><strong>'+sr.entry+':</strong> Stop at '+sr.stop+' — '+sr.reason+'</div>'; }).join('') : ''}
+              <div class="mt-1" style="color:#ffc107"><strong>Rule PM1:</strong> ALWAYS send all 3 orders simultaneously — Entry + Stop Loss + Take Profit. This prevents emotional changes after you enter.</div>
+            </div>
+          </details>
+        </div>
+
+        <!-- ═══ SECTION 15: MORNING PRE-SESSION CHECKLIST ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,165,0,.03);border:1px solid rgba(255,165,0,.15)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-sunrise" style="color:orange;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px;color:orange">§15 MORNING PRE-SESSION CHECKLIST (< 5 minutes)</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">
+            <strong>Before the market opens</strong>, run through these 5 steps in under 5 minutes. This ensures you trade with a PLAN, not with emotions.
+            <div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">
+              <span style="font-size:.73rem;line-height:1.6;display:block">
+                <strong style="color:orange">🏠 Real-World Analogy:</strong> This is like a pilot's pre-flight checklist. Even after 10,000 flights, a pilot still runs through the checklist every single time because it keeps them and their passengers alive. Similarly, running through these 5 steps every morning (under 5 minutes) keeps your trading capital alive. It forces you to trade with a PLAN instead of reacting emotionally to whatever the market throws at you.
+                <br><strong style="color:#ffc107">💡 How To Use This:</strong> Before the market opens, read each of the 5 checks below. The system has already filled in the current values (in color). Ask yourself: "Based on these 5 answers, what are the 2 most likely scenarios today?" Write them down. Then ONLY trade scenarios you predicted. If something unexpected happens, stand aside.
+              </span>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-2">
+            <div class="d-flex align-items-start gap-2 p-2 rounded" style="background:rgba(255,255,255,.03)">
+              <span class="badge" style="background:rgba(255,165,0,.2);color:orange;min-width:28px">1</span>
+              <div>
+                <strong style="font-size:.78rem">STRUCTURE (60 sec)</strong>
+                <div style="font-size:.75rem;color:rgba(255,255,255,.5);line-height:1.5">What is the larger timeframe structure? Where is the Creek? Where is the Ice? Are we inside a range or in a trend?</div>
+                <div style="font-size:.75rem;color:${phClr};margin-top:2px"><strong>Current:</strong> ${ph.name} — ${ph.description || 'Phase in progress'}</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-start gap-2 p-2 rounded" style="background:rgba(255,255,255,.03)">
+              <span class="badge" style="background:rgba(255,165,0,.2);color:orange;min-width:28px">2</span>
+              <div>
+                <strong style="font-size:.78rem">PHASE (60 sec)</strong>
+                <div style="font-size:.75rem;color:rgba(255,255,255,.5);line-height:1.5">What Phase are we in (A-E)? What was the LAST event? What is the NEXT expected event?</div>
+                <div style="font-size:.75rem;color:${phClr};margin-top:2px"><strong>Phase:</strong> ${v.phase_letter || '?'} | <strong>Last event:</strong> ${v.last_event || 'None'} | <strong>Next expected:</strong> ${v.next_expected || 'Monitor'}</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-start gap-2 p-2 rounded" style="background:rgba(255,255,255,.03)">
+              <span class="badge" style="background:rgba(255,165,0,.2);color:orange;min-width:28px">3</span>
+              <div>
+                <strong style="font-size:.78rem">TREND (60 sec)</strong>
+                <div style="font-size:.75rem;color:rgba(255,255,255,.5);line-height:1.5">Is the macro trend up, down, or sideways? Are moving averages aligned? What is the dominant direction?</div>
+                <div style="font-size:.75rem;color:${biasClr};margin-top:2px"><strong>Wyckoff Bias:</strong> ${sc.bias || 'N/A'} (${(sc.wyckoff_bonus||0)>0?'+':''}${sc.wyckoff_bonus||0} pts)</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-start gap-2 p-2 rounded" style="background:rgba(255,255,255,.03)">
+              <span class="badge" style="background:rgba(255,165,0,.2);color:orange;min-width:28px">4</span>
+              <div>
+                <strong style="font-size:.78rem">VOLATILITY (30 sec)</strong>
+                <div style="font-size:.75rem;color:rgba(255,255,255,.5);line-height:1.5">Is there a Bollinger Squeeze? Are bands expanding or contracting?</div>
+                <div style="font-size:.75rem;color:${volClr};margin-top:2px"><strong>Volume:</strong> ${vol.status || 'N/A'} (${vol.ratio||0}×) | Trend: ${vol.trend || 'N/A'}</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-start gap-2 p-2 rounded" style="background:rgba(255,255,255,.03)">
+              <span class="badge" style="background:rgba(255,165,0,.2);color:orange;min-width:28px">5</span>
+              <div>
+                <strong style="font-size:.78rem">SCENARIOS (90 sec)</strong>
+                <div style="font-size:.75rem;color:rgba(255,255,255,.5);line-height:1.5">Based on Phase + Trend + Volatility, what are the 2 most likely scenarios? What confirmation would each need?</div>
+                <div style="font-size:.75rem;color:rgba(255,165,0,.7);margin-top:2px"><strong>Am I biased? Read price action objectively.</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ SECTION 16: PRE-TRADE CHECKLIST (60s) ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,165,0,.03);border:1px solid rgba(255,165,0,.15)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-clipboard2-check" style="color:orange;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px;color:orange">§16 PRE-TRADE CHECKLIST — 8 QUESTIONS IN 60 SECONDS</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">
+            <strong>Before pulling the trigger on ANY trade</strong>, answer these 8 questions. Count how many align — this determines your position size.
+            <strong style="color:#ffc107">5+ aligned = Full size | 4 = 75% | 3 = 50% | 2 or fewer = DO NOT TRADE.</strong>
+            <div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">
+              <span style="font-size:.73rem;line-height:1.6;display:block">
+                <strong style="color:orange">🏠 Real-World Analogy:</strong> This is like a rocket launch checklist. Before NASA launches a rocket, EVERY system must be checked. If even one critical system shows red, the launch is ABORTED — no matter how much money was spent preparing. Your trade is the rocket. These 8 questions are your launch systems. Each <span style="color:#00c853">✅</span> = a system that is GO. Each <span style="color:#ff1744">❌</span> = a system that is NOT READY. The more green checks, the higher your probability of a successful trade.
+                <br><strong style="color:#ffc107">💡 How To Use This:</strong> The system has already answered all 8 questions for you (see the green/red indicators below). Look at the BOTTOM bar — it shows your total alignment score and the recommended action. This is the single most important decision tool on this entire page.
+                <br><strong style="color:#00c853">🎯 The 4 verdict levels:</strong> <strong style="color:#00c853">5-8 aligned = MAXIMUM PROBABILITY</strong> — take the trade with full position size. <strong style="color:#ffc107">4 aligned = HIGH PROBABILITY</strong> — trade with 75% size. <strong style="color:#ff9800">3 aligned = REDUCED</strong> — only 50% size, tight stop. <strong style="color:#ff1744">0-2 aligned = DO NOT TRADE</strong> — walk away completely, there will be a better opportunity tomorrow.
+              </span>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-1">
+            ${(function(){
+              const cm = v.composite_man || {};
+              const tz = v.trading_zone || {};
+              const sk = v.schematic || {};
+              const questions = [
+                {q:'Q1: What is the Composite Man doing?', a:cm.action ? cm.action.replace(/_/g,' ') : 'Unknown', src:'VILLAHERMOSA', ok:cm.action && cm.action!=='UNCLEAR'},
+                {q:'Q2: What Wyckoff Phase are we in?', a:'Phase '+(v.phase_letter||'?')+' ('+ph.name+')', src:'VILLAHERMOSA', ok:['C','D','E'].includes(v.phase_letter)},
+                {q:'Q3: Last confirmed Wyckoff Event?', a:v.last_event||'None', src:'VILLAHERMOSA', ok:!!v.last_event && v.last_event!=='NONE'},
+                {q:'Q4: Which Trading Zone?', a:tz.name||'No zone', src:'VILLAHERMOSA', ok:tz.zone>0},
+                {q:'Q5: Which Schematic (Acc/Dist 1 or 2)?', a:sk.type?sk.type.replace(/_/g,' '):'Unknown', src:'VILLAHERMOSA', ok:sk.type && sk.type!=='UNKNOWN'},
+                {q:'Q6: Macro structure + trend?', a:sc.bias||'N/A', src:'MURPHY', ok:sc.bias==='BULLISH'||sc.bias==='BEARISH'},
+                {q:'Q7: Volatility environment?', a:vol.status||'N/A', src:'BOLLINGER', ok:vol.status && vol.status!=='NORMAL'},
+                {q:'Q8: Significant bar/event present?', a:events.length?events.map(function(e){return e.type}).join(', '):'No signal', src:'BROOKS', ok:events.length>0}
+              ];
+              const aligned = questions.filter(function(q){return q.ok}).length;
+              const alignClr = aligned>=5?'#00c853':aligned>=4?'#ffc107':aligned>=3?'#ff9800':'#ff1744';
+              const alignAction = aligned>=5?'✅ MAXIMUM PROBABILITY — Full position size':aligned>=4?'🟡 HIGH PROBABILITY — 75% size':aligned>=3?'🟠 REDUCED — 50% size only':'🔴 DO NOT TRADE — Stand aside';
+              return questions.map(function(q){
+                return '<div class="d-flex align-items-center gap-2 p-1 px-2 rounded" style="background:rgba(255,255,255,.03)">' +
+                  '<span style="font-size:.9rem">'+(q.ok?'✅':'❌')+'</span>' +
+                  '<div style="flex:1;font-size:.75rem"><strong>'+q.q+'</strong> <span style="color:rgba(255,255,255,.4)">['+q.src+']</span></div>' +
+                  '<span class="badge" style="background:'+(q.ok?'rgba(0,200,83,.15);color:#00c853':'rgba(255,23,68,.15);color:#ff1744')+';font-size:.7rem">'+q.a+'</span>' +
+                '</div>';
+              }).join('') +
+              '<div class="p-2 rounded mt-2 text-center" style="border:2px solid '+alignClr+';background:'+alignClr+'12">' +
+                '<strong style="color:'+alignClr+';font-size:.9rem">Alignment: '+aligned+'/8 — '+alignAction+'</strong>' +
+              '</div>';
+            })()}
+          </div>
+        </div>
+
+        <!-- ═══ SECTIONS 17: ENTRY RULES ═══ -->
+        ${v.entry_context && v.entry_context.type !== 'NONE' ? (()=>{
+          const ec = v.entry_context;
+          const ecClr = ec.type.includes('BUY')?'#00c853':'#ff1744';
+          return '<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid '+ecClr+'30">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+              '<i class="bi bi-door-open" style="color:orange;font-size:1.1rem"></i>' +
+              '<strong class="mini-label" style="letter-spacing:1px">§17 ENTRY RULES — HOW TO ENTER THIS TRADE</strong>' +
+              '<span class="badge ms-auto" style="background:'+ecClr+';color:#000;font-weight:700">'+ec.type.replace(/_/g,' ')+'</span>' +
+            '</div>' +
+            '<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">' +
+              '<strong>What are Entry Rules?</strong> Entry rules define the EXACT conditions under which you open a position. ' +
+              'Without clear entry rules, you are gambling. With them, you are following a tested methodology.' +
+              '<div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">' +
+                '<span style="font-size:.73rem;line-height:1.6;display:block">' +
+                  '<strong style="color:orange">🏠 Real-World Analogy:</strong> Think of entry rules like a recipe. A great chef does not "just toss ingredients in" — they measure precisely, wait for the right temperature, and add things in the right order. Your entry is the same: the right event (Spring, SOS, LPS) + the right volume (confirming, not opposing) + the right phase (C or D) = a trade worth taking. Missing any ingredient = a bad meal (trade).' +
+                  '<br><strong style="color:#ffc107">💡 Why This Matters:</strong> A bad entry at the wrong time can turn a good analysis into a losing trade. Even if you are right about the direction, entering too early means a wider stop loss (more risk) and entering too late means less reward. The entry rules below tell you the EXACT moment to act.' +
+                  '<br><strong style="color:#00c853">🎯 What To Look For:</strong> Check the badge at top right for the specific entry type identified. Read the description for stop and target levels. Then expand the detailed rules below to see ALL possible Villahermosa entry types and which one is active now.' +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="p-2 rounded mb-2" style="border-left:3px solid '+ecClr+';background:'+ecClr+'08">' +
+              '<div style="font-size:.85rem;line-height:1.7">'+ec.description+'</div>' +
+              '<div class="d-flex flex-wrap gap-2 mt-2">' +
+                '<span class="badge" style="background:rgba(255,23,68,.15);color:#ff1744;font-size:.72rem"><i class="bi bi-shield-minus me-1"></i>Stop: '+ec.stop+'</span>' +
+                '<span class="badge" style="background:rgba(0,200,83,.15);color:#00c853;font-size:.72rem"><i class="bi bi-bullseye me-1"></i>Target: '+ec.target+'</span>' +
+              '</div>' +
+            '</div>' +
+            '<details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">' +
+              '<summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 All Villahermosa entry types (click to expand)</summary>' +
+              '<div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">' +
+                '<strong style="color:#00c853">Spring BUY</strong> (17.1): Spring breaks below range + recovers + volume < SC → enter on SOS bar after test holds. Best R:R.<br>' +
+                '<strong style="color:#00c853">Squeeze + Accumulation BUY</strong> (17.2): Bollinger squeeze + Phase C/D accumulation → enter on upper band break.<br>' +
+                '<strong style="color:#00c853">LPS/BUEC BUY ★</strong> (17.3): SOS breaks Creek → pullback to Creek with low volume → Wyckoff\'s PREFERRED entry. Best balance.<br>' +
+                '<strong style="color:#00c853">Phase E LPS BUY</strong> (17.4): Uptrend confirmed → enter on corrective pullbacks with contracting volume.<br>' +
+                '<strong style="color:#ff1744">UTAD SELL</strong> (17.6): UTAD breaks above range + volume < BC → enter on SOW bar after test.<br>' +
+                '<strong style="color:#ff1744">LPSY/FTI SELL ★</strong> (17.7): SOW breaks Ice → rally to Ice with low volume → preferred short entry.' +
+              '</div>' +
+            '</details>' +
+          '</div>';
+        })() : '<div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">' +
+          '<div class="d-flex align-items-center gap-2 mb-2">' +
+            '<i class="bi bi-door-closed" style="color:#888;font-size:1.1rem"></i>' +
+            '<strong class="mini-label" style="letter-spacing:1px">§17 ENTRY RULES</strong>' +
+            '<span class="badge ms-auto" style="background:rgba(255,255,255,.1)">NO ENTRY SIGNAL</span>' +
+          '</div>' +
+          '<div style="font-size:.78rem;color:rgba(255,255,255,.5);line-height:1.6">' +
+            'No specific Wyckoff entry trigger detected. Wait for a Spring, UTAD, SOS, or SOW event to create an entry opportunity. ' +
+            'Patience is a trading edge — remember, the Composite Man waits weeks or months before acting.' +
+          '</div>' +
+        '</div>'}
+
+        <!-- ═══ SECTION 18: STOP LOSS RULES ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-shield-exclamation" style="color:#ff1744;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">§18 STOP LOSS RULES — YOUR SAFETY NET</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">
+            <strong>What is a Stop Loss?</strong> It is the price where you EXIT if you are WRONG. Place it where, if reached, your entire thesis
+            is invalidated. <strong style="color:#ff1744">Never move a stop FURTHER from your entry — only closer.</strong>
+            <div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">
+              <span style="font-size:.73rem;line-height:1.6;display:block">
+                <strong style="color:orange">🏠 Real-World Analogy:</strong> A stop loss is like a seatbelt in your car. You hope you never need it, but if something goes wrong, it saves your life (your capital). Just like you would never drive without a seatbelt, you should NEVER trade without a stop loss. The rules below show exactly WHERE to place your stop based on your entry type — it should be at the price where, if reached, your entire Wyckoff analysis is proven WRONG.
+                <br><strong style="color:#ffc107">💡 Why This Matters:</strong> The #1 reason traders lose big money is not having a stop loss or moving it further away (hoping the stock will recover). Villahermosa says: set your stop BEFORE you enter, and NEVER widen it. A small loss today preserves your capital to find a better trade tomorrow.
+                <br><strong style="color:#00c853">🎯 What To Look For:</strong> Read each stop rule below. They tell you the precise price level for each entry type. Also check the expandable section for how to TIGHTEN your stop as the trade moves in your favor (progressive stop management).
+              </span>
+            </div>
+          </div>
+          ${v.stop_rules ? v.stop_rules.map(function(sr){
+            return '<div class="d-flex align-items-start gap-2 p-2 rounded mb-1" style="border-left:2px solid #ff1744;background:rgba(255,23,68,.04)">' +
+              '<i class="bi bi-shield-minus" style="color:#ff1744;font-size:.85rem;margin-top:2px"></i>' +
+              '<div style="flex:1"><strong style="font-size:.78rem;color:#ff1744">'+sr.entry+'</strong>' +
+              '<div style="font-size:.75rem;color:rgba(255,255,255,.6);line-height:1.5">Stop: '+sr.stop+'<br><span style="color:rgba(255,255,255,.4)">Why: '+sr.reason+'</span></div></div></div>';
+          }).join('') : ''}
+          <details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px;margin-top:4px">
+            <summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 Stop adjustment rules as trade develops (click to expand)</summary>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">
+              <strong>Rule SL3 — Progressive Stop Tightening:</strong><br>
+              1. When Zone 2 entry triggers → move Zone 1 stop to breakeven (you can't lose anymore)<br>
+              2. When price reaches first target → move stop to Zone 2 entry level<br>
+              3. After Phase E confirmation → trail stop below each new LPS (uptrend) or above each LPSY (downtrend)<br>
+              <strong style="color:#ffc107">Villahermosa does NOT recommend trailing stops in general</strong> — they get hit too easily. Instead, exit when you see Phase A events of a NEW structure forming.
+            </div>
+          </details>
+        </div>
+
+        <!-- ═══ SECTION 19: EXIT & TARGET RULES ═══ -->
+        <div class="p-3 rounded mb-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-box-arrow-right" style="color:#ffc107;font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">§19 EXIT & TARGET RULES — WHEN TO TAKE PROFITS</strong>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">
+            <strong>Knowing when to exit is MORE important than knowing when to enter.</strong> A good exit turns a winning trade into real money.
+            A bad exit turns a winner into a loser.
+            <div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">
+              <span style="font-size:.73rem;line-height:1.6;display:block">
+                <strong style="color:orange">🏠 Real-World Analogy:</strong> Exiting a trade is like knowing when to leave a party. Leave too early, you miss the best part (profits left on the table). Leave too late, and you are stuck cleaning up the mess (giving back all your gains). The rules below tell you the EXACT signals that mean "time to leave" — from climactic volume spikes (the party is ending with a bang) to shortening of thrust (the music is getting quieter). No guessing needed.
+                <br><strong style="color:#ffc107">💡 Why This Matters:</strong> Most amateur traders exit too early (out of fear) or too late (out of greed). Villahermosa defines 6 specific exit triggers (see the expandable section below). When ANY of them appears, you take profits — no emotion, no hoping, just following the rules.
+                <br><strong style="color:#00c853">🎯 What To Look For:</strong> Read each exit rule listed below. Pay special attention to EX1 (Climactic Evidence) and EX2 (Phase A of New Structure) — these are the strongest exit signals. Also watch for EX3 (Shortening of Thrust) as an early warning that momentum is dying.
+              </span>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-1 mb-2">
+            ${v.exit_rules ? v.exit_rules.map(function(er){
+              return '<div class="p-2 rounded" style="border-left:2px solid #ffc107;background:rgba(255,193,7,.04)">' +
+                '<div style="font-size:.82rem;line-height:1.6">'+er+'</div></div>';
+            }).join('') : ''}
+          </div>
+          <details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">
+            <summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 Complete exit rule framework (click to expand)</summary>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">
+              <strong style="color:#ff1744">EX1 — Climactic Evidence (STRONGEST):</strong> Extreme volume + wide bar + close against direction → EXIT immediately. This is the Composite Man making his final move.<br>
+              <strong style="color:#ff9800">EX2 — Phase A of New Structure:</strong> When PS + Climax + Reaction + Test appear in the trend → the trend is stopping → EXIT first, ask questions later.<br>
+              <strong style="color:#ffc107">EX3 — Shortening of Thrust:</strong> Last 3 waves cover less distance each → momentum dying → tighten stops, prepare to exit.<br>
+              <strong style="color:#ff1744">EX4 — Failed Structure:</strong> Price breaks Spring low (for longs) or UTAD high (for shorts) → thesis WRONG → EXIT IMMEDIATELY.<br>
+              <strong style="color:#00c853">EX5 — Liquidity Zone Targets:</strong> Take partial profits at Creek/Ice, previous highs/lows, VPOC, and VWAP levels.<br>
+              <strong style="color:#2196f3">EX6 — Phase Transition:</strong> Markup → Distribution = tighten stops. Markdown → Accumulation = cover shorts.
+            </div>
+          </details>
+        </div>
+
+        <!-- ═══ SECTION 20: DO NOT TRADE CONDITIONS ═══ -->
+        <div class="p-3 rounded mb-3" style="background:${(v.do_not_trade && v.do_not_trade.length) ? 'rgba(255,23,68,.06);border:2px solid rgba(255,23,68,.3)' : 'rgba(0,200,83,.03);border:1px solid rgba(0,200,83,.15)'}">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-${(v.do_not_trade && v.do_not_trade.length) ? 'ban' : 'check-circle-fill'}" style="color:${(v.do_not_trade && v.do_not_trade.length)?'#ff1744':'#00c853'};font-size:1.1rem"></i>
+            <strong class="mini-label" style="letter-spacing:1px">§20 DO NOT TRADE CONDITIONS</strong>
+            <span class="badge ms-auto" style="background:${(v.do_not_trade && v.do_not_trade.length)?'#ff1744':'#00c853'};color:#000;font-weight:700">
+              ${(v.do_not_trade && v.do_not_trade.length) ? v.do_not_trade.length+' WARNING'+(v.do_not_trade.length>1?'S':'') : 'ALL CLEAR'}
+            </span>
+          </div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.6">
+            <strong>The best trade is often NO trade.</strong> These conditions indicate when to stand aside completely.
+            Think of it like a traffic light — when it's red, you STOP. Not "slowly drive through." STOP.
+            <div class="mt-2 p-2 rounded" style="background:rgba(255,165,0,.05);border-left:3px solid rgba(255,165,0,.3)">
+              <span style="font-size:.73rem;line-height:1.6;display:block">
+                <strong style="color:orange">🏠 Real-World Analogy:</strong> Think of a fisherman who studies the weather before going out to sea. If there is a storm warning, he does NOT go out — no matter how many fish might be out there. The fish (profits) will be there tomorrow when conditions are better. Similarly, these "Do Not Trade" conditions are your storm warnings. Trading into them is like fishing in a hurricane — your boat (capital) might sink.
+                <br><strong style="color:#ffc107">💡 Why This Matters:</strong> Professional traders make most of their money by AVOIDING bad trades, not by finding good ones. If even ONE red warning appears below, the risk-adjusted probability is against you. Every day you protect your capital is a day you can trade tomorrow.
+                <br><strong style="color:#ff1744">🚨 If any warning is shown below:</strong> Close this stock analysis, put it on your watchlist, and review it again in a few days when conditions may improve. Forcing a trade in bad conditions is the #1 way amateur traders blow up their accounts.
+              </span>
+            </div>
+          </div>
+          ${(v.do_not_trade && v.do_not_trade.length) ?
+            v.do_not_trade.map(function(reason){
+              return '<div class="d-flex align-items-start gap-2 p-2 rounded mb-1" style="border-left:2px solid #ff1744;background:rgba(255,23,68,.05)">' +
+                '<i class="bi bi-exclamation-circle-fill" style="color:#ff1744;font-size:.85rem;margin-top:2px"></i>' +
+                '<div style="font-size:.82rem;line-height:1.6;color:rgba(255,255,255,.7)">'+reason+'</div></div>';
+            }).join('')
+          :
+            '<div class="p-2 rounded" style="border-left:2px solid #00c853;background:rgba(0,200,83,.05)">' +
+              '<div style="font-size:.82rem;line-height:1.6;color:#00c853"><i class="bi bi-check-circle me-1"></i>No "do not trade" conditions triggered. The structure is tradeable — proceed with checklist alignment above.</div></div>'
+          }
+          <details style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px;margin-top:6px">
+            <summary style="font-size:.75rem;color:rgba(255,255,255,.5);cursor:pointer">📖 All 8 Do-Not-Trade conditions (click to expand)</summary>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.7;margin-top:6px">
+              <strong>DNT1:</strong> Phase A or early Phase B — structure still forming, no confirmed direction.<br>
+              <strong>DNT2:</strong> Fewer than 3 aligned answers in the 8-question checklist — no conviction.<br>
+              <strong>DNT3:</strong> High volume on test events — unresolved supply/demand forces still battling.<br>
+              <strong>DNT4:</strong> Price in the MIDDLE of the range — there's no edge in the middle. Trade at edges or after breakout.<br>
+              <strong>DNT5:</strong> Failed structure without new signal — wait for a complete new Phase A.<br>
+              <strong>DNT6:</strong> No significant bar (SOS/SOW) to trigger entry — don't enter on weak bars.<br>
+              <strong>DNT7:</strong> Counter-trend trade without ALL 4 books agreeing — too risky.<br>
+              <strong>DNT8:</strong> Before major news announcements — fundamentals temporarily override technicals.
+            </div>
+          </details>
+        </div>
       </div>
     </div>`;
 
@@ -874,7 +1868,7 @@ function renderWyckoff(d){
     }
   });
 
-  // ── CHART 2: Weis Wave Volume Bars ──
+  // ── CHART 2: Wyckoff Wave Volume Bars ──
   if(waves.length >= 2){
     const wLabels = waves.map((w,i)=> 'Wave '+(i+1));
     const wVolData = waves.map(w=> w.direction==='UP' ? w.cum_volume : -w.cum_volume);
@@ -1286,6 +2280,393 @@ function renderWyckoff(d){
       }
     }
   });
+
+  // ═══════════════════════════════════════════════════════════
+  //  VILLAHERMOSA VISUAL CHARTS (Charts 8-15)
+  // ═══════════════════════════════════════════════════════════
+
+  // ── CHART 8: Wyckoff Structure Health Radar ──
+  {
+    const phaseScore = Math.min(100, ph.confidence || 0);
+    const volumeScore = Math.min(100, (vol.ratio || 1) * 30);
+    const waveScore = wb.balance ? (wb.balance.includes('DEMAND') || wb.balance.includes('SUPPLY') ? Math.min(100, (wb.ratio || 1) * 35) : 30) : 20;
+    const eventScore = Math.min(100, events.length * 35);
+    const structScore = v.failed_structure && v.failed_structure.detected ? 15 : (v.trading_zone && v.trading_zone.zone ? v.trading_zone.zone * 30 + 10 : 40);
+    _wkChart('wkHealthRadar', {
+      type: 'radar',
+      data: {
+        labels: ['Phase Clarity', 'Volume Conviction', 'Wave Dominance', 'Event Quality', 'Structure Integrity'],
+        datasets: [{
+          label: 'Current Health',
+          data: [phaseScore, volumeScore, waveScore, eventScore, structScore],
+          backgroundColor: 'rgba(255,165,0,.15)',
+          borderColor: 'orange',
+          borderWidth: 2,
+          pointBackgroundColor: [phClr, volClr, biasClr, phClr, '#00c853'],
+          pointBorderColor: '#fff',
+          pointRadius: 5,
+          pointHoverRadius: 7,
+        }, {
+          label: 'Ideal Setup',
+          data: [85, 70, 75, 70, 90],
+          backgroundColor: 'rgba(255,255,255,.03)',
+          borderColor: 'rgba(255,255,255,.15)',
+          borderWidth: 1,
+          borderDash: [3, 3],
+          pointRadius: 0,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12, padding: 6 } },
+          tooltip: { callbacks: { label: (ctx) => ctx.dataset.label + ': ' + ctx.raw + '/100' } }
+        },
+        scales: {
+          r: {
+            beginAtZero: true, max: 100,
+            grid: { color: 'rgba(255,255,255,.08)' },
+            angleLines: { color: 'rgba(255,255,255,.08)' },
+            pointLabels: { font: { size: 10 }, color: 'rgba(255,255,255,.6)' },
+            ticks: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // ── CHART 9: Pre-Trade Alignment Doughnut ──
+  {
+    const _cm = v.composite_man || {};
+    const _tz = v.trading_zone || {};
+    const _sk = v.schematic || {};
+    const checks = [
+      _cm.action && _cm.action !== 'UNCLEAR' && _cm.action !== 'TESTING',
+      ['C','D','E'].includes(v.phase_letter),
+      !!v.last_event && v.last_event !== 'NONE',
+      _tz.zone > 0,
+      _sk.type && _sk.type !== 'UNKNOWN',
+      sc.bias === 'BULLISH' || sc.bias === 'BEARISH',
+      vol.status && vol.status !== 'NORMAL',
+      events.length > 0
+    ];
+    const aligned = checks.filter(Boolean).length;
+    const alignClr = aligned >= 5 ? '#00c853' : aligned >= 4 ? '#ffc107' : aligned >= 3 ? '#ff9800' : '#ff1744';
+    _wkChart('wkAlignChart', {
+      type: 'doughnut',
+      data: {
+        labels: ['Aligned', 'Not Aligned'],
+        datasets: [{
+          data: [aligned, 8 - aligned],
+          backgroundColor: [alignClr, 'rgba(255,255,255,.05)'],
+          borderColor: [alignClr + '80', 'rgba(255,255,255,.1)'],
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => ctx.label + ': ' + ctx.raw + ' of 8' } }
+        }
+      },
+      plugins: [{
+        id: 'alignCenter',
+        afterDraw(chart) {
+          const {ctx: c, chartArea: {left, right, top, bottom}} = chart;
+          const cx = (left + right) / 2, cy = (top + bottom) / 2;
+          c.save(); c.textAlign = 'center';
+          c.fillStyle = alignClr;
+          c.font = 'bold 32px system-ui';
+          c.fillText(aligned + '/8', cx, cy - 2);
+          c.fillStyle = 'rgba(255,255,255,.4)';
+          c.font = '11px system-ui';
+          const sizeText = aligned >= 5 ? 'FULL SIZE' : aligned >= 4 ? '75% SIZE' : aligned >= 3 ? '50% SIZE' : 'DO NOT TRADE';
+          c.fillText(sizeText, cx, cy + 18);
+          c.fillStyle = alignClr + '60';
+          c.font = '9px system-ui';
+          c.fillText(aligned >= 5 ? '✅ Maximum probability' : aligned >= 4 ? '🟡 High probability' : aligned >= 3 ? '🟠 Reduced conviction' : '🔴 Stand aside', cx, cy + 32);
+          c.restore();
+        }
+      }]
+    });
+  }
+
+  // ── CHART 10: Three Laws Horizontal Gauges ──
+  {
+    const tl = v.three_laws || {};
+    const sdMap = {'DEMAND_DOMINANT':85,'SLIGHT_DEMAND':65,'BALANCED':50,'SLIGHT_SUPPLY':35,'SUPPLY_DOMINANT':15};
+    const sdScore = sdMap[tl.supply_demand] || 50;
+    const ceMap = {'LARGE':85,'MODERATE':55,'SMALL':25};
+    const ceScore = ceMap[(tl.cause_effect||{}).expected_effect] || 50;
+    const erScore = Math.min(100, (vol.ratio || 1) * 30);
+    const sdClr2 = sdScore > 60 ? '#00c853' : sdScore < 40 ? '#ff1744' : '#ffc107';
+    const ceClr2 = ceScore > 60 ? '#00c853' : ceScore < 40 ? '#ff6b6b' : '#ffc107';
+    _wkChart('wkLawsChart', {
+      type: 'bar',
+      data: {
+        labels: ['Supply vs Demand', 'Cause → Effect', 'Effort vs Result'],
+        datasets: [{
+          data: [sdScore, ceScore, erScore],
+          backgroundColor: [sdClr2 + '80', ceClr2 + '80', 'rgba(255,165,0,.5)'],
+          borderColor: [sdClr2, ceClr2, 'orange'],
+          borderWidth: 1,
+          borderRadius: 6,
+          barThickness: 22,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const tips = [
+                  (tl.supply_demand||'N/A').replace(/_/g,' '),
+                  ((tl.cause_effect||{}).cause_duration||'') + ' → ' + ((tl.cause_effect||{}).expected_effect||''),
+                  tl.effort_result||'N/A'
+                ];
+                return tips[ctx.dataIndex] + ' (' + ctx.raw + '/100)';
+              }
+            }
+          }
+        },
+        scales: {
+          x: { display: false, min: 0, max: 100 },
+          y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // ── CHART 11: Trading Zones Visualization ──
+  {
+    const activeZone = (v.trading_zone || {}).zone || 0;
+    const zoneColors2 = ['#ffc107', '#00c853', '#2196f3'];
+    _wkChart('wkZonesChart', {
+      type: 'bar',
+      data: {
+        labels: ['Zone 1 (Phase C)', 'Zone 2 (Phase D) ★', 'Zone 3 (Phase E)'],
+        datasets: [
+          {
+            label: 'Risk:Reward',
+            data: [3, 2, 1.5],
+            backgroundColor: zoneColors2.map((c, i) => (i+1) === activeZone ? c : c + '25'),
+            borderColor: zoneColors2.map((c, i) => (i+1) === activeZone ? c : c + '50'),
+            borderWidth: zoneColors2.map((c, i) => (i+1) === activeZone ? 2 : 1),
+            borderRadius: 4,
+            barPercentage: 0.6,
+          },
+          {
+            label: 'Reliability %',
+            data: [40, 75, 90],
+            backgroundColor: zoneColors2.map((c, i) => (i+1) === activeZone ? c + '40' : c + '10'),
+            borderColor: zoneColors2.map((c, i) => (i+1) === activeZone ? c + '80' : c + '30'),
+            borderWidth: 1,
+            borderRadius: 4,
+            barPercentage: 0.6,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10, padding: 6 } },
+          tooltip: {
+            callbacks: {
+              afterLabel: (ctx) => (ctx.dataIndex + 1) === activeZone ? '← CURRENT ZONE' : ''
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+          y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { font: { size: 9 } } }
+        }
+      }
+    });
+  }
+
+  // ── CHART 12: Creek & Ice Price Position Map ──
+  {
+    const ci = v.creek_ice || {};
+    const creek = ci.creek || 0;
+    const ice = ci.ice || 0;
+    const lastWave = waves.length ? waves[waves.length - 1] : null;
+    const curPrice = lastWave ? lastWave.end_price : (creek && ice ? (creek + ice) / 2 : 0);
+    if (creek > 0 && ice > 0 && curPrice > 0) {
+      const minP = Math.min(ice, curPrice, creek) * 0.97;
+      const maxP = Math.max(ice, curPrice, creek) * 1.03;
+      const pricePos = creek !== ice ? (curPrice - ice) / (creek - ice) : 0.5;
+      const priceClr2 = pricePos > 0.7 ? '#2196f3' : pricePos > 0.3 ? '#ffc107' : '#ff1744';
+      _wkChart('wkCreekIceChart', {
+        type: 'bar',
+        data: {
+          labels: ['Ice (Support)', 'Current Price', 'Creek (Resistance)'],
+          datasets: [{
+            data: [ice, curPrice, creek],
+            backgroundColor: ['#ff174460', priceClr2 + '60', '#2196f360'],
+            borderColor: ['#ff1744', priceClr2, '#2196f3'],
+            borderWidth: 2,
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => '₹' + ctx.raw.toFixed(2) } }
+          },
+          scales: {
+            x: {
+              min: minP, max: maxP,
+              grid: { color: 'rgba(255,255,255,.05)' },
+              ticks: { callback: (val) => '₹' + val.toFixed(0), font: { size: 9 } }
+            },
+            y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+  }
+
+  // ── CHART 13: Composite Man Polar Area ──
+  {
+    const cmAction = (v.composite_man || {}).action || 'UNCLEAR';
+    const cmScores = {
+      'ACCUMULATING': [85, 15, 10, 5, 30],
+      'MARKING_UP': [15, 85, 5, 10, 50],
+      'DISTRIBUTING': [10, 10, 85, 15, 30],
+      'MARKING_DOWN': [5, 5, 15, 85, 20],
+      'TESTING': [30, 20, 30, 20, 50],
+      'UNCLEAR': [20, 20, 20, 20, 20]
+    };
+    const scores = cmScores[cmAction] || cmScores['UNCLEAR'];
+    const cmLabels2 = ['Accumulating', 'Marking Up', 'Distributing', 'Marking Down', 'Testing'];
+    const cmColors2 = ['#00c853', '#2196f3', '#ff1744', '#ff6b6b', '#ffc107'];
+    _wkChart('wkCMPolar', {
+      type: 'polarArea',
+      data: {
+        labels: cmLabels2,
+        datasets: [{
+          data: scores,
+          backgroundColor: cmColors2.map(c => c + '50'),
+          borderColor: cmColors2,
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10, padding: 4 } },
+          tooltip: { callbacks: { label: (ctx) => ctx.label + ': ' + ctx.raw + '% probability' } }
+        },
+        scales: {
+          r: { beginAtZero: true, grid: { color: 'rgba(255,255,255,.08)' }, ticks: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── CHART 14: Phase Volume Match Gauge ──
+  {
+    const pv = v.phase_volume || {};
+    const pvMap = {'HEALTHY':90,'CONFIRMS_DIST':85,'POSSIBLE_REACCUM':60,'WATCH':45,'INSUFFICIENT':30};
+    const pvScore = pvMap[pv.assessment] || 50;
+    const pvClr2 = pvScore >= 70 ? '#00c853' : pvScore >= 45 ? '#ffc107' : '#ff1744';
+    _wkChart('wkPhaseVolGauge', {
+      type: 'doughnut',
+      data: {
+        labels: ['Volume Match', 'Gap'],
+        datasets: [{
+          data: [pvScore, 100 - pvScore],
+          backgroundColor: [pvClr2, 'rgba(255,255,255,.05)'],
+          borderWidth: 0,
+          circumference: 240,
+          rotation: 240,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '72%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: () => 'Volume match: ' + pvScore + '%' } }
+        }
+      },
+      plugins: [{
+        id: 'pvCenter',
+        afterDraw(chart) {
+          const {ctx: c, chartArea: {left, right, top, bottom}} = chart;
+          const cx = (left + right) / 2, cy = (top + bottom) / 2;
+          c.save(); c.textAlign = 'center';
+          c.fillStyle = pvClr2;
+          c.font = 'bold 24px system-ui';
+          c.fillText(pvScore + '%', cx, cy + 5);
+          c.fillStyle = 'rgba(255,255,255,.4)';
+          c.font = '10px system-ui';
+          c.fillText(pv.assessment || 'N/A', cx, cy + 22);
+          c.restore();
+        }
+      }]
+    });
+  }
+
+  // ── CHART 15: Position Scaling Strategy ──
+  {
+    const activeZone2 = (v.trading_zone || {}).zone || 0;
+    _wkChart('wkScalingChart', {
+      type: 'bar',
+      data: {
+        labels: ['Zone 1 (Phase C)', 'Zone 2 (Phase D)', 'Zone 3 (Phase E)'],
+        datasets: [{
+          label: '% of Position',
+          data: [33, 50, 25],
+          backgroundColor: [
+            activeZone2 >= 1 ? '#ffc10780' : '#ffc10720',
+            activeZone2 >= 2 ? '#00c85380' : '#00c85320',
+            activeZone2 >= 3 ? '#2196f380' : '#2196f320'
+          ],
+          borderColor: [
+            activeZone2 >= 1 ? '#ffc107' : '#ffc10740',
+            activeZone2 >= 2 ? '#00c853' : '#00c85340',
+            activeZone2 >= 3 ? '#2196f3' : '#2196f340'
+          ],
+          borderWidth: 2,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              afterLabel: (ctx) => {
+                const tips = [
+                  'Initial entry on Spring/UTAD — Small position, highest R:R',
+                  'Add on SOS/SOW confirmation — Preferred Wyckoff entry ★',
+                  'Add on trend pullbacks — Smallest add, highest confidence'
+                ];
+                return tips[ctx.dataIndex];
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+          y: {
+            grid: { color: 'rgba(255,255,255,.05)' },
+            ticks: { callback: (val) => val + '%', font: { size: 9 } },
+            title: { display: true, text: '% of Total Position', font: { size: 9 }, color: 'rgba(255,255,255,.4)' }
+          }
+        }
+      }
+    });
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════

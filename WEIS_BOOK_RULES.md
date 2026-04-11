@@ -1,4 +1,12 @@
-# WEIS BOOK — Complete Rule Extraction
+# ⚠️ DEPRECATED — SUPERSEDED BY VILLAHERMOSA_BOOK_RULES.md
+# This file is retained as historical reference only.
+# The Wyckoff/volume layer now uses "The Wyckoff Methodology in Depth"
+# by Rubén Villahermosa (2019) as its authoritative source.
+# See VILLAHERMOSA_BOOK_RULES.md for the active rule set.
+
+---
+
+# WEIS BOOK — Complete Rule Extraction (HISTORICAL REFERENCE)
 ## Source: "Trades About to Happen" by David H. Weis (2013)
 ### Every actionable rule, principle, and framework from the actual book
 

@@ -9,20 +9,22 @@
 #   [BOLLINGER]   — Volatility & mean-reversion (timing)
 #   [MURPHY]      — Trend structure & confirmation (direction)
 #   [BROOKS]      — Bar-by-bar price action (precision)
-#   [WEIS]        — Volume-price behavior / Wyckoff method (intent)
+#   [VILLAHERMOSA] — Volume-price behavior / Wyckoff method (intent)
 #   [CONFLUENCE]  — Where 2+ lenses converge (conviction)
 #
-# HONESTY NOTE ON [WEIS] RULES:
-# ──────────────────────────────
-# Weis teaches QUALITATIVE bar-by-bar reading. He gives no numeric
-# thresholds, no scoring systems, and no binary rules. Every [WEIS]
+# HONESTY NOTE ON [VILLAHERMOSA] RULES:
+# ──────────────────────────────────────
+# Villahermosa teaches a systematic Wyckoff methodology with qualitative
+# principles. He provides a complete framework: 3 Laws, 7 Events,
+# 5 Phases (A-E), 4 Schematics, and 3 Trading Zones. Every [VILLAHERMOSA]
 # rule below captures his CONCEPT and DIRECTION accurately. The
-# binary format, thresholds, and scoring are [CALIBRATION] — our
+# binary format, numeric thresholds, and scoring are [CALIBRATION] — our
 # quantification of his teaching for algorithmic use.
 #
-# Phase names (ACCUMULATION, MARKUP, etc.) and event labels (SOS, SOW)
-# are [POST-WYCKOFF] course terminology. Weis explicitly notes these
-# were "added after Wyckoff's death." We use them for convenience.
+# Phase names (A-E) and event labels (PS, SC, AR, ST, Spring, SOS, LPS)
+# follow Villahermosa's explicit framework from "The Wyckoff Methodology
+# in Depth." Schematics #1/#2 and Trading Zones are Villahermosa's own
+# pedagogical contributions to the Wyckoff canon.
 #
 # Every rule below is:
 #   1. Specific and binary (YES/NO)
@@ -40,15 +42,16 @@ Check every item. If more than 2 fail → NO TRADE.
 
 ### A. What Is the Market Doing? (Structure + Phase)
 
-**Rule 1.1** [CONFLUENCE — WEIS + MURPHY] Identify Phase AND Trend
-  - Step 1 [WEIS]: Name the Wyckoff phase — ACCUMULATION, MARKUP,
-    DISTRIBUTION, or MARKDOWN. Source: Weis Ch. 1-11 (four-phase cycle).
-    [POST-WYCKOFF] These names are post-Wyckoff course terminology.
+**Rule 1.1** [CONFLUENCE — VILLAHERMOSA + MURPHY] Identify Phase AND Trend
+  - Step 1 [VILLAHERMOSA]: Name the Wyckoff phase (A-E) and structure —
+    ACCUMULATION, MARKUP, DISTRIBUTION, or MARKDOWN.
+    Identify which Schematic (#1 with Spring/UTAD or #2 without).
+    Source: Villahermosa Parts 4-6 (phases, events, structures).
   - Step 2 [MURPHY]: Confirm with 50-SMA — Above = BULLISH, Below = BEARISH
   - Binary: Phase + Trend agree = GREEN. Phase and trend disagree = CAUTION.
   - If ACCUMULATION or MARKUP → Only BUY setups
   - If DISTRIBUTION or MARKDOWN → Only SELL/EXIT setups
-  - 📝 Hint: "First name the phase (smart money buying or selling?),
+  - 📝 Hint: "First name the phase (what is the Composite Man doing?),
     then check the trend direction. If both agree, you have a green light."
 
 **Rule 1.2** [BROOKS] Determine Always-In Direction
@@ -65,39 +68,41 @@ Check every item. If more than 2 fail → NO TRADE.
 
 ### B. Who Is Winning? (Volume Truth)
 
-**Rule 1.4** [WEIS] Read the Volume Character
-  - Source: Weis — Ch. 4 (bar reading), Ch. 8 (chart studies)
+**Rule 1.4** [VILLAHERMOSA] Read the Volume Character
+  - Source: Villahermosa — Part 3, Law of Effort vs Result
   - Classify current volume: CLIMAX / SPIKE / ABOVE_AVG / NORMAL / DRYUP
   - Classify volume trend (10 bars): INCREASING / DECREASING / FLAT
   - [CALIBRATION] The 5-category system is our taxonomy.
   - 📝 Hint: "Is the stock getting lots of attention or being ignored?"
 
-**Rule 1.5** [CONFLUENCE — WEIS + MURPHY] Volume Confirms Price?
-  - [WEIS] Compare wave volumes (Ch. 9-10): up-wave vol vs down-wave vol
+**Rule 1.5** [CONFLUENCE — VILLAHERMOSA + MURPHY] Volume Confirms Price?
+  - [VILLAHERMOSA] Compare wave volumes (Part 3, Effort vs Result on Waves):
+    up-wave vol vs down-wave vol.
     DEMAND_DOMINANT (ratio > 1.5×) = Bullish / SUPPLY_DOMINANT (< 0.67×) = Bearish
-  - [WEIS] Compare wave durations: up-wave bars vs down-wave bars
+  - [VILLAHERMOSA] Compare wave durations: up-wave bars vs down-wave bars
     Patient side (longer waves) has conviction
   - [MURPHY] On the last move: did volume expand with price? YES = Confirmed
   - Binary: Volume supports the trend = GREEN / Volume diverges = WARNING
-  - [CALIBRATION] The 1.5× ratio threshold is ours. Weis compares visually.
+  - [CALIBRATION] The 1.5× ratio threshold is ours. Villahermosa compares qualitatively.
   - 📝 Hint: "Add up volume on up-days vs down-days. The side with more
     volume AND more persistent waves is winning."
 
-**Rule 1.6** [WEIS] Check for Exhaustion Signals
-  - Source: Weis — Ch. 4 ("Shortening of the Thrust"), Ch. 9-10 (waves)
+**Rule 1.6** [VILLAHERMOSA] Check for Exhaustion Signals
+  - Source: Villahermosa — Part 3, Effort vs Result on Movements
   - Are the last 3 same-direction waves covering LESS distance each time? = EXHAUSTION
+    (Shortening of Thrust — Villahermosa Part 3, Law 3 applied to waves)
   - Is there a "Change in Behavior" — the LARGEST opposite-direction bar
-    in 20 periods? = FIRST WARNING of trend change (Weis Ch. 4)
+    in 20 periods? = FIRST WARNING of trend change
   - Binary: Either present = CAUTION for current direction
   - [CALIBRATION] 3-wave minimum, 65% ratio, 20-bar lookback are ours.
   - 📝 Hint: "If each push covers less ground, or the biggest bar suddenly
     appears on the OTHER side, the current move is running out of steam."
 
-**Rule 1.7** [WEIS] Effort vs Result on Last Bar
-  - Source: Weis — Ch. 4, the CENTRAL principle
-  - HIGH volume + NARROW bar = ABSORPTION (smart money blocking the move)
-  - LOW volume + NARROW up bar = NO DEMAND
-  - LOW volume + NARROW down bar = NO SUPPLY (bullish)
+**Rule 1.7** [VILLAHERMOSA] Effort vs Result on Last Bar
+  - Source: Villahermosa — Part 3, Law 3 (Effort vs Result on candles)
+  - HIGH volume + NARROW bar = ABSORPTION (Composite Man blocking the move)
+  - LOW volume + NARROW up bar = NO DEMAND (Lack of Interest)
+  - LOW volume + NARROW down bar = NO SUPPLY (bullish — Lack of Interest)
   - HIGH volume + WIDE bar + close in direction = GENUINE move
   - [CALIBRATION] Percentile thresholds for HIGH/LOW/NARROW are ours.
   - 📝 Hint: "Lots of trading but price didn't move? Someone big is
@@ -120,17 +125,21 @@ Check every item. If more than 2 fail → NO TRADE.
 
 ### A. BUY Entries
 
-**Rule 2.1** [CONFLUENCE — WEIS + BROOKS] Spring BUY (Highest Confluence)
-  - Source: Weis — Ch. 5 ("The Spring" / "Shakeout")
-  - [WEIS] Price briefly breaks BELOW support → reverses above → LOW volume
-    on the penetration = shakeout of weak holders
+**Rule 2.1** [CONFLUENCE — VILLAHERMOSA + BROOKS] Spring BUY (Highest Confluence)
+  - Source: Villahermosa — Part 5, Event #5 (Shaking / Spring)
+  - [VILLAHERMOSA] Price briefly breaks BELOW support → reverses above → LOW volume
+    on the penetration = shakeout of weak holders (Composite Man buying the liquidity)
+  - [VILLAHERMOSA] Spring Type Classification:
+    Spring #3 (low vol, small penetration) = BEST, enter directly
+    Spring #2 (moderate vol) = wait for test
+    Spring #1 / Terminal Shakeout (high vol, large penetration) = must retest
   - [BROOKS] Same event = "failed breakout below range" — reversal bar
-  - [WEIS] Trend context: Spring in an UPTREND has highest success rate
-    (Ch. 5). Spring in downtrend = riskier, needs stronger follow-through.
-  - [WEIS] Follow-through: Check next 1-3 bars for continuation UP with
-    expanding volume. "Follow-through is the deciding factor" (Ch. 1).
-    NO follow-through = signal disqualified, do NOT enter.
-  - Conviction: Maximum when both Weis (low-vol spring) + Brooks (failed BO)
+  - [VILLAHERMOSA] Trend context: Spring in Phase C of confirmed accumulation
+    has highest success rate. Spring in isolation = riskier.
+  - [VILLAHERMOSA] Follow-through: Check next 1-3 bars for continuation UP with
+    expanding volume. After confirmed Spring, expect SOS bar (wide bullish bar,
+    high volume, close near high). NO follow-through = signal disqualified.
+  - Conviction: Maximum when Villahermosa (low-vol Spring #3) + Brooks (failed BO)
     fire together AND follow-through confirms.
   - 📝 Hint: "Stock dipped below its floor on light volume, bounced back,
     and the next bars confirmed by going higher. The dip was a trap."
@@ -138,89 +147,93 @@ Check every item. If more than 2 fail → NO TRADE.
 **Rule 2.2** [BOLLINGER] Squeeze Breakout BUY
   - Conditions: Squeeze ON (BBW < threshold) + price breaks above upper BB
     + volume above SMA50
-  - [CONFLUENCE with WEIS]: If Wyckoff phase = ACCUMULATION → Maximum
-    conviction. Smart money finished loading + volatility explodes upward.
+  - [CONFLUENCE with VILLAHERMOSA]: If Wyckoff phase = ACCUMULATION → Maximum
+    conviction. Composite Man finished loading + volatility explodes upward.
   - 📝 Hint: "Bands were tight, now price explodes up with volume."
 
 **Rule 2.3** [MURPHY] Moving Average Confirmation BUY
   - Conditions: Price crosses above 20 SMA + 20 SMA above 50 SMA + RSI > 50
-  - [CONFLUENCE with WEIS]: Stronger if wave balance = DEMAND_DOMINANT
+  - [CONFLUENCE with VILLAHERMOSA]: Stronger if wave balance = DEMAND_DOMINANT
   - 📝 Hint: "All averages pointing up, price is above them. Trend is your friend."
 
-**Rule 2.4** [WEIS] Absorption BUY — Smart Money Accumulating
-  - Source: Weis — Ch. 5 (one of three core patterns: spring, upthrust, absorption)
+**Rule 2.4** [VILLAHERMOSA] Absorption BUY — Composite Man Accumulating
+  - Source: Villahermosa — Part 3, Effort vs Result at Key Levels;
+    Part 5, Event identification within trading ranges
   - Conditions (need 2 of 3 clues):
     1. Rising supports within the trading range (higher lows forming)
     2. Heavy volume near resistance being absorbed (price doesn't fall)
     3. Bag-holding at support (heavy selling fails to break it)
-  - Context: Occurs INSIDE a trading range. Bullish absorption = demand
-    quietly overcoming supply. Smart money taking the other side.
+  - Context: Occurs INSIDE a trading range during Phase B/C. Bullish absorption =
+    demand quietly overcoming supply. Composite Man taking the other side.
   - [CALIBRATION] The 3-clue framework and specific detection logic are ours.
   - 📝 Hint: "Inside a range, the lows keep creeping higher while heavy
     selling at resistance gets absorbed. Buyers are winning quietly."
 
-**Rule 2.5** [WEIS] Successful Test BUY
-  - Source: Weis — Ch. 5 ("The Test" / "Secondary Test")
+**Rule 2.5** [VILLAHERMOSA] Successful Test BUY
+  - Source: Villahermosa — Part 5, Event #4 (Secondary Test)
   - Conditions: After a Spring or SC, price returns to the same zone with
     LESS volume (<75% of the reference event's volume)
-  - This confirms supply has dried up — sellers are gone
+  - This confirms supply has dried up — sellers are gone (No Supply condition)
   - [CALIBRATION] The 75% threshold is ours.
   - 📝 Hint: "Stock came back to its lows, but this time almost nobody
     was selling. The selling is done — time to buy."
 
-**Rule 2.6** [POST-WYCKOFF] Sign of Strength (SOS) BUY
-  - Source: Post-Wyckoff course terminology. Weis describes the behavior
-    (wide up bar, heavy volume, close near high) but uses different language.
+**Rule 2.6** [VILLAHERMOSA] Sign of Strength (SOS) BUY / Jump Across the Creek
+  - Source: Villahermosa — Part 5, Event #6 (Breakout / SOS / JAC)
   - Conditions: Wide spread up bar + above-average volume + close near high
-  - Context: After Accumulation → Signals start of Markup
+    + price breaks above the Creek (AR high / range resistance)
+  - Context: After Phase C Spring confirmed → Phase D begins → SOS breaks Creek
+  - This is Change of Character #2 (CHoCH #2) confirming the bullish imbalance
   - [CALIBRATION] Spread/volume thresholds are ours.
-  - 📝 Hint: "A big strong green bar with heavy volume. Buyers showed
-    their hand — the move up is REAL."
+  - 📝 Hint: "A big strong green bar with heavy volume jumping above
+    resistance. Buyers showed their hand — the move up is REAL."
 
 **Rule 2.7** [CONFLUENCE — ALL] Maximum Conviction BUY
   - ALL of these are simultaneously true:
     1. [BOLLINGER] Squeeze active or just broke out upward
     2. [MURPHY] TA Score > +45, momentum positive, volume confirming
     3. [BROOKS] Always-in LONG, recent pattern bullish
-    4. [WEIS] Phase = ACCUMULATION (late) or early MARKUP
-    5. [WEIS] Wave balance = DEMAND_DOMINANT, no shortening of upward thrust
-    6. [WEIS] No Change-in-Behavior warning (no bearish CIB)
-    7. [WEIS] If spring/upthrust present: follow-through = YES
+    4. [VILLAHERMOSA] Phase = C (Spring confirmed) or D (LPS/BUEC) or early E
+    5. [VILLAHERMOSA] Wave balance = DEMAND_DOMINANT, no shortening of upward thrust
+    6. [VILLAHERMOSA] No Change-in-Behavior warning (no bearish CIB)
+    7. [VILLAHERMOSA] If spring present: follow-through = YES + Spring type #2/#3
   - Action: Full position size. This is the rarest, highest-probability signal.
   - 📝 Hint: "EVERY lens says BUY. This is as good as it gets."
 
 ### B. SELL / SHORT Entries
 
-**Rule 2.8** [CONFLUENCE — WEIS + BROOKS] Upthrust SELL (Highest Confluence)
-  - Source: Weis — Ch. 6 ("The Upthrust")
-  - [WEIS] Price briefly breaks ABOVE resistance → reverses below → LOW volume
-    on the penetration = failed breakout, buyers trapped
+**Rule 2.8** [CONFLUENCE — VILLAHERMOSA + BROOKS] Upthrust/UTAD SELL (Highest Confluence)
+  - Source: Villahermosa — Part 5, Event #5 (Shaking / UTAD)
+  - [VILLAHERMOSA] Price briefly breaks ABOVE resistance → reverses below → LOW volume
+    on the penetration = failed breakout, buyers trapped (Composite Man distributing)
   - [BROOKS] Same event = "failed breakout above range"
-  - [WEIS] Trend context: Upthrust in a DOWNTREND has highest success rate
-    (Ch. 6). Upthrust in uptrend = riskier.
-  - [WEIS] Follow-through: Check next 1-3 bars for continuation DOWN.
+  - [VILLAHERMOSA] Trend context: UTAD in Phase C of confirmed distribution
+    has highest success rate. UTAD in uptrend = riskier.
+  - [VILLAHERMOSA] Follow-through: Check next 1-3 bars for continuation DOWN.
     NO follow-through = signal disqualified.
   - 📝 Hint: "Stock poked above its ceiling on light volume, fell back,
     and the next bars confirmed by heading lower. The breakout was fake."
 
 **Rule 2.9** [BOLLINGER] Squeeze Breakout SELL
   - Conditions: Squeeze ON + price breaks below lower BB + volume above SMA50
-  - [CONFLUENCE with WEIS]: If Wyckoff phase = DISTRIBUTION → Maximum conviction
+  - [CONFLUENCE with VILLAHERMOSA]: If Wyckoff phase = DISTRIBUTION → Maximum conviction
   - 📝 Hint: "Bands were tight, now price crashes through the bottom with volume."
 
-**Rule 2.10** [POST-WYCKOFF] Sign of Weakness (SOW) SELL
-  - Source: Post-Wyckoff course terminology. Weis describes the behavior
-    (wide down bar, heavy volume, close near low) but uses different language.
+**Rule 2.10** [VILLAHERMOSA] Sign of Weakness (SOW) SELL / Fall Through the Ice
+  - Source: Villahermosa — Part 5, Event #6 (Breakout / SOW / Major SOW)
   - Conditions: Wide spread down bar + above-average volume + close near low
-  - Context: After Distribution → Signals start of Markdown
-  - 📝 Hint: "A big strong red bar with heavy volume. Sellers showed their hand."
+    + price breaks below the Ice (AR low / range support)
+  - Context: After Phase C UTAD confirmed → Phase D develops → SOW breaks Ice
+  - 📝 Hint: "A big strong red bar with heavy volume falling through support.
+    Sellers showed their hand."
 
-**Rule 2.11** [WEIS] Absorption SELL — Smart Money Distributing
+**Rule 2.11** [VILLAHERMOSA] Absorption SELL — Composite Man Distributing
   - Mirror of Rule 2.4 (bearish version):
     1. Falling highs within the trading range (lower highs forming)
     2. Heavy volume near support being absorbed (price doesn't rise)
     3. Bag-holding at resistance (heavy buying fails to break it)
   - Context: Bearish absorption = supply quietly overcoming demand.
+    The Composite Man is distributing during Phase B of distribution.
   - 📝 Hint: "Inside a range, the highs keep creeping lower while heavy
     buying at support gets absorbed. Sellers are winning quietly."
 
@@ -230,13 +243,13 @@ Check every item. If more than 2 fail → NO TRADE.
 
 ### A. Exit LONG Positions
 
-**Rule 3.1** [CONFLUENCE — WEIS + BOLLINGER + BROOKS] Climax + Exhaustion Exit
-  - [WEIS] Buying Climax: Extreme volume + wide up bar + close near LOW
-    (Source: Weis Ch. 4, Ch. 8). Smart money selling into euphoria.
-  - [WEIS] Shortening of upward thrust: Last 3 up-waves cover less distance
-    (Source: Weis Ch. 4). Especially dangerous with INCREASING volume.
-  - [WEIS] Change in Behavior: Largest down-bar in 20 periods appears.
-    First warning the other side is waking up (Weis Ch. 4).
+**Rule 3.1** [CONFLUENCE — VILLAHERMOSA + BOLLINGER + BROOKS] Climax + Exhaustion Exit
+  - [VILLAHERMOSA] Buying Climax: Extreme volume + wide up bar + close near LOW
+    (Source: Villahermosa Part 5, Event #2). Composite Man selling into euphoria.
+  - [VILLAHERMOSA] Shortening of upward thrust: Last 3 up-waves cover less distance
+    (Source: Villahermosa Part 3, Law 3 on waves). Especially dangerous with INCREASING volume.
+  - [VILLAHERMOSA] Change in Behavior: Largest down-bar in 20 periods appears.
+    First warning the other side is waking up.
   - [BOLLINGER] SAR flips from below to above price
   - [BROOKS] Two-leg move target reached
   - Binary: ANY of these fires = Begin exit. TWO or more = EXIT NOW.
@@ -245,13 +258,14 @@ Check every item. If more than 2 fail → NO TRADE.
     pushes, or a monster red bar. One warning = tighten stops.
     Two warnings = get out."
 
-**Rule 3.2** [WEIS] Distribution Phase Transition Exit
-  - Source: Weis Ch. 7-8 (transition from Markup to Distribution)
-  - Condition: Phase shifts from MARKUP to DISTRIBUTION
-  - [WEIS] If absorption detected (Rule 2.11 — bearish version) within the
-    range, suppliers are gaining control. Exit urgency increases.
+**Rule 3.2** [VILLAHERMOSA] Distribution Phase Transition Exit
+  - Source: Villahermosa — Part 4 (Distribution Process), Part 6 (Phase transitions)
+  - Condition: Phase shifts from MARKUP to DISTRIBUTION (Phase A events appearing)
+  - [VILLAHERMOSA] If absorption detected (Rule 2.11 — bearish version) within the
+    range, Composite Man is distributing. Exit urgency increases.
+  - [VILLAHERMOSA] Look for PSY + BC + AR + ST sequence = Phase A of distribution.
   - Action: Tighten stops, scale out. No new longs.
-  - 📝 Hint: "Smart money stopped pushing up and started selling. Protect profits."
+  - 📝 Hint: "Composite Man stopped pushing up and started selling. Protect profits."
 
 **Rule 3.3** [BOLLINGER] Lower Band Tag After Uptrend
   - Condition: Price was riding upper band, now touches lower band
@@ -263,83 +277,94 @@ Check every item. If more than 2 fail → NO TRADE.
 
 ### B. Exit SHORT Positions
 
-**Rule 3.5** [WEIS] Selling Climax Exit (Cover Short)
-  - Source: Weis Ch. 4 (bar reading), Ch. 8 (chart studies)
+**Rule 3.5** [VILLAHERMOSA] Selling Climax Exit (Cover Short)
+  - Source: Villahermosa — Part 5, Event #2 (Selling Climax)
   - Condition: Extreme volume + wide down bar + close near HIGH
-  - Smart money buying the panic
-  - 📝 Hint: "Panicked selling but price closed at the top. Someone big bought the fear."
+  - Composite Man buying the panic — Phase A of new accumulation beginning
+  - 📝 Hint: "Panicked selling but price closed at the top. The Composite Man bought the fear."
 
-**Rule 3.6** [WEIS] Shortening of Downward Thrust + Accumulation Transition
+**Rule 3.6** [VILLAHERMOSA] Shortening of Downward Thrust + Accumulation Transition
   - Condition: Last 3 down-waves cover less distance each time
-    OR phase shifts from MARKDOWN to ACCUMULATION
-  - [WEIS] If bullish absorption detected (Rule 2.4) within the new range,
-    demand is accumulating. Cover urgency increases.
+    OR phase shifts from MARKDOWN to ACCUMULATION (Phase A events appearing)
+  - [VILLAHERMOSA] If bullish absorption detected (Rule 2.4) within the new range,
+    Composite Man is accumulating. Cover urgency increases.
   - Action: Cover shorts. No new short positions.
-  - 📝 Hint: "Each drop is smaller, or smart money started buying. The decline is ending."
+  - 📝 Hint: "Each drop is smaller, or the Composite Man started buying. The decline is ending."
 
 
 ## 4. WYCKOFF PHASE IDENTIFICATION
 ## ═══════════════════════════════════════════════
 
 How to identify which phase the stock is in.
-[POST-WYCKOFF] Phase names are course terminology, not Weis/Wyckoff originals.
+[VILLAHERMOSA] Phase names (A-E) follow Villahermosa's explicit framework.
 
-**Rule 4.1** [WEIS] ACCUMULATION — Smart Money Buying
-  - Source: Weis Ch. 5 (springs), Ch. 8 (chart studies)
+**Rule 4.1** [VILLAHERMOSA] ACCUMULATION — Composite Man Buying
+  - Source: Villahermosa — Part 4 (Accumulation Process), Part 6 (Phases A-E)
   - Prior context: Significant decline before entering a trading range
+  - Phase A: PS → SC → AR → ST (stopping the trend)
+  - Phase B: Multiple tests at range extremes, volume decreasing (building cause)
+  - Phase C: Spring / Shakeout (the test — trapping weak holders)
+  - Phase D: SOS / JAC (breakout above Creek) → LPS / BUEC (confirmation)
+  - Phase E: Uptrend begins (SOS impulses + LPS corrections)
   - Volume evidence:
-    - [WEIS] Down-wave volume DECREASING (sellers exhausted)
-    - [WEIS] Up-wave volume INCREASING (buyers appearing)
-    - [WEIS] Down-wave duration SHORTENING (selling pressure fading)
-  - Key events: Selling Climax (SC) → Spring → Test → Absorption → SOS
-  - [WEIS] "Dynamics not geometry" (Ch. 1) — don't look for cookie-cutter
-    patterns. Read the behavior: is supply drying up? Is demand growing?
+    - [VILLAHERMOSA] Down-wave volume DECREASING (sellers exhausted — No Supply)
+    - [VILLAHERMOSA] Up-wave volume INCREASING (buyers appearing — Initiative Buying)
+    - [VILLAHERMOSA] Overall range volume PROGRESSIVELY DECREASING (absorption)
+  - Schematic #1: With Spring (breaks below SC low) = textbook
+  - Schematic #2: Without Spring (higher low in Phase C) = background strength
   - [CALIBRATION] Our range detection (40-bar windows, 5% prior-trend)
-    quantifies Weis's visual judgment.
+    quantifies Villahermosa's visual judgment.
   - 📝 Hint: "After a big drop, stock goes sideways. Volume quiets on drops,
-    grows on rallies. Smart money is loading up."
+    grows on rallies. The Composite Man is loading up."
 
-**Rule 4.2** [WEIS] MARKUP — The Uptrend
-  - Source: Weis Ch. 5-8, markup characteristics
+**Rule 4.2** [VILLAHERMOSA] MARKUP — The Uptrend (Phase E of Accumulation)
+  - Source: Villahermosa — Part 6, Phase E; Part 3, Law 3 on movements
   - Structure: Higher highs AND higher lows (staircase up)
-  - Volume: Expands on rallies, contracts on pullbacks
+  - Volume: Expands on impulses (SOS), contracts on corrections (LPS)
   - [MURPHY] Price above 20 and 50 SMA
-  - [INFERRED] Sub-phases (EARLY/MIDDLE/CONFIRMED/LATE) are our formalization:
+  - Sub-phases:
 
-  **EARLY:** Staircase forming, volume not yet confirming.
-  → Watch next rally's volume. High volume = real. Flat = cautious.
+  **EARLY:** Phase D just confirmed, LPS/BUEC held, first SOS impulse.
+  → Watch for expanding volume on impulse. High volume = real. Flat = cautious.
 
-  **CONFIRMED:** Clear uptrend with volume confirmation.
-  → Dips on LOW volume = LPS (buying opportunities). Dips on HIGH volume = warning.
+  **CONFIRMED:** Clear uptrend with successive SOS + LPS pattern.
+  → LPS on LOW volume = buying opportunities. LPS on HIGH volume = warning.
 
-  **LATE:** Watch for exhaustion:
-  1. Shortening of thrust (each rally shorter)
+  **LATE:** Watch for exhaustion (Villahermosa Part 3):
+  1. Shortening of thrust (each SOS impulse covers less distance)
   2. Buying Climax (extreme volume, wide bar, close near low)
   3. Change in Behavior (largest down-bar in 20 periods)
-  4. Declining volume on rallies
+  4. Phase A events of a new structure beginning to appear (PSY + BC)
   → DO NOT add new buys. Tighten stops.
 
   📝 Hint: "During a healthy uptrend, PULLBACKS tell the truth. Quiet
-  pullbacks = healthy. Loud pullbacks = trouble ahead."
+  pullbacks (LPS) = healthy. Loud pullbacks = trouble ahead."
 
-**Rule 4.3** [WEIS] DISTRIBUTION — Smart Money Selling
-  - Source: Weis Ch. 6 (upthrusts), Ch. 8 (chart studies)
+**Rule 4.3** [VILLAHERMOSA] DISTRIBUTION — Composite Man Selling
+  - Source: Villahermosa — Part 4 (Distribution Process), Part 6 (Phases A-E)
   - Prior context: Significant advance before entering a trading range
+  - Phase A: PSY → BC → AR → ST (stopping the trend)
+  - Phase B: Multiple tests, volume remains HIGH and VOLATILE (urgency)
+  - Phase C: UTAD (the test — trapping breakout buyers)
+  - Phase D: SOW (breakdown below Ice) → LPSY / FTI (confirmation)
+  - Phase E: Downtrend begins (SOW impulses + LPSY corrections)
   - Volume evidence:
-    - [WEIS] Up-wave volume DECREASING (buyers exhausted)
-    - [WEIS] Down-wave volume INCREASING (sellers appearing)
-    - [WEIS] Up-wave duration SHORTENING (buying pressure fading)
-  - Key events: Buying Climax (BC) → Upthrust → Absorption (bearish) → SOW
-  - 📝 Hint: "After a big rally, stock goes sideways. Volume quiets on
-    rallies, grows on drops. Smart money is unloading."
+    - [VILLAHERMOSA] Up-wave volume DECREASING (buyers exhausted)
+    - [VILLAHERMOSA] Down-wave volume INCREASING (sellers appearing)
+    - [VILLAHERMOSA] Overall range volume PERSISTENTLY HIGH (urgency to distribute)
+  - Schematic #1: With UTAD (breaks above BC high) = textbook
+  - Schematic #2: Without UTAD (lower high in Phase C) = background weakness
+  - 📝 Hint: "After a big rally, stock goes sideways. Volume stays high and
+    volatile. The Composite Man is unloading positions."
 
-**Rule 4.4** [WEIS] MARKDOWN — The Downtrend
-  - Source: Weis Ch. 8-9, markdown characteristics
+**Rule 4.4** [VILLAHERMOSA] MARKDOWN — The Downtrend (Phase E of Distribution)
+  - Source: Villahermosa — Part 6, Phase E; Part 3, Law 3
   - Lower highs AND lower lows
-  - Volume expands on declines, contracts on rallies
-  - [WEIS] Rallies on low volume = LPSY (selling opportunities)
+  - Volume expands on declines (SOW impulses), contracts on rallies (LPSY corrections)
+  - [VILLAHERMOSA] Rallies on low volume = LPSY (selling opportunities)
+  - [VILLAHERMOSA] Look for minor redistribution structures within the trend
   - [MURPHY] Price below moving averages
-  - 📝 Hint: "Stock is falling steadily. Each bounce is weaker. Avoid or sell."
+  - 📝 Hint: "Stock is falling steadily. Each bounce is weaker (LPSY). Avoid or sell."
 
 
 ## 5. VOLUME READING RULES
@@ -347,32 +372,32 @@ How to identify which phase the stock is in.
 
 How to read volume — the INTENT behind price moves.
 
-**Rule 5.1** [WEIS] The Master Principle: Effort vs Result
-  - Source: Weis Ch. 4 — this is the CENTRAL teaching of the entire book
+**Rule 5.1** [VILLAHERMOSA] The Master Principle: Effort vs Result (Law 3)
+  - Source: Villahermosa — Part 3, Law of Effort vs Result
   - Volume = EFFORT. Price movement = RESULT. Read them TOGETHER:
-  - HIGH effort + HIGH result = GENUINE move [MURPHY confirms: volume with trend]
-  - HIGH effort + LOW result = ABSORPTION — smart money blocking the move
+  - HIGH effort + HIGH result = GENUINE move (Harmony) [MURPHY confirms: volume with trend]
+  - HIGH effort + LOW result = ABSORPTION — Composite Man blocking the move
     [BOLLINGER: often occurs at band edges]
-  - LOW effort + HIGH result = NO OPPOSITION — path of least resistance
+  - LOW effort + HIGH result = EASE OF MOVEMENT — no opposition, path clear
   - LOW effort + LOW result = NO INTEREST — skip this bar
   - 📝 Hint: "Volume = how hard. Price = how far. If it worked hard but
-    went nowhere, someone big is blocking the move."
+    went nowhere, the Composite Man is blocking the move."
 
-**Rule 5.2** [WEIS] Demand/Supply Bars
-  - Source: Weis Ch. 4
+**Rule 5.2** [VILLAHERMOSA] Demand/Supply Bars
+  - Source: Villahermosa — Part 3, Law 1 (Supply and Demand); Part 5, Event #4
   - NO DEMAND: Up bar + LOW volume + NARROW spread → nobody wants to buy
-    In uptrend: warning the rally may fail
+    In uptrend: warning the rally may fail (Lack of Interest — bullish side)
   - NO SUPPLY: Down bar + LOW volume + NARROW spread → nobody wants to sell
-    In downtrend: hint the decline may end
+    In downtrend: hint the decline may end (Lack of Interest — bearish side)
   - [BROOKS also teaches]: Narrow range bars after a move = loss of momentum
   - 📝 Hint: "Tiny bar, no volume? Nobody cares about this direction."
 
-**Rule 5.3** [WEIS] Absorption — One of the Three Core Patterns
-  - Source: Weis Ch. 5 — alongside springs and upthrusts
+**Rule 5.3** [VILLAHERMOSA] Absorption — Effort vs Result at Key Levels
+  - Source: Villahermosa — Part 3, Law 3 at key levels; Part 5, absorption within ranges
   - HIGH volume but NARROW spread (price blocked despite heavy effort)
-  - In a decline: Smart money BUYING all the selling → Bullish
-  - In an advance: Smart money SELLING all the buying → Bearish
-  - [WEIS] Three clues for pattern-level absorption (within a range):
+  - In a decline: Composite Man BUYING all the selling → Bullish
+  - In an advance: Composite Man SELLING all the buying → Bearish
+  - [VILLAHERMOSA] Three clues for pattern-level absorption (within a range):
     1. Rising supports (higher lows) or falling highs (lower highs)
     2. Heavy volume at a boundary being absorbed (price doesn't break)
     3. Bag-holding: heavy selling/buying at a level that fails to move price
@@ -380,33 +405,35 @@ How to read volume — the INTENT behind price moves.
   - 📝 Hint: "Massive trading but price didn't budge. A giant sponge is
     soaking up all the supply (or demand)."
 
-**Rule 5.4** [WEIS] Climax Volume — The Turning Point
-  - Source: Weis Ch. 4, Ch. 8
+**Rule 5.4** [VILLAHERMOSA] Climax Volume — The Turning Point
+  - Source: Villahermosa — Part 5, Event #2 (Climax)
   - BUYING CLIMAX: Extreme vol + wide up bar + close near LOW
-    → Smart money selling into euphoria → EXIT longs
+    → Composite Man selling into euphoria → EXIT longs
   - SELLING CLIMAX: Extreme vol + wide down bar + close near HIGH
-    → Smart money buying into panic → Cover shorts
-  - [WEIS] The CLOSE within the bar tells you who won:
-    "Consider the meaning of the close within the range" (Core Principle #3)
+    → Composite Man buying into panic → Cover shorts
+  - [VILLAHERMOSA] The CLOSE within the bar reveals initiative vs responsive:
+    Close in top = buyers initiated / Close in bottom = sellers initiated
   - [CALIBRATION] "Extreme" = 3× avg volume, "wide" = top 20% spread.
   - 📝 Hint: "Dramatic bar, highest volume in weeks. The CLOSE tells you
     who really won the fight."
 
-**Rule 5.5** [CONFLUENCE — WEIS + BOLLINGER] Volume Dry-Up = Imminent Move
-  - [WEIS] Volume drops to < 50% of average, tiny range. Source: Ch. 4
+**Rule 5.5** [CONFLUENCE — VILLAHERMOSA + BOLLINGER] Volume Dry-Up = Imminent Move
+  - [VILLAHERMOSA] Volume drops to < 50% of average, tiny range.
+    Source: Part 3, Lack of Interest condition — no initiative from either side.
   - [BOLLINGER] If BBW also near minimum → maximum compression
   - A big move is coming. Direction from Phase (Rule 1.1) + Trend (Rule 1.1).
   - 📝 Hint: "Zero volume + tight bands = calm before the storm.
     Use Wyckoff phase to guess which way the storm blows."
 
-**Rule 5.6** [WEIS] Wave Volume + Duration — The Complete Picture
-  - Source: Weis Ch. 9-10 (Weis Wave)
+**Rule 5.6** [VILLAHERMOSA] Wave Volume + Duration — The Complete Picture
+  - Source: Villahermosa — Part 3, Effort vs Result on Waves
   - Compare recent waves in three dimensions:
     1. VOLUME: Sum up-wave vol vs down-wave vol (who has more effort?)
     2. DISTANCE: Is distance per wave shrinking? = Shortening of Thrust
     3. DURATION: Which side's waves last longer? (patient side has conviction)
-  - [WEIS] "A flat wave accompanied by heavy volume is the personification
-    of weakness" — high effort, zero price progress, extended duration.
+  - [VILLAHERMOSA] Impulsive vs Corrective: impulsive movements have wider ranges
+    + expanding volume. Corrective movements have narrower ranges + contracting volume.
+    If corrective movement shows wide ranges + high volume = Change of Character.
   - [CALIBRATION] 1.5× ratio, 1.3× duration ratio thresholds are ours.
   - 📝 Hint: "Volume shows effort, distance shows progress, duration shows
     patience. The side with more of all three is winning."
@@ -418,8 +445,8 @@ How to read volume — the INTENT behind price moves.
 When lenses disagree, these rules break the tie.
 
 **Rule 6.1** [CONFLUENCE] Phase + Volume > Short-Term Indicators
-  - If [WEIS] phase = DISTRIBUTION but [MURPHY] RSI says BUY → Trust phase
-  - If [WEIS] wave balance = SUPPLY_DOMINANT but [BOLLINGER] says squeeze up
+  - If [VILLAHERMOSA] phase = DISTRIBUTION but [MURPHY] RSI says BUY → Trust phase
+  - If [VILLAHERMOSA] wave balance = SUPPLY_DOMINANT but [BOLLINGER] says squeeze up
     → Trust wave balance for direction, Bollinger for timing
   - Reason: Phase and volume reflect weeks of behavior. Oscillators reflect hours.
   - [INFERRED] This priority hierarchy is our design decision.
@@ -428,35 +455,37 @@ When lenses disagree, these rules break the tie.
 **Rule 6.2** [CONFLUENCE] Bar Reading > Moving Averages
   - If [BROOKS] strong reversal bar at key level but MAs point the other way
     → Trust PA for entry, use MA for position sizing
-  - If [WEIS] effort vs result shows absorption at a level but MAs say trend
+  - If [VILLAHERMOSA] effort vs result shows absorption at a level but MAs say trend
     continues → Absorption is the leading indicator
   - 📝 Hint: "What's happening NOW (bars, volume) beats what HAPPENED (averages)."
 
-**Rule 6.3** [CONFLUENCE] Bollinger Squeeze + Weis Phase = Timing System
+**Rule 6.3** [CONFLUENCE] Bollinger Squeeze + Villahermosa Phase = Timing System
   - Squeeze tells you WHEN (imminent breakout)
-  - Phase tells you WHICH WAY (accumulation = up, distribution = down)
+  - Phase tells you WHICH WAY (accumulation Phase C/D = up, distribution Phase C/D = down)
   - [BROOKS] Always-in direction confirms or denies
   - All three agree → Maximum timing conviction
   - 📝 Hint: "Squeeze says 'soon.' Phase says 'which way.' PA confirms."
 
 **Rule 6.4** [CONFLUENCE] Spring/Upthrust WITH Follow-Through > All
-  - [WEIS] A spring or upthrust is a high-probability Wyckoff setup
-  - BUT only if follow-through confirms in the next 1-3 bars (Ch. 1)
-  - If follow-through = YES → Act on the spring/upthrust even if other
+  - [VILLAHERMOSA] A Spring or UTAD is a high-probability Phase C event.
+    The Composite Man is capturing liquidity before the trend move.
+  - BUT only if follow-through confirms in the next 1-3 bars
+  - If follow-through = YES → Act on the Spring/UTAD even if other
     lenses are neutral. This is the single strongest event signal.
   - If follow-through = NO → Signal disqualified regardless of other lenses
-  - [INFERRED] "Takes priority" is our hierarchy. Weis treats these as
-    high-probability but does not claim they override all other analysis.
+  - [VILLAHERMOSA] Spring #3 (low volume) has best immediate follow-through.
+    Spring #1 (terminal shakeout) requires patience and retesting.
+  - [INFERRED] "Takes priority" is our hierarchy.
   - 📝 Hint: "A confirmed spring or upthrust is the strongest single signal.
     But confirmation (follow-through) is non-negotiable."
 
 **Rule 6.5** [CONFLUENCE] Change-in-Behavior as Early Warning Override
-  - [WEIS] If a Change-in-Behavior bar appears (largest opposite-direction
-    bar in 20 periods), treat it as an override on momentum signals
+  - [VILLAHERMOSA] If a Change-in-Behavior bar appears (largest opposite-direction
+    bar in 20 periods), treat it as an override on momentum signals.
+    This is the first Change of Character (CHoCH) — Villahermosa Part 5.
   - A bullish CIB in a downtrend overrides bearish momentum (early reversal)
   - A bearish CIB in an uptrend overrides bullish momentum (early warning)
   - Action: Don't EXIT on CIB alone, but do REDUCE size and tighten stops
-  - Source: Weis Ch. 4 — "first" event in the opposite direction matters
   - 📝 Hint: "When the biggest bar of the month suddenly appears on the
     OTHER side, the current trend is about to change. Don't ignore it."
 
@@ -468,10 +497,10 @@ When lenses disagree, these rules break the tie.
 
 **Rule 6.7** [CONFLUENCE] Volume Is the Lie Detector
   - When in doubt about ANY signal from any lens, check volume:
-  - Signal + high volume = REAL
-  - Signal + low volume = SUSPICIOUS
-  - [WEIS] This is the through-line of the entire Weis/Wyckoff method:
-    volume reveals intent. Every rule above ultimately relies on it.
+  - Signal + high volume = REAL (Initiative activity)
+  - Signal + low volume = SUSPICIOUS (Lack of Interest)
+  - [VILLAHERMOSA] This is the through-line of the entire Villahermosa/Wyckoff method:
+    volume reveals intent. Law 3 (Effort vs Result) is the universal validation.
   - 📝 Hint: "Volume is the closest thing to truth in the market."
 
 
@@ -483,14 +512,16 @@ When lenses disagree, these rules break the tie.
 ## PA Score:    -100 to +100  (8 Brooks Components)     [BROOKS]
 ## Cross-Val:    -90 to  +90  (Agreement + Wyckoff)     [CONFLUENCE]
 ##   └─ Base agreement:  -60 to +60
-##   └─ Wyckoff context: -30 to +30                     [WEIS]
+##   └─ Wyckoff context: -30 to +30                     [VILLAHERMOSA]
 ##     └─ Phase bias:        ±8
-##     └─ Events (SP/UT/SC/BC): ±6 each
+##     └─ Events (SP/UT/SC/BC/SOS/SOW): ±6 each
 ##     └─ Absorption:        ±5
 ##     └─ Change-in-Behavior: ±4
 ##     └─ Wave balance:      ±3
 ##     └─ Shortening/SOT:    ±2
 ##     └─ Follow-through:    quality modifier on events
+##     └─ Creek/Ice position: ±2
+##     └─ Failed structure:   ∓6 (penalty when detected)
 ##
 ## TOTAL:      -390 to +390
 ##
@@ -498,9 +529,13 @@ When lenses disagree, these rules break the tie.
 ## Wyckoff operates ONLY in the cross-validation layer, adding
 ## context that strengthens or weakens the combined signal.
 ##
-## New in this version:
-##   - Absorption detection (±5) — one of Weis's 3 core patterns
-##   - Change-in-Behavior (±4) — first warning of trend change
-##   - Follow-through assessment — validates spring/upthrust events
-##   - Wave duration comparison — time as the third element
-##   - Trend context on springs/upthrusts — ±10 confidence adjustment
+## Source: Rubén Villahermosa, "The Wyckoff Methodology in Depth"
+##   - 3 Laws (Supply/Demand, Cause/Effect, Effort/Result)
+##   - 7 Events (PS, Climax, Reaction, Test, Shaking, Breakout, Confirmation)
+##   - 5 Phases (A-E) with explicit functions
+##   - 4 Schematics (Acc #1/#2, Dist #1/#2)
+##   - 3 Trading Zones (Phase C, Phase D, Phase E)
+##   - Creek/Ice/BUEC concepts for confirmation levels
+##   - Spring type classification (#1/#2/#3) by volume
+##   - Re-accumulation vs Distribution distinction
+##   - Failed structure detection and handling

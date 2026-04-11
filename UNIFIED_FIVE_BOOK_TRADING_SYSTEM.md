@@ -9,19 +9,21 @@
 #   [BOLLINGER]   — Volatility & mean-reversion (timing)
 #   [MURPHY]      — Trend structure & confirmation (direction)
 #   [BROOKS]      — Bar-by-bar price action (precision)
-#   [WEIS]        — Volume-price behavior / Wyckoff method (intent)
+#   [VILLAHERMOSA] — Volume-price behavior / Wyckoff method (intent)
 #   [DALTON]      — Market Profile / Auction Theory (institutional value)
 #   [CONFLUENCE]  — Where 2+ lenses converge (conviction)
 #
 # HONESTY NOTES:
 # ──────────────
-# [WEIS] teaches QUALITATIVE bar-by-bar reading. All numeric thresholds
-#   are [CALIBRATION] — our quantification of his teaching.
+# [VILLAHERMOSA] teaches a systematic Wyckoff methodology with qualitative
+#   principles. He provides 3 Laws, 7 Events, 5 Phases (A-E), 4 Schematics,
+#   and 3 Trading Zones. All numeric thresholds are [CALIBRATION] — our
+#   quantification of his teaching.
 # [DALTON] teaches CONCEPTUAL auction theory. Day types, Value Areas, and
 #   POC require Market Profile / volume-at-price data to implement exactly.
 #   From daily OHLCV we can approximate but not perfectly replicate.
-# Phase names (ACCUMULATION, MARKUP, etc.) are [POST-WYCKOFF] course
-#   terminology. Both Weis and Dalton note these were "added after Wyckoff."
+# Phase names (A-E) and event labels follow Villahermosa's explicit framework
+#   from "The Wyckoff Methodology in Depth."
 #
 # Every rule below is:
 #   1. Specific and binary (YES/NO)
@@ -43,8 +45,8 @@
 ## ├──────┼───────────────────────────────────────────┼──────────┤
 ## │  Q1  │ Where is institutional value?             │ [DALTON] │
 ## │      │ (Am I buying in value or chasing?)        │          │
-## │  Q2  │ What Wyckoff phase / volume intent?       │ [WEIS]   │
-## │      │ (Is smart money accumulating or exiting?) │          │
+## │  Q2  │ What Wyckoff phase / volume intent?       │[VILLAHERMOSA│
+## │      │ (Is the Composite Man accumulating?)       │          │
 ## │  Q3  │ What is the macro trend structure?        │ [MURPHY] │
 ## │      │ (Are MAs, RSI, and structure bullish?)    │          │
 ## │  Q4  │ What is the volatility environment?       │[BOLLINGER│
@@ -112,15 +114,15 @@
   - 📝 Hint: "If everyone went long overnight and the market doesn't sell off
     at the open, the bulls are VERY strong."
 
-### Step 4: Wyckoff Phase + Volume [WEIS] (60 seconds)
+### Step 4: Wyckoff Phase + Volume [VILLAHERMOSA] (60 seconds)
 
-**Rule PS-5** [WEIS] Name the Wyckoff Phase
-  - ACCUMULATION / MARKUP / DISTRIBUTION / MARKDOWN
-  - [POST-WYCKOFF] Phase names are course terminology.
+**Rule PS-5** [VILLAHERMOSA] Name the Wyckoff Phase
+  - Identify Phase (A-E) and structure: ACCUMULATION / MARKUP / DISTRIBUTION / MARKDOWN
+  - Identify Schematic: #1 (with Spring/UTAD) or #2 (without)
   - Check: up-wave vs down-wave volume. Which side dominates?
   - Check: Is there shortening of thrust? Change in behavior?
   - Binary: Phase = ____. Volume character = DEMAND / SUPPLY / BALANCED.
-  - 📝 Hint: "Is smart money buying or selling? What does the volume say?"
+  - 📝 Hint: "What is the Composite Man doing? What does the volume say?"
 
 ### Step 5: Volatility State [BOLLINGER] (30 seconds)
 
@@ -153,7 +155,7 @@
   - For SHORTS: selling above POC = good location. Selling below = chasing.
   - [DALTON] "Where would you build a gas station — on a four-way corner off
     the interstate, or between traffic lights on a divided road?"
-  - [CONFLUENCE with WEIS] If Wyckoff phase says BUY and location is below POC
+  - [CONFLUENCE with VILLAHERMOSA] If Wyckoff phase says BUY and location is below POC
     → Maximum confluence. If phase says BUY but location is above POC → Reduced size.
   - Binary: GOOD location / POOR location
   - 📝 Hint: "Am I getting a price that institutions would accept?
@@ -164,7 +166,7 @@
   - If buying below previous day's VA = **responsive buying** (reactive)
   - If selling within or below previous day's VA = **initiative selling** (strongest)
   - If selling above previous day's VA = **responsive selling** (reactive)
-  - [CONFLUENCE with WEIS] Initiative activity + matching Wyckoff phase = MAXIMUM conviction
+  - [CONFLUENCE with VILLAHERMOSA] Initiative activity + matching Wyckoff phase = MAXIMUM conviction
   - Binary: INITIATIVE (strong) / RESPONSIVE (opportunistic)
   - 📝 Hint: "Am I hunting (initiative) or reacting (responsive)?
     Hunters have more conviction."
@@ -178,32 +180,31 @@
   - Binary: Is this day type favorable for my intended trade? YES / NO
   - 📝 Hint: "What kind of day is developing? Don't force a trend trade on a Nontrend day."
 
-### B. What Is the Phase + Volume Story? [WEIS]
+### B. What Is the Phase + Volume Story? [VILLAHERMOSA]
 
-**Rule 2.4** [WEIS] Phase + Direction Alignment
+**Rule 2.4** [VILLAHERMOSA] Phase + Direction Alignment
   - If ACCUMULATION or MARKUP → Only BUY setups
   - If DISTRIBUTION or MARKDOWN → Only SELL/EXIT setups
   - Does the intended trade direction MATCH the phase? YES = GREEN. NO = RED.
-  - [POST-WYCKOFF] Phase names are course terminology.
-  - 📝 Hint: "Don't buy what smart money is selling."
+  - 📝 Hint: "Don't buy what the Composite Man is selling."
 
-**Rule 2.5** [CONFLUENCE — WEIS + MURPHY] Volume Confirms Price?
-  - [WEIS] Up-wave vol vs down-wave vol: DEMAND_DOMINANT (>1.5×) / SUPPLY_DOMINANT (<0.67×)
+**Rule 2.5** [CONFLUENCE — VILLAHERMOSA + MURPHY] Volume Confirms Price?
+  - [VILLAHERMOSA] Up-wave vol vs down-wave vol: DEMAND_DOMINANT (>1.5×) / SUPPLY_DOMINANT (<0.67×)
   - [MURPHY] On the last move: did volume expand with price?
   - Binary: Volume supports the trade = GREEN / Volume diverges = WARNING
   - 📝 Hint: "Is volume backing up my thesis?"
 
-**Rule 2.6** [WEIS] Effort vs Result on Last Bar
-  - HIGH volume + NARROW bar = ABSORPTION (someone blocking the move)
-  - LOW volume + NARROW up bar = NO DEMAND
-  - LOW volume + NARROW down bar = NO SUPPLY (bullish)
-  - HIGH volume + WIDE bar + close in direction = GENUINE
+**Rule 2.6** [VILLAHERMOSA] Effort vs Result on Last Bar
+  - HIGH volume + NARROW bar = ABSORPTION (Composite Man blocking the move)
+  - LOW volume + NARROW up bar = NO DEMAND (Lack of Interest)
+  - LOW volume + NARROW down bar = NO SUPPLY (bullish — Lack of Interest)
+  - HIGH volume + WIDE bar + close in direction = GENUINE (Initiative activity)
   - Binary: Effort/result supports trade? YES / NO
-  - 📝 Hint: "Lots of energy but no price movement? Someone big is absorbing."
+  - 📝 Hint: "Lots of energy but no price movement? The Composite Man is absorbing."
 
-**Rule 2.7** [WEIS] Check for Exhaustion / Change in Behavior
+**Rule 2.7** [VILLAHERMOSA] Check for Exhaustion / Change in Behavior
   - Last 3 same-direction waves covering LESS distance? = EXHAUSTION
-  - Largest opposite-direction bar in 20 periods? = CHANGE IN BEHAVIOR
+  - Largest opposite-direction bar in 20 periods? = CHANGE IN BEHAVIOR (CHoCH)
   - Either present = CAUTION. Both present = DO NOT ENTER in current direction.
   - 📝 Hint: "The move is running out of steam or the other side just woke up."
 
@@ -238,7 +239,7 @@
 **Rule 2.11** [CONFLUENCE] Final Alignment Scoring
   Count how many of these five agree with your trade:
   1. Q1 [DALTON]: Good trade location relative to value? ☐
-  2. Q2 [WEIS]: Phase + volume support direction? ☐
+  2. Q2 [VILLAHERMOSA]: Phase + volume support direction? ☐
   3. Q3 [MURPHY]: Trend structure confirms? ☐
   4. Q4 [BOLLINGER]: Volatility state favorable? ☐
   5. Q5 [BROOKS]: Bar-by-bar price action agrees? ☐
@@ -256,19 +257,20 @@
 
 ### A. BUY Entries
 
-**Rule 3.1** [CONFLUENCE — WEIS + BROOKS + DALTON] Spring BUY (Maximum Confluence)
-  - [WEIS] Price breaks below support → reverses → LOW volume on penetration
+**Rule 3.1** [CONFLUENCE — VILLAHERMOSA + BROOKS + DALTON] Spring BUY (Maximum Confluence)
+  - [VILLAHERMOSA] Price breaks below support → reverses → LOW volume on penetration
+    (Spring Type #3 = best, enter directly. #1/#2 = wait for test)
   - [BROOKS] Same event = failed breakout below range → reversal bar
   - [DALTON] Spring occurs at or near Value Area Low → best institutional location
   - [DALTON] If spring occurs at a bracket low (multi-day support) → HIGHEST conviction
-  - [WEIS] Follow-through: Next 1-3 bars must continue UP with expanding volume.
+  - [VILLAHERMOSA] Follow-through: Next 1-3 bars must continue UP with expanding volume.
     NO follow-through = signal disqualified.
-  - [WEIS] Trend context: Spring in UPTREND = highest success. Spring in DOWNTREND = risky.
+  - [VILLAHERMOSA] Trend context: Spring in Phase C of accumulation = highest success.
   - 📝 Hint: "A trap below support confirmed by follow-through at a value zone = gold."
 
-**Rule 3.2** [CONFLUENCE — BOLLINGER + WEIS + DALTON] Squeeze Breakout BUY
+**Rule 3.2** [CONFLUENCE — BOLLINGER + VILLAHERMOSA + DALTON] Squeeze Breakout BUY
   - [BOLLINGER] Squeeze ON (BBW < threshold) + price breaks above upper BB + volume surge
-  - [WEIS] If phase = ACCUMULATION → squeeze resolving into Markup. Maximum conviction.
+  - [VILLAHERMOSA] If phase = ACCUMULATION Phase C/D → squeeze resolving into Markup. Maximum conviction.
   - [DALTON] If breakout occurs from a multi-session bracket/balance area → "trade you almost
     have to do." Balance-area breakout + squeeze = explosive move.
   - 📝 Hint: "The spring is released from a value zone. Every lens agrees."
@@ -276,15 +278,15 @@
 **Rule 3.3** [MURPHY + DALTON] MA Confirmation BUY with Value Location
   - [MURPHY] Price crosses above 20 SMA + 20 SMA > 50 SMA + RSI > 50
   - [DALTON] Entry is near or below developing VA → good trade location
-  - [CONFLUENCE with WEIS] Stronger if wave balance = DEMAND_DOMINANT
+  - [CONFLUENCE with VILLAHERMOSA] Stronger if wave balance = DEMAND_DOMINANT
   - 📝 Hint: "Trend healthy, entering at a fair price. Not chasing."
 
-**Rule 3.4** [WEIS] Absorption BUY — Smart Money Accumulating
-  - [WEIS] Rising supports + heavy volume at resistance absorbed + bag-holding at support
+**Rule 3.4** [VILLAHERMOSA] Absorption BUY — Composite Man Accumulating
+  - [VILLAHERMOSA] Rising supports + heavy volume at resistance absorbed + bag-holding at support
   - Needs 2 of 3 clues to confirm
   - [DALTON] This often manifests as overlapping Value Areas (bracket) with POC slowly rising
   - [CONFLUENCE] Absorption at bracket low + rising POC = institutional accumulation
-  - 📝 Hint: "Smart money quietly loading inside a range."
+  - 📝 Hint: "Composite Man quietly loading inside a range."
 
 **Rule 3.5** [DALTON — Market Profile Layer] Value-Area Rule BUY
   - Market opens outside previous VA → gets accepted BACK into VA (double TPOs / double prints)
@@ -305,7 +307,7 @@
   - [DALTON] "A trade you almost have to do." Risk minimal, profit potential very high.
   - Often preceded by a failed auction below bracket low (outside day pattern)
   - [CONFLUENCE with BOLLINGER] If squeeze was active during the bracket → breakout is explosive
-  - [CONFLUENCE with WEIS] If spring occurred at bracket low before the upside breakout = maximum
+  - [CONFLUENCE with VILLAHERMOSA] If spring occurred at bracket low before the upside breakout = maximum
   - 📝 Hint: "The range is broken to the upside. Every trapped short fuels the move."
 
 **Rule 3.8** [DALTON — Market Profile Layer] Gap BUY
@@ -322,7 +324,7 @@
 **Rule 3.9** [CONFLUENCE — ALL FIVE] Maximum Conviction BUY
   - ALL of these simultaneously true:
     1. [DALTON] Good trade location (at or below developing VA/POC); OR balance-area breakout
-    2. [WEIS] Phase = late ACCUMULATION or early MARKUP; wave balance = DEMAND_DOMINANT
+    2. [VILLAHERMOSA] Phase = late ACCUMULATION Phase C/D or early Phase E; wave balance = DEMAND_DOMINANT
     3. [MURPHY] TA Score > +45; momentum positive; volume confirming
     4. [BOLLINGER] Squeeze active or just broke out upward
     5. [BROOKS] Always-in LONG; recent bullish signal bar/pattern
@@ -331,13 +333,14 @@
 
 ### B. SELL / SHORT Entries
 
-**Rule 3.10** [CONFLUENCE — WEIS + BROOKS + DALTON] Upthrust SELL (Maximum Confluence)
-  - [WEIS] Price breaks above resistance → reverses → LOW volume on penetration
+**Rule 3.10** [CONFLUENCE — VILLAHERMOSA + BROOKS + DALTON] Upthrust/UTAD SELL (Maximum Confluence)
+  - [VILLAHERMOSA] Price breaks above resistance → reverses → LOW volume on penetration
+    (UTAD Type #3 = best, enter directly. #1/#2 = wait for test)
   - [BROOKS] Same event = failed breakout above range
   - [DALTON] Upthrust occurs at or near Value Area High → best institutional sell location
   - [DALTON] If at bracket high (multi-session resistance) → HIGHEST conviction
-  - [WEIS] Follow-through: Next 1-3 bars DOWN. No follow-through = disqualified.
-  - [WEIS] Trend context: Upthrust in DOWNTREND = highest success. In uptrend = risky.
+  - [VILLAHERMOSA] Follow-through: Next 1-3 bars DOWN. No follow-through = disqualified.
+  - [VILLAHERMOSA] Trend context: UTAD in Phase C of distribution = highest success.
   - 📝 Hint: "A fake breakout above resistance at an institutional value extreme."
 
 **Rule 3.11** [DALTON — Market Profile Layer] Value-Area Rule SELL
@@ -358,7 +361,7 @@
   - Stop at gap erasure point.
 
 **Rule 3.15** [CONFLUENCE — ALL FIVE] Maximum Conviction SELL
-  - ALL simultaneously: [DALTON] good sell location / [WEIS] DISTRIBUTION+SUPPLY /
+  - ALL simultaneously: [DALTON] good sell location / [VILLAHERMOSA] DISTRIBUTION+SUPPLY /
     [MURPHY] bearish / [BOLLINGER] squeeze down or lower band break / [BROOKS] always-in SHORT
   - **Full position size.**
 
@@ -375,7 +378,7 @@
   - Previous session(s) formed poor lows (no buying tail at the low)
   - Market revisits the poor low area with declining/lower volume
   - Poor low gets "repaired" — buying tail now forms
-  - [CONFLUENCE with WEIS] If this is also a spring of the poor-low level → maximum confluence
+  - [CONFLUENCE with VILLAHERMOSA] If this is also a spring of the poor-low level → maximum confluence
   - 📝 Hint: "An unfinished low is being revisited. If buyers now show up, it's confirmed."
 
 **Rule 3.18** [DALTON — Market Profile Layer] Open-Drive Momentum Entry
@@ -391,10 +394,10 @@
 
 ### A. Exit LONG Positions
 
-**Rule 4.1** [CONFLUENCE — WEIS + BOLLINGER + BROOKS + DALTON] Climax + Exhaustion Exit
-  - [WEIS] Buying Climax: Extreme vol + wide up bar + close near LOW
-  - [WEIS] Shortening of upward thrust: Last 3 up-waves cover less ground
-  - [WEIS] Change in Behavior: Largest down-bar in 20 periods
+**Rule 4.1** [CONFLUENCE — VILLAHERMOSA + BOLLINGER + BROOKS + DALTON] Climax + Exhaustion Exit
+  - [VILLAHERMOSA] Buying Climax: Extreme vol + wide up bar + close near LOW
+  - [VILLAHERMOSA] Shortening of upward thrust: Last 3 up-waves cover less ground
+  - [VILLAHERMOSA] Change in Behavior: Largest down-bar in 20 periods
   - [BOLLINGER] SAR flips from below to above price
   - [BROOKS] Two-leg move target reached
   - [DALTON] Profile becomes TOO elongated to the upside → inventory extreme → reversal imminent
@@ -415,8 +418,8 @@
   - **Once liquidation ends, the prior advance resumes → offers BUYING opportunity**
   - 📝 Hint: "The drop is just longs dumping. When they're done, it bounces."
 
-**Rule 4.4** [WEIS] Distribution Phase Transition Exit
-  - Phase shifts from MARKUP to DISTRIBUTION → tighten stops, scale out, no new longs
+**Rule 4.4** [VILLAHERMOSA] Distribution Phase Transition Exit
+  - Phase shifts from MARKUP to DISTRIBUTION (Phase A events appearing) → tighten stops, scale out, no new longs
   - [DALTON] VAs begin to overlap → trend → bracket transition underway
 
 **Rule 4.5** [DALTON — Market Profile Layer] Destination Reached Exit
@@ -439,11 +442,11 @@
 
 ### B. Exit SHORT Positions
 
-**Rule 4.8** [WEIS] Selling Climax Exit (Cover Short)
-  - Extreme volume + wide down bar + close near HIGH → smart money buying the panic
+**Rule 4.8** [VILLAHERMOSA] Selling Climax Exit (Cover Short)
+  - Extreme volume + wide down bar + close near HIGH → Composite Man buying the panic
   - [DALTON] If accompanied by long-term excess low (tail, island, gap) → cover immediately
 
-**Rule 4.9** [WEIS] Shortening of Downward Thrust + Accumulation Transition
+**Rule 4.9** [VILLAHERMOSA] Shortening of Downward Thrust + Accumulation Transition
   - Last 3 down-waves cover less distance → covering urgency increases
   - [DALTON] VAs stop moving lower; begin overlapping → bracket forming at bottom
 
@@ -454,12 +457,16 @@
 ## 5. WYCKOFF PHASE + DALTON MARKET STRUCTURE IDENTIFICATION
 ## ═════════════════════════════════════════════════════
 
-### Rule 5.1 [CONFLUENCE — WEIS + DALTON] ACCUMULATION (Smart Money Buying)
+### Rule 5.1 [CONFLUENCE — VILLAHERMOSA + DALTON] ACCUMULATION (Composite Man Buying)
 
-**Weis view:**
+**Villahermosa view:**
 - Trading range after significant decline
-- Down-wave volume DECREASING, up-wave volume INCREASING
-- Key events: Selling Climax → Spring → Test → Absorption → SOS
+- Phase A: PS → SC → AR → ST (stopping the decline)
+- Phase B: Multiple tests, volume progressively decreasing (building cause)
+- Phase C: Spring / Shakeout (the test — trapping weak holders)
+- Phase D: SOS / JAC above Creek → LPS / BUEC (confirmation)
+- Phase E: Uptrend (SOS impulses + LPS corrections)
+- Schematic #1 (with Spring) or #2 (higher low, no Spring)
 
 **Dalton view:**
 - Multiple sessions of overlapping VAs (bracket)
@@ -468,12 +475,13 @@
 - Responsive buying below VA gaining momentum
 - Initiative buying begins to appear
 
-**CONFLUENCE:** When BOTH views align — Weis sees accumulation volume patterns AND Dalton sees bracketed VAs at lows with responsive-to-initiative buying transition → MAXIMUM CONVICTION that accumulation is real.
+**CONFLUENCE:** When BOTH views align — Villahermosa sees accumulation events/phases AND Dalton sees bracketed VAs at lows with responsive-to-initiative buying transition → MAXIMUM CONVICTION that accumulation is real.
 
-### Rule 5.2 [CONFLUENCE — WEIS + DALTON] MARKUP (The Uptrend)
+### Rule 5.2 [CONFLUENCE — VILLAHERMOSA + DALTON] MARKUP (The Uptrend)
 
-**Weis view:**
-- Higher highs, higher lows. Volume expands on rallies, contracts on pullbacks.
+**Villahermosa view:**
+- Phase E: Higher highs, higher lows. SOS impulses + LPS corrections.
+- Volume expands on impulses (harmony), contracts on corrections (no opposition).
 
 **Dalton view:**
 - VAs separating and moving higher — trend = value diverging from price
@@ -482,26 +490,31 @@
 - Responsive selling fails → initiative buying dominates
 
 **CONFLUENCE exhaustion signals (LATE MARKUP):**
-- [WEIS] Shortening of thrust + buying climax
+- [VILLAHERMOSA] Shortening of thrust + buying climax + Phase A events appearing
 - [DALTON] VAs begin overlapping again + poor highs appearing + profile becoming too elongated
 - Both views agree = exit signal / do not add to longs
 
-### Rule 5.3 [CONFLUENCE — WEIS + DALTON] DISTRIBUTION (Smart Money Selling)
+### Rule 5.3 [CONFLUENCE — VILLAHERMOSA + DALTON] DISTRIBUTION (Composite Man Selling)
 
-**Weis view:**
+**Villahermosa view:**
 - Trading range after significant advance
-- Up-wave volume DECREASING, down-wave volume INCREASING
-- Key events: Buying Climax → Upthrust → Absorption (bearish) → SOW
+- Phase A: PSY → BC → AR → ST (stopping the advance)
+- Phase B: Multiple tests, volume PERSISTENTLY HIGH (urgency)
+- Phase C: UTAD (trapping breakout buyers)
+- Phase D: SOW below Ice → LPSY / FTI (confirmation)
+- Phase E: Downtrend (SOW impulses + LPSY corrections)
+- Schematic #1 (with UTAD) or #2 (lower high, no UTAD)
 
 **Dalton view:**
 - Multiple sessions of overlapping VAs (bracket) at the TOP of broader range
 - Initiative selling appears; responsive buying weakens
 - Poor highs accumulating
 
-### Rule 5.4 [CONFLUENCE — WEIS + DALTON] MARKDOWN (The Downtrend)
+### Rule 5.4 [CONFLUENCE — VILLAHERMOSA + DALTON] MARKDOWN (The Downtrend)
 
-**Weis view:**
-- Lower highs, lower lows. Volume expands on declines, contracts on rallies.
+**Villahermosa view:**
+- Phase E: Lower highs, lower lows. SOW impulses + LPSY corrections.
+- Volume expands on declines (harmony), contracts on rallies (no demand).
 
 **Dalton view:**
 - VAs separating lower. One-timeframing down (each week's high < prior).
@@ -511,25 +524,25 @@
 ## 6. VOLUME READING RULES
 ## ═════════════════════════════════════════════════════
 
-**Rule 6.1** [WEIS] The Master Principle: Effort vs Result
+**Rule 6.1** [VILLAHERMOSA] The Master Principle: Effort vs Result (Law 3)
   - Volume = EFFORT. Price movement = RESULT.
-  - HIGH effort + HIGH result = GENUINE move [MURPHY confirms] [DALTON: elongated profile]
-  - HIGH effort + LOW result = ABSORPTION [DALTON: seen as wide profile at one price level]
-  - LOW effort + HIGH result = NO OPPOSITION
+  - HIGH effort + HIGH result = GENUINE move (harmony) [MURPHY confirms] [DALTON: elongated profile]
+  - HIGH effort + LOW result = ABSORPTION (Composite Man blocking) [DALTON: wide profile at one price]
+  - LOW effort + HIGH result = NO OPPOSITION (Lack of Interest)
   - LOW effort + LOW result = NO INTEREST [DALTON: Nontrend day]
 
-**Rule 6.2** [WEIS] Demand/Supply Bar Reading
-  - NO DEMAND: Up bar + LOW volume + NARROW spread
-  - NO SUPPLY: Down bar + LOW volume + NARROW spread
+**Rule 6.2** [VILLAHERMOSA] Demand/Supply Bar Reading
+  - NO DEMAND: Up bar + LOW volume + NARROW spread (Lack of Interest on advance)
+  - NO SUPPLY: Down bar + LOW volume + NARROW spread (Lack of Interest on decline)
   - [BROOKS] Narrow after a move = loss of momentum (confirming)
 
-**Rule 6.3** [WEIS] Climax Volume
+**Rule 6.3** [VILLAHERMOSA] Climax Volume
   - BUYING CLIMAX: Extreme vol + wide up + close near LOW → EXIT longs
   - SELLING CLIMAX: Extreme vol + wide down + close near HIGH → cover shorts
   - [DALTON] Climax days often produce excess (tails/gaps) that mark turning points
 
-**Rule 6.4** [CONFLUENCE — WEIS + BOLLINGER + DALTON] Volume Dry-Up = Imminent Move
-  - [WEIS] Volume < 50% of average, tiny range
+**Rule 6.4** [CONFLUENCE — VILLAHERMOSA + BOLLINGER + DALTON] Volume Dry-Up = Imminent Move
+  - [VILLAHERMOSA] Volume < 50% of average, tiny range (Lack of Interest)
   - [BOLLINGER] BBW near minimum → maximum compression
   - [DALTON] This forms a Nontrend day profile → bracket → breakout coming
   - Direction from Phase + Trend + Always-In
@@ -538,8 +551,8 @@
 **Rule 6.5** [DALTON — Market Profile Layer] Volume at Price (Value Lens)
   - High-volume price levels = ATTRACTION ZONES (price slows here, rotational trade)
   - Low-volume price levels = REJECTION ZONES (price speeds through, acts as barrier)
-  - [CONFLUENCE with WEIS] High volume AT a specific price (Dalton) + effort-vs-result reading
-    of the move INTO that zone (Weis) = complete picture
+  - [CONFLUENCE with VILLAHERMOSA] High volume AT a specific price (Dalton) + effort-vs-result reading
+    of the move INTO that zone (Villahermosa) = complete picture
   - 📝 Hint: "Where was the most business done? That's where price gravitates.
     Where was the LEAST? That's the wall to trade in front of."
 
@@ -550,7 +563,7 @@
 ### Priority Hierarchy (from highest to lowest):
 
 **Rule 7.1** [CONFLUENCE] Phase + Volume > Short-Term Indicators
-  - [WEIS] phase + wave balance reflect weeks of behavior
+  - [VILLAHERMOSA] phase + wave balance reflect weeks of behavior
   - [MURPHY] RSI/MACD reflect hours
   - If they conflict → trust the phase + volume
 
@@ -561,17 +574,17 @@
   - If [DALTON] says we're trending (VAs separating) → trust the trend, add on dips
 
 **Rule 7.3** [CONFLUENCE] Bar Reading > Moving Averages
-  - [BROOKS] strong reversal bar + [WEIS] effort/result at key level → leads MAs
+  - [BROOKS] strong reversal bar + [VILLAHERMOSA] effort/result at key level → leads MAs
   - [DALTON] Auction failure at reference → immediate action, don't wait for MA confirmation
 
 **Rule 7.4** [CONFLUENCE] Spring/Upthrust WITH Follow-Through > All
-  - [WEIS] A confirmed spring/upthrust with follow-through is the single strongest event
+  - [VILLAHERMOSA] A confirmed spring/upthrust with follow-through is the single strongest event
   - Overrides all other signals — even if MAs, Bollinger, etc. are neutral
   - BUT: no follow-through = disqualified regardless of everything else
 
-**Rule 7.5** [CONFLUENCE] Bollinger Squeeze + Weis Phase + Dalton Bracket = Perfect Storm
+**Rule 7.5** [CONFLUENCE] Bollinger Squeeze + Villahermosa Phase + Dalton Bracket = Perfect Storm
   - [BOLLINGER] Squeeze (WHEN the move happens)
-  - [WEIS] Phase (smart money direction)
+  - [VILLAHERMOSA] Phase (Composite Man direction)
   - [DALTON] Bracket about to break (institutional value shifting)
   - [BROOKS] Always-in confirms direction
   - All agree → Maximum timing conviction
@@ -582,7 +595,7 @@
   - [DALTON] "It is generally financially dangerous to trade counter to one-timeframing."
 
 **Rule 7.7** [CONFLUENCE] Change-in-Behavior + Poor Highs/Lows = Early Warning Override
-  - [WEIS] CIB bar (largest opposite-direction bar) + [DALTON] poor highs/lows accumulating
+  - [VILLAHERMOSA] CIB bar (largest opposite-direction bar) + [DALTON] poor highs/lows accumulating
   - Together = strong early warning of reversal
   - Action: Reduce size, tighten stops immediately, even if trend indicators say hold
 
@@ -618,7 +631,7 @@
   - POC migrating up = OTF buying control, value building higher
   - POC stagnant despite price rally = rally is short-covering, not genuine
   - POC migrating down = OTF selling control
-  - [CONFLUENCE with WEIS] POC migration + wave volume = double confirmation of control
+  - [CONFLUENCE with VILLAHERMOSA] POC migration + wave volume = double confirmation of control
   - This concept adds real-time institutional intent tracking not in other books.
 
 **Rule 8.3** [DALTON — Market Profile Layer] VA Placement Sequence
@@ -657,7 +670,7 @@
   - Market response AGAINST the news direction = VERY STRONG/VERY WEAK sentiment signal
   - Market response WITH the news = expected, no edge
   - **The non-obvious reaction is the informative one.**
-  - [CONFLUENCE with WEIS] Non-obvious response + volume surge = double confirmation
+  - [CONFLUENCE with VILLAHERMOSA] Non-obvious response + volume surge = double confirmation
 
 **Rule 8.8** [DALTON — Market Profile Layer] Day Type Targeting
   - If Nontrend day developing → STAND ASIDE. No facilitation = no opportunity.
@@ -677,8 +690,8 @@
 | VA High/Low | [MURPHY] S/R levels | Institutional VA edges + classical S/R = strongest zones |
 | POC (fairest price) | [MURPHY] Moving averages | POC near 20/50 SMA = double-confirmed fair value |
 | Low-volume areas | [BOLLINGER] Band edges | Low-vol rejection zones + outer BB = mean-reversion anchor |
-| Bracket extreme | [WEIS] Trading range edge | Bracket high/low = where springs/upthrusts happen |
-| Single prints | [WEIS] Low-vol rejection | Single prints (Dalton) = low-vol zones (Weis) = barriers |
+| Bracket extreme | [VILLAHERMOSA] Trading range edge | Bracket high/low = where springs/upthrusts happen |
+| Single prints | [VILLAHERMOSA] Low-vol rejection | Single prints (Dalton) = low-vol zones (Villahermosa) = barriers |
 
 ### B. TREND/PHASE CONFLUENCE
 
@@ -686,9 +699,9 @@
 |---|---|---|
 | VAs separating higher | [MURPHY] Uptrend | Institutional value shifting up = MA-confirmed trend |
 | One-timeframing up | [BROOKS] Always-in LONG | Successive auctions all UP = PA bias LONG |
-| Bracket (overlap) | [WEIS] Accumulation/Distribution | Bracketed VAs = Wyckoff phase (loading/unloading) |
+| Bracket (overlap) | [VILLAHERMOSA] Accumulation/Distribution | Bracketed VAs = Wyckoff phase (loading/unloading) |
 | Trend day profile | [MURPHY] Strong trend signal | Thin elongated profile = powerful trend conviction |
-| Bracket→Trend transition | [WEIS] Markup/Markdown start | VA breakout = phase transition |
+| Bracket→Trend transition | [VILLAHERMOSA] Markup/Markdown start | VA breakout = phase transition |
 
 ### C. ENTRY TIMING CONFLUENCE
 
@@ -696,19 +709,19 @@
 |---|---|---|
 | 3-to-I day | [BROOKS] Strong momentum | All initiative signals aligned = enter mechanically |
 | Balance-area breakout | [BOLLINGER] Squeeze breakout | Bracket break + band expansion = explosive |
-| Value-Area Rule | [WEIS] Spring/Test | Accepted back into VA + spring pattern = double entry signal |
+| Value-Area Rule | [VILLAHERMOSA] Spring/Test | Accepted back into VA + spring pattern = double entry signal |
 | Open-Drive | [BROOKS] Momentum entry | Strongest open type + always-in agreement = enter NOW |
-| Gap (unfilled) | [WEIS] Excess / initiative | Gap = strongest excess + initiative activity = go with |
+| Gap (unfilled) | [VILLAHERMOSA] Excess / initiative | Gap = strongest excess + initiative activity = go with |
 
 ### D. EXIT/WARNING CONFLUENCE
 
 | Dalton Concept | Confirms | Confluence Insight |
 |---|---|---|
-| Poor highs accumulating | [WEIS] Change in behavior | No selling tails + CIB bar = EXIT warning amplified |
-| Profile too elongated | [WEIS] Buying climax | Extreme one-sided inventory + climax volume = reversal |
-| P-formation (short cover) | [WEIS] Low-vol rally | Rally is covering, not new business = sell opportunity |
-| Auction failure | [WEIS] Failed breakout | Failed reference test = spring/upthrust equivalent |
-| VA overlap returning | [WEIS] Phase transition | VAs overlapping after trend = DISTRIBUTION starting |
+| Poor highs accumulating | [VILLAHERMOSA] Change in behavior | No selling tails + CIB bar = EXIT warning amplified |
+| Profile too elongated | [VILLAHERMOSA] Buying climax | Extreme one-sided inventory + climax volume = reversal |
+| P-formation (short cover) | [VILLAHERMOSA] Low-vol rally | Rally is covering, not new business = sell opportunity |
+| Auction failure | [VILLAHERMOSA] Failed breakout | Failed reference test = spring/upthrust equivalent |
+| VA overlap returning | [VILLAHERMOSA] Phase transition | VAs overlapping after trend = DISTRIBUTION starting |
 
 
 ## 10. SCORING INTEGRATION
@@ -721,20 +734,22 @@
 ## PA Score:    -100 to +100  (8 Brooks Components)     [BROOKS]
 ## Cross-Val:    -90 to  +90  (Agreement + Wyckoff + Dalton) [CONFLUENCE]
 ##   └─ Base agreement:  -60 to +60
-##   └─ Wyckoff/Weis:    -30 to +30                     [WEIS]
+##   └─ Wyckoff/Villahermosa: -30 to +30                  [VILLAHERMOSA]
 ##     └─ Phase bias:        ±8
-##     └─ Events (SP/UT/SC/BC): ±6 each
+##     └─ Events (SP/UT/SC/BC/SOS/SOW): ±6 each
 ##     └─ Absorption:        ±5
 ##     └─ Change-in-Behavior: ±4
 ##     └─ Wave balance:      ±3
 ##     └─ Shortening/SOT:    ±2
+##     └─ Creek/Ice position: ±2
 ##     └─ Follow-through:    quality modifier on events
+##     └─ Failed structure:  ∓6 penalty
 ##
 ## DALTON INTEGRATION PATH:
 ##   Dalton's concepts enhance the cross-validation layer by providing
 ##   institutional VALUE context that strengthens or weakens signals:
 ##
-##   Dalton factors within Wyckoff/Cross-Val scoring:
+##   Dalton factors within Wyckoff/Villahermosa/Cross-Val scoring:
 ##     └─ VA placement sequence (higher/lower/overlap): modifies trend confidence
 ##     └─ Poor high/low count: adds warning weight against the weak direction
 ##     └─ Bracket test count: modifies breakout probability
@@ -742,7 +757,7 @@
 ##     └─ Initiative vs responsive: modifies conviction on entries
 ##
 ##   NOTE: Dalton does NOT add a new independent score pillar.
-##   Like Wyckoff/Weis, Dalton operates as an ENHANCER in cross-validation,
+##   Like Wyckoff/Villahermosa, Dalton operates as an ENHANCER in cross-validation,
 ##   adding institutional context that the three core scores (BB, TA, PA)
 ##   cannot capture from OHLCV data alone.
 ##
@@ -750,6 +765,13 @@
 ##
 ## The 3 core scores (BB, TA, PA) are NEVER modified by Wyckoff or Dalton.
 ## Both operate ONLY in the cross-validation layer.
+##
+## Source — Wyckoff methodology and volume-spread analysis:
+##   Rubén Villahermosa — "The Wyckoff Methodology in Depth" [VILLAHERMOSA]
+##   Covers: 3 Laws (Supply & Demand, Cause & Effect, Effort vs Result),
+##   7 Events (PS, Climax, Reaction, Test, Shaking, Breakout, Confirmation),
+##   5 Phases (A–E), 4 Schematics, 3 Trading Zones, Creek/Ice/BUEC,
+##   Spring Types #1/#2/#3, Position Management.
 
 
 ## APPENDIX A: QUICK REFERENCE — Five Questions Wallet Card
@@ -763,7 +785,7 @@
 │     → Am I at/near VA edge or POC? Initiative or responsive? │
 │     → Trade location: GOOD / POOR                            │
 │                                                              │
-│  Q2 [WEIS]      What is the volume intent?                   │
+│  Q2 [VILLAHERMOSA] What is the volume intent?                   │
 │     → Phase: ACC / MU / DIST / MD                            │
 │     → Wave balance: DEMAND / SUPPLY / BALANCED               │
 │     → Exhaustion or CIB present? YES / NO                    │
@@ -913,6 +935,6 @@ Before entering ANY trade, check:
 *1. John Bollinger — "Bollinger on Bollinger Bands" [BOLLINGER]*
 *2. John Murphy — "Technical Analysis of the Financial Markets" [MURPHY]*
 *3. Al Brooks — "Trading Price Action" series [BROOKS]*
-*4. David Weis — "Trades About to Happen" [WEIS]*
+*4. Rubén Villahermosa — "The Wyckoff Methodology in Depth" [VILLAHERMOSA]*
 *5. James Dalton — "Mind Over Markets" (Updated Edition) [DALTON]*
 *Extracted from thorough, cover-to-cover readings of all five books.*

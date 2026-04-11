@@ -420,9 +420,49 @@
         .dl-log { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #8b949e;
                   max-height: 140px; overflow-y: auto; background: #0d1117; border-radius: 8px;
                   padding: 0.5rem 0.75rem; border: 1px solid var(--card-border); }
+        /* ══ UNIFIED NAV ══ */
+        .sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+        .sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
+        .sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
+        @keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
+        @keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
+        .sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
+        .sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+        .sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+        .sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
+        .sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+        .sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+        .sc-nav .sc-dl-btn{font-size:.72rem;padding:.25rem .6rem;white-space:nowrap;border-radius:6px}
+        @media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
     </style>
 </head>
 <body>
+    <!-- ═══ UNIFIED NAVBAR ═══ -->
+    <nav class="sc-nav">
+      <div class="container-fluid d-flex align-items-center px-3 gap-2">
+        <a class="sc-brand" href="/">हिरण्य</a>
+        <div class="sc-links">
+          <a class="sc-link active" href="/">Home</a>
+          <a class="sc-link" href="/ta">TA</a>
+          <a class="sc-link" href="/pa">Price Action</a>
+          <a class="sc-link" href="/triple">Triple</a>
+          <a class="sc-link" href="/trades">Trades</a>
+          <a class="sc-link" href="/portfolio">Portfolio</a>
+          <a class="sc-link" href="/risk-management">Risk</a>
+          <a class="sc-link" href="/mental-game">Mental</a>
+        </div>
+        <div class="sc-right">
+          <button class="btn btn-outline-info btn-sm sc-dl-btn" id="downloadDataBtn" data-bs-toggle="modal" data-bs-target="#downloadModal">
+            <i class="bi bi-cloud-arrow-down me-1"></i><span class="d-none d-md-inline">Download Data</span><span class="d-md-none">Data</span>
+          </button>
+          <span id="eodBadge" class="badge rounded-pill d-inline-flex align-items-center gap-1" style="font-size:.7rem;cursor:pointer;opacity:0;transition:opacity .3s" title="Click to refresh" onclick="checkEodStatus()">
+            <span class="spinner-border spinner-border-sm" role="status" id="eodSpinner"></span>
+            <span id="eodText">Checking…</span>
+          </span>
+          <span class="sc-clock" id="clockSpan"></span>
+        </div>
+      </div>
+    </nav>
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!--  HERO                                                         -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -444,31 +484,7 @@
                 </button>
             </form>
 
-            <!-- Download Historical Data Button + EOD Status -->
-            <div class="mt-3 d-flex flex-wrap align-items-center gap-2">
-                <button class="btn btn-outline-info btn-sm" id="downloadDataBtn" data-bs-toggle="modal" data-bs-target="#downloadModal">
-                    <i class="bi bi-cloud-arrow-down me-1"></i> Download / Update Historical Data
-                </button>
-                <span id="eodBadge" class="badge rounded-pill d-inline-flex align-items-center gap-1" style="font-size:.75rem;cursor:pointer;opacity:0;transition:opacity .3s" title="Click to refresh" onclick="checkEodStatus()">
-                    <span class="spinner-border spinner-border-sm" role="status" id="eodSpinner"></span>
-                    <span id="eodText">Checking…</span>
-                </span>
-                <a href="/trades" class="btn btn-outline-success btn-sm ms-2">
-                    <i class="bi bi-cash-stack me-1"></i> Trade P&L & Tax Calculator
-                </a>
-                <a href="/portfolio" class="btn btn-outline-warning btn-sm ms-2">
-                    <i class="bi bi-briefcase-fill me-1"></i> Portfolio Tracker
-                </a>
-                <a href="/ta" class="btn btn-outline-info btn-sm ms-2">
-                    <i class="bi bi-bar-chart-line me-1"></i> Technical Analysis
-                </a>
-                <a href="/pa" class="btn btn-outline-secondary btn-sm ms-2" style="border-color:#f0883e;color:#f0883e">
-                    <i class="bi bi-candlestick-chart me-1"></i> Price Action (Al Brooks)
-                </a>
-                <a href="/triple" class="btn btn-outline-secondary btn-sm ms-2" style="border-color:#e040fb;color:#e040fb">
-                    <i class="bi bi-triangle-fill me-1"></i> Triple BB+TA+PA
-                </a>
-            </div>
+
         </div>
     </section>
 

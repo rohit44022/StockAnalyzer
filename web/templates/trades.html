@@ -58,11 +58,19 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 .fy-tbl th{font-size:.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.04em}
 .fy-tbl td{font-family:'JetBrains Mono',monospace;font-size:.85rem}
 
-/* Nav */
-.top-nav{background:var(--card-bg);border-bottom:1px solid var(--card-border)}
-.top-nav .nav-link{color:#8b949e;font-weight:500;padding:.6rem 1rem}
-.top-nav .nav-link:hover{color:#c9d1d9}
-.top-nav .nav-link.active{color:var(--b)}
+/* ══ UNIFIED NAV ══ */
+.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
+.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
+@keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
+@keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
+.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
+.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+.sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 
 /* Autocomplete */
 .ac-list{position:absolute;z-index:1050;background:#161b22;border:1px solid var(--card-border);border-radius:8px;max-height:200px;overflow-y:auto;width:100%;display:none}
@@ -75,18 +83,28 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 </head>
 <body>
 
-<!-- ═══════ TOP NAV ═══════ -->
-<nav class="top-nav sticky-top">
-  <div class="container d-flex align-items-center py-2">
-    <a class="nav-link" href="/"><i class="bi bi-graph-up-arrow me-1"></i>Bollinger Dashboard</a>
-    <a class="nav-link active" href="/trades"><i class="bi bi-cash-stack me-1"></i>Trade P&L</a>
-    <a class="nav-link" href="/portfolio"><i class="bi bi-briefcase-fill me-1"></i>Portfolio Tracker</a>
-    <span class="ms-auto text-secondary small font-mono" id="clockSpan"></span>
+<!-- ═══ UNIFIED NAVBAR ═══ -->
+<nav class="sc-nav">
+  <div class="container-fluid d-flex align-items-center px-3 gap-2">
+    <a class="sc-brand" href="/">हिरण्य</a>
+    <div class="sc-links">
+      <a class="sc-link" href="/">Home</a>
+      <a class="sc-link" href="/ta">TA</a>
+      <a class="sc-link" href="/pa">Price Action</a>
+      <a class="sc-link" href="/triple">Triple</a>
+      <a class="sc-link active" href="/trades">Trades</a>
+      <a class="sc-link" href="/portfolio">Portfolio</a>
+      <a class="sc-link" href="/risk-management">Risk</a>
+      <a class="sc-link" href="/mental-game">Mental</a>
+    </div>
+    <div class="sc-right">
+      <span class="sc-clock" id="clockSpan"></span>
+    </div>
   </div>
 </nav>
 
-<!-- ═══════ HERO ═══════ -->
-<section class="hero text-center">
+<!-- ═══ HERO ═══ -->
+<section class="hero" style="background:linear-gradient(135deg,#0d1117,#161b22 50%,#1a1f2b);border-bottom:1px solid var(--card-border);padding:1.5rem 0">
   <div class="container">
     <h1><i class="bi bi-calculator-fill"></i> Trade P&L &amp; Tax Calculator</h1>
     <p class="text-secondary mb-0">All charges (STT, Brokerage, Exchange, SEBI, Stamp, GST, DP) + Capital Gains Tax for Zerodha &amp; Dhan</p>

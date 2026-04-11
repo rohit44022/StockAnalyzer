@@ -1,30 +1,30 @@
 """
-wyckoff/volume_analysis.py — Weis Wave & Effort-vs-Result Analysis
+wyckoff/volume_analysis.py — Wyckoff Wave & Effort-vs-Result Analysis
 ===================================================================
 
 TRUTHFULNESS AUDIT
 ──────────────────
-Source Book: David H. Weis, "Trades About to Happen" (Wiley, 2013)
+Source Book: Rubén Villahermosa, "The Wyckoff Methodology in Depth" (2019)
 
-Weis teaches reading price-volume relationships visually, bar by bar.
+Villahermosa teaches reading price-volume relationships systematically
+through 3 Laws, 7 Events, 5 Phases (A-E), and 4 Schematics.
 The concepts here (waves, effort vs result, shortening, absorption)
-are ALL from the book. The ALGORITHMIC IMPLEMENTATION — grouping bars
-into waves, summing volume, computing ratios — is our quantification
-of Weis's visual bar-reading method.
+are grounded in his Wyckoff framework. The ALGORITHMIC IMPLEMENTATION
+— grouping bars into waves, summing volume, computing ratios — is our
+quantification of Villahermosa's visual methodology.
 
-Core Weis Concept (PARAPHRASE, not direct quote):
-  "The market tells its own story through the relationship between
-   price spread and volume. When effort (volume) doesn't match
-   result (price movement), the market is being deceptive."
+Core Villahermosa Concept — Law 3: Effort vs Result:
+  Volume represents effort; price spread represents result.
+  When effort and result are in harmony, the move is genuine.
+  When they diverge, the Composite Man is operating.
 
-  [PARAPHRASE] Weis teaches this principle throughout Ch. 4 (bar reading)
-  and Ch. 8-10 (chart studies and wave analysis).
+  [VILLAHERMOSA] Part 5, Law 3 (Effort vs Result)
 
 This module implements:
-  1. Weis Wave computation — [WEIS concept, our algorithm]
-  2. Effort vs Result analysis — [WEIS Ch. 2-3]
-  3. Volume character detection — [WEIS Ch. 3-5]
-  4. Shortening of thrust — [WEIS Ch. 4]
+  1. Wyckoff Wave computation — [VILLAHERMOSA concept, our algorithm]
+  2. Effort vs Result analysis — [VILLAHERMOSA Part 5, Law 3]
+  3. Volume character detection — [VILLAHERMOSA Part 5]
+  4. Shortening of thrust — [VILLAHERMOSA Part 5]
 """
 
 from __future__ import annotations
@@ -52,8 +52,8 @@ from wyckoff.config import (
 # ═══════════════════════════════════════════════════════════════
 
 @dataclass
-class WeisWave:
-    """A single Weis wave — a directional move with cumulative volume."""
+class WyckoffWave:
+    """A single Wyckoff wave — a directional move with cumulative volume."""
     direction: str          # "UP" or "DOWN"
     start_idx: int          # Index where this wave started
     end_idx: int            # Index where this wave ended
@@ -85,16 +85,17 @@ class VolumeCharacter:
 
 
 # ═══════════════════════════════════════════════════════════════
-#  WEIS WAVE COMPUTATION
+#  WYCKOFF WAVE COMPUTATION
 # ═══════════════════════════════════════════════════════════════
 
-def compute_weis_waves(df: pd.DataFrame, lookback: int = 0) -> List[WeisWave]:
+def compute_wyckoff_waves(df: pd.DataFrame, lookback: int = 0) -> List[WyckoffWave]:
     """
-    Compute Weis Waves from OHLCV data.
+    Compute Wyckoff Waves from OHLCV data.
 
-    [WEIS] A Weis wave groups consecutive bars moving in the same direction
-    and sums their volume. By comparing cumulative volume on UP waves vs
-    DOWN waves, we see where the real effort is.
+    [VILLAHERMOSA] A Wyckoff wave groups consecutive bars moving in the
+    same direction and sums their volume. By comparing cumulative volume
+    on UP waves vs DOWN waves, we see where the real effort is.
+    This supports Law 3 (Effort vs Result) analysis.
 
     Method:
       - An UP bar: Close > Close[prior] (or Close > Open if first bar)
@@ -104,7 +105,7 @@ def compute_weis_waves(df: pd.DataFrame, lookback: int = 0) -> List[WeisWave]:
       - Track price extent (highest high - lowest low) for each wave
 
     Returns:
-        List of WeisWave objects, most recent last.
+        List of WyckoffWave objects, most recent last.
     """
     if df is None or len(df) < 5:
         return []
@@ -130,7 +131,7 @@ def compute_weis_waves(df: pd.DataFrame, lookback: int = 0) -> List[WeisWave]:
                 directions.append(directions[-1] if directions else "UP")
 
     # Build waves by grouping consecutive same-direction bars
-    waves: List[WeisWave] = []
+    waves: List[WyckoffWave] = []
     wave_start = 0
     current_dir = directions[0]
 
@@ -144,7 +145,7 @@ def compute_weis_waves(df: pd.DataFrame, lookback: int = 0) -> List[WeisWave]:
             bars_count = actual_end - wave_start
 
             if bars_count >= WAVE_MIN_BARS:
-                waves.append(WeisWave(
+                waves.append(WyckoffWave(
                     direction=current_dir,
                     start_idx=wave_start,
                     end_idx=actual_end - 1,
@@ -166,29 +167,21 @@ def compute_weis_waves(df: pd.DataFrame, lookback: int = 0) -> List[WeisWave]:
     return waves
 
 
-def detect_shortening_of_thrust(waves: List[WeisWave]) -> dict:
+def detect_shortening_of_thrust(waves: List[WyckoffWave]) -> dict:
     """
-    [WEIS] Shortening of Thrust — key wave exhaustion signal.
+    [VILLAHERMOSA] Shortening of Thrust — key wave exhaustion signal.
 
-    Source: Weis — Ch. 9-10, "Weis Wave" methodology.
-      Weis explicitly discusses this concept: when each successive
-      push in the same direction covers less ground, the move is
-      losing momentum. He emphasizes this is especially significant
-      when volume INCREASES but price progress DECREASES (effort
-      without result = absorption by the opposing side).
-
-    [PARAPHRASE] "When each successive push covers less ground, the
-     move is running out of steam." Weis shows this visually on
-     wave charts. He does not give a numeric ratio threshold.
-
-    NOTE: Calling this "Wyckoff's most reliable exhaustion signal"
-    was our characterization. Weis treats it as one of several
-    important wave signals. [CORRECTED]
+    Source: Villahermosa — Part 5 (Laws), Law 3: Effort vs Result.
+      Villahermosa discusses this concept: when each successive push
+      in the same direction covers less ground, the move is losing
+      momentum. Especially significant when volume INCREASES but price
+      progress DECREASES (effort without result = absorption by the
+      Composite Man).
 
     Our algorithmic rules:
-      1. Last 3+ waves in same direction — [WEIS]
-      2. Each successive wave covers less distance — [WEIS]
-      3. Especially powerful if volume increases — [WEIS]
+      1. Last 3+ waves in same direction — [VILLAHERMOSA]
+      2. Each successive wave covers less distance — [VILLAHERMOSA]
+      3. Especially powerful if volume increases — [VILLAHERMOSA]
       4. Threshold: <65% ratio = shortening — [CALIBRATION]
 
     Returns:
@@ -227,7 +220,7 @@ def detect_shortening_of_thrust(waves: List[WeisWave]) -> dict:
                         f"Last 3 up-waves covered decreasing distance "
                         f"(ratio: {ratio:.1%} of first wave). "
                         + ("Volume is INCREASING despite less progress — "
-                           "smart money is absorbing buying. Bearish." if vol_increasing
+                           "the Composite Man is absorbing buying. Bearish." if vol_increasing
                            else "Buyers are losing momentum. Watch for reversal.")
                     ),
                 }
@@ -255,7 +248,7 @@ def detect_shortening_of_thrust(waves: List[WeisWave]) -> dict:
                         f"Last 3 down-waves covered decreasing distance "
                         f"(ratio: {ratio:.1%} of first wave). "
                         + ("Volume is INCREASING despite less decline — "
-                           "smart money is absorbing selling. Bullish." if vol_increasing
+                           "the Composite Man is absorbing selling. Bullish." if vol_increasing
                            else "Sellers are losing power. Watch for bottom.")
                     ),
                 }
@@ -263,22 +256,17 @@ def detect_shortening_of_thrust(waves: List[WeisWave]) -> dict:
     return result
 
 
-def compare_wave_volumes(waves: List[WeisWave]) -> dict:
+def compare_wave_volumes(waves: List[WyckoffWave]) -> dict:
     """
-    [WEIS] Compare cumulative volume on up-waves vs down-waves.
+    [VILLAHERMOSA] Compare cumulative volume on up-waves vs down-waves.
 
-    Source: Weis — Ch. 9-10, wave volume comparison.
-      Weis teaches comparing cumulative volume on up-waves versus
-      down-waves to determine whether demand or supply dominates.
-      This is a CORE Weis concept throughout the book.
-
-    [PARAPHRASE] "If up-waves carry more volume than down-waves,
-     demand exceeds supply. If down-waves carry more volume, supply
-     exceeds demand."
+    Source: Villahermosa — Part 5 (Laws), Law 1: Supply and Demand.
+      Villahermosa teaches comparing cumulative volume on up-waves
+      versus down-waves to determine whether demand or supply dominates.
 
     NOTE: The specific ratio thresholds (1.5×, 1.15×, etc.) for
-    categorization into DEMAND_DOMINANT vs SLIGHT_DEMAND, etc.,
-    are [CALIBRATION]. Weis makes this comparison visually.
+    categorization are [CALIBRATION]. Villahermosa makes this
+    comparison visually.
 
     Returns:
         dict with volume balance assessment
@@ -312,7 +300,7 @@ def compare_wave_volumes(waves: List[WeisWave]) -> dict:
         balance = "BALANCED"
         desc = "Up and down-wave volumes are roughly equal. No clear dominance."
 
-    # [WEIS Ch. 9-10] Wave duration comparison — time is the third element
+    # [VILLAHERMOSA Part 5] Wave duration comparison — time is another element
     up_duration = sum(w.bars for w in recent if w.direction == "UP") or 1
     dn_duration = sum(w.bars for w in recent if w.direction == "DOWN") or 1
     duration_ratio = up_duration / dn_duration
@@ -342,27 +330,23 @@ def compare_wave_volumes(waves: List[WeisWave]) -> dict:
 
 def analyze_effort_vs_result(df: pd.DataFrame, lookback: int = 5) -> List[EffortResult]:
     """
-    [WEIS] Effort vs Result — central Wyckoff volume-spread analysis.
+    [VILLAHERMOSA] Effort vs Result — Law 3 of the Wyckoff Methodology.
 
-    Source: Weis — Ch. 4 (bar-by-bar reading), "Effort vs Result."
-      This is the HEART of Weis's teaching. Volume is effort, price
-      spread is result. Weis reads each bar asking: "Does the effort
-      match the result?"
+    Source: Villahermosa — Part 5, Law 3 (Effort vs Result).
+      This is the HEART of Villahermosa's volume analysis. Volume is
+      effort, price spread is result. Harmony between them confirms
+      genuine moves; divergence reveals the Composite Man's hand.
 
-    [PARAPHRASE] "Volume is effort. Price spread is result. When they
-     don't match, somebody is lying." This captures Weis's core idea;
-     the exact words and "lying" metaphor are ours.
-
-    Classification (concepts from Weis, categories named by us):
-      NORMAL:      Volume and spread proportional — genuine move [WEIS]
-      ABSORPTION:  High volume + narrow spread — smart money absorbing [WEIS Ch. 4]
-      NO_DEMAND:   Low volume + narrow spread on up bar [WEIS Ch. 4]
-      NO_SUPPLY:   Low volume + narrow spread on down bar [WEIS Ch. 4]
-      CLIMAX_UP:   Extreme vol + wide spread up + close near low [WEIS Ch. 4, 8]
-      CLIMAX_DOWN: Extreme vol + wide spread down + close near high [WEIS Ch. 4, 8]
+    Classification (concepts from Villahermosa):
+      NORMAL:      Volume and spread proportional — genuine move [VILLAHERMOSA]
+      ABSORPTION:  High volume + narrow spread — Composite Man absorbing [VILLAHERMOSA]
+      NO_DEMAND:   Low volume + narrow spread on up bar (Lack of Interest) [VILLAHERMOSA]
+      NO_SUPPLY:   Low volume + narrow spread on down bar (Lack of Interest) [VILLAHERMOSA]
+      CLIMAX_UP:   Extreme vol + wide spread up + close near low [VILLAHERMOSA]
+      CLIMAX_DOWN: Extreme vol + wide spread down + close near high [VILLAHERMOSA]
 
     NOTE: All threshold values (percentiles, multipliers) are [CALIBRATION].
-    Weis makes these judgments visually, not with computed percentiles.
+    Villahermosa makes these judgments visually, not with computed percentiles.
 
     Returns:
         List of EffortResult for the last `lookback` bars
@@ -400,12 +384,12 @@ def analyze_effort_vs_result(df: pd.DataFrame, lookback: int = 5) -> List[Effort
             if is_up_bar and close_pos < 0.4:
                 er = "CLIMAX_UP"
                 desc = (f"BUYING CLIMAX: Extreme volume ({vol_ratio:.1f}× avg) with wide spread "
-                        f"but close near the low ({close_pos:.0%}). Smart money is selling into "
+                        f"but close near the low ({close_pos:.0%}). The Composite Man is selling into "
                         f"the buying frenzy. This often marks a significant top.")
             elif not is_up_bar and close_pos > 0.6:
                 er = "CLIMAX_DOWN"
                 desc = (f"SELLING CLIMAX: Extreme volume ({vol_ratio:.1f}× avg) with wide spread "
-                        f"but close near the high ({close_pos:.0%}). Smart money is buying into "
+                        f"but close near the high ({close_pos:.0%}). The Composite Man is buying into "
                         f"the panic. This often marks a significant bottom.")
             else:
                 er = "NORMAL"
@@ -413,8 +397,8 @@ def analyze_effort_vs_result(df: pd.DataFrame, lookback: int = 5) -> List[Effort
         elif vol_ratio >= VOLUME_SPIKE_MULTIPLIER and spread <= narrow_threshold:
             er = "ABSORPTION"
             desc = (f"ABSORPTION: High volume ({vol_ratio:.1f}× avg) but narrow spread. "
-                    f"Somebody is absorbing all the {'selling' if is_up_bar else 'buying'} pressure. "
-                    f"Smart money is quietly accumulating/distributing.")
+                    f"The Composite Man is absorbing all the {'selling' if is_up_bar else 'buying'} pressure. "
+                    f"Quiet accumulation/distribution in progress.")
         elif vol_ratio < VOLUME_DRYUP_FRACTION and spread <= narrow_threshold:
             if is_up_bar:
                 er = "NO_DEMAND"
@@ -446,18 +430,15 @@ def analyze_effort_vs_result(df: pd.DataFrame, lookback: int = 5) -> List[Effort
 
 def assess_volume_character(df: pd.DataFrame) -> VolumeCharacter:
     """
-    [WEIS] Assess overall volume character of recent trading.
+    [VILLAHERMOSA] Assess overall volume character of recent trading.
 
-    Source: Weis — Ch. 4, general volume assessment.
-      Weis constantly assesses whether volume is "above normal,"
-      "climactic," "dried up," etc. This function quantifies that
-      qualitative assessment.
+    Source: Villahermosa — Part 5 (Laws), general volume assessment.
+      Villahermosa assesses whether volume is climactic, above normal,
+      dried up, etc., as part of the Effort vs Result framework.
 
-    [INFERRED] The specific categories (CLIMAX/SPIKE/ABOVE_AVG/
-    NORMAL/DRYUP) and the volume trend computation (first-half vs
-    second-half of last 10 bars) are our algorithmic formalization
-    of Weis's visual volume reading. The underlying concepts are
-    from Weis; the categorization system is ours.
+    [CALIBRATION] The specific categories (CLIMAX/SPIKE/ABOVE_AVG/
+    NORMAL/DRYUP) and the volume trend computation are our algorithmic
+    formalization of Villahermosa's visual volume reading.
 
     Looks at:
       1. Current volume vs average (spike/climax/normal/dry-up)

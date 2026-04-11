@@ -35,6 +35,13 @@ class QuarterlyResult:
     eps:          Optional[float] = None
     gross_profit: Optional[float] = None
     ebitda:       Optional[float] = None
+    operating_income: Optional[float] = None
+    interest_expense: Optional[float] = None
+    pretax_income:    Optional[float] = None
+    tax_provision:    Optional[float] = None
+    gross_margin:     Optional[float] = None
+    operating_margin: Optional[float] = None
+    net_margin:       Optional[float] = None
 
 
 @dataclass
@@ -818,7 +825,7 @@ def _fetch_annual_financials(yf_ticker) -> List[AnnualFinancial]:
     for i in range(n_years):
         col_date = inc.columns[i]
         dt = pd.to_datetime(col_date)
-        fy_label = f"FY{dt.year}" if dt.month >= 4 else f"FY{dt.year - 1}"
+        fy_label = f"FY{dt.year + 1}" if dt.month >= 4 else f"FY{dt.year}"
         year_label = f"{fy_label} ({dt.strftime('%b %Y')})"
 
         # Slice each DF to this column only
@@ -1968,15 +1975,27 @@ def fetch_fundamentals(ticker: str) -> FundamentalData:
                         ni    = _qval("Net Income Common Stockholders") or _qval("Net Income")
                         gp    = _qval("Gross Profit")
                         ebit  = _qval("EBITDA") or _qval("Operating Income")
+                        oi    = _qval("Operating Income")
+                        ie    = _qval("Interest Expense")
+                        pti   = _qval("Pretax Income")
+                        tp    = _qval("Tax Provision")
 
                         # Prefer Diluted EPS directly from statement; fall back to computed
                         eps_q = _qval("Diluted EPS") or _qval("Basic EPS")
                         if eps_q is None and ni and shares_out and float(shares_out) > 0:
                             eps_q = round(float(ni) / float(shares_out), 2)
 
+                        # Compute margins
+                        gm = round(gp / rev * 100, 2) if gp and rev and rev > 0 else None
+                        om = round(oi / rev * 100, 2) if oi and rev and rev > 0 else None
+                        nm = round(ni / rev * 100, 2) if ni and rev and rev > 0 else None
+
                         fd.quarterly_results.append(QuarterlyResult(
                             period=period, revenue=rev, net_income=ni,
-                            eps=eps_q, gross_profit=gp, ebitda=ebit
+                            eps=eps_q, gross_profit=gp, ebitda=ebit,
+                            operating_income=oi, interest_expense=ie,
+                            pretax_income=pti, tax_provision=tp,
+                            gross_margin=gm, operating_margin=om, net_margin=nm
                         ))
                     except Exception:
                         pass
@@ -2057,7 +2076,7 @@ def fetch_fundamentals(ticker: str) -> FundamentalData:
         # ── HISTORICAL DELIVERY DATA (from NSE bhavcopy) ─────────
         try:
             fd.delivery_history = _fetch_nse_delivery_history(
-                ticker, nse_sess=nse_sess, days=20
+                ticker, nse_sess=nse_sess, days=60
             )
             if fd.delivery_history:
                 fd.delivery_history_analysis = _build_delivery_history_analysis(fd)

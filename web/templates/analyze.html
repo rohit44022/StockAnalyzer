@@ -47,6 +47,20 @@
         .analysis-text li { margin-bottom: 0.3rem; }
         a.back-link { color: var(--b); text-decoration: none; }
         a.back-link:hover { text-decoration: underline; }
+        /* ══ UNIFIED NAV ══ */
+        .sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+        .sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
+        .sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
+        @keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
+        @keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
+        .sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
+        .sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+        .sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+        .sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
+        .sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+        .sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+        .sc-nav .sc-ticker{color:#3fb950;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:.85rem}
+        @media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 
         /* ── Strategy Explainer ── */
         .strategy-header {
@@ -116,6 +130,59 @@
         .strat-book-ref { font-size: 0.75rem; color: #6e7681; font-style: italic; margin-top: 0.3rem; }
         .strat-confidence-bar { height: 6px; border-radius: 3px; background: #21262d; overflow: hidden; margin-top: 4px; }
         .strat-confidence-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+
+        /* ── Rich Metric Tooltips ── */
+        .metric-wrap { position: relative; cursor: help; }
+        .metric-wrap .metric-tip {
+            visibility: hidden; opacity: 0;
+            position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+            width: 260px; padding: 10px 12px; border-radius: 10px;
+            background: #161b22; border: 1px solid #30363d;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+            color: #c9d1d9; font-size: 0.78rem; line-height: 1.45;
+            z-index: 999; pointer-events: none;
+            transition: opacity 0.2s, visibility 0.2s;
+            text-align: left;
+        }
+        .metric-wrap .metric-tip::after {
+            content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+            border: 6px solid transparent; border-top-color: #30363d;
+        }
+        .metric-wrap:hover .metric-tip, .metric-wrap:focus .metric-tip { visibility: visible; opacity: 1; }
+        .metric-tip .tip-title { font-weight: 700; color: #e6edf3; font-size: 0.82rem; margin-bottom: 4px; }
+        .metric-tip .tip-val { display: inline-block; padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; margin-bottom: 4px; }
+        .metric-tip .tip-range { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; font-size: 0.72rem; }
+        .metric-tip .tip-range span { padding: 1px 5px; border-radius: 3px; }
+        /* ── Collapsible Section Panels ── */
+        .section-toggle {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 16px; margin-bottom: 0;
+            background: rgba(255,255,255,0.025); border: 1px solid var(--card-border);
+            border-radius: 10px; cursor: pointer; user-select: none;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .section-toggle:hover { background: rgba(88,166,255,0.05); border-color: rgba(88,166,255,0.25); }
+        .section-toggle .sec-title { font-weight: 600; font-size: 0.9rem; color: #e6edf3; }
+        .section-toggle .sec-title i { margin-right: 6px; }
+        .section-toggle .sec-chevron {
+            transition: transform 0.3s ease; color: #8b949e; font-size: 1.1rem;
+        }
+        .section-toggle[aria-expanded="true"] .sec-chevron { transform: rotate(180deg); }
+        .section-toggle[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+        .section-body { border: 1px solid var(--card-border); border-top: none; border-radius: 0 0 10px 10px; padding: 0; }
+        .section-body > .section-inner { padding: 12px 0 0 0; }
+        .section-toggle + .collapse.show + .section-toggle,
+        .section-toggle + .collapsing + .section-toggle { margin-top: 12px; }
+        .section-toggle.mb-sec { margin-bottom: 12px; }
+        .section-toggle[aria-expanded="true"].mb-sec { margin-bottom: 0; }
+        /* Expand/Collapse All buttons */
+        .expand-collapse-bar { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 12px; }
+        .expand-collapse-bar button {
+            font-size: 0.75rem; padding: 3px 10px; border-radius: 6px;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--card-border);
+            color: #8b949e; cursor: pointer; transition: all 0.2s;
+        }
+        .expand-collapse-bar button:hover { background: rgba(88,166,255,0.08); color: var(--b); border-color: rgba(88,166,255,0.3); }
     </style>
 </head>
 <body>
@@ -128,21 +195,43 @@
         </div>
     </div>
 
-    <!-- ═══════════ NAV BAR ═══════════ -->
-    <nav class="navbar navbar-dark border-bottom" style="border-color:var(--card-border)!important; background:var(--card-bg);">
-        <div class="container-fluid">
-            <a class="back-link" href="/"><i class="bi bi-arrow-left"></i> Dashboard</a>
-            <a class="back-link ms-3" href="/trades"><i class="bi bi-cash-stack"></i> Trade P&L</a>
-            <a class="back-link ms-3" href="/portfolio"><i class="bi bi-briefcase-fill"></i> Portfolio</a>
-            <span class="navbar-text font-mono fw-bold" id="navTicker">{{ ticker }}</span>
-            <span class="navbar-text small" id="navCompany"></span>
+    <!-- ═══════════ UNIFIED NAVBAR ═══════════ -->
+    <nav class="sc-nav">
+      <div class="container-fluid d-flex align-items-center px-3 gap-2">
+        <a class="sc-brand" href="/">हिरण्य</a>
+        <div class="sc-links">
+          <a class="sc-link" href="/">Home</a>
+          <a class="sc-link" href="/ta">TA</a>
+          <a class="sc-link" href="/pa">Price Action</a>
+          <a class="sc-link" href="/triple">Triple</a>
+          <a class="sc-link" href="/trades">Trades</a>
+          <a class="sc-link" href="/portfolio">Portfolio</a>
+          <a class="sc-link" href="/risk-management">Risk</a>
+          <a class="sc-link" href="/mental-game">Mental</a>
         </div>
+        <div class="sc-right">
+          <span class="sc-ticker" id="navTicker">{{ ticker }}</span>
+          <span class="text-secondary small" id="navCompany"></span>
+        </div>
+      </div>
     </nav>
 
     <div class="container-fluid px-3 px-lg-4 mt-3" id="mainContent" style="display:none;">
 
+        <!-- Expand / Collapse All -->
+        <div class="expand-collapse-bar">
+            <button onclick="document.querySelectorAll('.section-toggle[aria-expanded=false]').forEach(b=>b.click())" title="Expand all sections"><i class="bi bi-arrows-expand"></i> Expand All</button>
+            <button onclick="document.querySelectorAll('.section-toggle[aria-expanded=true]').forEach(b=>b.click())" title="Collapse all sections"><i class="bi bi-arrows-collapse"></i> Collapse All</button>
+        </div>
+
         <!-- ═══════════ STRATEGY EXPLAINER BANNER ═══════════ -->
-        <div class="strategy-header mb-3">
+        <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secStrategyBanner" aria-expanded="false">
+            <span class="sec-title"><i class="bi bi-lightning-charge-fill text-yellow"></i> Bollinger Band Strategies Analyser</span>
+            <i class="bi bi-chevron-down sec-chevron"></i>
+        </div>
+        <div class="collapse" id="secStrategyBanner">
+        <div class="section-body mb-3"><div class="section-inner px-3 pb-3">
+        <div class="strategy-header mb-0">
             <h5 class="mb-1"><i class="bi bi-lightning-charge-fill"></i> Bollinger Band Strategies Analyser <span id="stratBannerMethodBadge"></span></h5>
             <p class="mb-0 small" style="color:#8b949e;" id="stratBannerDesc">
                 Based on all four methods from <em>Bollinger on Bollinger Bands</em> by John Bollinger.
@@ -152,6 +241,8 @@
                 <strong>Method IV — Walking the Bands:</strong> Strong trend continuation signals.
                 Scroll down to see all four strategies analysed for this stock.
             </p>
+        </div>
+        </div></div>
         </div>
 
         <!-- ═══════════ HEADER ROW ═══════════ -->
@@ -180,6 +271,11 @@
         </div>
 
         <!-- ═══════════ CROSS-SYSTEM SCORES (TA + Triple + PA) ═══════════ -->
+        <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secScores" aria-expanded="true" id="secScoresToggle" style="display:none;">
+            <span class="sec-title"><i class="bi bi-bar-chart-steps text-blue"></i> Cross-System Scores (TA + Triple + Price Action)</span>
+            <i class="bi bi-chevron-down sec-chevron"></i>
+        </div>
+        <div class="collapse show" id="secScores">
         <div class="row g-3 mb-3" id="crossSystemRow" style="display:none;">
             <div class="col-lg-4">
                 <div class="card h-100">
@@ -224,9 +320,18 @@
                 </div>
             </div>
         </div>
+        </div><!-- /secScores collapse -->
 
-        <!-- ═══════════ PHASE ANALYSIS + HEAD FAKE ═══════════ -->
-        <div class="row g-3 mb-3">
+        <!-- ═══════════ PHASE + CHECKLIST + EXIT ═══════════ -->
+        <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secChecklist" aria-expanded="true">
+            <span class="sec-title"><i class="bi bi-check2-square text-green"></i> Phase Analysis & Buy Checklist</span>
+            <i class="bi bi-chevron-down sec-chevron"></i>
+        </div>
+        <div class="collapse show" id="secChecklist">
+        <div class="section-body mb-3"><div class="section-inner">
+
+        <!-- Phase Analysis + Head Fake -->
+        <div class="row g-3 mb-3 px-3">
             <div class="col-md-8" id="phaseCol">
                 <div id="phasePanel"></div>
             </div>
@@ -235,8 +340,8 @@
             </div>
         </div>
 
-        <!-- ═══════════ 5-CONDITION BUY CHECKLIST ═══════════ -->
-        <div class="card mb-3">
+        <!-- 5-Condition Buy Checklist -->
+        <div class="card mb-3 mx-3">
             <div class="card-header">
                 <i class="bi bi-check2-square"></i> 5-Condition Buy Checklist
                 <span class="badge bg-dark float-end font-mono" id="conditionCount"></span>
@@ -244,14 +349,23 @@
             <div class="card-body" id="conditionsSection"></div>
         </div>
 
-        <!-- ═══════════ EXIT SIGNALS (shown only when sell) ═══════════ -->
-        <div class="card mb-3 border-danger" id="exitCard" style="display:none;">
+        <!-- Exit Signals (shown only when sell) -->
+        <div class="card mb-3 mx-3 border-danger" id="exitCard" style="display:none;">
             <div class="card-header text-red"><i class="bi bi-exclamation-triangle-fill"></i> Exit Signals Triggered</div>
             <div class="card-body" id="exitSignals"></div>
         </div>
 
+        </div></div>
+        </div><!-- /secChecklist collapse -->
+
         <!-- ═══════════ CHART ═══════════ -->
-        <div class="card mb-3">
+        <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secChart" aria-expanded="true">
+            <span class="sec-title"><i class="bi bi-graph-up text-blue"></i> Price Chart — Bollinger Bands + SAR</span>
+            <i class="bi bi-chevron-down sec-chevron"></i>
+        </div>
+        <div class="collapse show" id="secChart">
+        <div class="section-body mb-3"><div class="section-inner">
+        <div class="card mb-0" style="border:none;">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-graph-up"></i> Price Chart — Bollinger Bands + SAR</span>
                 <div class="d-flex gap-2 flex-wrap">
@@ -276,8 +390,16 @@
                 Green/Red dots = Parabolic SAR (trailing stop). Green dots below candles = uptrend. Red dots above = downtrend.
             </div>
         </div>
+        </div></div>
+        </div><!-- /secChart collapse -->
 
         <!-- ═══════════ INDICATOR PANELS — Zerodha-style Sub-Charts ═══════════ -->
+        <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secIndicators" aria-expanded="false">
+            <span class="sec-title"><i class="bi bi-speedometer2 text-purple"></i> Indicator Panels & Readings</span>
+            <i class="bi bi-chevron-down sec-chevron"></i>
+        </div>
+        <div class="collapse" id="secIndicators">
+        <div class="section-body mb-3"><div class="section-inner px-3 pt-3">
         <div class="row g-3 mb-3">
             <div class="col-lg-6">
                 <!-- Volume + SMA -->
@@ -365,6 +487,9 @@
             </div>
         </div>
 
+        </div></div>
+        </div><!-- /secIndicators collapse -->
+
         <!-- ═══════════ STRATEGY SUMMARY ═══════════ -->
         <div class="card mb-3" id="summaryCard" style="display:none;">
             <div class="card-header"><i class="bi bi-journal-text"></i> Strategy Summary — Plain English</div>
@@ -372,6 +497,11 @@
         </div>
 
         <!-- ═══════════ ADDITIONAL STRATEGIES (Methods II, III, IV) ═══════════ -->
+        <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secStrategies" aria-expanded="false" id="secStrategiesToggle" style="display:none;">
+            <span class="sec-title"><i class="bi bi-book-half text-yellow"></i> Bollinger Band Strategies — Methods II, III & IV</span>
+            <i class="bi bi-chevron-down sec-chevron"></i>
+        </div>
+        <div class="collapse" id="secStrategies">
         <div class="card mb-3" id="strategiesCard" style="display:none;">
             <div class="card-header">
                 <i class="bi bi-book-half"></i> Bollinger Band Strategies — From the Book
@@ -387,8 +517,14 @@
                 <div id="strategiesContainer"></div>
             </div>
         </div>
+        </div><!-- /secStrategies collapse -->
 
         <!-- ═══════════ FUNDAMENTALS TABS ═══════════ -->
+        <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secFundamentals" aria-expanded="true" id="secFundamentalsToggle" style="display:none;">
+            <span class="sec-title"><i class="bi bi-bank2 text-green"></i> Fundamental Analysis</span>
+            <i class="bi bi-chevron-down sec-chevron"></i>
+        </div>
+        <div class="collapse show" id="secFundamentals">
         <div class="card mb-3" id="fundamentalsCard" style="display:none;">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-bank2"></i> Fundamental Analysis — <span id="fundCompany"></span></span>
@@ -425,8 +561,14 @@
                 </div>
             </div>
         </div>
+        </div><!-- /secFundamentals collapse -->
 
         <!-- ═══════════ STRATEGY GUIDE (How to Use) ═══════════ -->
+        <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secGuide" aria-expanded="false">
+            <span class="sec-title"><i class="bi bi-book text-yellow"></i> How to Use This Strategy — Beginner's Guide</span>
+            <i class="bi bi-chevron-down sec-chevron"></i>
+        </div>
+        <div class="collapse" id="secGuide">
         <div class="card mb-4">
             <div class="card-header"><i class="bi bi-book"></i> How to Use This Strategy — Beginner's Guide</div>
             <div class="card-body">
@@ -581,6 +723,7 @@
                 </div>
             </div>
         </div>
+        </div><!-- /secGuide collapse -->
 
     </div><!-- /container -->
 
@@ -699,6 +842,7 @@
         if (urlMethod === 'M1') {
             // Scanned via Method I — hide M2/M3/M4 strategies card entirely
             document.getElementById('strategiesCard').style.display = 'none';
+            document.getElementById('secStrategiesToggle').style.display = 'none';
         } else if (urlMethod && ['M2','M3','M4'].includes(urlMethod)) {
             // Scanned via a specific strategy — show only that method
             const filtered = (DATA.strategies || []).filter(st => st.code === urlMethod);
@@ -718,6 +862,7 @@
 
         if(!f.error) {
             document.getElementById('fundamentalsCard').style.display = 'block';
+            document.getElementById('secFundamentalsToggle').style.display = '';
             document.getElementById('fundCompany').textContent = f.company_name;
             // Signal badge in card header
             const sig = f.fundamental_signal || '';
@@ -807,12 +952,25 @@
         const grid = document.getElementById('keyMetricsGrid');
         dash.style.display = 'block';
 
-        function metricCard(label, val, unit, color, icon, tooltip) {
+        function metricCard(label, val, unit, color, icon, tipTitle, tipDesc, ranges) {
             const bg = color === 'g' ? 'rgba(63,185,80,0.08)' : color === 'r' ? 'rgba(248,81,73,0.08)' : 'rgba(210,153,34,0.08)';
             const border = color === 'g' ? 'rgba(63,185,80,0.25)' : color === 'r' ? 'rgba(248,81,73,0.25)' : 'rgba(210,153,34,0.25)';
             const textColor = color === 'g' ? 'var(--g)' : color === 'r' ? 'var(--r)' : 'var(--y)';
+            const tipBg = color === 'g' ? 'rgba(63,185,80,0.15)' : color === 'r' ? 'rgba(248,81,73,0.15)' : 'rgba(210,153,34,0.15)';
+            const tipClr = color === 'g' ? '#3fb950' : color === 'r' ? '#f85149' : '#d29922';
+            const verdictWord = color === 'g' ? 'Good' : color === 'r' ? 'Weak' : 'Fair';
+            let rangeHtml = '';
+            if(ranges) {
+                rangeHtml = `<div class="tip-range">${ranges.map(r=>`<span style="background:${r[1]};color:#0d1117;">${r[0]}</span>`).join('')}</div>`;
+            }
             return `<div class="col-6 col-md-3 col-lg-2">
-                <div class="p-2 rounded-3 text-center h-100" style="background:${bg};border:1px solid ${border}" title="${tooltip}">
+                <div class="metric-wrap p-2 rounded-3 text-center h-100" style="background:${bg};border:1px solid ${border}" tabindex="0">
+                    <div class="metric-tip">
+                        <div class="tip-title">${tipTitle}</div>
+                        <div class="tip-val" style="background:${tipBg};color:${tipClr};">${val}${unit} — ${verdictWord}</div>
+                        <div>${tipDesc}</div>
+                        ${rangeHtml}
+                    </div>
                     <div class="small text-secondary mb-1"><i class="bi ${icon} me-1"></i>${label}</div>
                     <div class="fw-bold font-mono" style="color:${textColor};font-size:1.05rem">${val}${unit}</div>
                 </div></div>`;
@@ -823,63 +981,111 @@
         // P/E
         if(f.pe_ratio != null) {
             const c = f.pe_ratio <= 0 ? 'r' : f.pe_ratio < 22 ? 'g' : f.pe_ratio < 35 ? 'y' : 'r';
-            html += metricCard('P/E', f.pe_ratio <= 0 ? 'Loss' : v(f.pe_ratio), 'x', c, 'bi-currency-rupee', 'Price-to-Earnings: Lower is cheaper');
+            html += metricCard('P/E', f.pe_ratio <= 0 ? 'Loss' : v(f.pe_ratio), 'x', c, 'bi-currency-rupee',
+                'Price-to-Earnings (P/E) Ratio',
+                'How many years of current profit you\'re paying for. A P/E of 20 means you pay ₹20 for every ₹1 the company earns per year. <b>Lower P/E = cheaper stock</b>, but very low may signal trouble.',
+                [['< 22 Good','rgba(63,185,80,0.5)'],['22-35 Fair','rgba(210,153,34,0.5)'],['> 35 Pricey','rgba(248,81,73,0.5)']]
+            );
         }
         // ROE
         if(f.roe != null) {
             const c = f.roe > 15 ? 'g' : f.roe > 8 ? 'y' : 'r';
-            html += metricCard('ROE', v(f.roe), '%', c, 'bi-graph-up', 'Return on Equity: Higher = better capital usage');
+            html += metricCard('ROE', v(f.roe), '%', c, 'bi-graph-up',
+                'Return on Equity (ROE)',
+                'Shows how much profit the company generates from shareholders\' money. If ROE is 20%, the company makes ₹20 profit for every ₹100 invested. <b>Higher = better management.</b>',
+                [['> 15% Great','rgba(63,185,80,0.5)'],['8-15% OK','rgba(210,153,34,0.5)'],['< 8% Weak','rgba(248,81,73,0.5)']]
+            );
         }
         // D/E
         if(f.debt_to_equity != null) {
             const c = f.debt_to_equity < 0.5 ? 'g' : f.debt_to_equity < 1.5 ? 'y' : 'r';
-            html += metricCard('D/E', v(f.debt_to_equity), '', c, 'bi-shield-check', 'Debt/Equity: Lower = safer');
+            html += metricCard('D/E', v(f.debt_to_equity), '', c, 'bi-shield-check',
+                'Debt-to-Equity (D/E) Ratio',
+                'How much the company has borrowed vs its own capital. A D/E of 1.0 means equal debt and equity. <b>Lower = safer</b> — the company is not drowning in debt.',
+                [['< 0.5 Safe','rgba(63,185,80,0.5)'],['0.5-1.5 OK','rgba(210,153,34,0.5)'],['> 1.5 Risky','rgba(248,81,73,0.5)']]
+            );
         }
         // Net Margin
         if(f.profit_margin != null) {
             const c = f.profit_margin > 10 ? 'g' : f.profit_margin > 5 ? 'y' : 'r';
-            html += metricCard('Net Margin', v(f.profit_margin), '%', c, 'bi-percent', 'Net Profit Margin: Higher = more profitable');
+            html += metricCard('Net Margin', v(f.profit_margin), '%', c, 'bi-percent',
+                'Net Profit Margin',
+                'Out of every ₹100 of revenue, how much is actual profit after all expenses. A margin of 15% means ₹15 profit per ₹100 revenue. <b>Higher = more efficient business.</b>',
+                [['> 10% Strong','rgba(63,185,80,0.5)'],['5-10% Average','rgba(210,153,34,0.5)'],['< 5% Thin','rgba(248,81,73,0.5)']]
+            );
         }
         // Revenue Growth
         if(f.revenue_growth != null) {
             const c = f.revenue_growth > 10 ? 'g' : f.revenue_growth > 0 ? 'y' : 'r';
-            html += metricCard('Rev Growth', v(f.revenue_growth), '%', c, 'bi-arrow-up-right', 'Revenue Growth YoY');
+            html += metricCard('Rev Growth', v(f.revenue_growth), '%', c, 'bi-arrow-up-right',
+                'Revenue Growth (Year-over-Year)',
+                'How fast the company\'s sales are growing compared to last year. Positive growth means the business is expanding. <b>Higher = faster growing company.</b>',
+                [['> 10% Fast','rgba(63,185,80,0.5)'],['0-10% Slow','rgba(210,153,34,0.5)'],['Negative Shrinking','rgba(248,81,73,0.5)']]
+            );
         }
         // Altman Z
         if(f.altman_z_score != null) {
             const c = f.altman_z_score > 2.6 ? 'g' : f.altman_z_score > 1.8 ? 'y' : 'r';
-            html += metricCard('Z-Score', v(f.altman_z_score), '', c, 'bi-heart-pulse', 'Altman Z: >2.6 safe, <1.8 distress');
+            html += metricCard('Z-Score', v(f.altman_z_score), '', c, 'bi-heart-pulse',
+                'Altman Z-Score (Bankruptcy Risk)',
+                'A formula that predicts whether a company could go bankrupt in 2 years. Think of it as a \'financial health check\'. <b>Higher = safer from bankruptcy.</b>',
+                [['>2.6 Safe Zone','rgba(63,185,80,0.5)'],['1.8-2.6 Grey Zone','rgba(210,153,34,0.5)'],['<1.8 Danger','rgba(248,81,73,0.5)']]
+            );
         }
         // EV/EBITDA
         if(f.ev_ebitda != null) {
             const c = f.ev_ebitda < 12 ? 'g' : f.ev_ebitda < 20 ? 'y' : 'r';
-            html += metricCard('EV/EBITDA', v(f.ev_ebitda), 'x', c, 'bi-building', 'Enterprise value to EBITDA');
+            html += metricCard('EV/EBITDA', v(f.ev_ebitda), 'x', c, 'bi-building',
+                'Enterprise Value / EBITDA',
+                'How expensive the entire company is relative to its operating profit. Like P/E, but also includes debt. <b>Lower = better value</b> — you\'re paying less for each rupee of profit.',
+                [['< 12 Cheap','rgba(63,185,80,0.5)'],['12-20 Fair','rgba(210,153,34,0.5)'],['> 20 Expensive','rgba(248,81,73,0.5)']]
+            );
         }
         // Graham verdict
         if(f.price_to_intrinsic != null) {
             const c = f.price_to_intrinsic < 1 ? 'g' : f.price_to_intrinsic < 2 ? 'y' : 'r';
             const label = f.price_to_intrinsic < 1 ? 'UNDER' : f.price_to_intrinsic < 2 ? 'FAIR' : 'OVER';
-            html += metricCard('Graham', label, '', c, 'bi-calculator', `Price/Graham: ${v(f.price_to_intrinsic,3)}x — ${f.price_to_intrinsic<1?'Undervalued':'Overvalued'}`);
+            html += metricCard('Graham', label, '', c, 'bi-calculator',
+                'Graham Number (Intrinsic Value)',
+                `Compares the stock price to its \'true value\' based on Benjamin Graham\'s formula (using earnings + book value). Current price is <b>${v(f.price_to_intrinsic,2)}x</b> the Graham value. <b>Below 1x means it\'s undervalued</b> — you\'re getting a bargain.`,
+                [['< 1x Bargain','rgba(63,185,80,0.5)'],['1-2x Fair','rgba(210,153,34,0.5)'],['> 2x Overpriced','rgba(248,81,73,0.5)']]
+            );
         }
         // FCF
         if(f.free_cash_flow != null) {
             const c = f.free_cash_flow > 0 ? 'g' : 'r';
-            html += metricCard('FCF', f.free_cash_flow > 0 ? '✅ +ve' : '❌ −ve', '', c, 'bi-cash-stack', 'Free Cash Flow: Positive = healthy');
+            html += metricCard('FCF', f.free_cash_flow > 0 ? '✅ +ve' : '❌ −ve', '', c, 'bi-cash-stack',
+                'Free Cash Flow (FCF)',
+                'Cash left after the company pays for its operations and investments. Think of it as \'money in the pocket\'. <b>Positive = company generates real cash</b>. Negative means it\'s spending more than it earns.',
+                [['+ve Healthy','rgba(63,185,80,0.5)'],['-ve Burning Cash','rgba(248,81,73,0.5)']]
+            );
         }
         // Dividend Yield
         if(f.dividend_yield != null && f.dividend_yield > 0) {
             const c = f.dividend_yield > 2 ? 'g' : 'y';
-            html += metricCard('Div Yield', v(f.dividend_yield), '%', c, 'bi-piggy-bank', 'Dividend Yield');
+            html += metricCard('Div Yield', v(f.dividend_yield), '%', c, 'bi-piggy-bank',
+                'Dividend Yield',
+                'Annual dividend as a % of the stock price. If you invest ₹10,000 in a stock with 3% yield, you get ₹300/year in dividends. <b>Higher = more passive income.</b>',
+                [['> 2% Good Income','rgba(63,185,80,0.5)'],['0-2% Low','rgba(210,153,34,0.5)']]
+            );
         }
         // Current Ratio
         if(f.current_ratio != null) {
             const c = f.current_ratio > 1.5 ? 'g' : f.current_ratio > 1 ? 'y' : 'r';
-            html += metricCard('Curr Ratio', v(f.current_ratio), '', c, 'bi-droplet', 'Current Ratio: >1.5 = good liquidity');
+            html += metricCard('Curr Ratio', v(f.current_ratio), '', c, 'bi-droplet',
+                'Current Ratio (Liquidity)',
+                'Can the company pay its short-term bills? A ratio of 2.0 means it has ₹2 in assets for every ₹1 it owes. <b>> 1.5 is comfortable</b>. Below 1 means it may struggle to pay bills.',
+                [['>1.5 Comfortable','rgba(63,185,80,0.5)'],['1-1.5 Tight','rgba(210,153,34,0.5)'],['<1 Risky','rgba(248,81,73,0.5)']]
+            );
         }
         // Interest Coverage
         if(f.interest_coverage != null) {
             const c = f.interest_coverage > 3 ? 'g' : f.interest_coverage > 1.5 ? 'y' : 'r';
-            html += metricCard('Int. Cover', v(f.interest_coverage), 'x', c, 'bi-shield-exclamation', 'Interest Coverage: Higher = can pay interest easily');
+            html += metricCard('Int. Cover', v(f.interest_coverage), 'x', c, 'bi-shield-exclamation',
+                'Interest Coverage Ratio',
+                'How easily the company can pay interest on its loans. A value of 5x means it earns 5 times more than its interest payments. <b>Higher = easily handles debt.</b> Below 1.5x is a red flag.',
+                [['>3x Comfortable','rgba(63,185,80,0.5)'],['1.5-3x Tight','rgba(210,153,34,0.5)'],['<1.5x Danger','rgba(248,81,73,0.5)']]
+            );
         }
 
         grid.innerHTML = html;
@@ -1085,9 +1291,10 @@
 
     // ═══════════ ADDITIONAL STRATEGIES (Methods II, III, IV) ═══════════
     function renderStrategies(strategies, activeMethod) {
-        if(!strategies || !strategies.length) return;
+        if(!strategies || !strategies.length) { document.getElementById('secStrategiesToggle').style.display = 'none'; return; }
         const card = document.getElementById('strategiesCard');
         card.style.display = 'block';
+        document.getElementById('secStrategiesToggle').style.display = '';
         const container = document.getElementById('strategiesContainer');
 
         // Update card header if showing a single method
@@ -1261,6 +1468,7 @@
         if (!hyb && !pa) return;
 
         document.getElementById('crossSystemRow').style.display = '';
+        document.getElementById('secScoresToggle').style.display = '';
 
         // Helper: pick color based on value and thresholds
         const scColor = (v, mid, high) => v >= high ? 'var(--g)' : v >= mid ? 'var(--y)' : 'var(--r)';
@@ -2589,57 +2797,216 @@
     function renderQuarterlyTab(f) {
         const qrs = f.quarterly_results||[];
         if(qrs.length===0){ document.getElementById('tabQuarterly').innerHTML='<p class="text-secondary">No quarterly data available.</p>'; return; }
-        const reversed = [...qrs].reverse(); // oldest first
+        const reversed = [...qrs].reverse(); // oldest first for charts
+        const latest = qrs[0]; // newest quarter
 
-        let html = sectionIntro('Quarterly Results', 'Quarter-by-quarter performance comparison. <strong>QoQ</strong> = Quarter-over-Quarter change (vs previous quarter). <strong>YoY</strong> = Year-on-Year change (vs same quarter last year). Green = growth, Red = decline.');
+        // ── Helper: QoQ/YoY % change with color
+        const pctChg = (c,p) => {
+            if(c==null||p==null||p===0) return '<span class="text-secondary">—</span>';
+            const pct=(c-p)/Math.abs(p)*100;
+            return `<span class="${pct>=0?'text-green':'text-red'}">${pct>=0?'+':''}${pct.toFixed(1)}%</span>`;
+        };
+        const fmtCr = v => {
+            if(v==null) return '<span class="text-secondary">—</span>';
+            let cr=v/1e7; let neg=cr<0; cr=Math.abs(cr);
+            let s; if(cr>=100000) s=(cr/100000).toFixed(2)+'L Cr'; else if(cr>=1000) s=(cr/1000).toFixed(1)+'K Cr'; else s=cr.toFixed(1)+' Cr';
+            return (neg?'-':'')+'₹'+s;
+        };
+        const marginBadge = (v, label) => {
+            if(v==null) return '';
+            const col = v >= 20 ? '#3fb950' : v >= 10 ? '#d29922' : '#f85149';
+            return `<span class="badge me-2" style="background:${col}22;color:${col};border:1px solid ${col}44">${label}: ${v.toFixed(1)}%</span>`;
+        };
 
-        // --- Build a lookup map for YoY comparison ---
-        // period format varies (e.g. "2024-Q3", "Q3 2024", "Sep 2024", etc.)
-        // We try to match quarter ~4 positions back in the array
-        const qoq = (c,p) => c!=null&&p!=null&&p!==0 ? (()=>{ const pct=(c-p)/Math.abs(p)*100; return `<span class="${pct>=0?'text-green':'text-red'}">${pct>=0?'+':''}${pct.toFixed(1)}%</span>`; })() : '<span class="text-secondary">—</span>';
+        let html = '';
 
-        html += `<div class="table-responsive"><table class="table table-dark table-sm"><thead>
+        // ── What are Quarterly Results? (Layman intro)
+        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.12);">
+            <h6 class="mb-2" style="color:#58a6ff"><i class="bi bi-info-circle-fill me-1"></i> What are Quarterly Results?</h6>
+            <p class="small mb-1" style="color:#c9d1d9">Companies report their financial performance <strong>every 3 months</strong> (called a "quarter"). This is like a report card showing how much money the company earned and spent. In India, the fiscal year runs <strong>April to March</strong>, split into 4 quarters:</p>
+            <div class="d-flex flex-wrap gap-2 small mt-2">
+                <span class="badge bg-dark border border-secondary px-2 py-1"><strong>Q1</strong> Apr–Jun</span>
+                <span class="badge bg-dark border border-secondary px-2 py-1"><strong>Q2</strong> Jul–Sep</span>
+                <span class="badge bg-dark border border-secondary px-2 py-1"><strong>Q3</strong> Oct–Dec</span>
+                <span class="badge bg-dark border border-secondary px-2 py-1"><strong>Q4</strong> Jan–Mar</span>
+            </div>
+            <p class="small mt-2 mb-0" style="color:#8b949e"><strong>QoQ</strong> = vs previous quarter (short-term trend) · <strong>YoY</strong> = vs same quarter last year (removes seasonal effects). <span class="text-green">Green ↑</span> = improvement · <span class="text-red">Red ↓</span> = decline.</p>
+        </div>`;
+
+        // ── Latest Quarter Snapshot Card
+        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(63,185,80,0.04);border:1px solid rgba(63,185,80,0.15);">
+            <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                <h6 class="mb-0"><i class="bi bi-lightning-charge-fill me-1" style="color:#d29922"></i> Latest Quarter: <strong style="color:#58a6ff">${latest.period}</strong></h6>
+                <div>${marginBadge(latest.gross_margin,'Gross')}${marginBadge(latest.operating_margin,'Operating')}${marginBadge(latest.net_margin,'Net')}</div>
+            </div>
+            <div class="row g-2">
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:#0d1117">
+                    <small class="text-secondary d-block">Revenue</small>
+                    <strong class="font-mono">${latest.revenue_str||'N/A'}</strong>
+                    <small class="d-block text-secondary">Total money earned from sales</small>
+                </div></div>
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:#0d1117">
+                    <small class="text-secondary d-block">Net Profit</small>
+                    <strong class="font-mono" style="color:${latest.net_income!=null&&latest.net_income>=0?'#3fb950':'#f85149'}">${latest.net_income_str||'N/A'}</strong>
+                    <small class="d-block text-secondary">Actual profit after all costs & taxes</small>
+                </div></div>
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:#0d1117">
+                    <small class="text-secondary d-block">EPS</small>
+                    <strong class="font-mono" style="color:${latest.eps!=null&&latest.eps>=0?'#3fb950':'#f85149'}">${latest.eps!=null?'₹'+latest.eps.toFixed(2):'N/A'}</strong>
+                    <small class="d-block text-secondary">Profit per share you own</small>
+                </div></div>
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:#0d1117">
+                    <small class="text-secondary d-block">EBITDA</small>
+                    <strong class="font-mono">${latest.ebitda_str||'N/A'}</strong>
+                    <small class="d-block text-secondary">Operating profit before interest & tax</small>
+                </div></div>
+            </div>
+        </div>`;
+
+        // ── QoQ + YoY Insight Box
+        if(qrs.length>=2){
+            const prev = qrs[1];
+            let insights = [];
+            if(latest.revenue&&prev.revenue&&prev.revenue>0){ const c=(latest.revenue-prev.revenue)/Math.abs(prev.revenue)*100; insights.push({metric:'Revenue',chg:c,dir:c>0?'grew':'declined',type:'QoQ'}); }
+            if(latest.net_income&&prev.net_income&&prev.net_income>0){ const c=(latest.net_income-prev.net_income)/Math.abs(prev.net_income)*100; insights.push({metric:'Net Profit',chg:c,dir:c>0?'rose':'fell',type:'QoQ'}); }
+            if(latest.eps&&prev.eps&&prev.eps>0){ const c=(latest.eps-prev.eps)/Math.abs(prev.eps)*100; insights.push({metric:'EPS',chg:c,dir:c>0?'rose':'fell',type:'QoQ'}); }
+            if(qrs.length>=5){
+                const yoyQ = qrs[4];
+                if(latest.revenue&&yoyQ.revenue&&yoyQ.revenue>0){ const c=(latest.revenue-yoyQ.revenue)/Math.abs(yoyQ.revenue)*100; insights.push({metric:'Revenue',chg:c,dir:c>0?'grew':'declined',type:'YoY'}); }
+                if(latest.net_income&&yoyQ.net_income&&yoyQ.net_income>0){ const c=(latest.net_income-yoyQ.net_income)/Math.abs(yoyQ.net_income)*100; insights.push({metric:'Net Profit',chg:c,dir:c>0?'rose':'fell',type:'YoY'}); }
+            }
+            if(insights.length){
+                html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(210,153,34,0.06);border:1px solid rgba(210,153,34,0.15);">
+                    <h6 class="mb-2"><i class="bi bi-graph-up-arrow me-1" style="color:#d29922"></i> Key Changes This Quarter</h6>
+                    <div class="row g-2">`;
+                insights.forEach(i => {
+                    const col = i.chg>=0?'#3fb950':'#f85149';
+                    const icon = i.chg>=0?'bi-arrow-up-right':'bi-arrow-down-right';
+                    const absChg = Math.abs(i.chg).toFixed(1);
+                    html += `<div class="col-6 col-md-4">
+                        <div class="p-2 rounded d-flex align-items-center gap-2" style="background:#0d1117">
+                            <i class="bi ${icon}" style="color:${col};font-size:1.2rem"></i>
+                            <div><strong class="small">${i.metric}</strong> <span class="badge bg-dark border border-secondary" style="font-size:.65rem">${i.type}</span>
+                            <div style="color:${col};font-weight:600">${i.chg>=0?'+':''}${absChg}%</div></div>
+                        </div>
+                    </div>`;
+                });
+                html += `</div></div>`;
+            }
+        }
+
+        // ── Charts: Revenue + Net Profit trend, Margin trend
+        html += `<div class="row g-3 mb-3">
+            <div class="col-md-6"><div style="position:relative;height:260px"><canvas id="qRevChart"></canvas></div></div>
+            <div class="col-md-6"><div style="position:relative;height:260px"><canvas id="qMarginChart"></canvas></div></div>
+        </div>`;
+
+        // ── Detailed Quarterly Table
+        html += `<h6 class="mb-2 mt-2"><i class="bi bi-table me-1 text-info"></i> Quarter-by-Quarter Breakdown</h6>`;
+        html += `<p class="small text-secondary mb-2">Each row is one quarter. Compare across quarters to spot trends. Revenue is the total money earned; Net Profit is what's left after all expenses. Margins show profitability as a percentage — higher is better.</p>`;
+        html += `<div class="table-responsive"><table class="table table-dark table-sm table-striped" style="font-size:.8rem"><thead>
             <tr>
                 <th>Quarter</th>
-                <th>Revenue</th><th class="small">QoQ</th><th class="small">YoY</th>
-                <th>Net Profit</th><th class="small">QoQ</th><th class="small">YoY</th>
-                <th>EPS</th><th class="small">QoQ</th>
-                <th>EBITDA</th>
+                <th class="text-end">Revenue</th><th class="text-end small" style="color:#8b949e">QoQ</th><th class="text-end small" style="color:#8b949e">YoY</th>
+                <th class="text-end">Gross Profit</th>
+                <th class="text-end">Operating Profit</th>
+                <th class="text-end">Net Profit</th><th class="text-end small" style="color:#8b949e">QoQ</th><th class="text-end small" style="color:#8b949e">YoY</th>
+                <th class="text-end">EPS</th><th class="text-end small" style="color:#8b949e">QoQ</th>
+                <th class="text-end">EBITDA</th>
+                <th class="text-end">Net Margin</th>
             </tr></thead><tbody>`;
         let pRev=null, pNI=null, pEps=null;
         reversed.forEach((q, idx) => {
-            // YoY: look 4 quarters back in the reversed array
             const yoyIdx = idx - 4;
             const yoyQ = yoyIdx >= 0 ? reversed[yoyIdx] : null;
-            const yoyRev = yoyQ ? qoq(q.revenue, yoyQ.revenue) : '<span class="text-secondary">—</span>';
-            const yoyNI = yoyQ ? qoq(q.net_income, yoyQ.net_income) : '<span class="text-secondary">—</span>';
-
-            html += `<tr>
-                <td class="fw-bold">${q.period}</td>
-                <td class="font-mono">${q.revenue_str}</td><td>${qoq(q.revenue,pRev)}</td><td>${yoyRev}</td>
-                <td class="font-mono">${q.net_income_str}</td><td>${qoq(q.net_income,pNI)}</td><td>${yoyNI}</td>
-                <td class="font-mono">${q.eps!=null?'₹'+q.eps.toFixed(2):'N/A'}</td><td>${qoq(q.eps,pEps)}</td>
-                <td class="font-mono">${q.ebitda_str||'N/A'}</td></tr>`;
+            const yoyRev = yoyQ ? pctChg(q.revenue, yoyQ.revenue) : '<span class="text-secondary">—</span>';
+            const yoyNI = yoyQ ? pctChg(q.net_income, yoyQ.net_income) : '<span class="text-secondary">—</span>';
+            const nmCol = q.net_margin!=null ? (q.net_margin>=15?'#3fb950':q.net_margin>=5?'#d29922':'#f85149') : '#8b949e';
+            const isLatest = idx === reversed.length - 1;
+            html += `<tr${isLatest?' style="background:rgba(88,166,255,0.08)"':''}>
+                <td class="fw-bold text-nowrap">${q.period}${isLatest?' <span class="badge bg-info text-dark" style="font-size:.6rem">LATEST</span>':''}</td>
+                <td class="text-end font-mono">${q.revenue_str||'—'}</td><td class="text-end">${pctChg(q.revenue,pRev)}</td><td class="text-end">${yoyRev}</td>
+                <td class="text-end font-mono">${q.gross_profit!=null?fmtCr(q.gross_profit):'—'}</td>
+                <td class="text-end font-mono">${q.operating_income!=null?fmtCr(q.operating_income):'—'}</td>
+                <td class="text-end font-mono">${q.net_income_str||'—'}</td><td class="text-end">${pctChg(q.net_income,pNI)}</td><td class="text-end">${yoyNI}</td>
+                <td class="text-end font-mono">${q.eps!=null?'₹'+q.eps.toFixed(2):'—'}</td><td class="text-end">${pctChg(q.eps,pEps)}</td>
+                <td class="text-end font-mono">${q.ebitda_str||'—'}</td>
+                <td class="text-end fw-bold" style="color:${nmCol}">${q.net_margin!=null?q.net_margin.toFixed(1)+'%':'—'}</td>
+            </tr>`;
             pRev=q.revenue; pNI=q.net_income; pEps=q.eps;
         });
         html += '</tbody></table></div>';
 
-        // Insight: Latest QoQ + YoY
-        if(qrs.length>=2){
-            const [lat,prev] = qrs;
-            let ins = [];
-            if(lat.revenue&&prev.revenue&&prev.revenue>0){ const c=(lat.revenue-prev.revenue)/Math.abs(prev.revenue)*100; ins.push(`Revenue ${c>0?'grew':'declined'} ${Math.abs(c).toFixed(1)}% QoQ`); }
-            if(lat.net_income&&prev.net_income&&prev.net_income>0){ const c=(lat.net_income-prev.net_income)/Math.abs(prev.net_income)*100; ins.push(`Net Profit ${c>0?'rose':'fell'} ${Math.abs(c).toFixed(1)}% QoQ`); }
-            // YoY insight: compare latest with 4th oldest in original (newest-first) array
-            if(qrs.length>=5){
-                const yoyQ = qrs[4];
-                if(lat.revenue&&yoyQ.revenue&&yoyQ.revenue>0){ const c=(lat.revenue-yoyQ.revenue)/Math.abs(yoyQ.revenue)*100; ins.push(`Revenue ${c>0?'grew':'declined'} ${Math.abs(c).toFixed(1)}% YoY`); }
-                if(lat.net_income&&yoyQ.net_income&&yoyQ.net_income>0){ const c=(lat.net_income-yoyQ.net_income)/Math.abs(yoyQ.net_income)*100; ins.push(`Net Profit ${c>0?'rose':'fell'} ${Math.abs(c).toFixed(1)}% YoY`); }
-            }
-            if(ins.length) html += `<div class="alert mt-2" style="background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.2);border-radius:10px;">
-                <small><strong>📊 Latest (${lat.period}):</strong> ${ins.join(' · ')}</small></div>`;
+        // ── How to Read This Table (layman box)
+        html += `<div class="p-3 rounded-3 mb-3" style="background:rgba(188,140,255,0.04);border:1px solid rgba(188,140,255,0.12);">
+            <h6 class="mb-2"><i class="bi bi-book me-1" style="color:#bc8cff"></i> How to Read This Table (Simple Guide)</h6>
+            <div class="row g-2 small" style="color:#c9d1d9">
+                <div class="col-md-6">
+                    <p class="mb-1"><strong style="color:#58a6ff">Revenue</strong> — Total money the company earned from selling products/services. Think of it as the "top line" — the bigger, the better.</p>
+                    <p class="mb-1"><strong style="color:#3fb950">Gross Profit</strong> — Revenue minus the direct cost of making products. Shows how much the company keeps before paying rent, salaries, etc.</p>
+                    <p class="mb-1"><strong style="color:#d29922">Operating Profit</strong> — What's left after paying ALL business expenses (but before loans and taxes). This shows how well the core business runs.</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-1"><strong style="color:#3fb950">Net Profit</strong> — The final profit after everything (costs, interest, taxes). This is what actually belongs to shareholders like you!</p>
+                    <p class="mb-1"><strong style="color:#58a6ff">EPS (Earnings Per Share)</strong> — Net Profit ÷ Total Shares. If EPS is ₹10, the company earned ₹10 for each share you own.</p>
+                    <p class="mb-1"><strong style="color:#d29922">EBITDA</strong> — Profit before interest, taxes, depreciation. Useful to compare companies regardless of their debt structure.</p>
+                    <p class="mb-0"><strong style="color:#bc8cff">Net Margin</strong> — Net Profit as % of Revenue. If 15%, the company keeps ₹15 out of every ₹100 earned. Higher = more profitable.</p>
+                </div>
+            </div>
+        </div>`;
+
+        // ── Backend analysis text
+        if(f.quarterly_analysis){
+            html += `<div class="p-3 rounded-3" style="background:rgba(63,185,80,0.04);border:1px solid rgba(63,185,80,0.1);">
+                <h6 class="mb-1"><i class="bi bi-robot me-1 text-success"></i> AI Analysis</h6>
+                <p class="small mb-0" style="color:#c9d1d9">${f.quarterly_analysis}</p>
+            </div>`;
         }
+
         document.getElementById('tabQuarterly').innerHTML = html;
+
+        // ── Render Charts
+        setTimeout(() => {
+            const labels = reversed.map(q => q.period.replace(/\s*\(.*\)/,''));
+            const chartFont = {color:'#8b949e',font:{size:9}};
+
+            // Revenue + Net Profit bar chart
+            const revCtx = document.getElementById('qRevChart');
+            if(revCtx){
+                new Chart(revCtx, {
+                    type:'bar',
+                    data:{ labels,
+                        datasets:[
+                            {label:'Revenue',data:reversed.map(q=>q.revenue),backgroundColor:'rgba(88,166,255,0.5)',borderColor:'#58a6ff',borderWidth:1,borderRadius:4},
+                            {label:'Net Profit',data:reversed.map(q=>q.net_income),backgroundColor:'rgba(63,185,80,0.5)',borderColor:'#3fb950',borderWidth:1,borderRadius:4},
+                        ]
+                    },
+                    options:{responsive:true,maintainAspectRatio:false,
+                        plugins:{legend:{labels:{color:'#8b949e',font:{size:10},usePointStyle:true}},title:{display:true,text:'Revenue & Net Profit by Quarter',color:'#e6edf3',font:{size:12}}},
+                        scales:{x:{grid:{display:false},ticks:chartFont},y:{grid:{color:'#21262d'},ticks:{...chartFont,callback:v=>{let cr=v/1e7;if(Math.abs(cr)>=1e5)return'₹'+(cr/1e5).toFixed(0)+'L Cr';if(Math.abs(cr)>=1e3)return'₹'+(cr/1e3).toFixed(0)+'K Cr';return'₹'+cr.toFixed(0)+' Cr';}}}}
+                    }
+                });
+            }
+
+            // Margin trend line chart
+            const margCtx = document.getElementById('qMarginChart');
+            if(margCtx){
+                new Chart(margCtx, {
+                    type:'line',
+                    data:{ labels,
+                        datasets:[
+                            {label:'Gross %',data:reversed.map(q=>q.gross_margin),borderColor:'#58a6ff',fill:false,tension:0.3,pointRadius:5,borderWidth:2.5,pointBackgroundColor:'#58a6ff'},
+                            {label:'Operating %',data:reversed.map(q=>q.operating_margin),borderColor:'#d29922',fill:false,tension:0.3,pointRadius:5,borderWidth:2,pointBackgroundColor:'#d29922'},
+                            {label:'Net %',data:reversed.map(q=>q.net_margin),borderColor:'#3fb950',fill:false,tension:0.3,pointRadius:5,borderWidth:2,pointBackgroundColor:'#3fb950'},
+                        ]
+                    },
+                    options:{responsive:true,maintainAspectRatio:false,
+                        plugins:{legend:{labels:{color:'#8b949e',font:{size:10},usePointStyle:true}},title:{display:true,text:'Profit Margins Trend (%)',color:'#e6edf3',font:{size:12}}},
+                        scales:{x:{grid:{display:false},ticks:chartFont},y:{grid:{color:'#21262d'},ticks:{...chartFont,callback:v=>v+'%'}}}
+                    }
+                });
+            }
+        }, 100);
     }
 
     function renderShareholdingTab(f) {
@@ -2743,9 +3110,36 @@
             html += `<hr class="my-4 border-secondary">`;
             html += `<h5 class="mb-3"><i class="bi bi-graph-up-arrow me-2 text-info"></i> Historical Delivery Trend <span class="badge bg-secondary fw-normal ms-2 small">${dHist.length} days</span></h5>`;
 
-            // ── Chart canvas (delivery % line + volume bars + price line)
-            html += `<div class="mb-3" style="position:relative;height:320px;">
-                <canvas id="delivHistChart"></canvas>
+            // ── Explainer box
+            html += `<div class="alert mb-3" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.15);border-radius:10px;">
+                <div class="small" style="color:#c9d1d9;"><i class="bi bi-lightbulb me-1" style="color:#d29922;"></i><b>What is Delivery %?</b> — When someone buys shares on the stock exchange, they can either <b>take delivery</b> (keep the shares long-term) or <b>trade intraday</b> (buy and sell the same day). Delivery % tells you what fraction of total trades were genuine long-term purchases.</div>
+                <div class="d-flex flex-wrap gap-3 mt-2 small">
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3fb950;margin-right:4px;"></span><b style="color:#3fb950;">≥ 50%</b> — Strong: Investors are buying to hold. Bullish sign.</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#d29922;margin-right:4px;"></span><b style="color:#d29922;">35-50%</b> — Mixed: Some investors, some traders.</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f85149;margin-right:4px;"></span><b style="color:#f85149;">< 35%</b> — Speculative: Mostly day-traders. Risky.</span>
+                </div>
+            </div>`;
+
+            // ── Two separate charts: Delivery % bars + Price/Volume combo
+            html += `<div class="row g-3 mb-3">
+                <div class="col-12">
+                    <div class="p-3 rounded-3" style="background:var(--card-bg);border:1px solid var(--card-border);">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0" style="color:#e6edf3;"><i class="bi bi-bar-chart-fill me-1 text-info"></i> Delivery % by Day</h6>
+                            <div class="small" style="color:#8b949e;"><span style="color:#3fb950;">Green</span> = Strong · <span style="color:#d29922;">Yellow</span> = Mixed · <span style="color:#f85149;">Red</span> = Speculative</div>
+                        </div>
+                        <div style="position:relative;height:240px;"><canvas id="delivPctChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="p-3 rounded-3" style="background:var(--card-bg);border:1px solid var(--card-border);">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0" style="color:#e6edf3;"><i class="bi bi-graph-up me-1" style="color:#d29922;"></i> Price & Volume</h6>
+                            <div class="small" style="color:#8b949e;"><span style="color:#d29922;">Orange line</span> = Price · <span style="color:#3fb950;">Green bars</span> = Price up · <span style="color:#f85149;">Red bars</span> = Price down</div>
+                        </div>
+                        <div style="position:relative;height:200px;"><canvas id="delivPriceVolChart"></canvas></div>
+                    </div>
+                </div>
             </div>`;
 
             // ── Analysis text
@@ -2762,11 +3156,17 @@
             const dhMax = dhPcts.length ? Math.max(...dhPcts) : 0;
             const dhMin = dhPcts.length ? Math.min(...dhPcts) : 0;
             const avgCol = dhAvg >= 50 ? '#3fb950' : dhAvg >= 35 ? '#d29922' : '#f85149';
+            const avgLabel = dhAvg >= 50 ? 'Strong — institutional buying' : dhAvg >= 35 ? 'Mixed — traders + investors' : 'Speculative — mostly day-traders';
+            const trend = dhPcts.length >= 6 ? (() => {
+                const recent = dhPcts.slice(-5).reduce((a,b)=>a+b,0)/5;
+                const earlier = dhPcts.slice(0, Math.min(5, dhPcts.length-5)).reduce((a,b)=>a+b,0)/Math.min(5, dhPcts.length-5);
+                return recent > earlier + 3 ? '📈 Trending UP — delivery is improving' : recent < earlier - 3 ? '📉 Trending DOWN — delivery is weakening' : '➡️ Stable — no major shift';
+            })() : '';
             html += `<div class="row g-2 mb-3">
-                <div class="col-sm-3"><div class="p-2 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-6" style="color:${avgCol};">${dhAvg.toFixed(1)}%</div><div class="small text-secondary">Avg Delivery %</div></div></div>
-                <div class="col-sm-3"><div class="p-2 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-6 text-success">${dhMax.toFixed(1)}%</div><div class="small text-secondary">Max</div></div></div>
-                <div class="col-sm-3"><div class="p-2 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-6 text-danger">${dhMin.toFixed(1)}%</div><div class="small text-secondary">Min</div></div></div>
-                <div class="col-sm-3"><div class="p-2 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-6 text-info">${dHist.length}</div><div class="small text-secondary">Trading Days</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-6" style="color:${avgCol};">${dhAvg.toFixed(1)}%</div><div class="small text-secondary">Avg Delivery %</div><div class="small" style="color:${avgCol};font-size:0.7rem;">${avgLabel}</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-6 text-success">${dhMax.toFixed(1)}%</div><div class="small text-secondary">Best Day</div><div class="small text-secondary" style="font-size:0.7rem;">Highest delivery</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-6 text-danger">${dhMin.toFixed(1)}%</div><div class="small text-secondary">Worst Day</div><div class="small text-secondary" style="font-size:0.7rem;">Lowest delivery</div></div></div>
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-6 text-info">${dHist.length}</div><div class="small text-secondary">Trading Days</div>${trend ? `<div class="small" style="font-size:0.7rem;">${trend}</div>` : ''}</div></div>
             </div>`;
 
             // ── Collapsible data table
@@ -3072,118 +3472,182 @@
                 }
             }
 
-            // ── Delivery History Chart (dual-axis: delivery% line + volume bars + price line)
-            const delivCtx = document.getElementById('delivHistChart');
+            // ── Delivery % Bar Chart (clear color-coded bars)
+            const delivPctCtx = document.getElementById('delivPctChart');
             const dHistData = f.delivery_history || [];
-            if(delivCtx && dHistData.length >= 3) {
-                const labels = dHistData.map(d => d.date);
+            if(delivPctCtx && dHistData.length >= 3) {
+                const labels = dHistData.map(d => {
+                    const parts = d.date.split('-');
+                    return parts.length === 3 ? `${parts[0]}-${parts[1]}` : d.date;
+                });
                 const delivPcts = dHistData.map(d => d.delivery_pct);
                 const volumes = dHistData.map(d => d.volume);
                 const prices = dHistData.map(d => d.close_price);
                 const delivQtys = dHistData.map(d => d.delivery_qty);
 
-                // Color delivery % bars based on value
-                const barColors = delivPcts.map(p => p >= 50 ? 'rgba(63,185,80,0.55)' : p >= 35 ? 'rgba(210,153,34,0.45)' : 'rgba(248,81,73,0.40)');
-                const barBorders = delivPcts.map(p => p >= 50 ? '#3fb950' : p >= 35 ? '#d29922' : '#f85149');
+                // Color each bar by delivery quality
+                const barBg = delivPcts.map(p => p >= 50 ? 'rgba(63,185,80,0.65)' : p >= 35 ? 'rgba(210,153,34,0.55)' : 'rgba(248,81,73,0.50)');
+                const barBdr = delivPcts.map(p => p >= 50 ? '#3fb950' : p >= 35 ? '#d29922' : '#f85149');
 
-                new Chart(delivCtx, {
+                // Average line data
+                const dhAvgVal = delivPcts.reduce((a,b)=>a+b,0)/delivPcts.length;
+                const avgLine = delivPcts.map(() => dhAvgVal);
+
+                new Chart(delivPctCtx, {
                     type: 'bar',
                     data: {
-                        labels: labels,
+                        labels,
                         datasets: [
                             {
                                 label: 'Delivery %',
                                 data: delivPcts,
-                                type: 'line',
-                                borderColor: '#58a6ff',
-                                backgroundColor: 'rgba(88,166,255,0.1)',
-                                fill: true,
-                                tension: 0.3,
-                                pointRadius: 3,
-                                pointBackgroundColor: '#58a6ff',
-                                borderWidth: 2.5,
-                                yAxisID: 'yPct',
-                                order: 1,
+                                backgroundColor: barBg,
+                                borderColor: barBdr,
+                                borderWidth: 1.5,
+                                borderRadius: 6,
+                                borderSkipped: false,
+                                barPercentage: 0.7,
+                                categoryPercentage: 0.8,
                             },
                             {
-                                label: 'Close Price ₹',
-                                data: prices,
+                                label: `Average (${dhAvgVal.toFixed(1)}%)`,
+                                data: avgLine,
                                 type: 'line',
-                                borderColor: '#d29922',
-                                borderDash: [5, 3],
-                                borderWidth: 1.8,
-                                pointRadius: 2,
-                                pointBackgroundColor: '#d29922',
+                                borderColor: 'rgba(88,166,255,0.8)',
+                                borderDash: [6, 4],
+                                borderWidth: 2,
+                                pointRadius: 0,
                                 fill: false,
-                                yAxisID: 'yPrice',
-                                order: 2,
-                            },
-                            {
-                                label: 'Volume',
-                                data: volumes,
-                                backgroundColor: barColors,
-                                borderColor: barBorders,
-                                borderWidth: 1,
-                                borderRadius: 2,
-                                yAxisID: 'yVol',
-                                order: 3,
-                            },
+                            }
                         ]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
+                        responsive: true, maintainAspectRatio: false,
                         interaction: { mode: 'index', intersect: false },
                         plugins: {
-                            legend: { labels: { color: '#8b949e', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
+                            legend: {
+                                labels: { color: '#c9d1d9', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle',
+                                    generateLabels: function(chart) {
+                                        return [
+                                            { text: 'Strong (≥50%)', fillStyle: 'rgba(63,185,80,0.65)', strokeStyle: '#3fb950', lineWidth: 1, pointStyle: 'rect', fontColor: '#c9d1d9' },
+                                            { text: 'Mixed (35-50%)', fillStyle: 'rgba(210,153,34,0.55)', strokeStyle: '#d29922', lineWidth: 1, pointStyle: 'rect', fontColor: '#c9d1d9' },
+                                            { text: 'Speculative (<35%)', fillStyle: 'rgba(248,81,73,0.50)', strokeStyle: '#f85149', lineWidth: 1, pointStyle: 'rect', fontColor: '#c9d1d9' },
+                                            { text: `Avg ${dhAvgVal.toFixed(1)}%`, fillStyle: 'transparent', strokeStyle: 'rgba(88,166,255,0.8)', lineWidth: 2, lineDash: [6,4], pointStyle: 'line', fontColor: '#8b949e' }
+                                        ];
+                                    }
+                                }
+                            },
                             tooltip: {
-                                backgroundColor: '#161b22',
-                                borderColor: '#30363d',
-                                borderWidth: 1,
-                                titleColor: '#e6edf3',
-                                bodyColor: '#8b949e',
+                                backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#c9d1d9',
                                 callbacks: {
+                                    title: (items) => dHistData[items[0].dataIndex]?.date || '',
                                     label: function(ctx) {
+                                        if(ctx.datasetIndex === 1) return `Average: ${dhAvgVal.toFixed(1)}%`;
                                         const idx = ctx.dataIndex;
-                                        if(ctx.dataset.label === 'Delivery %') return `Delivery: ${ctx.parsed.y}%`;
-                                        if(ctx.dataset.label === 'Close Price ₹') return `Close: \u20b9${ctx.parsed.y.toLocaleString('en-IN')}`;
-                                        if(ctx.dataset.label === 'Volume') {
-                                            return `Vol: ${ctx.parsed.y.toLocaleString('en-IN')} | Deliv: ${delivQtys[idx]?.toLocaleString('en-IN')}`;
-                                        }
-                                        return ctx.dataset.label + ': ' + ctx.parsed.y;
+                                        const pct = delivPcts[idx];
+                                        const qual = pct >= 50 ? '✅ Strong' : pct >= 35 ? '⚠️ Mixed' : '🔴 Speculative';
+                                        return [`Delivery: ${pct.toFixed(1)}%  (${qual})`, `Delivered: ${delivQtys[idx]?.toLocaleString('en-IN')} shares`, `Total Vol: ${volumes[idx]?.toLocaleString('en-IN')}`];
                                     }
                                 }
                             }
                         },
                         scales: {
-                            x: {
-                                grid: { display: false },
-                                ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 50 }
-                            },
-                            yPct: {
-                                type: 'linear', position: 'left',
+                            x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 45 } },
+                            y: {
                                 title: { display: true, text: 'Delivery %', color: '#58a6ff', font: { size: 11 } },
-                                grid: { color: 'rgba(88,166,255,0.08)' },
-                                ticks: { color: '#58a6ff', font: { size: 10 }, callback: v => v+'%' },
+                                grid: { color: 'rgba(88,166,255,0.06)' },
+                                ticks: { color: '#8b949e', font: { size: 10 }, callback: v => v + '%', stepSize: 10 },
                                 min: 0, max: 100,
-                            },
-                            yPrice: {
-                                type: 'linear', position: 'right',
-                                title: { display: true, text: 'Close Price ₹', color: '#d29922', font: { size: 11 } },
-                                grid: { display: false },
-                                ticks: { color: '#d29922', font: { size: 10 }, callback: v => '\u20b9'+v },
-                            },
-                            yVol: {
-                                type: 'linear', position: 'right',
-                                display: false,
-                                grid: { display: false },
-                                // volumes fill bottom half
-                                beginAtZero: true,
-                                max: Math.max(...volumes) * 3,
                             }
-                        }
+                        },
+                        animation: { duration: 800, easing: 'easeOutQuart' }
                     }
                 });
+
+                // ── Price + Volume chart (separate, clean)
+                const pvCtx = document.getElementById('delivPriceVolChart');
+                if(pvCtx) {
+                    // Color volume bars by price change direction
+                    const volColors = prices.map((p, i) => {
+                        if(i === 0) return 'rgba(88,166,255,0.3)';
+                        return p >= prices[i-1] ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.30)';
+                    });
+                    const volBorders = prices.map((p, i) => {
+                        if(i === 0) return 'rgba(88,166,255,0.6)';
+                        return p >= prices[i-1] ? 'rgba(63,185,80,0.7)' : 'rgba(248,81,73,0.6)';
+                    });
+                    new Chart(pvCtx, {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Close Price ₹',
+                                    data: prices,
+                                    type: 'line',
+                                    borderColor: '#d29922',
+                                    backgroundColor: 'rgba(210,153,34,0.08)',
+                                    fill: true,
+                                    tension: 0.35,
+                                    pointRadius: 4,
+                                    pointBackgroundColor: '#d29922',
+                                    pointBorderColor: '#161b22',
+                                    pointBorderWidth: 1.5,
+                                    pointHoverRadius: 6,
+                                    borderWidth: 2.5,
+                                    yAxisID: 'yPrice',
+                                    order: 1,
+                                },
+                                {
+                                    label: 'Volume',
+                                    data: volumes,
+                                    backgroundColor: volColors,
+                                    borderColor: volBorders,
+                                    borderWidth: 1,
+                                    borderRadius: 4,
+                                    barPercentage: 0.7,
+                                    categoryPercentage: 0.8,
+                                    yAxisID: 'yVol',
+                                    order: 2,
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { labels: { color: '#c9d1d9', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
+                                tooltip: {
+                                    backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#c9d1d9',
+                                    callbacks: {
+                                        title: (items) => dHistData[items[0].dataIndex]?.date || '',
+                                        label: function(ctx) {
+                                            if(ctx.dataset.label === 'Close Price ₹') return `Close: \u20b9${ctx.parsed.y.toLocaleString('en-IN')}`;
+                                            return `Volume: ${ctx.parsed.y.toLocaleString('en-IN')}`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 45 } },
+                                yPrice: {
+                                    type: 'linear', position: 'left',
+                                    title: { display: true, text: 'Close Price ₹', color: '#d29922', font: { size: 11 } },
+                                    grid: { color: 'rgba(210,153,34,0.06)' },
+                                    ticks: { color: '#d29922', font: { size: 10 }, callback: v => '\u20b9'+v },
+                                },
+                                yVol: {
+                                    type: 'linear', position: 'right',
+                                    title: { display: true, text: 'Volume', color: '#58a6ff', font: { size: 11 } },
+                                    grid: { display: false },
+                                    ticks: { color: '#58a6ff', font: { size: 10 }, callback: v => v >= 1e7 ? (v/1e7).toFixed(1)+'Cr' : v >= 1e5 ? (v/1e5).toFixed(1)+'L' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v },
+                                    beginAtZero: true,
+                                }
+                            },
+                            animation: { duration: 800, easing: 'easeOutQuart' }
+                        }
+                    });
+                }
             }
         }, 100);
     }
@@ -3199,8 +3663,7 @@
 
         const fmtCr = (v) => {
             if(v == null) return '<span class="text-secondary">—</span>';
-            let cr = v / 1e7;
-            let neg = cr < 0; cr = Math.abs(cr);
+            let cr = v / 1e7; let neg = cr < 0; cr = Math.abs(cr);
             let s;
             if(cr >= 100000) s = (cr/100000).toFixed(2) + 'L Cr';
             else if(cr >= 1000) s = (cr/1000).toFixed(1) + 'K Cr';
@@ -3217,206 +3680,377 @@
             return ` <span style="color:${col};font-size:.75rem;">${arrow}${Math.abs(chg).toFixed(1)}%</span>`;
         };
 
-        // Reverse so oldest→newest for charts (fins is newest-first)
-        const rev = [...fins].reverse();
+        const rev = [...fins].reverse();  // oldest→newest for charts
         const years = rev.map(a => a.year.replace(/\s*\(.*\)/, ''));
+        const latest = fins[0];
+        const prev = fins.length > 1 ? fins[1] : null;
 
         let html = '';
 
-        // ── Analysis summary (HTML from backend)
+        // ══ WHAT ARE FINANCIAL STATEMENTS? (Layman intro)
+        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.12);">
+            <h6 class="mb-2" style="color:#58a6ff"><i class="bi bi-info-circle-fill me-1"></i> What are Annual Financial Statements?</h6>
+            <p class="small mb-2" style="color:#c9d1d9">Every year, companies publish 3 key financial reports that tell the complete story of their business health. Think of them like a full medical checkup — but for a company:</p>
+            <div class="row g-2 small">
+                <div class="col-md-4">
+                    <div class="p-2 rounded" style="background:#0d1117;border-left:3px solid #58a6ff">
+                        <strong style="color:#58a6ff"><i class="bi bi-receipt me-1"></i>Income Statement</strong>
+                        <p class="mb-0 mt-1" style="color:#8b949e">The "report card" — how much did the company earn (revenue) and how much did it keep as profit? Like your salary vs. expenses.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-2 rounded" style="background:#0d1117;border-left:3px solid #d29922">
+                        <strong style="color:#d29922"><i class="bi bi-bank me-1"></i>Balance Sheet</strong>
+                        <p class="mb-0 mt-1" style="color:#8b949e">The "net worth statement" — what does the company own (assets) vs. what it owes (liabilities)? Like your house value minus your loans.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-2 rounded" style="background:#0d1117;border-left:3px solid #3fb950">
+                        <strong style="color:#3fb950"><i class="bi bi-cash-stack me-1"></i>Cash Flow</strong>
+                        <p class="mb-0 mt-1" style="color:#8b949e">The "bank statement" — actual cash coming in and going out. A profitable company can still fail if it runs out of cash!</p>
+                    </div>
+                </div>
+            </div>
+            <p class="small mt-2 mb-0" style="color:#8b949e">Data shown for ${fins.length} years (${fins[fins.length-1].year.replace(/\s*\(.*\)/,'')} → ${fins[0].year.replace(/\s*\(.*\)/,'')}). <span class="text-green">Green ↑</span> = grew vs previous year · <span class="text-red">Red ↓</span> = declined. All values in Indian Rupees (₹ Crores).</p>
+        </div>`;
+
+        // ── Analysis summary from backend
         if(f.financial_statements_analysis) {
-            html += `<div class="mb-3" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.15);border-radius:12px;padding:16px 18px;">
-                <h6 class="mb-2" style="font-size:.95rem;"><i class="bi bi-clipboard-data me-1 text-info"></i> In-Depth Financial Analysis</h6>
-                <div class="small">${f.financial_statements_analysis}</div>
+            html += `<div class="mb-3" style="background:rgba(63,185,80,0.04);border:1px solid rgba(63,185,80,0.12);border-radius:12px;padding:16px 18px;">
+                <h6 class="mb-2" style="font-size:.95rem;"><i class="bi bi-robot me-1 text-success"></i> AI Financial Health Summary</h6>
+                <div class="small" style="color:#c9d1d9">${f.financial_statements_analysis}</div>
             </div>`;
         }
 
-        // ── Charts row: Revenue+NetIncome, Margins, Cash Flow
+        // ── Latest Year Snapshot
+        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(210,153,34,0.04);border:1px solid rgba(210,153,34,0.12);">
+            <h6 class="mb-2"><i class="bi bi-lightning-charge-fill me-1" style="color:#d29922"></i> Latest Year Snapshot: <strong style="color:#58a6ff">${latest.year.replace(/\s*\(.*\)/,'')}</strong></h6>
+            <div class="row g-2">
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                    <small class="text-secondary d-block">Revenue</small>
+                    <strong class="font-mono">${fmtCr(latest.total_revenue)}</strong>${prev?yoy(latest.total_revenue,prev.total_revenue):''}
+                    <small class="d-block text-secondary mt-1">Total Sales</small>
+                </div></div>
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                    <small class="text-secondary d-block">Net Profit</small>
+                    <strong class="font-mono" style="color:${latest.net_income>=0?'#3fb950':'#f85149'}">${fmtCr(latest.net_income)}</strong>${prev?yoy(latest.net_income,prev.net_income):''}
+                    <small class="d-block text-secondary mt-1">Bottom Line</small>
+                </div></div>
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                    <small class="text-secondary d-block">Net Margin</small>
+                    <strong class="font-mono" style="color:${latest.net_margin>=15?'#3fb950':latest.net_margin>=5?'#d29922':'#f85149'}">${fmtPct(latest.net_margin)}</strong>
+                    <small class="d-block text-secondary mt-1">Profit per ₹100</small>
+                </div></div>
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                    <small class="text-secondary d-block">ROE</small>
+                    <strong class="font-mono" style="color:${latest.roe>=15?'#3fb950':latest.roe>=10?'#d29922':'#f85149'}">${fmtPct(latest.roe)}</strong>
+                    <small class="d-block text-secondary mt-1">Return on Equity</small>
+                </div></div>
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                    <small class="text-secondary d-block">D/E Ratio</small>
+                    <strong class="font-mono" style="color:${latest.debt_to_equity!=null&&latest.debt_to_equity<=1?'#3fb950':'#f85149'}">${fmtNum(latest.debt_to_equity,2)}</strong>
+                    <small class="d-block text-secondary mt-1">Debt vs Equity</small>
+                </div></div>
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                    <small class="text-secondary d-block">Free Cash Flow</small>
+                    <strong class="font-mono" style="color:${latest.free_cashflow>=0?'#3fb950':'#f85149'}">${fmtCr(latest.free_cashflow)}</strong>
+                    <small class="d-block text-secondary mt-1">Available Cash</small>
+                </div></div>
+            </div>
+        </div>`;
+
+        // ── Charts Row 1: Revenue+Net Income, Margins, Cash Flow
         html += `<div class="row g-3 mb-4">
             <div class="col-md-4"><div style="position:relative;height:240px;"><canvas id="finRevChart"></canvas></div></div>
             <div class="col-md-4"><div style="position:relative;height:240px;"><canvas id="finMarginChart"></canvas></div></div>
             <div class="col-md-4"><div style="position:relative;height:240px;"><canvas id="finCFChart"></canvas></div></div>
         </div>`;
 
-        // ── Additional charts row: ROE/ROA, D/E & Current Ratio, EPS
+        // ── Charts Row 2: ROE/ROA, Leverage, EPS
         html += `<div class="row g-3 mb-4">
             <div class="col-md-4"><div style="position:relative;height:220px;"><canvas id="finReturnChart"></canvas></div></div>
             <div class="col-md-4"><div style="position:relative;height:220px;"><canvas id="finLevChart"></canvas></div></div>
             <div class="col-md-4"><div style="position:relative;height:220px;"><canvas id="finEPSChart"></canvas></div></div>
         </div>`;
 
-        // ── Income Statement Table
-        html += `<h6 class="mb-2 mt-3"><i class="bi bi-receipt me-1 text-info"></i> Income Statement</h6>`;
+        // ════════════════════════════════════════════════════════
+        // ── 1. INCOME STATEMENT TABLE
+        // ════════════════════════════════════════════════════════
+        html += `<div class="mb-2 p-2 rounded" style="background:rgba(88,166,255,0.04);border-left:3px solid #58a6ff">
+            <h6 class="mb-1"><i class="bi bi-receipt me-1 text-info"></i> Income Statement <small class="text-secondary">(Annual Profit & Loss)</small></h6>
+            <p class="small mb-0" style="color:#8b949e">Shows how the company earns money and what it spends. Start from Revenue (total sales) at the top, subtract costs step by step, and arrive at Net Income (final profit) at the bottom. Each deduction tells you where the money went.</p>
+        </div>`;
         html += `<div class="table-responsive mb-3"><table class="table table-sm table-dark table-striped mb-0" style="font-size:.8rem;">`;
-        html += `<thead><tr><th>Metric</th>`;
+        html += `<thead><tr><th style="min-width:180px">Metric</th><th style="min-width:140px;color:#8b949e" class="small">What It Means</th>`;
         fins.forEach(a => { html += `<th class="text-end">${a.year.replace(/\s*\(.*\)/, '')}</th>`; });
         html += `</tr></thead><tbody>`;
 
         const incRows = [
-            ['Total Revenue', 'total_revenue', fmtCr],
-            ['Cost of Revenue', 'cost_of_revenue', fmtCr],
-            ['Gross Profit', 'gross_profit', fmtCr],
-            ['Operating Income', 'operating_income', fmtCr],
-            ['EBITDA', 'ebitda', fmtCr],
-            ['EBIT', 'ebit', fmtCr],
-            ['Interest Expense', 'interest_expense', fmtCr],
-            ['Pretax Income', 'pretax_income', fmtCr],
-            ['Tax Provision', 'tax_provision', fmtCr],
-            ['Net Income', 'net_income', fmtCr],
-            ['Diluted EPS', 'diluted_eps', v => v != null ? '₹'+v.toFixed(2) : '<span class="text-secondary">—</span>'],
-            ['Gross Margin', 'gross_margin', fmtPct],
-            ['Operating Margin', 'operating_margin', fmtPct],
-            ['Net Margin', 'net_margin', fmtPct],
+            ['Total Revenue', 'total_revenue', fmtCr, 'Total money from selling products/services — the "top line"'],
+            ['Cost of Revenue', 'cost_of_revenue', fmtCr, 'Direct cost of making/buying what was sold (raw materials, manufacturing)'],
+            ['Gross Profit', 'gross_profit', fmtCr, 'Revenue minus direct costs — shows basic pricing power'],
+            ['Operating Expenses', 'operating_expense', fmtCr, 'Running the business: salaries, rent, marketing, R&D'],
+            ['Operating Income', 'operating_income', fmtCr, 'Profit from core business operations (before interest & tax)'],
+            ['EBITDA', 'ebitda', fmtCr, 'Operating profit before depreciation — useful for comparing across companies'],
+            ['EBIT', 'ebit', fmtCr, 'Operating profit before interest & tax — shows actual operational efficiency'],
+            ['Interest Expense', 'interest_expense', fmtCr, 'Cost of borrowed money (loans, bonds) — lower is better'],
+            ['Pretax Income', 'pretax_income', fmtCr, 'Profit before paying income tax to government'],
+            ['Tax Provision', 'tax_provision', fmtCr, 'Income tax paid to the government'],
+            ['Net Income', 'net_income', fmtCr, 'Final profit after ALL costs — this belongs to shareholders like you!'],
+            ['Diluted EPS', 'diluted_eps', v => v != null ? '₹'+v.toFixed(2) : '<span class="text-secondary">—</span>', 'Net profit per share — if ₹10, you earned ₹10 per share owned'],
         ];
-        incRows.forEach(([label, key, fmt]) => {
-            html += `<tr><td class="fw-semibold">${label}</td>`;
+        incRows.forEach(([label, key, fmt, desc]) => {
+            const isKey = ['Total Revenue','Gross Profit','Operating Income','Net Income','Diluted EPS'].includes(label);
+            html += `<tr${isKey?' style="background:rgba(88,166,255,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681;max-width:160px">${desc}</td>`;
             fins.forEach((a, i) => {
                 const v = a[key];
-                const prev = i < fins.length - 1 ? fins[i+1][key] : null;
-                html += `<td class="text-end">${fmt(v)}${yoy(v, prev)}</td>`;
+                const p = i < fins.length - 1 ? fins[i+1][key] : null;
+                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`;
+            });
+            html += `</tr>`;
+        });
+        // Margin rows (highlighted)
+        html += `<tr style="border-top:2px solid #30363d"><td class="fw-semibold" colspan="${2+fins.length}" style="color:#58a6ff;font-size:.75rem;padding-top:8px"><i class="bi bi-percent me-1"></i> PROFITABILITY MARGINS (higher = more profitable)</td></tr>`;
+        [
+            ['Gross Margin', 'gross_margin', 'How much of each ₹100 revenue is kept after direct costs'],
+            ['Operating Margin', 'operating_margin', 'How much is kept after ALL operating costs'],
+            ['Net Margin', 'net_margin', 'How much actually becomes profit (the ultimate test)'],
+        ].forEach(([label, key, desc]) => {
+            html += `<tr><td class="fw-semibold">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
+            fins.forEach(a => {
+                const v = a[key];
+                const col = v!=null ? (v>=20?'#3fb950':v>=10?'#d29922':'#f85149') : '#8b949e';
+                html += `<td class="text-end"><span style="color:${col}">${fmtPct(v)}</span></td>`;
             });
             html += `</tr>`;
         });
         html += `</tbody></table></div>`;
 
-        // ── Balance Sheet Table
-        html += `<h6 class="mb-2 mt-3"><i class="bi bi-bank me-1 text-yellow"></i> Balance Sheet</h6>`;
+        // ════════════════════════════════════════════════════════
+        // ── 2. BALANCE SHEET TABLE
+        // ════════════════════════════════════════════════════════
+        html += `<div class="mb-2 p-2 rounded" style="background:rgba(210,153,34,0.04);border-left:3px solid #d29922">
+            <h6 class="mb-1"><i class="bi bi-bank me-1" style="color:#d29922"></i> Balance Sheet <small class="text-secondary">(What the Company Owns vs. Owes)</small></h6>
+            <p class="small mb-0" style="color:#8b949e">A snapshot of the company's financial position on the last day of the fiscal year. <strong>Assets</strong> = what the company owns (cash, property, inventory). <strong>Liabilities</strong> = what it owes (loans, payables). <strong>Equity</strong> = what's left for shareholders (Assets − Liabilities). Like your personal net worth: house value − mortgage = your equity.</p>
+        </div>`;
         html += `<div class="table-responsive mb-3"><table class="table table-sm table-dark table-striped mb-0" style="font-size:.8rem;">`;
-        html += `<thead><tr><th>Metric</th>`;
+        html += `<thead><tr><th style="min-width:180px">Metric</th><th style="min-width:140px;color:#8b949e" class="small">What It Means</th>`;
         fins.forEach(a => { html += `<th class="text-end">${a.year.replace(/\s*\(.*\)/, '')}</th>`; });
         html += `</tr></thead><tbody>`;
 
-        const bsRows = [
-            ['Total Assets', 'total_assets', fmtCr],
-            ['Current Assets', 'total_current_assets', fmtCr],
-            ['Cash & Equivalents', 'cash_and_equivalents', fmtCr],
-            ['Inventory', 'inventory', fmtCr],
-            ['Accounts Receivable', 'accounts_receivable', fmtCr],
-            ['Net PP&E', 'net_ppe', fmtCr],
-            ['Goodwill', 'goodwill', fmtCr],
-            ['Total Liabilities', 'total_liabilities', fmtCr],
-            ['Current Liabilities', 'total_current_liab', fmtCr],
-            ['Long-Term Debt', 'long_term_debt', fmtCr],
-            ['Total Debt', 'total_debt', fmtCr],
-            ['Stockholders\' Equity', 'stockholders_equity', fmtCr],
-            ['Retained Earnings', 'retained_earnings', fmtCr],
-            ['Working Capital', 'working_capital', fmtCr],
-            ['D/E Ratio', 'debt_to_equity', v => fmtNum(v, 2)],
-            ['Current Ratio', 'current_ratio', v => fmtNum(v, 2)],
+        // Assets section
+        html += `<tr style="border-top:2px solid #30363d"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#3fb950;padding-top:8px"><i class="bi bi-box-seam me-1"></i> ASSETS (What the company OWNS)</td></tr>`;
+        const assetRows = [
+            ['Total Assets', 'total_assets', fmtCr, 'Everything the company owns — total value of all resources'],
+            ['Current Assets', 'total_current_assets', fmtCr, 'Can be turned into cash within 1 year (cash, inventory, receivables)'],
+            ['Cash & Equivalents', 'cash_and_equivalents', fmtCr, 'Actual money in the bank — the war chest for opportunities'],
+            ['Inventory', 'inventory', fmtCr, 'Unsold goods/products waiting to be sold'],
+            ['Accounts Receivable', 'accounts_receivable', fmtCr, 'Money customers owe the company (sold but not yet paid)'],
+            ['Net PP&E', 'net_ppe', fmtCr, 'Property, plants & equipment — physical stuff like factories, offices'],
+            ['Goodwill', 'goodwill', fmtCr, 'Extra paid during acquisitions above actual asset value (brand value)'],
         ];
-        bsRows.forEach(([label, key, fmt]) => {
-            html += `<tr><td class="fw-semibold">${label}</td>`;
+        assetRows.forEach(([label, key, fmt, desc]) => {
+            const isKey = label === 'Total Assets';
+            html += `<tr${isKey?' style="background:rgba(63,185,80,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach((a, i) => {
-                const v = a[key];
-                const prev = i < fins.length - 1 ? fins[i+1][key] : null;
-                html += `<td class="text-end">${fmt(v)}${key === 'debt_to_equity' || key === 'current_ratio' ? '' : yoy(v, prev)}</td>`;
+                const v = a[key]; const p = i < fins.length - 1 ? fins[i+1][key] : null;
+                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`;
             });
+            html += `</tr>`;
+        });
+
+        // Liabilities section
+        html += `<tr style="border-top:2px solid #30363d"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#f85149;padding-top:8px"><i class="bi bi-exclamation-triangle me-1"></i> LIABILITIES (What the company OWES)</td></tr>`;
+        const liabRows = [
+            ['Total Liabilities', 'total_liabilities', fmtCr, 'Total money owed to others — loans, bills, obligations'],
+            ['Current Liabilities', 'total_current_liab', fmtCr, 'Bills due within 1 year (short-term debts)'],
+            ['Long-Term Debt', 'long_term_debt', fmtCr, 'Loans due after 1+ years (bonds, bank loans)'],
+            ['Total Debt', 'total_debt', fmtCr, 'All borrowed money combined (short + long term)'],
+        ];
+        liabRows.forEach(([label, key, fmt, desc]) => {
+            const isKey = label === 'Total Liabilities';
+            html += `<tr${isKey?' style="background:rgba(248,81,73,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
+            fins.forEach((a, i) => {
+                const v = a[key]; const p = i < fins.length - 1 ? fins[i+1][key] : null;
+                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`;
+            });
+            html += `</tr>`;
+        });
+
+        // Equity & Ratios section
+        html += `<tr style="border-top:2px solid #30363d"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#58a6ff;padding-top:8px"><i class="bi bi-shield-check me-1"></i> EQUITY & KEY RATIOS</td></tr>`;
+        const equityRows = [
+            ['Stockholders\' Equity', 'stockholders_equity', fmtCr, 'Assets − Liabilities = what truly belongs to shareholders'],
+            ['Retained Earnings', 'retained_earnings', fmtCr, 'Accumulated profits kept in the company (not paid as dividends)'],
+            ['Working Capital', 'working_capital', fmtCr, 'Current Assets − Current Liabilities = short-term financial health'],
+        ];
+        equityRows.forEach(([label, key, fmt, desc]) => {
+            html += `<tr><td class="fw-semibold">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
+            fins.forEach((a, i) => {
+                const v = a[key]; const p = i < fins.length - 1 ? fins[i+1][key] : null;
+                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`;
+            });
+            html += `</tr>`;
+        });
+        // Ratio rows
+        [
+            ['D/E Ratio', 'debt_to_equity', v => {
+                if(v==null) return '<span class="text-secondary">—</span>';
+                const col = v<=0.5?'#3fb950':v<=1?'#d29922':'#f85149';
+                return `<span style="color:${col}">${v.toFixed(2)}</span>`;
+            }, 'Total Debt ÷ Equity. Below 1 = company owns more than it owes (safe)'],
+            ['Current Ratio', 'current_ratio', v => {
+                if(v==null) return '<span class="text-secondary">—</span>';
+                const col = v>=1.5?'#3fb950':v>=1?'#d29922':'#f85149';
+                return `<span style="color:${col}">${v.toFixed(2)}</span>`;
+            }, 'Current Assets ÷ Current Liabilities. Above 1.5 = can easily pay short-term bills'],
+        ].forEach(([label, key, fmt, desc]) => {
+            html += `<tr><td class="fw-semibold">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
+            fins.forEach(a => { html += `<td class="text-end">${fmt(a[key])}</td>`; });
             html += `</tr>`;
         });
         html += `</tbody></table></div>`;
 
-        // ── Cash Flow Table (color-coded)
-        html += `<h6 class="mb-2 mt-3"><i class="bi bi-cash-stack me-1 text-success"></i> Cash Flow Statement</h6>`;
+        // ════════════════════════════════════════════════════════
+        // ── 3. CASH FLOW STATEMENT TABLE
+        // ════════════════════════════════════════════════════════
+        html += `<div class="mb-2 p-2 rounded" style="background:rgba(63,185,80,0.04);border-left:3px solid #3fb950">
+            <h6 class="mb-1"><i class="bi bi-cash-stack me-1 text-success"></i> Cash Flow Statement <small class="text-secondary">(Where the Money Actually Went)</small></h6>
+            <p class="small mb-0" style="color:#8b949e">The most important statement! A company can show "profit" on paper but still run out of cash. This tracks actual money movement: <strong style="color:#3fb950">Operating</strong> = cash from daily business, <strong style="color:#d29922">Investing</strong> = buying/selling assets, <strong style="color:#f85149">Financing</strong> = borrowing/repaying loans & dividends. Positive Operating Cash Flow is essential for survival.</p>
+        </div>`;
         html += `<div class="table-responsive mb-3"><table class="table table-sm table-dark table-striped mb-0" style="font-size:.8rem;">`;
-        html += `<thead><tr><th>Metric</th>`;
+        html += `<thead><tr><th style="min-width:180px">Metric</th><th style="min-width:140px;color:#8b949e" class="small">What It Means</th>`;
         fins.forEach(a => { html += `<th class="text-end">${a.year.replace(/\s*\(.*\)/, '')}</th>`; });
         html += `</tr></thead><tbody>`;
 
-        // Color-coded formatter: green for positive, red for negative cash flows
         const fmtCF = (v) => {
             if(v == null) return '<span class="text-secondary">—</span>';
             const col = v >= 0 ? '#3fb950' : '#f85149';
             return `<span style="color:${col}">${fmtCr(v)}</span>`;
         };
-        // Special: items that are typically negative (capex, dividends, debt repayment) — show absolute with color
         const fmtCFAbs = (v) => {
             if(v == null) return '<span class="text-secondary">—</span>';
-            const col = v <= 0 ? '#d29922' : '#3fb950';  // outflows in amber, inflows in green
+            const col = v <= 0 ? '#d29922' : '#3fb950';
             return `<span style="color:${col}">${fmtCr(v)}</span>`;
         };
 
         const cfRows = [
-            ['Operating Cash Flow', 'operating_cashflow', fmtCF, true],
-            ['Capital Expenditure', 'capex', fmtCFAbs, false],
-            ['Free Cash Flow', 'free_cashflow', fmtCF, true],
-            ['Investing Cash Flow', 'investing_cashflow', fmtCF, false],
-            ['Financing Cash Flow', 'financing_cashflow', fmtCF, false],
-            ['Dividends Paid', 'dividends_paid', fmtCFAbs, false],
-            ['Debt Repayment', 'debt_repayment', fmtCFAbs, false],
-            ['Debt Issuance', 'debt_issuance', fmtCF, false],
-            ['Depreciation', 'depreciation', fmtCF, false],
-            ['FCF Margin', 'fcf_margin', (v) => {
-                if(v == null) return '<span class="text-secondary">—</span>';
-                const col = v >= 10 ? '#3fb950' : v >= 0 ? '#d29922' : '#f85149';
-                return `<span style="color:${col}">${v.toFixed(1)}%</span>`;
-            }, false],
-            ['Interest Coverage', 'interest_coverage', (v) => {
-                if(v == null) return '<span class="text-secondary">—</span>';
-                const col = v >= 3 ? '#3fb950' : v >= 1.5 ? '#d29922' : '#f85149';
-                return `<span style="color:${col}">${v.toFixed(1)}x</span>`;
-            }, false],
+            ['Operating Cash Flow', 'operating_cashflow', fmtCF, true, 'Cash from day-to-day business. MUST be positive — this is the lifeblood!'],
+            ['Capital Expenditure', 'capex', fmtCFAbs, false, 'Money spent on factories, equipment, expansion. Usually negative (spending)'],
+            ['Free Cash Flow', 'free_cashflow', fmtCF, true, 'Operating CF minus Capex = cash truly available. Key metric for investors!'],
+            ['Investing Cash Flow', 'investing_cashflow', fmtCF, false, 'Cash from buying/selling assets. Negative = investing in growth (usually good)'],
+            ['Financing Cash Flow', 'financing_cashflow', fmtCF, false, 'Cash from borrowing/repaying debt & paying dividends'],
+            ['Dividends Paid', 'dividends_paid', fmtCFAbs, false, 'Cash paid to shareholders as dividends (your reward for holding!)'],
+            ['Debt Repayment', 'debt_repayment', fmtCFAbs, false, 'Loans paid back — shows financial discipline'],
+            ['Debt Issuance', 'debt_issuance', fmtCF, false, 'New loans taken — watch if this is increasing year after year'],
+            ['Depreciation', 'depreciation', fmtCF, false, 'Non-cash charge for wear & tear on assets (added back to cash flow)'],
         ];
-        cfRows.forEach(([label, key, fmt, showYoY]) => {
-            html += `<tr><td class="fw-semibold">${label}</td>`;
+        cfRows.forEach(([label, key, fmt, showYoY, desc]) => {
+            const isKey = ['Operating Cash Flow','Free Cash Flow'].includes(label);
+            html += `<tr${isKey?' style="background:rgba(63,185,80,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach((a, i) => {
-                const v = a[key];
-                const prev = (showYoY && i < fins.length - 1) ? fins[i+1][key] : null;
-                html += `<td class="text-end">${fmt(v)}${showYoY ? yoy(v, prev) : ''}</td>`;
+                const v = a[key]; const p = (showYoY && i < fins.length - 1) ? fins[i+1][key] : null;
+                html += `<td class="text-end">${fmt(v)}${showYoY ? yoy(v, p) : ''}</td>`;
             });
             html += `</tr>`;
         });
+        // FCF Margin & Interest Coverage
+        html += `<tr style="border-top:2px solid #30363d"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#3fb950;padding-top:8px"><i class="bi bi-shield-check me-1"></i> CASH FLOW HEALTH RATIOS</td></tr>`;
+        [
+            ['FCF Margin', 'fcf_margin', v => {
+                if(v==null) return '<span class="text-secondary">—</span>';
+                const col = v>=10?'#3fb950':v>=0?'#d29922':'#f85149';
+                return `<span style="color:${col}">${v.toFixed(1)}%</span>`;
+            }, 'Free Cash Flow ÷ Revenue. Above 10% = excellent cash generation'],
+            ['Interest Coverage', 'interest_coverage', v => {
+                if(v==null) return '<span class="text-secondary">—</span>';
+                const col = v>=3?'#3fb950':v>=1.5?'#d29922':'#f85149';
+                return `<span style="color:${col}">${v.toFixed(1)}x</span>`;
+            }, 'EBIT ÷ Interest. Above 3x = easily covers interest payments (safe)'],
+        ].forEach(([label, key, fmt, desc]) => {
+            html += `<tr><td class="fw-semibold">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
+            fins.forEach(a => { html += `<td class="text-end">${fmt(a[key])}</td>`; });
+            html += `</tr>`;
+        });
         html += `</tbody></table></div>`;
+
+        // ── How to Read Financial Statements (Layman Guide)
+        html += `<div class="p-3 rounded-3 mb-3" style="background:rgba(188,140,255,0.04);border:1px solid rgba(188,140,255,0.12);">
+            <h6 class="mb-2"><i class="bi bi-book me-1" style="color:#bc8cff"></i> Quick Guide: What to Look For</h6>
+            <div class="row g-3 small" style="color:#c9d1d9">
+                <div class="col-md-4">
+                    <p class="mb-1"><strong style="color:#3fb950">✅ Good Signs</strong></p>
+                    <ul class="mb-0" style="padding-left:1.2rem;color:#8b949e">
+                        <li>Revenue growing steadily year after year</li>
+                        <li>Net Margin stable or improving (not shrinking)</li>
+                        <li>Positive & growing Free Cash Flow</li>
+                        <li>D/E Ratio below 1 (more equity than debt)</li>
+                        <li>ROE above 15% (good returns for shareholders)</li>
+                        <li>Interest Coverage above 3x (can easily service debt)</li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <p class="mb-1"><strong style="color:#f85149">⚠️ Warning Signs</strong></p>
+                    <ul class="mb-0" style="padding-left:1.2rem;color:#8b949e">
+                        <li>Revenue growing but Net Profit declining (cost problem)</li>
+                        <li>Negative Free Cash Flow (burning cash)</li>
+                        <li>Debt growing faster than equity</li>
+                        <li>Declining margins year after year</li>
+                        <li>Interest Coverage below 1.5x (struggle to pay interest)</li>
+                        <li>Working Capital turning negative</li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <p class="mb-1"><strong style="color:#58a6ff">💡 Pro Tips</strong></p>
+                    <ul class="mb-0" style="padding-left:1.2rem;color:#8b949e">
+                        <li>Look at <strong>trends</strong>, not just single years</li>
+                        <li>Compare margins to industry peers</li>
+                        <li>Cash Flow > Profit (cash is king!)</li>
+                        <li>Growing Revenue + Growing Margins = 🎯</li>
+                        <li>High ROE + Low D/E = ideal company</li>
+                        <li>Consistent EPS growth = compounding returns</li>
+                    </ul>
+                </div>
+            </div>
+        </div>`;
 
         el.innerHTML = html;
 
         // ── Render charts after DOM is set
         setTimeout(() => {
+            const chartFont = {color:'#8b949e',font:{size:9}};
+            const crCallback = v => { let cr=v/1e7; if(Math.abs(cr)>=1e5) return '₹'+(cr/1e5).toFixed(0)+'L Cr'; if(Math.abs(cr)>=1e3) return '₹'+(cr/1e3).toFixed(0)+'K Cr'; return '₹'+cr.toFixed(0)+' Cr'; };
             const chartOpts = {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' } } },
-                scales: {
-                    x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 } } },
-                    y: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 9 }, callback: v => { let cr=v/1e7; if(Math.abs(cr)>=1e5) return '₹'+(cr/1e5).toFixed(0)+'L Cr'; if(Math.abs(cr)>=1e3) return '₹'+(cr/1e3).toFixed(0)+'K Cr'; return '₹'+cr.toFixed(0)+' Cr'; } } }
-                }
+                scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: crCallback } } }
             };
 
             // 1. Revenue + Net Income bar chart
             const revCtx = document.getElementById('finRevChart');
             if(revCtx) {
-                new Chart(revCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: years,
-                        datasets: [
-                            { label: 'Revenue', data: rev.map(a => a.total_revenue), backgroundColor: 'rgba(88,166,255,0.5)', borderColor: '#58a6ff', borderWidth: 1, borderRadius: 3 },
-                            { label: 'Net Income', data: rev.map(a => a.net_income), backgroundColor: 'rgba(63,185,80,0.5)', borderColor: '#3fb950', borderWidth: 1, borderRadius: 3 },
-                        ]
-                    },
-                    options: { ...chartOpts, plugins: { ...chartOpts.plugins, title: { display: true, text: 'Revenue & Net Income', color: '#e6edf3', font: { size: 12 } } } }
+                new Chart(revCtx, { type: 'bar',
+                    data: { labels: years, datasets: [
+                        { label: 'Revenue', data: rev.map(a => a.total_revenue), backgroundColor: 'rgba(88,166,255,0.5)', borderColor: '#58a6ff', borderWidth: 1, borderRadius: 4 },
+                        { label: 'Net Income', data: rev.map(a => a.net_income), backgroundColor: 'rgba(63,185,80,0.5)', borderColor: '#3fb950', borderWidth: 1, borderRadius: 4 },
+                    ]},
+                    options: { ...chartOpts, plugins: { ...chartOpts.plugins, title: { display: true, text: 'Revenue & Net Income (Annual)', color: '#e6edf3', font: { size: 12 } } } }
                 });
             }
 
             // 2. Margins line chart
             const margCtx = document.getElementById('finMarginChart');
             if(margCtx) {
-                new Chart(margCtx, {
-                    type: 'line',
-                    data: {
-                        labels: years,
-                        datasets: [
-                            { label: 'Gross %', data: rev.map(a => a.gross_margin), borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.1)', fill: false, tension: 0.3, pointRadius: 4, borderWidth: 2 },
-                            { label: 'Operating %', data: rev.map(a => a.operating_margin), borderColor: '#d29922', fill: false, tension: 0.3, pointRadius: 4, borderWidth: 2 },
-                            { label: 'Net %', data: rev.map(a => a.net_margin), borderColor: '#3fb950', fill: false, tension: 0.3, pointRadius: 4, borderWidth: 2 },
-                            { label: 'FCF %', data: rev.map(a => a.fcf_margin), borderColor: '#bc8cff', borderDash: [5,3], fill: false, tension: 0.3, pointRadius: 3, borderWidth: 1.5 },
-                        ]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
+                new Chart(margCtx, { type: 'line',
+                    data: { labels: years, datasets: [
+                        { label: 'Gross %', data: rev.map(a => a.gross_margin), borderColor: '#58a6ff', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2.5, pointBackgroundColor: '#58a6ff' },
+                        { label: 'Operating %', data: rev.map(a => a.operating_margin), borderColor: '#d29922', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#d29922' },
+                        { label: 'Net %', data: rev.map(a => a.net_margin), borderColor: '#3fb950', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#3fb950' },
+                        { label: 'FCF %', data: rev.map(a => a.fcf_margin), borderColor: '#bc8cff', borderDash: [5,3], fill: false, tension: 0.3, pointRadius: 4, borderWidth: 1.5, pointBackgroundColor: '#bc8cff' },
+                    ]},
+                    options: { responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true } }, title: { display: true, text: 'Profit Margins Trend', color: '#e6edf3', font: { size: 12 } } },
-                        scales: {
-                            x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 } } },
-                            y: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 9 }, callback: v => v+'%' } }
-                        }
+                        scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: v => v+'%' } } }
                     }
                 });
             }
@@ -3424,39 +4058,27 @@
             // 3. Cash Flow bar chart (OCF, FCF, Capex)
             const cfCtx = document.getElementById('finCFChart');
             if(cfCtx) {
-                new Chart(cfCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: years,
-                        datasets: [
-                            { label: 'OCF', data: rev.map(a => a.operating_cashflow), backgroundColor: 'rgba(63,185,80,0.5)', borderColor: '#3fb950', borderWidth: 1, borderRadius: 3 },
-                            { label: 'FCF', data: rev.map(a => a.free_cashflow), backgroundColor: 'rgba(88,166,255,0.5)', borderColor: '#58a6ff', borderWidth: 1, borderRadius: 3 },
-                            { label: 'Capex', data: rev.map(a => a.capex != null ? Math.abs(a.capex) : null), backgroundColor: 'rgba(248,81,73,0.4)', borderColor: '#f85149', borderWidth: 1, borderRadius: 3 },
-                        ]
-                    },
-                    options: { ...chartOpts, plugins: { ...chartOpts.plugins, title: { display: true, text: 'Cash Flow', color: '#e6edf3', font: { size: 12 } } } }
+                new Chart(cfCtx, { type: 'bar',
+                    data: { labels: years, datasets: [
+                        { label: 'OCF', data: rev.map(a => a.operating_cashflow), backgroundColor: 'rgba(63,185,80,0.5)', borderColor: '#3fb950', borderWidth: 1, borderRadius: 4 },
+                        { label: 'FCF', data: rev.map(a => a.free_cashflow), backgroundColor: 'rgba(88,166,255,0.5)', borderColor: '#58a6ff', borderWidth: 1, borderRadius: 4 },
+                        { label: 'Capex', data: rev.map(a => a.capex != null ? Math.abs(a.capex) : null), backgroundColor: 'rgba(248,81,73,0.4)', borderColor: '#f85149', borderWidth: 1, borderRadius: 4 },
+                    ]},
+                    options: { ...chartOpts, plugins: { ...chartOpts.plugins, title: { display: true, text: 'Cash Flow Breakdown', color: '#e6edf3', font: { size: 12 } } } }
                 });
             }
 
             // 4. ROE / ROA line chart
             const retCtx = document.getElementById('finReturnChart');
             if(retCtx) {
-                new Chart(retCtx, {
-                    type: 'line',
-                    data: {
-                        labels: years,
-                        datasets: [
-                            { label: 'ROE %', data: rev.map(a => a.roe), borderColor: '#58a6ff', fill: false, tension: 0.3, pointRadius: 4, borderWidth: 2.5 },
-                            { label: 'ROA %', data: rev.map(a => a.roa), borderColor: '#d29922', fill: false, tension: 0.3, pointRadius: 4, borderWidth: 2 },
-                        ]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true } }, title: { display: true, text: 'Return Ratios', color: '#e6edf3', font: { size: 12 } } },
-                        scales: {
-                            x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 } } },
-                            y: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 9 }, callback: v => v+'%' } }
-                        }
+                new Chart(retCtx, { type: 'line',
+                    data: { labels: years, datasets: [
+                        { label: 'ROE %', data: rev.map(a => a.roe), borderColor: '#58a6ff', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2.5, pointBackgroundColor: '#58a6ff' },
+                        { label: 'ROA %', data: rev.map(a => a.roa), borderColor: '#d29922', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#d29922' },
+                    ]},
+                    options: { responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true } }, title: { display: true, text: 'Return Ratios (ROE & ROA)', color: '#e6edf3', font: { size: 12 } } },
+                        scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: v => v+'%' } } }
                     }
                 });
             }
@@ -3464,20 +4086,15 @@
             // 5. Leverage: D/E bar + Current Ratio line
             const levCtx = document.getElementById('finLevChart');
             if(levCtx) {
-                new Chart(levCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: years,
-                        datasets: [
-                            { label: 'D/E', data: rev.map(a => a.debt_to_equity), backgroundColor: 'rgba(248,81,73,0.4)', borderColor: '#f85149', borderWidth: 1, borderRadius: 3, yAxisID: 'yDE' },
-                            { label: 'Current Ratio', data: rev.map(a => a.current_ratio), type: 'line', borderColor: '#3fb950', fill: false, tension: 0.3, pointRadius: 4, borderWidth: 2, yAxisID: 'yCR' },
-                        ]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
+                new Chart(levCtx, { type: 'bar',
+                    data: { labels: years, datasets: [
+                        { label: 'D/E', data: rev.map(a => a.debt_to_equity), backgroundColor: 'rgba(248,81,73,0.4)', borderColor: '#f85149', borderWidth: 1, borderRadius: 4, yAxisID: 'yDE' },
+                        { label: 'Current Ratio', data: rev.map(a => a.current_ratio), type: 'line', borderColor: '#3fb950', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#3fb950', yAxisID: 'yCR' },
+                    ]},
+                    options: { responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true } }, title: { display: true, text: 'Leverage & Liquidity', color: '#e6edf3', font: { size: 12 } } },
                         scales: {
-                            x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 } } },
+                            x: { grid: { display: false }, ticks: chartFont },
                             yDE: { type: 'linear', position: 'left', title: { display: true, text: 'D/E', color: '#f85149', font: { size: 10 } }, grid: { color: '#21262d' }, ticks: { color: '#f85149', font: { size: 9 } }, beginAtZero: true },
                             yCR: { type: 'linear', position: 'right', title: { display: true, text: 'Current Ratio', color: '#3fb950', font: { size: 10 } }, grid: { display: false }, ticks: { color: '#3fb950', font: { size: 9 } }, beginAtZero: true },
                         }
@@ -3490,19 +4107,11 @@
             if(epsCtx) {
                 const epsData = rev.map(a => a.diluted_eps);
                 const epsColors = epsData.map(v => v != null && v >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.4)');
-                new Chart(epsCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: years,
-                        datasets: [{ label: 'Diluted EPS ₹', data: epsData, backgroundColor: epsColors, borderRadius: 3 }]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false }, title: { display: true, text: 'Diluted EPS Trend', color: '#e6edf3', font: { size: 12 } } },
-                        scales: {
-                            x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 } } },
-                            y: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 9 }, callback: v => '₹'+v } }
-                        }
+                new Chart(epsCtx, { type: 'bar',
+                    data: { labels: years, datasets: [{ label: 'Diluted EPS ₹', data: epsData, backgroundColor: epsColors, borderRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, title: { display: true, text: 'Diluted EPS Trend (₹ per share)', color: '#e6edf3', font: { size: 12 } } },
+                        scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: v => '₹'+v } } }
                     }
                 });
             }

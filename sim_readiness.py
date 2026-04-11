@@ -5,7 +5,7 @@ sim_readiness.py — Triple Conviction Engine & Portfolio Tracker Readiness Simu
 Deeply validates every data field that flows from the backend engines into the
 portfolio UI, including:
   • Triple Conviction Engine (BB + TA + PA scores, verdict, alignment)
-  • Wyckoff / Weis Volume Analysis (phase, sub_phase, bias, events, volume)
+  • Wyckoff / Villahermosa Volume Analysis (phase, sub_phase, bias, events, volume)
   • Dalton Market Profile (day_type, activity, market_structure, VA seq, signals, high-prob)
   • Price Action (Al Brooks) (signal, trend, patterns, targets, reasons)
   • Portfolio Analyzer (analyze_position end-to-end with multi_system)
@@ -188,7 +188,7 @@ def test_triple_engine(ticker, df, r):
 
 
 # ═══════════════════════════════════════════════════════════════
-#  TEST 2: WYCKOFF / WEIS — DEEP VALIDATION
+#  TEST 2: WYCKOFF / VILLAHERMOSA — DEEP VALIDATION
 # ═══════════════════════════════════════════════════════════════
 def test_wyckoff(ticker, triple_result, r):
     SEC = "wyckoff"

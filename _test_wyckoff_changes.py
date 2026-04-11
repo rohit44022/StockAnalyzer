@@ -1,7 +1,7 @@
 """Quick validation of all Wyckoff code changes."""
 from wyckoff.engine import run_wyckoff_analysis, wyckoff_to_dict
 from wyckoff.phases import assess_follow_through, detect_absorption, detect_change_in_behavior
-from wyckoff.volume_analysis import compute_weis_waves, compare_wave_volumes
+from wyckoff.volume_analysis import compute_wyckoff_waves, compare_wave_volumes
 import pandas as pd
 import os
 

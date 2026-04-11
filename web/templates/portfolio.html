@@ -20,11 +20,19 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 .card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
 .card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
 
-/* Nav */
-.top-nav{background:var(--card-bg);border-bottom:1px solid var(--card-border)}
-.top-nav .nav-link{color:#8b949e;font-weight:500;padding:.6rem 1rem}
-.top-nav .nav-link:hover{color:#c9d1d9}
-.top-nav .nav-link.active{color:var(--b)}
+/* ══ UNIFIED NAV ══ */
+.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
+.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
+@keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
+@keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
+.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
+.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+.sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 
 /* Hero */
 .hero{background:linear-gradient(135deg,#0d1117,#161b22 50%,#1a1f2b);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
@@ -120,17 +128,47 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 
 /* Health gauge */
 .health-gauge{position:relative;width:140px;height:70px;overflow:hidden;margin:0 auto}
+
+/* Risk badges */
+.badge-optimal{background:rgba(63,185,80,.15);color:#3fb950}
+.badge-oversized{background:rgba(248,81,73,.15);color:#f85149}
+.badge-undersized{background:rgba(210,153,34,.15);color:#d29922}
+.badge-low-risk{background:rgba(63,185,80,.15);color:#3fb950}
+.badge-moderate-risk{background:rgba(210,153,34,.15);color:#d29922}
+.badge-high-risk{background:rgba(248,81,73,.15);color:#f85149}
+.badge-very-high-risk{background:rgba(248,81,73,.25);color:#ff4444}
+
+/* Risk panel */
+.risk-metric{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.risk-metric:last-child{border-bottom:none}
+.risk-metric .rm-label{min-width:140px;font-size:.82rem;color:#8b949e}
+.risk-metric .rm-value{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:.88rem}
+.risk-metric .rm-explain{font-size:.72rem;color:#8b949e;margin-left:auto;max-width:300px;text-align:right}
+
+/* Risk gauge arc */
+.risk-gauge-wrap{position:relative;width:150px;height:85px;margin:0 auto}
+.risk-score-text{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);font-size:1.1rem;font-weight:700;font-family:'JetBrains Mono',monospace}
 </style>
 </head>
 <body>
 
-<!-- ═══════ TOP NAV ═══════ -->
-<nav class="top-nav sticky-top">
-  <div class="container-fluid d-flex align-items-center py-2">
-    <a class="nav-link" href="/"><i class="bi bi-graph-up-arrow me-1"></i>Bollinger Dashboard</a>
-    <a class="nav-link" href="/trades"><i class="bi bi-cash-stack me-1"></i>Trade P&L</a>
-    <a class="nav-link active" href="/portfolio"><i class="bi bi-briefcase-fill me-1"></i>Portfolio Tracker</a>
-    <span class="ms-auto text-secondary small font-mono" id="clockSpan"></span>
+<!-- ═══ UNIFIED NAVBAR ═══ -->
+<nav class="sc-nav">
+  <div class="container-fluid d-flex align-items-center px-3 gap-2">
+    <a class="sc-brand" href="/">हिरण्य</a>
+    <div class="sc-links">
+      <a class="sc-link" href="/">Home</a>
+      <a class="sc-link" href="/ta">TA</a>
+      <a class="sc-link" href="/pa">Price Action</a>
+      <a class="sc-link" href="/triple">Triple</a>
+      <a class="sc-link" href="/trades">Trades</a>
+      <a class="sc-link active" href="/portfolio">Portfolio</a>
+      <a class="sc-link" href="/risk-management">Risk</a>
+      <a class="sc-link" href="/mental-game">Mental</a>
+    </div>
+    <div class="sc-right">
+      <span class="sc-clock" id="clockSpan"></span>
+    </div>
   </div>
 </nav>
 
@@ -151,6 +189,27 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
     <div class="col-6 col-md-3"><div class="sum-card card"><div class="sum-val" id="sumPnl">₹0</div><div class="sum-label">Unrealized P&L</div></div></div>
   </div>
 
+  <!-- ═══════ RISK SUMMARY CARDS (Vince) ═══════ -->
+  <div class="row g-3 mb-3" id="riskSummaryRow" style="display:none;">
+    <div class="col-6 col-md-3"><div class="sum-card card" style="border-left:3px solid var(--p)"><div class="sum-val" style="color:var(--p)" id="sumRiskGrade">—</div><div class="sum-label"><i class="bi bi-shield-check me-1"></i>Portfolio Risk Grade</div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card card" style="border-left:3px solid var(--c)"><div class="sum-val" style="color:var(--c)" id="sumAvgOptF">—</div><div class="sum-label"><i class="bi bi-bullseye me-1"></i>Avg Optimal f</div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card card" style="border-left:3px solid var(--o)"><div class="sum-val" style="color:var(--o)" id="sumSizingHealth">—</div><div class="sum-label"><i class="bi bi-bar-chart me-1"></i>Sizing Health</div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card card" style="border-left:3px solid var(--b)"><div class="sum-val" style="color:var(--b)" id="sumMaxDD">—</div><div class="sum-label"><i class="bi bi-graph-down-arrow me-1"></i>Worst Max Drawdown</div></div></div>
+  </div>
+
+  <div class="card mb-3" id="dailyPnlCard">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-graph-up-arrow me-1"></i>Per-Day Unrealized Profit (Line Chart)</span>
+      <span class="small text-secondary" id="dailyPnlMeta">Loading...</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-container" style="max-height:280px">
+        <canvas id="dailyUnrealizedChart"></canvas>
+      </div>
+      <div class="small text-secondary mt-2" id="dailyPnlHint">This chart shows your open portfolio unrealized P&L trend by day.</div>
+    </div>
+  </div>
+
   <!-- ═══════ TABS: OPEN / CLOSED / ADD ═══════ -->
   <ul class="nav nav-pills mb-3">
     <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#tabOpen" id="tabOpenBtn">Open Positions</a></li>
@@ -168,7 +227,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
               <tr>
                 <th>Ticker</th><th>Strategy</th><th>Buy Price</th><th>Buy Date</th>
                 <th>Qty</th><th>Current</th><th>P&L</th><th>P&L %</th>
-                <th>Days</th><th>Action</th><th></th>
+                <th>Days</th><th>Action</th><th>Risk</th><th>Sizing</th><th></th>
               </tr>
             </thead>
             <tbody id="openBody"></tbody>
@@ -205,6 +264,22 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
     <div class="d-flex align-items-center mb-3">
       <h4 class="mb-0"><i class="bi bi-clipboard-data me-2"></i>Position Analysis: <span class="font-mono text-info" id="analysisTicker"></span></h4>
       <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="hideAnalysis()"><i class="bi bi-x-lg"></i> Close</button>
+    </div>
+
+    <!-- Educational Intro -->
+    <div class="p-3 rounded mb-3" style="background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.12)">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <i class="bi bi-mortarboard-fill" style="color:var(--b);font-size:1rem"></i>
+        <strong style="color:var(--b);font-size:.82rem">📖 HOW TO READ THIS ANALYSIS</strong>
+      </div>
+      <div style="font-size:.78rem;color:rgba(255,255,255,.6);line-height:1.7">
+        This page analyzes your held position using <strong>4 independent systems</strong> that each look at the market differently — like getting a second, third, and fourth opinion from different doctors.<br>
+        <strong style="color:var(--g)">🟢 Green</strong> = Bullish / Good for your position &nbsp;|&nbsp;
+        <strong style="color:var(--r)">🔴 Red</strong> = Bearish / Warning signal &nbsp;|&nbsp;
+        <strong style="color:var(--y)">🟡 Yellow</strong> = Caution / Mixed signals &nbsp;|&nbsp;
+        <strong style="color:var(--b)">🔵 Blue</strong> = Informational<br>
+        <strong>Start from the top</strong>: Recommendation → Targets → P&L Gauge → Technical Indicators → Strategy Signals → Charts → Vince Risk. Each section builds on the one before it.
+      </div>
     </div>
 
     <!-- Loading spinner -->
@@ -295,9 +370,49 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
           </div>
 
           <!-- All 4 Strategies at a glance -->
-          <div class="analysis-panel">
+          <div class="analysis-panel mb-3">
             <div class="text-secondary small text-uppercase mb-2">All Strategies — Current Signals</div>
             <div class="row g-2" id="allStratsRow"></div>
+          </div>
+
+          <!-- ═══ NEW: Strategy Signals Bar Chart ═══ -->
+          <div class="analysis-panel mb-3">
+            <div class="d-flex align-items-center mb-1">
+              <i class="bi bi-bar-chart-fill me-2" style="color:var(--b)"></i>
+              <span class="text-secondary small text-uppercase">Strategy Signals — Visual Comparison</span>
+            </div>
+            <div style="font-size:.73rem;color:rgba(255,255,255,.45);line-height:1.5;margin-bottom:6px">
+              Each bar shows how confident each strategy is. <strong style="color:var(--g)">Green bars</strong> = BUY/ADD signal, <strong style="color:var(--r)">Red bars</strong> = SELL signal, <strong style="color:var(--b)">Blue bars</strong> = HOLD, <strong style="color:var(--y)">Yellow bars</strong> = WAIT. Taller bars = more confidence.
+            </div>
+            <div class="chart-container" style="max-height:160px"><canvas id="strategyBarChart"></canvas></div>
+          </div>
+
+          <!-- ═══ NEW: Confirmation Donut Chart ═══ -->
+          <div class="analysis-panel mb-3">
+            <div class="d-flex align-items-center mb-1">
+              <i class="bi bi-pie-chart-fill me-2" style="color:var(--p)"></i>
+              <span class="text-secondary small text-uppercase">Confirmation Breakdown — How Many Systems Agree?</span>
+            </div>
+            <div style="font-size:.73rem;color:rgba(255,255,255,.45);line-height:1.5;margin-bottom:6px">
+              This donut shows how many confirmation signals are <strong style="color:var(--g)">bullish</strong> vs <strong style="color:var(--r)">bearish</strong> vs <strong style="color:var(--y)">neutral</strong>. A chart that's mostly green = strong buy conviction. Mostly red = strong sell conviction. Mixed = wait for clarity.
+            </div>
+            <div class="row g-2 align-items-center">
+              <div class="col-5"><div class="chart-container" style="max-height:130px"><canvas id="confirmDonutChart"></canvas></div></div>
+              <div class="col-7" id="confirmDonutLegend" style="font-size:.78rem;line-height:1.8"></div>
+            </div>
+          </div>
+
+          <!-- ═══ NEW: Risk/Reward Visual Chart ═══ -->
+          <div class="analysis-panel">
+            <div class="d-flex align-items-center mb-1">
+              <i class="bi bi-bullseye me-2" style="color:var(--o)"></i>
+              <span class="text-secondary small text-uppercase">Risk vs Reward — Is This Trade Worth It?</span>
+            </div>
+            <div style="font-size:.73rem;color:rgba(255,255,255,.45);line-height:1.5;margin-bottom:6px">
+              The green bar shows your potential <strong>profit</strong> (distance to target). The red bar shows your potential <strong>loss</strong> (distance to stop loss). A good trade has the green bar <strong>at least 2× longer</strong> than the red bar. If red is longer, the trade is not worth the risk.
+            </div>
+            <div class="chart-container" style="max-height:120px"><canvas id="rrBarChart"></canvas></div>
+            <div id="rrVerdict" class="small mt-2" style="line-height:1.6"></div>
           </div>
         </div>
       </div>
@@ -369,11 +484,11 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
               <div class="small mt-2" id="tripleExplain" style="color:var(--bs-body-color);line-height:1.6"></div>
             </div>
 
-            <!-- Wyckoff/Weis Volume-Phase Analysis — Rich Detail -->
+            <!-- Wyckoff/Villahermosa Volume-Phase Analysis — Rich Detail -->
             <div class="analysis-panel mt-3" id="wyckoffPanel" style="display:none;">
               <div class="d-flex align-items-center mb-3">
-                <h6 class="mb-0" style="color:orange"><i class="bi bi-moisture me-2"></i>Wyckoff / Weis Volume Analysis</h6>
-                <span class="badge ms-2" style="background:rgba(255,165,0,.15);color:orange;font-size:.65rem">[WEIS]</span>
+                <h6 class="mb-0" style="color:orange"><i class="bi bi-moisture me-2"></i>Wyckoff / Villahermosa Volume Analysis</h6>
+                <span class="badge ms-2" style="background:rgba(255,165,0,.15);color:orange;font-size:.65rem">[VILLAHERMOSA]</span>
                 <span class="badge ms-1 font-mono" id="wkBonusBadge" style="font-size:.65rem"></span>
               </div>
 
@@ -401,7 +516,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
               <div class="p-3 rounded mb-3" style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02)">
                 <div class="d-flex align-items-center mb-2">
                   <i class="bi bi-tsunami me-2" style="color:orange;font-size:1.1rem"></i>
-                  <strong class="small text-uppercase text-secondary">Weis Wave Analysis</strong>
+                  <strong class="small text-uppercase text-secondary">Wyckoff Wave Analysis</strong>
                 </div>
                 <div id="wkWaveContent" class="small" style="line-height:1.7;color:var(--bs-body-color)"></div>
               </div>
@@ -492,6 +607,206 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
         </div>
       </div>
 
+      <!-- ═══════ VINCE RISK & MONEY MANAGEMENT ═══════ -->
+      <div id="vinceRiskSection" style="display:none;" class="mt-3">
+        <div class="analysis-panel" style="border-left:3px solid var(--p)">
+          <div class="d-flex align-items-center mb-3">
+            <h6 class="mb-0" style="color:var(--p)"><i class="bi bi-shield-check me-2"></i>Risk & Money Management (Ralph Vince)</h6>
+            <span class="badge ms-2" style="background:rgba(188,140,255,.15);color:var(--p);font-size:.65rem">[VINCE]</span>
+            <span class="badge ms-1 font-mono" id="vinceRiskBadge" style="font-size:.65rem"></span>
+          </div>
+
+          <!-- Educational Intro -->
+          <div class="p-3 rounded mb-3" style="background:rgba(188,140,255,.04);border:1px solid rgba(188,140,255,.12)">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <i class="bi bi-mortarboard-fill" style="color:var(--p);font-size:1rem"></i>
+              <strong style="color:var(--p);font-size:.82rem">📖 WHAT IS THIS SECTION?</strong>
+            </div>
+            <div style="font-size:.78rem;color:rgba(255,255,255,.6);line-height:1.7">
+              <strong>Ralph Vince</strong> was a mathematician who discovered that <strong>HOW MUCH you bet matters more than WHAT you bet on</strong>. Even a winning strategy loses money if you bet too much per trade.<br>
+              🏠 <strong>Real-World Analogy:</strong> Imagine you're a professional poker player with a winning strategy. Vince's math answers: "<em>You have ₹1,00,000. You have an edge. How much should you bet on each hand so you grow the fastest WITHOUT going bankrupt?</em>" Bet too much → one bad hand wipes you out. Bet too little → you grow too slowly. Vince found the <strong>mathematically optimal bet size</strong>.
+            </div>
+          </div>
+
+          <!-- Risk Score Gauge + Grade -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-4 text-center">
+              <div class="risk-gauge-wrap">
+                <canvas id="riskGaugeChart" width="150" height="85"></canvas>
+                <div class="risk-score-text" id="vinceScoreVal"></div>
+              </div>
+              <div class="font-mono fw-bold mt-1" id="vinceGradeLabel" style="font-size:1rem"></div>
+              <div class="small text-secondary">Composite Risk Score (0–100)</div>
+              <div style="font-size:.68rem;color:rgba(255,255,255,.4);margin-top:4px">Higher = Safer. Combines drawdown, volatility, position sizing & profitability into one number.</div>
+            </div>
+            <div class="col-md-8">
+              <!-- Key Metrics Grid -->
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="risk-metric tip-wrap">
+                    <span class="rm-label">Optimal f</span>
+                    <span class="rm-value" id="vrOptF"></span>
+                    <div class="tip-text"><strong>Optimal f</strong> = the mathematically ideal fraction of your capital to risk on each trade to maximize long-term growth. Example: if Optimal f = 25%, risk ₹25,000 per trade on a ₹1,00,000 account. <strong style="color:var(--y)">We use 50% of this (conservative)</strong> so you grow steadily without stomach-churning drawdowns.</div>
+                  </div>
+                  <div class="risk-metric tip-wrap">
+                    <span class="rm-label">Kelly f</span>
+                    <span class="rm-value" id="vrKellyF"></span>
+                    <div class="tip-text"><strong>Kelly Criterion</strong> = another formula (from gambling theory) for optimal bet size, based on your win rate and win/loss ratio. If Kelly f = 30%, it means you win often enough and big enough that risking 30% is mathematically optimal. <strong>Compare with Optimal f</strong> — if both agree, the sizing is very reliable.</div>
+                  </div>
+                  <div class="risk-metric tip-wrap">
+                    <span class="rm-label">Geometric Mean</span>
+                    <span class="rm-value" id="vrGeoMean"></span>
+                    <div class="tip-text"><strong>Geometric Mean HPR</strong> = the average growth factor per trade. <strong style="color:var(--g)">Above 1.0 = you're making money on average</strong>. Below 1.0 = losing. Example: 1.0005 means each trade grows your account by 0.05% on average. Even tiny numbers above 1.0 compound into large gains over hundreds of trades.</div>
+                  </div>
+                  <div class="risk-metric tip-wrap">
+                    <span class="rm-label">TWR</span>
+                    <span class="rm-value" id="vrTWR"></span>
+                    <div class="tip-text"><strong>Terminal Wealth Relative</strong> = if you had traded at optimal f for every single trade in this stock's history, your money would have multiplied by this number. TWR of 2.5 means ₹1,00,000 becomes ₹2,50,000. <strong style="color:var(--r)">Warning:</strong> This assumes perfect execution and is theoretical.</div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="risk-metric tip-wrap">
+                    <span class="rm-label">Max Drawdown</span>
+                    <span class="rm-value" id="vrMaxDD"></span>
+                    <div class="tip-text"><strong>Max Drawdown</strong> = the worst peak-to-valley loss this stock has experienced. If it says -25%, that means at some point the stock dropped 25% from its high. <strong style="color:var(--r)">This is the WORST-CASE pain level you must be prepared for.</strong> If you can't stomach a 25% drop, reduce your position size.</div>
+                  </div>
+                  <div class="risk-metric tip-wrap">
+                    <span class="rm-label">Volatility</span>
+                    <span class="rm-value" id="vrVol"></span>
+                    <div class="tip-text"><strong>Volatility</strong> = how wildly the stock price swings day to day (annualized). Low volatility (under 20%) = calm, predictable stock. High volatility (over 40%) = wild swings, exciting but dangerous. Think of it as the "bumpiness" of the ride.</div>
+                  </div>
+                  <div class="risk-metric tip-wrap">
+                    <span class="rm-label">Biggest Loss</span>
+                    <span class="rm-value" id="vrBigLoss"></span>
+                    <div class="tip-text"><strong>Biggest Single-Day Loss</strong> = the largest amount this stock dropped in ONE day. This is critically important because Vince's optimal f is calculated using this number. It represents the <strong>worst single blow</strong> your capital could take.</div>
+                  </div>
+                  <div class="risk-metric tip-wrap">
+                    <span class="rm-label">Time to 2x</span>
+                    <span class="rm-value" id="vrTimeDbl"></span>
+                    <div class="tip-text"><strong>Time to Double</strong> = how many trading days it would take to double your initial investment at the current geometric growth rate. Fewer days = faster-growing stock. If it says ~500 trades, and there are ~250 trading days per year, that's about 2 years to double.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══ NEW: Vince Metrics Radar Chart ═══ -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="p-3 rounded" style="border:1px solid rgba(188,140,255,.12);background:rgba(188,140,255,.02)">
+                <div class="d-flex align-items-center mb-1">
+                  <i class="bi bi-radar me-2" style="color:var(--p)"></i>
+                  <span class="text-secondary small text-uppercase">Risk Health Radar</span>
+                </div>
+                <div style="font-size:.68rem;color:rgba(255,255,255,.4);margin-bottom:6px">5 axes show your risk profile. Bigger area = healthier. If one axis is very short, that's a weak spot.</div>
+                <div class="chart-container" style="max-height:180px"><canvas id="vinceRadarChart"></canvas></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="p-3 rounded" style="border:1px solid rgba(188,140,255,.12);background:rgba(188,140,255,.02)">
+                <div class="d-flex align-items-center mb-1">
+                  <i class="bi bi-bar-chart-fill me-2" style="color:var(--p)"></i>
+                  <span class="text-secondary small text-uppercase">Key Metrics — Visual Bars</span>
+                </div>
+                <div style="font-size:.68rem;color:rgba(255,255,255,.4);margin-bottom:6px">Horizontal bars compare each metric. Longer green = better. Red = needs attention.</div>
+                <div id="vinceMetricBars"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Position Sizing Card -->
+          <div class="p-3 rounded mb-3" style="border:1px solid rgba(188,140,255,.15);background:rgba(188,140,255,.03)">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-bar-chart-steps me-2" style="color:var(--p);font-size:1.1rem"></i>
+              <strong class="small text-uppercase text-secondary">Position Sizing (50% of Optimal f — Conservative)</strong>
+              <span class="badge ms-auto font-mono" id="vrSizingBadge" style="font-size:.7rem"></span>
+            </div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.6;margin-bottom:8px">
+              🎯 <strong>What is this?</strong> This tells you if you're holding the right NUMBER of shares. We use 50% of Optimal f (half the max) for safety — like driving at half the speed limit on a wet road. <strong style="color:var(--g)">OPTIMAL</strong> = just right. <strong style="color:var(--r)">OVERSIZED</strong> = you're holding too much, at risk of big losses. <strong style="color:var(--y)">UNDERSIZED</strong> = you could hold more safely.
+            </div>
+            <div class="row g-2">
+              <div class="col-4">
+                <div class="risk-metric">
+                  <span class="rm-label">You Hold</span>
+                  <span class="rm-value" id="vrCurrentQty"></span>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="risk-metric">
+                  <span class="rm-label">Recommended</span>
+                  <span class="rm-value" id="vrRecQty"></span>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="risk-metric">
+                  <span class="rm-label">f₹ per Unit</span>
+                  <span class="rm-value" id="vrFDollar"></span>
+                </div>
+              </div>
+            </div>
+            <div class="risk-metric">
+              <span class="rm-label">Risk per Trade</span>
+              <span class="rm-value" id="vrRiskPerTrade"></span>
+              <span class="rm-explain" id="vrRiskExplain"></span>
+            </div>
+            <!-- Sizing bar -->
+            <div class="mt-2">
+              <div class="d-flex justify-content-between small text-secondary mb-1">
+                <span>Position Sizing</span>
+                <span id="vrSizingRatioLabel"></span>
+              </div>
+              <div class="progress" style="height:10px;background:rgba(255,255,255,.06);border-radius:5px">
+                <div class="progress-bar" id="vrSizingBar" style="border-radius:5px"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dependency / Serial Correlation -->
+          <div class="p-3 rounded mb-3" style="border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02)">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-arrow-left-right me-2" style="color:var(--b);font-size:1.1rem"></i>
+              <strong class="small text-uppercase text-secondary">Trade Dependency Tests</strong>
+            </div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.6;margin-bottom:8px">
+              🎲 <strong>What is this?</strong> Vince's math assumes each trade is independent (like each coin flip). These tests check if that's true. If trades ARE independent → the optimal f calculation is reliable. If trades are dependent (one outcome affects the next) → you should be more conservative with position sizing.
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <div class="risk-metric">
+                  <span class="rm-label">Runs Test</span>
+                  <span class="rm-value" id="vrRunsTest"></span>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="risk-metric">
+                  <span class="rm-label">Serial Correlation</span>
+                  <span class="rm-value" id="vrSerialCorr"></span>
+                </div>
+              </div>
+            </div>
+            <div class="small mt-2" id="vrDependencyExplain" style="color:var(--bs-body-color);line-height:1.5"></div>
+          </div>
+
+          <!-- Plain English Summary -->
+          <div class="p-3 rounded mb-3" style="border:1px solid rgba(188,140,255,.15);background:rgba(188,140,255,.04)">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-lightbulb me-2" style="color:var(--p);font-size:1.1rem"></i>
+              <strong class="small text-uppercase" style="color:var(--p)">What This Means For Your Position</strong>
+            </div>
+            <div id="vincePlainText" class="small" style="line-height:1.8"></div>
+          </div>
+
+          <!-- ═══ NEW: VINCE VERDICT — Decision Box ═══ -->
+          <div class="p-3 rounded" id="vinceVerdictBox" style="border:2px solid rgba(188,140,255,.2);background:rgba(188,140,255,.06);display:none">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-clipboard2-check me-2" style="color:var(--p);font-size:1.2rem"></i>
+              <strong style="color:var(--p);font-size:.9rem">⚖️ VINCE VERDICT — What Should You Do?</strong>
+            </div>
+            <div id="vinceVerdictContent" class="small" style="line-height:1.8"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Action buttons -->
       <div class="d-flex gap-2 mt-3">
         <button class="btn btn-outline-danger" onclick="promptClosePosition()"><i class="bi bi-x-circle me-1"></i>Close Position (Sell)</button>
@@ -542,6 +857,24 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
           <label class="form-label small text-secondary">Notes (optional)</label>
           <textarea class="form-control" id="addNotes" rows="2" placeholder="e.g. Entered on squeeze breakout with high volume"></textarea>
         </div>
+        <hr style="border-color:var(--card-border)">
+        <div class="small fw-bold mb-2" style="color:var(--p)"><i class="bi bi-brain me-1"></i>Mental Game Fields <span class="text-secondary fw-normal">(optional)</span></div>
+        <div class="row g-2">
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Pre-Trade Emotion</label>
+            <select class="form-select" id="addPsychEmotion">
+              <option value="">— skip —</option>
+              <option value="CALM">Calm</option><option value="FOCUSED">Focused</option>
+              <option value="ANXIOUS">Anxious</option><option value="FEARFUL">Fearful</option>
+              <option value="OVERCONFIDENT">Overconfident</option><option value="IMPATIENT">Impatient</option>
+              <option value="REVENGE">Revenge-Driven</option><option value="GREEDY">Greedy</option>
+            </select>
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Mental Score (1-10)</label>
+            <input type="number" class="form-control font-mono" id="addPsychScore" min="1" max="10" placeholder="7">
+          </div>
+        </div>
       </div>
       <div class="modal-footer" style="border-color:var(--card-border)">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -580,6 +913,34 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
             <option value="Manual decision">Manual decision</option>
             <option value="Other">Other</option>
           </select>
+        </div>
+        <hr style="border-color:var(--card-border)">
+        <div class="small fw-bold mb-2" style="color:var(--p)"><i class="bi bi-brain me-1"></i>Mental Game Fields <span class="text-secondary fw-normal">(optional)</span></div>
+        <div class="row g-2">
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">System Followed?</label>
+            <select class="form-select" id="closePsychSystem">
+              <option value="">— skip —</option>
+              <option value="YES">YES — followed system</option>
+              <option value="NO">NO — deviated</option>
+            </select>
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Pattern Tag</label>
+            <select class="form-select" id="closePsychPattern">
+              <option value="">None</option>
+              <option value="REVENGE_TRADE">Revenge Trade</option>
+              <option value="OVERCONFIDENCE">Overconfidence</option>
+              <option value="FEAR_PARALYSIS">Fear Paralysis</option>
+              <option value="FOMO">FOMO</option>
+              <option value="EARLY_EXIT">Early Exit</option>
+              <option value="DISCIPLINE_BREAKDOWN">Discipline Breakdown</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Post-Trade Reflection</label>
+          <textarea class="form-control" id="closePsychReflection" rows="2" placeholder="What happened? What did I feel? What will I do differently?"></textarea>
         </div>
       </div>
       <div class="modal-footer" style="border-color:var(--card-border)">
@@ -643,6 +1004,7 @@ async function loadPositions() {
     const res = await fetch('/api/portfolio');
     allPositions = await res.json();
     renderPositions();
+  loadDailyUnrealizedChart();
 }
 
 function renderPositions() {
@@ -672,6 +1034,8 @@ function renderPositions() {
             <td class="font-mono" id="pnlp_${p.id}">—</td>
             <td class="font-mono">${days}d</td>
             <td id="act_${p.id}"><span class="badge badge-wait">...</span></td>
+            <td id="risk_${p.id}"><span class="badge badge-wait" style="font-size:.65rem">...</span></td>
+            <td id="sizing_${p.id}"><span class="badge badge-wait" style="font-size:.65rem">...</span></td>
             <td>
                 <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();confirmDelete(${p.id})" title="Delete"><i class="bi bi-trash3"></i></button>
             </td>
@@ -715,6 +1079,9 @@ async function fetchLiveUpdates(openPositions) {
     const analyses = await res.json();
     let totalInvested = 0, totalCurrent = 0, totalPnl = 0;
 
+    // Risk aggregation for summary cards
+    let riskScores = [], optFs = [], sizingCounts = {OPTIMAL:0, OVERSIZED:0, UNDERSIZED:0}, worstDD = 0;
+
     analyses.forEach(a => {
         if (a.error) return;
         const p = a.position;
@@ -731,12 +1098,54 @@ async function fetchLiveUpdates(openPositions) {
         if (pnlEl) { pnlEl.textContent = `${pnlSign(h.pnl_amount)}${fmtINR2(h.pnl_amount)}`; pnlEl.style.color = pnlColor(h.pnl_amount); }
         if (pnlpEl) { pnlpEl.textContent = `${pnlSign(h.pnl_pct)}${fmt(h.pnl_pct)}%`; pnlpEl.style.color = pnlColor(h.pnl_pct); }
         if (actEl) actEl.innerHTML = actionBadge(a.recommendation.action);
+
+        // ── Risk columns ──
+        const vr = a.vince_risk || {};
+        const riskEl = document.getElementById(`risk_${p.id}`);
+        const sizingEl = document.getElementById(`sizing_${p.id}`);
+
+        if (riskEl && vr.risk_grade) {
+            const rg = vr.risk_grade;
+            const rgCls = rg === 'LOW RISK' ? 'badge-low-risk' : rg === 'MODERATE RISK' ? 'badge-moderate-risk' : rg === 'HIGH RISK' ? 'badge-high-risk' : 'badge-very-high-risk';
+            riskEl.innerHTML = `<span class="badge ${rgCls}" style="font-size:.65rem">${rg.replace(' RISK','')}</span>`;
+        }
+        if (sizingEl && vr.sizing_status) {
+            const ss = vr.sizing_status;
+            const ssCls = ss === 'OPTIMAL' ? 'badge-optimal' : ss === 'OVERSIZED' ? 'badge-oversized' : ss === 'UNDERSIZED' ? 'badge-undersized' : 'badge-wait';
+            sizingEl.innerHTML = `<span class="badge ${ssCls}" style="font-size:.65rem">${ss}</span>`;
+        }
+
+        // ── Aggregate for summary cards ──
+        if (vr.risk_score != null) riskScores.push(vr.risk_score);
+        if (vr.optimal_f) optFs.push(vr.optimal_f);
+        if (vr.sizing_status && vr.sizing_status !== 'N/A') sizingCounts[vr.sizing_status] = (sizingCounts[vr.sizing_status]||0) + 1;
+        if (vr.max_drawdown_pct) worstDD = Math.min(worstDD, vr.max_drawdown_pct);
     });
 
     document.getElementById('sumInvested').textContent = fmtINR(totalInvested);
     document.getElementById('sumCurrent').textContent = fmtINR(totalCurrent);
     document.getElementById('sumPnl').textContent = `${pnlSign(totalPnl)}${fmtINR(totalPnl)}`;
     document.getElementById('sumPnl').style.color = pnlColor(totalPnl);
+
+    // ── Risk summary cards ──
+    if (riskScores.length > 0) {
+        document.getElementById('riskSummaryRow').style.display = '';
+        const avgScore = riskScores.reduce((a,b) => a+b, 0) / riskScores.length;
+        const gradeLabel = avgScore >= 75 ? 'LOW' : avgScore >= 50 ? 'MODERATE' : avgScore >= 25 ? 'HIGH' : 'VERY HIGH';
+        const gradeClr = avgScore >= 75 ? 'var(--g)' : avgScore >= 50 ? 'var(--y)' : 'var(--r)';
+        document.getElementById('sumRiskGrade').textContent = gradeLabel;
+        document.getElementById('sumRiskGrade').style.color = gradeClr;
+
+        const avgF = optFs.length ? (optFs.reduce((a,b)=>a+b,0)/optFs.length*100).toFixed(2)+'%' : '—';
+        document.getElementById('sumAvgOptF').textContent = avgF;
+
+        const totalSized = sizingCounts.OPTIMAL + sizingCounts.OVERSIZED + sizingCounts.UNDERSIZED;
+        const healthPct = totalSized ? Math.round(sizingCounts.OPTIMAL / totalSized * 100) : 0;
+        document.getElementById('sumSizingHealth').textContent = `${healthPct}% OK`;
+        document.getElementById('sumSizingHealth').style.color = healthPct >= 70 ? 'var(--g)' : healthPct >= 40 ? 'var(--y)' : 'var(--r)';
+
+        document.getElementById('sumMaxDD').textContent = `${fmt(worstDD,1)}%`;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -962,8 +1371,16 @@ function renderAnalysis(data) {
         </div>
     `).join('');
 
+    // ═══════ NEW CHARTS: Strategy Bar, Confirm Donut, Risk/Reward ═══════
+    renderStrategyBarChart(m1, data.all_strategies);
+    renderConfirmDonut(rec.confirms);
+    renderRiskRewardChart(tgt, ind.price);
+
     // ═══════ MULTI-SYSTEM ANALYSIS RENDER ═══════
     renderMultiSystem(data.multi_system || {});
+
+    // ═══════ VINCE RISK & MONEY MANAGEMENT RENDER ═══════
+    renderVinceRisk(data.vince_risk || {}, data.holding || {});
 }
 
 function renderMultiSystem(ms) {
@@ -1154,7 +1571,7 @@ function renderMultiSystem(ms) {
     // Score Radar Chart
     renderScoreRadar(triple);
 
-    // ═══════ WYCKOFF/WEIS RENDER — RICH DETAIL ═══════
+    // ═══════ WYCKOFF/VILLAHERMOSA RENDER — RICH DETAIL ═══════
     const wk = ms.wyckoff;
     const wkPanel = document.getElementById('wyckoffPanel');
     if (wk && wk.phase && wk.phase !== 'UNKNOWN') {
@@ -1351,6 +1768,144 @@ function renderMultiSystem(ms) {
 // ═══════════════════════════════════════════════════════════════
 let pnlGaugeInstance = null;
 let radarInstance = null;
+let dailyUnrealizedInstance = null;
+let strategyBarInstance = null;
+let confirmDonutInstance = null;
+let rrBarInstance = null;
+let vinceRadarInstance = null;
+
+// ═══════════════════════════════════════════════════════════════
+//  DAILY UNREALIZED P&L LINE CHART (Portfolio Level)
+// ═══════════════════════════════════════════════════════════════
+async function loadDailyUnrealizedChart() {
+  const card = document.getElementById('dailyPnlCard');
+  const meta = document.getElementById('dailyPnlMeta');
+  const hint = document.getElementById('dailyPnlHint');
+  const canvas = document.getElementById('dailyUnrealizedChart');
+  if (!card || !meta || !hint || !canvas) return;
+
+  const openCount = allPositions.filter(p => p.status === 'OPEN').length;
+  if (!openCount) {
+    if (dailyUnrealizedInstance) { dailyUnrealizedInstance.destroy(); dailyUnrealizedInstance = null; }
+    meta.textContent = 'No open positions';
+    hint.textContent = 'Add open positions to see per-day unrealized profit trend.';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/portfolio/unrealized-daily');
+    const data = await res.json();
+    const dates = data?.dates || [];
+    const pnl = data?.pnl || [];
+    const stockSeries = data?.series || [];
+
+    if (!dates.length || !pnl.length) {
+      if (dailyUnrealizedInstance) { dailyUnrealizedInstance.destroy(); dailyUnrealizedInstance = null; }
+      meta.textContent = 'No chart data';
+      hint.textContent = 'Historical price data is not available yet for one or more open positions.';
+      return;
+    }
+
+    if (dailyUnrealizedInstance) { dailyUnrealizedInstance.destroy(); dailyUnrealizedInstance = null; }
+
+    const latest = pnl[pnl.length - 1] || 0;
+    const latestColor = latest >= 0 ? '#3fb950' : '#f85149';
+    const stockCount = stockSeries.length || 1;
+    meta.textContent = `${dates.length} trading days | ${stockCount} stock lines`;
+    hint.innerHTML = `Latest total unrealized P&L: <strong style="color:${latestColor}">${latest >= 0 ? '+' : ''}${fmtINR2(latest)}</strong> &nbsp;|&nbsp; Dots show each day's unrealized P&L.`;
+
+    const palette = ['#58a6ff', '#3fb950', '#bc8cff', '#f0883e', '#39d2c0', '#d29922', '#ff7b72', '#79c0ff'];
+    const datasets = [];
+
+    if (stockSeries.length) {
+      stockSeries.forEach((s, i) => {
+        datasets.push({
+          label: `${s.label || s.ticker} (₹)`,
+          data: s.pnl || [],
+          tension: 0.22,
+          borderWidth: 2,
+          borderColor: palette[i % palette.length],
+          backgroundColor: 'transparent',
+          pointRadius: 2.2,
+          pointHoverRadius: 4,
+          pointBackgroundColor: palette[i % palette.length],
+          pointBorderWidth: 0,
+          fill: false
+        });
+      });
+    } else {
+      datasets.push({
+        label: 'Unrealized P&L (₹)',
+        data: pnl,
+        tension: 0.25,
+        borderWidth: 2,
+        pointRadius: 2.2,
+        pointHoverRadius: 4,
+        fill: false,
+        borderColor: '#58a6ff',
+        pointBackgroundColor: '#58a6ff',
+      });
+    }
+
+    if (datasets.length > 1) {
+      datasets.push({
+        label: 'Portfolio Total (₹)',
+        data: pnl,
+        tension: 0.25,
+        borderWidth: 2.5,
+        pointRadius: 2.6,
+        pointHoverRadius: 4.5,
+        borderDash: [6, 4],
+        borderColor: '#c9d1d9',
+        pointBackgroundColor: '#c9d1d9',
+        fill: false
+      });
+    }
+
+    dailyUnrealizedInstance = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            labels: { color: '#8b949e', boxWidth: 16 }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = Number(ctx.parsed.y || 0);
+                return `${ctx.dataset.label}: ${v >= 0 ? '+' : ''}${fmtINR2(v)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#8b949e', maxTicksLimit: 10 },
+            grid: { color: 'rgba(255,255,255,.05)' }
+          },
+          y: {
+            ticks: {
+              color: '#8b949e',
+              callback: (v) => fmtINR(v)
+            },
+            grid: { color: 'rgba(255,255,255,.08)' }
+          }
+        }
+      }
+    });
+  } catch (e) {
+    if (dailyUnrealizedInstance) { dailyUnrealizedInstance.destroy(); dailyUnrealizedInstance = null; }
+    meta.textContent = 'Chart unavailable';
+    hint.textContent = 'Unable to load daily unrealized profit right now.';
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  TARGET PRICE VISUAL RULER
@@ -1521,6 +2076,387 @@ function renderScoreRadar(triple) {
         else if (total < 0) txt = `<strong style="color:var(--y)">Mildly Bearish.</strong> The combined score is slightly negative (${total}/${max}). Not an emergency, but watch for deterioration.`;
         else txt = `<strong style="color:var(--y)">Neutral.</strong> The three systems are balanced — no clear direction. The radar shows roughly even readings. When this happens, it's best to hold and wait for a clearer signal.`;
         el.innerHTML = txt;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STRATEGY SIGNALS BAR CHART
+// ═══════════════════════════════════════════════════════════════
+function renderStrategyBarChart(m1, allStrats) {
+    const canvas = document.getElementById('strategyBarChart');
+    if (!canvas) return;
+    if (strategyBarInstance) { strategyBarInstance.destroy(); strategyBarInstance = null; }
+
+    const signals = [
+        { code: 'M1', type: m1.sell?'SELL':m1.buy?'BUY':m1.hold?'HOLD':'WAIT', conf: m1.confidence||0 },
+        ...allStrats.map(s => ({ code: s.code, type: s.signal?.type||'NONE', conf: s.signal?.confidence||0 }))
+    ];
+    const labels = signals.map(s => (STRATEGY_NAMES[s.code]||s.code).replace(/\s*\(.*\)/,''));
+    const data = signals.map(s => s.conf);
+    const colors = signals.map(s => {
+        if (s.type==='BUY'||s.type==='ADD') return '#3fb950';
+        if (s.type==='SELL') return '#f85149';
+        if (s.type==='HOLD') return '#58a6ff';
+        return '#d29922';
+    });
+
+    strategyBarInstance = new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, borderRadius: 4 }] },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${signals[ctx.dataIndex].type} — ${ctx.raw}% confidence` } } },
+            scales: {
+                x: { max: 100, ticks: { color:'#8b949e', callback: v=>v+'%' }, grid: { color:'rgba(255,255,255,.05)' } },
+                y: { ticks: { color:'#8b949e', font: { size: 11 } }, grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CONFIRMATION DONUT CHART
+// ═══════════════════════════════════════════════════════════════
+function renderConfirmDonut(confirms) {
+    const canvas = document.getElementById('confirmDonutChart');
+    const legend = document.getElementById('confirmDonutLegend');
+    if (!canvas || !confirms || !confirms.length) return;
+    if (confirmDonutInstance) { confirmDonutInstance.destroy(); confirmDonutInstance = null; }
+
+    let bull = 0, bear = 0, neutral = 0;
+    confirms.forEach(c => {
+        if (c.includes('BUY')||c.includes('HOLD')||c.includes('W-Bottom')||c.includes('supportive')||c.includes('bullish')) bull++;
+        else if (c.includes('SELL')||c.includes('EXIT')||c.includes('M-Top')||c.includes('fading')||c.includes('bearish')) bear++;
+        else neutral++;
+    });
+    const total = bull + bear + neutral;
+
+    confirmDonutInstance = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: ['Bullish', 'Bearish', 'Neutral'],
+            datasets: [{ data: [bull, bear, neutral], backgroundColor: ['#3fb950','#f85149','#d29922'], borderWidth: 0 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} of ${total} signals` } }
+            }
+        },
+        plugins: [{
+            id: 'centerText',
+            afterDraw(chart) {
+                const { ctx, chartArea: { left, right, top, bottom } } = chart;
+                const cx = (left+right)/2, cy = (top+bottom)/2;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 18px JetBrains Mono, monospace';
+                ctx.fillStyle = bull > bear ? '#3fb950' : bear > bull ? '#f85149' : '#d29922';
+                ctx.fillText(`${total}`, cx, cy - 2);
+                ctx.font = '10px Inter, sans-serif';
+                ctx.fillStyle = '#8b949e';
+                ctx.fillText('signals', cx, cy + 12);
+                ctx.restore();
+            }
+        }]
+    });
+
+    if (legend) {
+        const verdict = bull > bear ? (bull >= bear*2 ? 'Strong bullish consensus!' : 'Leaning bullish') : bear > bull ? (bear >= bull*2 ? 'Strong bearish warning!' : 'Leaning bearish') : 'Mixed — no clear direction';
+        const vClr = bull > bear ? 'var(--g)' : bear > bull ? 'var(--r)' : 'var(--y)';
+        legend.innerHTML = `
+            <div><span style="color:#3fb950">● Bullish: ${bull}</span> — signals say the stock looks good</div>
+            <div><span style="color:#f85149">● Bearish: ${bear}</span> — signals warn of weakness</div>
+            <div><span style="color:#d29922">● Neutral: ${neutral}</span> — no strong opinion</div>
+            <div class="mt-1 fw-bold" style="color:${vClr}">→ ${verdict}</div>
+        `;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RISK vs REWARD BAR CHART
+// ═══════════════════════════════════════════════════════════════
+function renderRiskRewardChart(tgt, currentPrice) {
+    const canvas = document.getElementById('rrBarChart');
+    const verdictEl = document.getElementById('rrVerdict');
+    if (!canvas || !tgt) return;
+    if (rrBarInstance) { rrBarInstance.destroy(); rrBarInstance = null; }
+
+    const stop = tgt.stop_loss || 0;
+    const target = tgt.bb_upper || tgt.target_1_sigma || currentPrice;
+    const risk = currentPrice - stop;
+    const reward = target - currentPrice;
+    const rr = risk > 0 ? (reward / risk) : 0;
+
+    rrBarInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: ['Potential Loss (Risk)', 'Potential Profit (Reward)'],
+            datasets: [{
+                data: [Math.abs(risk), reward > 0 ? reward : 0],
+                backgroundColor: ['rgba(248,81,73,.7)', 'rgba(63,185,80,.7)'],
+                borderColor: ['#f85149', '#3fb950'],
+                borderWidth: 1, borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => `₹${fmt(ctx.raw,2)} per share` } }
+            },
+            scales: {
+                x: { ticks: { color:'#8b949e', callback: v=>'₹'+fmt(v,0) }, grid: { color:'rgba(255,255,255,.05)' } },
+                y: { ticks: { color:'#8b949e', font: { size: 11 } }, grid: { display: false } }
+            }
+        }
+    });
+
+    if (verdictEl) {
+        if (rr >= 3) verdictEl.innerHTML = `<strong style="color:var(--g)">🎯 Excellent Risk:Reward (1:${fmt(rr,1)})</strong> — Your potential profit is ${fmt(rr,1)}× your potential loss. This is an ideal trade setup. Even if you're wrong half the time, you come out ahead.`;
+        else if (rr >= 2) verdictEl.innerHTML = `<strong style="color:var(--g)">✅ Good Risk:Reward (1:${fmt(rr,1)})</strong> — Reward is at least 2× the risk. This meets the minimum professional standard. A solid trade.`;
+        else if (rr >= 1) verdictEl.innerHTML = `<strong style="color:var(--y)">⚠️ Fair Risk:Reward (1:${fmt(rr,1)})</strong> — Reward and risk are roughly equal. You need a high win rate (>60%) for this to work. Consider tightening your stop or waiting for a better entry.`;
+        else verdictEl.innerHTML = `<strong style="color:var(--r)">🚫 Poor Risk:Reward (1:${fmt(rr,1)})</strong> — You're risking more than you could gain. This trade is NOT worth taking. Wait for price to come closer to support before entering.`;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  VINCE RISK RADAR CHART + METRIC BARS
+// ═══════════════════════════════════════════════════════════════
+function renderVinceCharts(vr) {
+    // ── Radar Chart ──
+    const radarCanvas = document.getElementById('vinceRadarChart');
+    if (radarCanvas && vr) {
+        if (vinceRadarInstance) { vinceRadarInstance.destroy(); vinceRadarInstance = null; }
+        // Normalize metrics to 0-100 scale
+        const optFScore = Math.min((vr.optimal_f || 0) * 100 * 2, 100); // 0.5 = 100
+        const ddScore = Math.max(0, 100 + (vr.max_drawdown_pct || 0) * 2); // -50%= 0, 0%=100
+        const volScore = Math.max(0, 100 - (vr.volatility_pct || 30)); // 0%=100, 100%=0
+        const gmScore = vr.geometric_mean ? Math.min(((vr.geometric_mean - 0.995) / 0.01) * 100, 100) : 0;
+        const sizScore = vr.sizing_status === 'OPTIMAL' ? 100 : vr.sizing_status === 'UNDERSIZED' ? 60 : 30;
+
+        vinceRadarInstance = new Chart(radarCanvas, {
+            type: 'radar',
+            data: {
+                labels: ['Optimal f Strength', 'Drawdown Safety', 'Low Volatility', 'Growth Rate', 'Position Sizing'],
+                datasets: [{
+                    data: [optFScore, ddScore, volScore, Math.max(0, gmScore), sizScore],
+                    backgroundColor: 'rgba(188,140,255,.15)',
+                    borderColor: '#bc8cff',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#bc8cff',
+                    pointRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { r: { beginAtZero: true, max: 100, ticks: { display: false }, grid: { color:'rgba(255,255,255,.08)' }, angleLines: { color:'rgba(255,255,255,.08)' }, pointLabels: { color:'#8b949e', font: { size: 9 } } } }
+            }
+        });
+    }
+
+    // ── Metric Bars ──
+    const barsEl = document.getElementById('vinceMetricBars');
+    if (barsEl && vr) {
+        const metrics = [
+            { label: 'Risk Score', val:vr.risk_score||0, max:100, clr:vr.risk_score>=75?'#3fb950':vr.risk_score>=50?'#d29922':'#f85149', suffix:'/100' },
+            { label: 'Optimal f', val:Math.round((vr.optimal_f||0)*100), max:100, clr:vr.optimal_f>0.3?'#3fb950':vr.optimal_f>0.15?'#d29922':'#f85149', suffix:'%' },
+            { label: 'Max DD', val:Math.abs(Math.round(vr.max_drawdown_pct||0)), max:50, clr:vr.max_drawdown_pct>-15?'#3fb950':vr.max_drawdown_pct>-30?'#d29922':'#f85149', suffix:'%', invert:true },
+            { label: 'Volatility', val:Math.round(vr.volatility_pct||0), max:80, clr:vr.volatility_pct<25?'#3fb950':vr.volatility_pct<40?'#d29922':'#f85149', suffix:'%', invert:true },
+        ];
+        barsEl.innerHTML = metrics.map(m => {
+            const pct = Math.min((m.val / m.max) * 100, 100);
+            return `<div style="margin-bottom:8px">
+                <div class="d-flex justify-content-between" style="font-size:.72rem;color:#8b949e;margin-bottom:2px">
+                    <span>${m.label}</span><span class="font-mono fw-bold" style="color:${m.clr}">${m.val}${m.suffix}</span>
+                </div>
+                <div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+                    <div style="height:100%;width:${pct}%;background:${m.clr};border-radius:4px;transition:width .5s"></div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  VINCE RISK & MONEY MANAGEMENT RENDERING
+// ═══════════════════════════════════════════════════════════════
+function renderVinceRisk(vr, holding) {
+    const section = document.getElementById('vinceRiskSection');
+    if (!vr || vr.error || !vr.optimal_f) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+
+    // Risk badge
+    const riskBadge = document.getElementById('vinceRiskBadge');
+    const rg = vr.risk_grade || 'N/A';
+    const rgClr = rg === 'LOW RISK' ? 'var(--g)' : rg === 'MODERATE RISK' ? 'var(--y)' : 'var(--r)';
+    riskBadge.textContent = rg;
+    riskBadge.style.background = rg === 'LOW RISK' ? 'rgba(63,185,80,.15)' : rg === 'MODERATE RISK' ? 'rgba(210,153,34,.15)' : 'rgba(248,81,73,.15)';
+    riskBadge.style.color = rgClr;
+
+    // Risk score gauge
+    const score = vr.risk_score || 0;
+    const canvas = document.getElementById('riskGaugeChart');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 150, 85);
+    // Draw arc background
+    ctx.beginPath();
+    ctx.arc(75, 75, 60, Math.PI, 2 * Math.PI);
+    ctx.lineWidth = 12;
+    ctx.strokeStyle = 'rgba(255,255,255,.06)';
+    ctx.stroke();
+    // Draw arc foreground (score/100)
+    const angle = Math.PI + (score / 100) * Math.PI;
+    const gaugeClr = score >= 75 ? '#3fb950' : score >= 50 ? '#d29922' : score >= 25 ? '#f0883e' : '#f85149';
+    ctx.beginPath();
+    ctx.arc(75, 75, 60, Math.PI, angle);
+    ctx.lineWidth = 12;
+    ctx.strokeStyle = gaugeClr;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    document.getElementById('vinceScoreVal').textContent = score;
+    document.getElementById('vinceScoreVal').style.color = gaugeClr;
+    const gradeLabel = document.getElementById('vinceGradeLabel');
+    gradeLabel.textContent = rg;
+    gradeLabel.style.color = rgClr;
+
+    // Key metrics
+    document.getElementById('vrOptF').textContent = `${(vr.optimal_f * 100).toFixed(2)}%`;
+    document.getElementById('vrOptF').style.color = vr.optimal_f > 0.5 ? 'var(--g)' : vr.optimal_f > 0.2 ? 'var(--y)' : 'var(--r)';
+    document.getElementById('vrKellyF').textContent = vr.kelly_f != null ? `${(vr.kelly_f * 100).toFixed(2)}%` : 'N/A';
+    const gm = vr.geometric_mean;
+    const gmEl = document.getElementById('vrGeoMean');
+    gmEl.textContent = gm ? gm.toFixed(6) : 'N/A';
+    gmEl.style.color = gm > 1 ? 'var(--g)' : gm < 1 ? 'var(--r)' : 'var(--y)';
+    document.getElementById('vrTWR').textContent = vr.twr ? fmt(vr.twr, 4) : 'N/A';
+    const ddEl = document.getElementById('vrMaxDD');
+    ddEl.textContent = vr.max_drawdown_pct ? `${fmt(vr.max_drawdown_pct, 1)}%` : 'N/A';
+    ddEl.style.color = vr.max_drawdown_pct < -20 ? 'var(--r)' : vr.max_drawdown_pct < -10 ? 'var(--y)' : 'var(--g)';
+    const volEl = document.getElementById('vrVol');
+    volEl.textContent = vr.volatility_pct ? `${fmt(vr.volatility_pct, 1)}%` : 'N/A';
+    volEl.style.color = (vr.volatility_label === 'HIGH') ? 'var(--r)' : (vr.volatility_label === 'LOW') ? 'var(--g)' : 'var(--y)';
+    document.getElementById('vrBigLoss').textContent = vr.biggest_loss ? fmtINR2(Math.abs(vr.biggest_loss)) : 'N/A';
+    document.getElementById('vrTimeDbl').textContent = vr.time_to_double ? `~${Math.round(vr.time_to_double)} trades` : 'N/A';
+
+    // Position sizing
+    const ps = vr.position_sizing || {};
+    const qty = holding.quantity || 0;
+    const recQty = vr.recommended_shares || 0;
+    document.getElementById('vrCurrentQty').textContent = qty;
+    document.getElementById('vrRecQty').textContent = recQty || 'N/A';
+    document.getElementById('vrRecQty').style.color = qty > recQty * 1.3 ? 'var(--r)' : qty < recQty * 0.7 ? 'var(--y)' : 'var(--g)';
+    document.getElementById('vrFDollar').textContent = vr.f_dollar ? fmtINR(vr.f_dollar) : 'N/A';
+    document.getElementById('vrRiskPerTrade').textContent = vr.risk_per_trade ? fmtINR(vr.risk_per_trade) : 'N/A';
+    document.getElementById('vrRiskPerTrade').style.color = 'var(--o)';
+
+    const riskPct = ps.risk_pct || (vr.optimal_f ? vr.optimal_f * 50 : 0);
+    document.getElementById('vrRiskExplain').textContent = riskPct ? `${fmt(riskPct)}% of equity at risk per trade` : '';
+
+    // Sizing badge
+    const ss = vr.sizing_status || 'N/A';
+    const sizBadge = document.getElementById('vrSizingBadge');
+    sizBadge.textContent = ss;
+    sizBadge.style.background = ss === 'OPTIMAL' ? 'rgba(63,185,80,.15)' : ss === 'OVERSIZED' ? 'rgba(248,81,73,.15)' : ss === 'UNDERSIZED' ? 'rgba(210,153,34,.15)' : 'rgba(255,255,255,.08)';
+    sizBadge.style.color = ss === 'OPTIMAL' ? 'var(--g)' : ss === 'OVERSIZED' ? 'var(--r)' : ss === 'UNDERSIZED' ? 'var(--y)' : 'inherit';
+
+    // Sizing bar
+    const ratio = vr.sizing_ratio || 0;
+    const barPct = Math.min(ratio * 100, 200) / 2; // normalize: 100% = 1.0 ratio (perfect)
+    const barClr = ss === 'OPTIMAL' ? 'var(--g)' : ss === 'OVERSIZED' ? 'var(--r)' : 'var(--y)';
+    document.getElementById('vrSizingBar').style.width = `${Math.min(barPct, 100)}%`;
+    document.getElementById('vrSizingBar').style.background = barClr;
+    document.getElementById('vrSizingRatioLabel').textContent = `${qty} / ${recQty} shares (${fmt(ratio * 100, 0)}%)`;
+    document.getElementById('vrSizingRatioLabel').style.color = barClr;
+
+    // Dependency tests
+    const dep = vr.dependency || {};
+    const runsEl = document.getElementById('vrRunsTest');
+    runsEl.textContent = dep.runs_independent === true ? 'Independent ✓' : dep.runs_independent === false ? 'Dependent ✗' : 'N/A';
+    runsEl.style.color = dep.runs_independent ? 'var(--g)' : 'var(--y)';
+    const scEl = document.getElementById('vrSerialCorr');
+    scEl.textContent = dep.serial_corr != null ? `r = ${fmt(dep.serial_corr, 4)}` : 'N/A';
+    scEl.style.color = dep.serial_significant ? 'var(--r)' : 'var(--g)';
+
+    const depExpl = document.getElementById('vrDependencyExplain');
+    if (dep.runs_independent && !dep.serial_significant) {
+        depExpl.innerHTML = '<span style="color:var(--g)">✓</span> Daily returns appear independent — the standard optimal f calculation is appropriate for this stock.';
+    } else if (!dep.runs_independent || dep.serial_significant) {
+        depExpl.innerHTML = '<span style="color:var(--y)">⚠</span> Some dependency detected in daily returns. The optimal f may need adjustment — consider using a more conservative fraction (25–40% of f).';
+    } else {
+        depExpl.textContent = '';
+    }
+
+    // Plain English summary
+    const lines = [];
+    // Sizing
+    if (ss === 'OVERSIZED') {
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--r);background:rgba(248,81,73,.04);border-radius:2px"><strong style="color:var(--r)">You are holding more shares than recommended.</strong> You hold ${qty} shares but Vince's math says ${recQty} at 50% f. This means you're taking on more risk than optimal — a bad run could hurt more than necessary. Consider reducing your position.</p>`);
+    } else if (ss === 'UNDERSIZED') {
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--y);background:rgba(210,153,34,.04);border-radius:2px"><strong style="color:var(--y)">Your position is smaller than recommended.</strong> You hold ${qty} shares but could hold up to ${recQty} at 50% f. You're leaving potential growth on the table, but you have a safety margin.</p>`);
+    } else if (ss === 'OPTIMAL') {
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--g);background:rgba(63,185,80,.04);border-radius:2px"><strong style="color:var(--g)">Your position size is mathematically optimal!</strong> You hold ${qty} shares, which is right in line with the ${recQty} recommended by Vince's optimal f at 50% fraction. Well done.</p>`);
+    }
+    // Geometric mean
+    if (gm && gm > 1) {
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--g);background:rgba(63,185,80,.04);border-radius:2px">The geometric mean HPR is <strong>${gm.toFixed(4)}</strong> (>1.0), meaning this stock's daily trades are <strong style="color:var(--g)">net profitable</strong> over the analysis period. ${vr.time_to_double ? `At this rate, it would take ~<strong>${Math.round(vr.time_to_double)} trading days</strong> to double.` : ''}</p>`);
+    } else if (gm && gm < 1) {
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--r);background:rgba(248,81,73,.04);border-radius:2px">The geometric mean HPR is <strong>${gm.toFixed(4)}</strong> (<1.0), meaning the daily trade system is currently <strong style="color:var(--r)">net losing</strong>. Trading at optimal f would still lose money — consider exiting.</p>`);
+    }
+    // Drawdown
+    if (vr.max_drawdown_pct && vr.max_drawdown_pct < -20) {
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--r);background:rgba(248,81,73,.04);border-radius:2px"><strong style="color:var(--r)">Severe historical drawdown</strong> of ${fmt(vr.max_drawdown_pct, 1)}% detected. This is expected at optimal f per Vince — but it means you should use fractional f (50% or less) to keep drawdowns manageable.</p>`);
+    }
+    // Volatility
+    if (vr.volatility_label === 'HIGH') {
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--o);background:rgba(240,136,62,.04);border-radius:2px"><strong style="color:var(--o)">Elevated volatility</strong> (${fmt(vr.volatility_pct, 1)}% annualized). Consider using a smaller fraction of optimal f to reduce position swings.</p>`);
+    }
+
+    document.getElementById('vincePlainText').innerHTML = lines.join('') || '<p class="text-secondary">Risk data loaded successfully.</p>';
+
+    // ═══════ NEW: Vince Radar + Metric Bars ═══════
+    renderVinceCharts(vr);
+
+    // ═══════ NEW: Vince Verdict Box ═══════
+    const verdictBox = document.getElementById('vinceVerdictBox');
+    const verdictContent = document.getElementById('vinceVerdictContent');
+    if (verdictBox && verdictContent) {
+        verdictBox.style.display = 'block';
+        const vLines = [];
+        // Decision 1: Position sizing action
+        if (ss === 'OVERSIZED') {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--r);background:rgba(248,81,73,.06)"><strong style="color:var(--r)">📉 REDUCE YOUR POSITION.</strong> You hold ${qty} shares but the math says ${recQty} is safer. Consider selling ${qty - recQty} shares to bring your risk within optimal bounds. This protects you from catastrophic drawdowns.</div>`);
+        } else if (ss === 'UNDERSIZED') {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--y);background:rgba(210,153,34,.06)"><strong style="color:var(--y)">📈 YOU CAN ADD MORE.</strong> You hold ${qty} shares but could safely hold ${recQty}. You have room to increase your position by ${recQty - qty} shares. This would maximize your growth potential without excessive risk.</div>`);
+        } else {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--g);background:rgba(63,185,80,.06)"><strong style="color:var(--g)">✅ POSITION SIZE IS PERFECT.</strong> Your ${qty} shares are right in line with the recommended ${recQty}. No action needed on sizing. Well done!</div>`);
+        }
+        // Decision 2: Profitability
+        if (gm && gm > 1.0005) {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--g);background:rgba(63,185,80,.06)"><strong style="color:var(--g)">💰 PROFITABLE SYSTEM.</strong> This stock's geometric mean (${gm.toFixed(4)}) is well above 1.0. The strategy is making money on average. Continue holding.</div>`);
+        } else if (gm && gm > 1) {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--y);background:rgba(210,153,34,.06)"><strong style="color:var(--y)">💰 MARGINALLY PROFITABLE.</strong> Geometric mean (${gm.toFixed(4)}) is just above 1.0. The edge is slim. Proceed with caution and keep position sizes conservative.</div>`);
+        } else if (gm && gm < 1) {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--r);background:rgba(248,81,73,.06)"><strong style="color:var(--r)">🚫 LOSING SYSTEM.</strong> Geometric mean (${gm.toFixed(4)}) is below 1.0. Historically, this stock LOSES money at optimal f. Consider exiting this position entirely.</div>`);
+        }
+        // Decision 3: Risk level
+        const rScore = vr.risk_score || 0;
+        if (rScore >= 75) {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--g);background:rgba(63,185,80,.06)"><strong style="color:var(--g)">🛡️ LOW RISK.</strong> Risk score is ${rScore}/100. This is a well-behaved stock with manageable drawdowns and volatility. You can trade with confidence.</div>`);
+        } else if (rScore >= 50) {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--y);background:rgba(210,153,34,.06)"><strong style="color:var(--y)">⚠️ MODERATE RISK.</strong> Risk score is ${rScore}/100. Some metrics need attention. Use 50% of optimal f (which we already do) and monitor closely.</div>`);
+        } else {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--r);background:rgba(248,81,73,.06)"><strong style="color:var(--r)">🚨 HIGH RISK.</strong> Risk score is only ${rScore}/100. High drawdowns, volatile price action, or poor profitability detected. Consider reducing to 25% of optimal f or exiting entirely.</div>`);
+        }
+        // Final aggregate verdict
+        const bullCount = (ss==='OPTIMAL'?1:0) + (gm>1?1:0) + (rScore>=50?1:0);
+        const finalClr = bullCount >= 3 ? 'var(--g)' : bullCount >= 2 ? 'var(--y)' : 'var(--r)';
+        const finalIcon = bullCount >= 3 ? '🟢' : bullCount >= 2 ? '🟡' : '🔴';
+        const finalTxt = bullCount >= 3 ? 'ALL CLEAR — This position looks healthy from a risk management perspective. Continue holding at current size.' : bullCount >= 2 ? 'PROCEED WITH CAUTION — Some risk factors need attention. Review the warnings above and consider adjustments.' : 'ACTION NEEDED — Multiple risk factors are flagged. Seriously consider reducing position size or exiting.';
+        vLines.push(`<div class="p-2 rounded text-center" style="border:2px solid ${finalClr};background:rgba(255,255,255,.02)"><strong style="color:${finalClr};font-size:.9rem">${finalIcon} OVERALL: ${finalTxt}</strong></div>`);
+        verdictContent.innerHTML = vLines.join('');
     }
 }
 
@@ -1839,6 +2775,9 @@ async function submitAdd() {
     if (!price || price <= 0) return alert('Please enter a valid buy price');
     if (!buyDate) return alert('Please select a buy date');
 
+    const psychEmotion = document.getElementById('addPsychEmotion').value;
+    const psychScore = document.getElementById('addPsychScore').value;
+
     const res = await fetch('/api/portfolio', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -1853,6 +2792,22 @@ async function submitAdd() {
     });
     const data = await res.json();
     if (data.error) return alert(data.error);
+
+    // If psych fields filled, auto-log trade psychology
+    if (psychEmotion || psychScore) {
+        fetch('/api/mental-game/trade-psych', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ticker: ticker.includes('.NS') ? ticker : ticker + '.NS',
+                trade_date: buyDate,
+                pre_mental_score: parseInt(psychScore) || 7,
+                pre_emotion: psychEmotion || 'CALM',
+                system_followed: 'YES',
+                position_id: data.id || null,
+            })
+        });
+    }
 
     bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
     loadPositions();
@@ -1876,6 +2831,9 @@ async function submitClose() {
     const price = parseFloat(document.getElementById('closePrice').value);
     const date = document.getElementById('closeDate').value;
     const reason = document.getElementById('closeReason').value;
+    const psychSystem = document.getElementById('closePsychSystem').value;
+    const psychPattern = document.getElementById('closePsychPattern').value;
+    const psychReflection = document.getElementById('closePsychReflection').value.trim();
 
     if (!price || price <= 0) return alert('Please enter a valid sell price');
     if (!date) return alert('Please select a sell date');
@@ -1887,6 +2845,23 @@ async function submitClose() {
     });
     const data = await res.json();
     if (data.error) return alert(data.error);
+
+    // If psych fields filled, auto-log trade psychology
+    if (psychSystem || psychPattern || psychReflection) {
+        const pos = allPositions.find(p => p.id === selectedPid);
+        fetch('/api/mental-game/trade-psych', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ticker: pos ? pos.ticker : '',
+                trade_date: date,
+                system_followed: psychSystem || 'YES',
+                pattern_tag: psychPattern || '',
+                post_reflection: psychReflection || '',
+                position_id: selectedPid,
+            })
+        });
+    }
 
     bootstrap.Modal.getInstance(document.getElementById('closeModal')).hide();
     hideAnalysis();

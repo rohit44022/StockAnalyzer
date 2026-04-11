@@ -404,7 +404,7 @@ def _deep_analyze_stock(
         #   - generate_ta_signal() → 6-category TA scoring
         #   - Price Action (Al Brooks) → bar-by-bar analysis
         #   - cross_validate() → BB vs TA vs PA agreement check
-        #   - Wyckoff/Weis context layer
+        #   - Wyckoff/Villahermosa context layer
         #   - risk report + target prices
         triple = run_triple_analysis(df, ticker=ticker, capital=capital)
 

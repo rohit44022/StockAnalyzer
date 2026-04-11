@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧠 Mental Game Dashboard — Tendler System</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bs-body-bg:#0d1117;--bs-body-color:#c9d1d9;
+  --card-bg:#161b22;--card-border:#30363d;
+  --g:#3fb950;--r:#f85149;--y:#d29922;--b:#58a6ff;--p:#bc8cff;--o:#f0883e;--c:#39d2c0;
+}
+body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
+.card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
+
+/* ══ UNIFIED NAV ══ */
+.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
+.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
+@keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
+@keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
+.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
+.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+.sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#0d1117,#161b22 50%,#1a1f2b);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#bc8cff,#58a6ff,#39d2c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+/* Tabs */
+.nav-pills .nav-link{color:#8b949e;border-radius:8px;font-size:.88rem;padding:.5rem .9rem}
+.nav-pills .nav-link.active{background:rgba(188,140,255,.15);color:var(--p)}
+
+/* Form */
+.form-control,.form-select{background:#0d1117;border-color:var(--card-border);color:#c9d1d9}
+.form-control:focus,.form-select:focus{background:#0d1117;border-color:var(--p);color:#c9d1d9;box-shadow:0 0 0 .2rem rgba(188,140,255,.15)}
+
+/* Score gauge */
+.score-display{font-size:3rem;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1}
+.score-label{font-size:.85rem;font-weight:600;margin-top:4px}
+
+/* Checklist */
+.chk-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;margin-bottom:4px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);transition:all .15s}
+.chk-item:hover{background:rgba(255,255,255,.04)}
+.chk-item input[type="checkbox"]{width:18px;height:18px;accent-color:var(--p)}
+.chk-item .chk-src{font-size:.65rem;color:#6e7681;margin-left:auto;white-space:nowrap}
+.chk-item.pass{border-left:3px solid var(--g)}
+.chk-item.fail{border-left:3px solid var(--r)}
+
+/* Pattern card */
+.pattern-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px;margin-bottom:10px}
+.pattern-card.alert-high{border-left:4px solid var(--r)}
+.pattern-card.alert-moderate{border-left:4px solid var(--y)}
+
+/* Emergency card */
+.emg-card{border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px;margin-bottom:10px}
+.emg-card .emg-step{padding:4px 0;font-size:.85rem;color:#c9d1d9}
+.emg-card .emg-trigger{font-size:.8rem;color:var(--y);margin-bottom:8px}
+
+/* Workflow step */
+.wf-step{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:.85rem}
+.wf-step:last-child{border-bottom:none}
+.wf-num{min-width:24px;height:24px;border-radius:50%;background:rgba(188,140,255,.15);color:var(--p);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700}
+.wf-src{font-size:.65rem;color:#6e7681;margin-left:auto;white-space:nowrap}
+
+/* In-trade rule */
+.itr-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:12px;margin-bottom:8px}
+.itr-sit{font-weight:600;color:var(--y);font-size:.88rem;margin-bottom:6px}
+.itr-rule{font-size:.85rem;color:#c9d1d9}
+.itr-src{font-size:.65rem;color:#6e7681;margin-top:4px}
+
+/* Summary metric */
+.sum-card{border-radius:14px;padding:1.2rem;transition:transform .15s}
+.sum-card:hover{transform:translateY(-2px)}
+.sum-val{font-size:1.6rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sum-label{font-size:.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* Learning curve */
+.lc-level{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:.78rem;font-weight:600}
+.lc-UI{background:rgba(248,81,73,.12);color:#f85149}
+.lc-CI{background:rgba(210,153,34,.12);color:#d29922}
+.lc-CC{background:rgba(88,166,255,.12);color:#58a6ff}
+.lc-UC{background:rgba(63,185,80,.12);color:#3fb950}
+
+/* Score colors */
+.sc-10,.sc-9{color:var(--g)} .sc-8{color:#56d364} .sc-7{color:var(--b)}
+.sc-6{color:var(--y)} .sc-5{color:var(--o)} .sc-4{color:#f87171}
+.sc-3{color:var(--r)} .sc-2{color:#ff4444} .sc-1{color:#cc0000}
+
+/* Master question */
+.master-verdict{font-size:1.8rem;font-weight:800;letter-spacing:1px}
+.master-verdict.green{color:var(--g)}.master-verdict.yellow{color:var(--y)}.master-verdict.red{color:var(--r)}
+
+/* Perf-map table */
+.pm-table th{color:#8b949e;font-weight:500;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+.pm-table td{font-size:.85rem;vertical-align:top}
+
+/* Chart containers */
+.chart-container{position:relative;width:100%;max-height:250px}
+.chart-container canvas{max-height:250px}
+
+/* Scrollable section */
+.scroll-section{max-height:500px;overflow-y:auto}
+.scroll-section::-webkit-scrollbar{width:6px}
+.scroll-section::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ═══ UNIFIED NAVBAR ═══ -->
+<nav class="sc-nav">
+  <div class="container-fluid d-flex align-items-center px-3 gap-2">
+    <a class="sc-brand" href="/">हिरण्य</a>
+    <div class="sc-links">
+      <a class="sc-link" href="/">Home</a>
+      <a class="sc-link" href="/ta">TA</a>
+      <a class="sc-link" href="/pa">Price Action</a>
+      <a class="sc-link" href="/triple">Triple</a>
+      <a class="sc-link" href="/trades">Trades</a>
+      <a class="sc-link" href="/portfolio">Portfolio</a>
+      <a class="sc-link" href="/risk-management">Risk</a>
+      <a class="sc-link active" href="/mental-game">Mental</a>
+    </div>
+    <div class="sc-right">
+      <span class="sc-clock" id="clockSpan"></span>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════ HERO ═══════ -->
+<div class="hero">
+  <div class="container-fluid">
+    <h1><i class="bi bi-brain me-2"></i>Mental Game of Trading</h1>
+    <p class="text-secondary mb-2">Based on Jared Tendler's book &bull; "Am I trading my system — or my emotions?"</p>
+    <div class="p-3 mt-2" style="background:rgba(188,140,255,.06);border:1px solid rgba(188,140,255,.15);border-radius:10px;max-width:900px">
+      <div class="small" style="color:#c9d1d9;line-height:1.7">
+        <strong style="color:var(--p)"><i class="bi bi-info-circle me-1"></i>What is this system?</strong><br>
+        This is your <strong>Personal Trading Psychology Tracker</strong>. Most traders lose money not because of bad strategies, but because <strong>emotions</strong> (fear, greed, revenge, overconfidence) hijack their decision-making. This system helps you:<br>
+        <span style="color:var(--g)">✓</span> <strong>Rate your mental state</strong> before each trading day (score 1-10)<br>
+        <span style="color:var(--g)">✓</span> <strong>Check yourself</strong> before every trade entry (5-point gate)<br>
+        <span style="color:var(--g)">✓</span> <strong>Track which emotions</strong> you felt during trades and whether you followed your rules<br>
+        <span style="color:var(--g)">✓</span> <strong>Detect patterns</strong> automatically (e.g. "you've been revenge-trading 3 days in a row")<br>
+        <span style="color:var(--g)">✓</span> <strong>Adjust your position size</strong> automatically based on your mental state<br>
+        <br>
+        <strong style="color:var(--b)"><i class="bi bi-link-45deg me-1"></i>How is this connected to your Portfolio Tracker?</strong><br>
+        When you <strong>add a new trade</strong> in the Portfolio Tracker, you'll see optional psychology fields (your emotion + mental score).
+        When you <strong>close a trade</strong>, you'll see fields for whether you followed your system, pattern tags, and a reflection.
+        These get <strong>automatically saved here</strong> in the Mental Game database. So your portfolio and psychology stay linked — every trade has both financial AND emotional data.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SECTION TABS ═══════ -->
+<div class="container-fluid mt-3">
+  <div class="p-2 mb-2" style="background:rgba(255,255,255,.02);border-radius:8px">
+    <div class="small text-secondary" style="line-height:1.5">
+      <strong style="color:var(--p)">Navigate the 12 sections:</strong>
+      Start with <strong>Dashboard</strong> for a quick overview. Do <strong>Pre-Session</strong> every morning before trading. Use <strong>Pre-Trade Gate</strong> before each trade.
+      <strong>In-Trade Rules</strong>/<strong>Emergency Protocols</strong> are reference cards for when you need them mid-trade.
+      <strong>Performance Map</strong>/<strong>Patterns</strong> track your recurring mistakes.
+      <strong>Weekly Report</strong>/<strong>Learning Curve</strong> are for periodic reviews.
+      <strong>Integration Rules</strong> shows exactly how psychology connects to your portfolio system.
+    </div>
+  </div>
+  <ul class="nav nav-pills flex-wrap gap-1 mb-3" id="mgTabs">
+    <li class="nav-item"><a class="nav-link active" data-tab="dashboard" href="#">Dashboard</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="session" href="#">Pre-Session</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="pretrade" href="#">Pre-Trade Gate</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="intrade" href="#">In-Trade Rules</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="perfmap" href="#">Performance Map</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="scoring" href="#">Scoring (1-10)</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="patterns" href="#">Patterns &amp; Alerts</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="emergency" href="#">Emergency Protocols</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="weekly" href="#">Weekly Report</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="learning" href="#">Learning Curve</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="workflow" href="#">Daily Workflow</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="integration" href="#">Integration Rules</a></li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 1 — DASHBOARD (Summary + Master Question)
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-dashboard">
+
+  <!-- Master Question -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-question-diamond me-2"></i>THE ONE QUESTION — Am I Trading My System or My Emotions?</div>
+    <div class="card-body">
+      <div class="p-2 mb-3" style="background:rgba(188,140,255,.04);border-radius:8px">
+        <div class="small text-secondary" style="line-height:1.6">
+          <strong style="color:var(--p)">What is this?</strong> This is the most important question a trader can ask. Before every trade, you should check: am I about to trade because my <em>system</em> told me to (technical signals, confluence, etc.), or because my <em>emotions</em> are pushing me (fear of missing out, revenge after a loss, greed after a win)? Fill in the 3 fields below and click "Check Now" to get your answer.
+          <br><strong style="color:var(--y)">Mental Score</strong> = How clear-headed you feel right now (10 = razor sharp, 1 = completely tilted).
+          <strong style="color:var(--y)">Gate Passed</strong> = Did you pass all 5 psychological checks in the Pre-Trade tab?
+          <strong style="color:var(--y)">System Signal</strong> = Does your technical analysis actually show a valid entry?
+        </div>
+      </div>
+      <div class="row g-3 align-items-end mb-3">
+        <div class="col-md-3">
+          <label class="form-label small text-secondary">Current Mental Score (1-10)</label>
+          <input type="number" class="form-control font-mono" id="mqScore" min="1" max="10" value="7">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small text-secondary">Psychological Gate Passed?</label>
+          <select class="form-select" id="mqGate"><option value="true">YES — all 5 checks pass</option><option value="false">NO — at least 1 failed</option></select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small text-secondary">System Signal Present?</label>
+          <select class="form-select" id="mqSignal"><option value="true">YES — valid system entry</option><option value="false">NO — no system signal</option></select>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-primary w-100" onclick="runMasterQuestion()"><i class="bi bi-lightning-fill me-1"></i>Check Now</button>
+        </div>
+      </div>
+      <div id="mqResult" class="text-center py-3" style="display:none">
+        <div class="master-verdict" id="mqVerdict"></div>
+        <div class="mt-2" id="mqAction" style="font-size:.95rem"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="p-2 mb-3" style="background:rgba(88,166,255,.04);border-radius:8px">
+    <div class="small text-secondary" style="line-height:1.6">
+      <strong style="color:var(--b)"><i class="bi bi-bar-chart me-1"></i>Dashboard Summary:</strong>
+      These 4 cards give you a quick snapshot of your trading psychology <em>right now</em>.
+      <strong>Today's Mental Score</strong> = the score you gave yourself in the Pre-Session tab today.
+      <strong>Rule Follow Rate</strong> = what percentage of your recent trades followed your trading system (higher is better — aim for 90%+).
+      <strong>Active Alerts</strong> = how many bad patterns the system has detected in your recent trading (0 is ideal).
+      <strong>Top Emotion</strong> = the emotion you've felt most often this week while trading.
+    </div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="sum-card card"><div class="sum-val" id="dshScore" style="color:var(--p)">—</div><div class="sum-label">Today's Mental Score</div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card card"><div class="sum-val" id="dshFollowRate" style="color:var(--g)">—</div><div class="sum-label">Rule Follow Rate (7d)</div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card card"><div class="sum-val" id="dshPatterns" style="color:var(--y)">—</div><div class="sum-label">Active Alerts</div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card card"><div class="sum-val" id="dshTopEmotion" style="color:var(--o)">—</div><div class="sum-label">Top Emotion (7d)</div></div></div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-bar-chart me-2"></i>Mental Score Trend (30d)</div>
+        <div class="card-body"><div class="chart-container"><canvas id="scoreTrendChart"></canvas></div></div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-pie-chart me-2"></i>Emotion Distribution (7d)</div>
+        <div class="card-body"><div class="chart-container"><canvas id="emotionPieChart"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Pattern Alerts -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-exclamation-triangle me-2"></i>Active Pattern Alerts</div>
+    <div class="card-body">
+      <div class="small text-secondary mb-2" style="line-height:1.5">These alerts are <strong>automatically detected</strong> by analyzing your recent trades. If the system notices you're making the same mistake repeatedly (like revenge trading 3+ times, or breaking rules after wins), it will flag it here so you can catch the pattern before it costs you more money.</div>
+      <div id="dshAlerts"><span class="text-secondary">Loading...</span></div>
+    </div>
+  </div>
+
+  <!-- Today's Integration Rules -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-link-45deg me-2"></i>Today's Trading Limits (Based on Mental Score)</div>
+    <div class="card-body">
+      <div class="small text-secondary mb-3" style="line-height:1.5">
+        <strong style="color:var(--y)">Why does your mental state limit your trading?</strong> When you're tired, angry, or emotionally compromised, you make worse decisions. So the system automatically <strong>reduces your allowed position size, increases the technical evidence required, and caps how many trades you can take</strong>. Think of it like a speed limiter on a car — when conditions are bad, you slow down to prevent accidents.
+      </div>
+      <div class="row g-3" id="dshLimits">
+        <div class="col-md-3"><div class="text-center"><div class="font-mono fw-bold fs-4" id="limSize">—</div><div class="small text-secondary">Max Position Size</div><div style="font-size:.7rem;color:#6e7681">How much of your capital you can risk per trade</div></div></div>
+        <div class="col-md-3"><div class="text-center"><div class="font-mono fw-bold fs-4" id="limConf">—</div><div class="small text-secondary">Min Confluence</div><div style="font-size:.7rem;color:#6e7681">How many indicators must agree before you enter</div></div></div>
+        <div class="col-md-3"><div class="text-center"><div class="font-mono fw-bold fs-4" id="limTrades">—</div><div class="small text-secondary">Max Trades Today</div><div style="font-size:.7rem;color:#6e7681">Maximum number of trades you're allowed to take</div></div></div>
+        <div class="col-md-3"><div class="text-center"><div class="font-mono fw-bold fs-4" id="limStatus">—</div><div class="small text-secondary">Go/No-Go Status</div><div style="font-size:.7rem;color:#6e7681">Overall verdict: are you fit to trade right now?</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Portfolio Trades -->
+  <div class="card mb-3" id="syncCard">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-arrow-repeat me-2"></i>Sync Portfolio Trades</span>
+      <button class="btn btn-sm btn-outline-primary" onclick="loadUnlinkedTrades()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+    </div>
+    <div class="card-body">
+      <div class="p-2 mb-3" style="background:rgba(188,140,255,.04);border-radius:8px">
+        <div class="small text-secondary" style="line-height:1.6">
+          <strong style="color:var(--p)">What is this?</strong> Trades you added to the <strong>Strategy Portfolio Tracker</strong> <em>before</em> the Mental Game system was built don't have any psychology data attached yet.
+          This section shows those "unlinked" trades and lets you <strong>retroactively add psychology tags</strong> to each one — so your entire trade history has complete mental game data, not just new trades.
+          <br><br>
+          <strong style="color:var(--y)">Two options:</strong>
+          <span style="color:var(--g)">①</span> <strong>Quick Sync All</strong> — Auto-create default entries (Calm, Score 7, System Followed) for all untagged trades instantly.
+          <span style="color:var(--b)">②</span> <strong>Tag Individual Trade</strong> — Click a trade to fill in the real emotion/score/details you remember for that particular trade.
+        </div>
+      </div>
+      <div class="d-flex gap-2 align-items-center mb-3">
+        <span class="badge fs-6" style="background:rgba(248,81,73,.15);color:var(--r)" id="syncCount">—</span>
+        <span class="text-secondary small">trades without psychology data</span>
+        <button class="btn btn-sm btn-success ms-auto" id="btnSyncAll" onclick="bulkSyncAll()" disabled><i class="bi bi-check2-all me-1"></i>Quick Sync All (Default Values)</button>
+      </div>
+      <div id="syncTradesList" style="max-height:400px;overflow-y:auto">
+        <span class="text-secondary">Click "Refresh" to scan for unlinked trades...</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SYNC INDIVIDUAL TRADE MODAL ═══════ -->
+<div class="modal fade" id="syncModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border)">
+      <div class="modal-header" style="border-color:var(--card-border)">
+        <h5 class="modal-title"><i class="bi bi-brain me-2" style="color:var(--p)"></i>Tag Trade Psychology</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 d-flex justify-content-between">
+          <span class="font-mono fw-bold" style="color:var(--b)" id="syncTicker">—</span>
+          <span class="font-mono small text-secondary" id="syncDate">—</span>
+        </div>
+        <div class="mb-2 small text-secondary" id="syncTradeInfo"></div>
+        <hr style="border-color:var(--card-border)">
+        <div class="row g-2">
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Pre-Trade Emotion <span style="color:#6e7681">(What were you feeling when you entered?)</span></label>
+            <select class="form-select" id="syncEmotion">
+              <option value="CALM">Calm</option><option value="FOCUSED">Focused</option>
+              <option value="ANXIOUS">Anxious</option><option value="FRUSTRATED">Frustrated</option>
+              <option value="OVERCONFIDENT">Overconfident</option><option value="FEARFUL">Fearful</option>
+              <option value="IMPATIENT">Impatient</option><option value="REVENGE">Revenge-Driven</option>
+              <option value="GREEDY">Greedy</option><option value="TIRED">Tired</option>
+              <option value="NEUTRAL">Neutral / Don't Remember</option>
+            </select>
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Mental Score <span style="color:#6e7681">(1=tilted, 10=sharp)</span></label>
+            <input type="number" class="form-control font-mono" id="syncScore" min="1" max="10" value="7">
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">System Followed? <span style="color:#6e7681">(Did you follow your rules?)</span></label>
+            <select class="form-select" id="syncSystem">
+              <option value="YES">YES — followed system</option>
+              <option value="NO">NO — deviated</option>
+            </select>
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Pattern Tag <span style="color:#6e7681">(Leave empty if clean)</span></label>
+            <select class="form-select" id="syncPattern">
+              <option value="">None</option>
+              <option value="REVENGE_TRADE">Revenge Trade</option>
+              <option value="OVERCONFIDENCE">Overconfidence</option>
+              <option value="FEAR_PARALYSIS">Fear Paralysis</option>
+              <option value="FOMO">FOMO</option>
+              <option value="EARLY_EXIT">Early Exit</option>
+              <option value="DISCIPLINE_BREAKDOWN">Discipline Breakdown</option>
+              <option value="OVERSIZE_AFTER_WIN">Oversize After Win</option>
+              <option value="BOREDOM_OVERTRADE">Boredom Overtrade</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">In-Trade Emotion Peak <span style="color:#6e7681">(Strongest feeling during the trade)</span></label>
+          <select class="form-select" id="syncInTradeEmotion">
+            <option value="">Don't Remember</option>
+            <option value="CALM">Calm</option><option value="ANXIOUS">Anxious</option>
+            <option value="PANICKED">Panicked</option><option value="GREEDY">Greedy</option>
+            <option value="FRUSTRATED">Frustrated</option><option value="RELIEVED">Relieved</option>
+            <option value="EUPHORIC">Euphoric</option><option value="NUMB">Numb/Detached</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Post-Trade Reflection <span style="color:#6e7681">(What happened? What did you feel? What would you do differently?)</span></label>
+          <textarea class="form-control" id="syncReflection" rows="3" placeholder="Looking back, what do I remember about this trade?"></textarea>
+        </div>
+        <input type="hidden" id="syncPositionId">
+        <input type="hidden" id="syncSource">
+      </div>
+      <div class="modal-footer" style="border-color:var(--card-border)">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveSyncTrade()"><i class="bi bi-save me-1"></i>Save Psychology</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 2 — PRE-SESSION MENTAL GAME CHECKLIST
+     [TENDLER] Ch9: Build a Productive Routine — Warmup
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-session" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--p)"><i class="bi bi-clipboard-check me-1"></i>What is a Pre-Session Checklist?</strong><br>
+      Before you even open a chart, you need to check: <em>"Am I mentally fit to trade today?"</em> Just like a pilot runs through a pre-flight checklist before takeoff, you run through these 10 questions before every trading session. They check things like: Did you sleep well? Are you under financial stress? Are you trying to recover yesterday’s losses? Are you feeling overconfident from a winning streak?<br><br>
+      <strong style="color:var(--y)">How does the verdict work?</strong><br>
+      <span style="color:var(--g)">• 8+ checked = GO</span> — You’re in good mental shape. Trade normally at full size.<br>
+      <span style="color:var(--y)">• 5-7 checked = REDUCED</span> — Yellow flag. You can trade, but with smaller positions (50-75% size) and fewer trades.<br>
+      <span style="color:var(--r)">• Less than 5 = NO-GO</span> — Your head is not in the right place. Do NOT trade today. Study charts, review notes, but don’t risk real money.<br><br>
+      <strong style="color:var(--b)">Mental Score (1-10):</strong> After completing the checklist, rate your overall mental clarity on a scale of 1-10. This number <strong>directly controls</strong> how much of your portfolio you’re allowed to risk today. Score 10 = full size. Score 5 = half size, 1 trade only. Score 4 or below = no trading at all.
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-clipboard-check me-2"></i>Pre-Session Mental Game Checklist
+          <span class="float-end badge" style="background:rgba(188,140,255,.15);color:var(--p)">[TENDLER] Ch9 — Warmup</span></div>
+        <div class="card-body" id="preSessionChecklist">
+          <!-- Populated by JS -->
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center" style="border-color:var(--card-border)">
+          <div><span class="fw-bold" id="chkPassCount">0</span>/10 passed &mdash; <span id="chkVerdict" class="fw-bold">—</span></div>
+          <div class="text-end"><small class="text-secondary">[TENDLER] Ch9: "3+ NO answers = Yellow flag. 5+ = No-Go."</small></div>
+        </div>
+      </div>
+
+      <!-- Mental Score Input -->
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-speedometer me-2"></i>Record Today's Mental Score</div>
+        <div class="card-body">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label small text-secondary">Mental Score (1-10)</label>
+              <input type="range" class="form-range" id="sessScore" min="1" max="10" value="7" oninput="updateScoreDisplay()">
+              <div class="text-center score-display mt-2" id="sessScoreVal">7</div>
+            </div>
+            <div class="col-md-8">
+              <div id="sessScoreBand" class="p-3" style="background:rgba(255,255,255,.02);border-radius:8px">
+                <div class="fw-bold" id="bandLabel">—</div>
+                <div class="small text-secondary mt-1" id="bandDesc">Move the slider to see score band description.</div>
+                <div class="mt-2" id="bandAction" style="font-size:.85rem;color:var(--y)"></div>
+                <div class="mt-1 small" id="bandSource" style="color:#6e7681"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label small text-secondary">Primary Emotion Right Now <span style="color:var(--y)">(What are you feeling most strongly right now? Be honest — this is just for you.)</span></label>
+            <select class="form-select" id="sessPrimaryEmotion">
+              <option value="CALM">Calm / Neutral</option>
+              <option value="FOCUSED">Focused / Sharp</option>
+              <option value="ANXIOUS">Anxious / Nervous</option>
+              <option value="FRUSTRATED">Frustrated / Angry</option>
+              <option value="OVERCONFIDENT">Overconfident / Certain</option>
+              <option value="FEARFUL">Fearful / Hesitant</option>
+              <option value="IMPATIENT">Impatient / Bored</option>
+              <option value="REVENGE">Revenge-Driven</option>
+              <option value="GREEDY">Greedy / Euphoric</option>
+              <option value="TIRED">Tired / Low Energy</option>
+              <option value="STRESSED">Stressed (non-market)</option>
+            </select>
+          </div>
+          <div class="mt-3">
+            <label class="form-label small text-secondary">Warmup Notes <span style="color:#6e7681">(Optional — anything affecting your mindset today: bad sleep, big win yesterday, stressful news, etc.)</span></label>
+            <textarea class="form-control" id="sessNotes" rows="2" placeholder="e.g. Slept poorly, need to watch for impatience today..."></textarea>
+          </div>
+          <div class="mt-3 d-flex gap-2">
+            <button class="btn btn-primary" onclick="saveSession()"><i class="bi bi-save me-1"></i>Save Today's Session</button>
+            <span class="text-secondary small align-self-center" id="sessSaveStatus"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Session History -->
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-clock-history me-2"></i>Recent Sessions</div>
+        <div class="card-body scroll-section" id="sessHistory">
+          <span class="text-secondary">Loading...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 3 — PRE-TRADE PSYCHOLOGICAL GATE
+     [TENDLER] Ch9: Real-Time Strategy applied BEFORE entry
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-pretrade" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--b)"><i class="bi bi-shield-lock me-1"></i>What is the Pre-Trade Psychological Gate?</strong><br>
+      The Pre-Session checklist was for the <em>whole day</em>. This gate is for <strong>each individual trade</strong>. Before you click "Buy" or "Sell," you must pass all 5 checks. Think of it as a bouncer at a nightclub — if you can't pass every check, you don't get in.<br><br>
+      <strong style="color:var(--y)">The 5 checks are:</strong> (1) My system shows a valid signal, (2) I have enough technical confluence (multiple indicators agree), (3) My mental score is high enough, (4) I’m not emotionally compromised, (5) This trade fits my risk management rules.<br><br>
+      <strong style="color:var(--g)">All 5 must be checked = PASS</strong>. Even 4 out of 5 = BLOCKED. No exceptions. This is the hardest rule to follow because your emotions will scream "just take the trade!" — but the gate exists precisely for those moments.<br><br>
+      <strong style="color:var(--p)">Log Trade Psychology:</strong> After each trade, log what you felt, whether you followed your system, and if you made any psychological mistakes. This data feeds the pattern detection system, which automatically warns you when you're repeating mistakes.
+      <br><br>
+      <strong style="color:var(--o)"><i class="bi bi-briefcase me-1"></i>Portfolio Connection:</strong> When you add/close trades in the <strong>Portfolio Tracker</strong>, the psychology fields there (emotion, mental score, system followed, pattern tag, reflection) are automatically saved here too. You don't have to enter data twice.
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-shield-lock me-2"></i>Pre-Trade Psychological Gate
+          <span class="float-end badge" style="background:rgba(88,166,255,.15);color:var(--b)">[TENDLER] Ch9 — Real-Time Strategy</span></div>
+        <div class="card-body" id="preTradeGate">
+          <!-- Populated by JS -->
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center" style="border-color:var(--card-border)">
+          <div>Gate Status: <span class="fw-bold fs-5" id="gateVerdict">—</span></div>
+          <div><small class="text-secondary">[TENDLER] Ch9: All 5 must pass before ANY trade entry.</small></div>
+        </div>
+      </div>
+
+      <!-- Log Trade Psychology -->
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-journal-text me-2"></i>Log Trade Psychology</div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-secondary">Ticker</label>
+              <input type="text" class="form-control font-mono" id="tpTicker" placeholder="e.g. RELIANCE">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-secondary">Trade Date</label>
+              <input type="date" class="form-control font-mono" id="tpDate">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-secondary">Pre-Trade Mental Score</label>
+              <input type="number" class="form-control font-mono" id="tpScore" min="1" max="10" value="7">
+            </div>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-secondary">Pre-Trade Emotion</label>
+              <select class="form-select" id="tpEmotion">
+                <option value="CALM">Calm</option><option value="FOCUSED">Focused</option>
+                <option value="ANXIOUS">Anxious</option><option value="FRUSTRATED">Frustrated</option>
+                <option value="OVERCONFIDENT">Overconfident</option><option value="FEARFUL">Fearful</option>
+                <option value="IMPATIENT">Impatient</option><option value="REVENGE">Revenge-Driven</option>
+                <option value="GREEDY">Greedy</option><option value="TIRED">Tired</option>
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-secondary">System Followed? <span style="color:var(--y)">(Did you follow your rules? Or did emotion override your system?)</span></label>
+              <select class="form-select" id="tpSystemFollowed">
+                <option value="YES">YES — followed system</option>
+                <option value="NO">NO — deviated</option>
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-secondary">Pattern Tag <span style="color:#6e7681">(If you made a mistake, what type was it? Leave empty if trade was clean.)</span></label>
+              <select class="form-select" id="tpPattern">
+                <option value="">None</option>
+                <option value="REVENGE_TRADE">Revenge Trade</option>
+                <option value="OVERCONFIDENCE">Overconfidence</option>
+                <option value="FEAR_PARALYSIS">Fear Paralysis</option>
+                <option value="DISCIPLINE_BREAKDOWN">Discipline Breakdown</option>
+                <option value="FOMO">FOMO</option>
+                <option value="EARLY_EXIT">Early Exit</option>
+                <option value="OVERSIZE_AFTER_WIN">Oversize After Win</option>
+                <option value="BOREDOM_OVERTRADE">Boredom Overtrade</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-6 mb-3">
+              <label class="form-label small text-secondary">Rule Broken (if any) <span style="color:#6e7681">(What specific rule did you break? e.g. "Entered without confluence", "Moved stop loss", "Oversized position")</span></label>
+              <input type="text" class="form-control" id="tpRuleBroken" placeholder="e.g. Entered without confluence">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label small text-secondary">Root Cause <span style="color:#6e7681">(What emotion or situation CAUSED the rule break?)</span></label>
+              <select class="form-select" id="tpRootCause">
+                <option value="">N/A</option>
+                <option value="FEAR">Fear</option><option value="GREED">Greed</option>
+                <option value="ANGER">Anger/Tilt</option><option value="OVERCONFIDENCE">Overconfidence</option>
+                <option value="LOW_CONFIDENCE">Low Confidence</option><option value="DISCIPLINE">Discipline</option>
+                <option value="BOREDOM">Boredom</option><option value="IMPATIENCE">Impatience</option>
+                <option value="LIFE_STRESS">Life Stress</option><option value="FATIGUE">Fatigue</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">In-Trade Emotion Peak <span style="color:#6e7681">(What was the STRONGEST emotion you felt while the trade was live?)</span></label>
+            <select class="form-select" id="tpInTradeEmotion">
+              <option value="CALM">Calm</option><option value="ANXIOUS">Anxious</option>
+              <option value="PANICKED">Panicked</option><option value="GREEDY">Greedy</option>
+              <option value="FRUSTRATED">Frustrated</option><option value="RELIEVED">Relieved</option>
+              <option value="EUPHORIC">Euphoric</option><option value="NUMB">Numb/Detached</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Post-Trade Reflection <span style="color:var(--g)">(Write 3 sentences: What happened? What did I feel? What will I do differently next time?)</span></label>
+            <textarea class="form-control" id="tpReflection" rows="3" placeholder="What happened? What did I feel? What will I do differently?"></textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" onclick="saveTradePhych()"><i class="bi bi-save me-1"></i>Log Trade Psychology</button>
+            <span class="text-secondary small align-self-center" id="tpSaveStatus"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade Psychology History -->
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-journal-bookmark me-2"></i>Recent Trade Psychology Logs</div>
+        <div class="card-body scroll-section" id="tpHistory">
+          <span class="text-secondary">Loading...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 4 — IN-TRADE PSYCHOLOGICAL RULES
+     [TENDLER] Ch4-8 + Ch9 Real-Time Strategy
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-intrade" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(210,153,34,.05);border:1px solid rgba(210,153,34,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--y)"><i class="bi bi-shield-exclamation me-1"></i>What are In-Trade Psychological Rules?</strong><br>
+      You've entered a trade. Now what? This is where most traders lose control. Your stock starts dropping and panic sets in. Or it spikes up and greed tells you to add more. These rules tell you <strong>exactly what to do when specific emotions hit while you’re in a live trade</strong>.<br><br>
+      Each rule card below shows a <strong style="color:var(--y)">Situation</strong> (e.g., "Trade moves against you and you feel panic") and a <strong>Rule</strong> (e.g., "Check your stop-loss. If it's not hit, do nothing. The system handles exits, not your emotions."). These are your guardrails while the trade is live.<br><br>
+      <strong style="color:var(--g)">The 4-Step Real-Time Strategy</strong> is your emergency brake for when emotions spike mid-trade:<br>
+      <strong>1. RECOGNIZE</strong> — Notice and name the emotion ("I am feeling revenge right now").<br>
+      <strong>2. DISRUPT</strong> — Break the momentum: deep breaths, stand up, walk away from the screen for 60 seconds.<br>
+      <strong>3. INJECT LOGIC</strong> — Say your pre-prepared correction statement out loud (not improvised — one you wrote in advance).<br>
+      <strong>4. STRATEGIC REMINDER</strong> — List 3 mistakes you always make when this emotion takes over.
+    </div>
+  </div>
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-shield-exclamation me-2"></i>In-Trade Psychological Rules &mdash; Reference Card
+      <span class="float-end badge" style="background:rgba(210,153,34,.15);color:var(--y)">[TENDLER] Ch4-8, Ch9</span></div>
+    <div class="card-body" id="inTradeRules">
+      <span class="text-secondary">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Real-Time 4-Step Strategy Quick Reference -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-lightning me-2"></i>Real-Time 4-Step Strategy
+      <span class="float-end badge" style="background:rgba(63,185,80,.15);color:var(--g)">[TENDLER] Ch9</span></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(188,140,255,.08);border-radius:10px">
+          <div class="fs-4 mb-2">1️⃣</div><div class="fw-bold" style="color:var(--p)">RECOGNIZE</div>
+          <div class="small text-secondary mt-1">Notice the emotion. Name it. "I am feeling revenge right now."</div>
+          <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch9 — Step 1</div>
+        </div></div>
+        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(88,166,255,.08);border-radius:10px">
+          <div class="fs-4 mb-2">2️⃣</div><div class="fw-bold" style="color:var(--b)">DISRUPT</div>
+          <div class="small text-secondary mt-1">Break the momentum. Deep breaths. Stand up. Walk. Newton's first law — emotions in motion stay in motion.</div>
+          <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch9 — Step 2</div>
+        </div></div>
+        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(63,185,80,.08);border-radius:10px">
+          <div class="fs-4 mb-2">3️⃣</div><div class="fw-bold" style="color:var(--g)">INJECT LOGIC</div>
+          <div class="small text-secondary mt-1">Say your trained correction statement. The one you prepared and rehearsed. Not improvised — PREPARED.</div>
+          <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch9 — Step 3</div>
+        </div></div>
+        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(210,153,34,.08);border-radius:10px">
+          <div class="fs-4 mb-2">4️⃣</div><div class="fw-bold" style="color:var(--y)">STRATEGIC REMINDER</div>
+          <div class="small text-secondary mt-1">List 3 mistakes you commonly make when this emotion takes over. Remember what's at stake.</div>
+          <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch9 — Step 4</div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 5 — PERFORMANCE MAP
+     [TENDLER] Ch2: Map Your Pattern + Ch3: Find the Root
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-perfmap" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(57,210,192,.05);border:1px solid rgba(57,210,192,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--c)"><i class="bi bi-map me-1"></i>What is a Performance Map?</strong><br>
+      Think of this as your <strong>personal mistake encyclopedia</strong>. Every trader makes recurring mistakes — the same 3-5 errors over and over. The Performance Map forces you to write down each mistake, figure out <em>why</em> you make it (the real emotional root cause), and prepare a <strong>correction statement</strong> to use when you catch yourself doing it again.<br><br>
+      <strong style="color:var(--y)">The 5 fields explained:</strong><br>
+      <span style="color:var(--r)">• Mistake</span> = What bad thing do you keep doing? (e.g., "I chase entries after seeing a big green candle")<br>
+      <span style="color:var(--o)">• Emotion Behind It</span> = What feeling drives this mistake? (e.g., "FOMO — fear of missing out on the move")<br>
+      <span style="color:var(--y)">• Root Cause</span> = The deep psychological reason (e.g., "I equate missing a trade with being a bad trader")<br>
+      <span style="color:var(--g)">• Correction Statement</span> = What you say to yourself when you catch it (e.g., "Missing a trade costs nothing. A bad entry costs capital AND confidence.")<br>
+      <span style="color:var(--b)">• Early Warning</span> = How do you know it's about to happen? (e.g., "When I open a chart after seeing a move on Twitter and feel urgency")<br>
+      <span style="color:var(--p)">• Severity (1-10)</span> = How much damage does this mistake cause when it happens? (10 = catastrophic, 1 = minor)
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-map me-2"></i>Personal Performance Map
+          <span class="float-end badge" style="background:rgba(57,210,192,.15);color:var(--c)">[TENDLER] Ch2-3</span></div>
+        <div class="card-body">
+          <p class="text-secondary small mb-3">Map your recurring mistakes, emotions behind them, root causes, corrections, and early warnings. Each entry follows the Mental Hand History format. <span style="color:#6e7681">[TENDLER] Ch3 — 5-step diagnostic</span></p>
+          <div class="scroll-section" id="perfMapTable">
+            <span class="text-secondary">Loading...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-plus-circle me-2"></i>Add Performance Map Entry</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Mistake / Problem Behavior</label>
+            <input type="text" class="form-control" id="pmMistake" placeholder="e.g. Chase entries above resistance">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Emotion Behind It</label>
+            <input type="text" class="form-control" id="pmEmotion" placeholder="e.g. FOMO, fear of missing the move">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Root Cause [TENDLER Ch3 — Step 2-3]</label>
+            <textarea class="form-control" id="pmRootCause" rows="2" placeholder="e.g. I equate missing a trade with personal failure. Deep need to not be 'wrong.'"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Correction Statement [TENDLER Ch3 — Step 4]</label>
+            <textarea class="form-control" id="pmCorrection" rows="2" placeholder="e.g. Missing a trade costs nothing. A bad entry costs capital AND confidence."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Early Warning Signals [TENDLER Ch9 — Recognize]</label>
+            <textarea class="form-control" id="pmEarlyWarning" rows="2" placeholder="e.g. When I open a chart after seeing a move and feel urgency"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Severity (1-10) [TENDLER Ch2 — Map severity]</label>
+            <input type="number" class="form-control font-mono" id="pmSeverity" min="1" max="10" value="5">
+          </div>
+          <button class="btn btn-primary" onclick="savePerfMap()"><i class="bi bi-save me-1"></i>Save Entry</button>
+          <span class="text-secondary small" id="pmSaveStatus"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 6 — SCORING SYSTEM (1-10)
+     [TENDLER] Ch2: Map severity + Ch9: threshold concept
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-scoring" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--p)"><i class="bi bi-thermometer-half me-1"></i>What is the Mental Score System?</strong><br>
+      Every trading day, you rate yourself from 1 to 10. This isn't random — each number has a specific meaning and <strong>directly controls what you're allowed to do</strong>. It’s like a traffic light for your trading:<br><br>
+      <span style="color:var(--g)">• Score 8-10 (Green Light)</span> — You’re clear-headed. Trade at full position size, normal rules apply.<br>
+      <span style="color:var(--y)">• Score 5-7 (Yellow Light)</span> — You’re not at your best. Reduce position size, require more technical evidence, and limit number of trades.<br>
+      <span style="color:var(--r)">• Score 1-4 (Red Light)</span> — You’re emotionally compromised. <strong>DO NOT TRADE.</strong> No position size, no entries. Study only.<br><br>
+      <strong>Why?</strong> Research on performance psychology (Yerkes-Dodson Law) shows humans make optimal decisions only within a narrow emotional band. Too stressed or too euphoric = bad decisions. This system prevents you from trading outside that optimal window.
+      <br><br>
+      Each score below shows: what it means, what position size is allowed, and what action to take.
+    </div>
+  </div>
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-thermometer-half me-2"></i>Mental Game Scoring System (1-10) — Complete Reference
+      <span class="float-end badge" style="background:rgba(188,140,255,.15);color:var(--p)">[TENDLER] Ch2, Ch9</span></div>
+    <div class="card-body" id="scoringReference">
+      <span class="text-secondary">Loading...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 7 — PATTERNS & ALERTS
+     [TENDLER] Ch2: Map Your Pattern + Ch9: recognizing patterns
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-patterns" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--r)"><i class="bi bi-exclamation-triangle me-1"></i>What are Patterns & Alerts?</strong><br>
+      A <strong>pattern</strong> is a recurring psychological mistake. Most traders don't just make random errors — they repeat the same 2-3 mistakes over and over. This section has two parts:<br><br>
+      <strong style="color:var(--y)">Live Pattern Alerts (Left)</strong> — The system automatically scans your recent trade logs and detects if you’re repeating any of the 8 key patterns. For example, if you tagged 3 trades as "FOMO" in the last 7 days, it raises a <span style="color:var(--y)">MODERATE</span> alert. If you broke rules in 3+ consecutive trades, it raises a <span style="color:var(--r)">HIGH</span> alert.<br><br>
+      <strong style="color:var(--b)">Pattern Library (Right)</strong> — A reference guide for all 8 destructive trading patterns. For each pattern, you can see:<br>
+      • <strong>Early Warnings</strong> = How to spot it BEFORE it happens<br>
+      • <strong>Confirmation</strong> = How to know you’re IN the pattern<br>
+      • <strong>Immediate Action</strong> = What to do RIGHT NOW<br>
+      • <strong>Recovery</strong> = How to get back on track<br>
+      • <strong>Prevention</strong> = How to stop it from happening again<br><br>
+      The 8 patterns are: <strong>Revenge Trade, Overconfidence, Fear Paralysis, Discipline Breakdown, FOMO, Early Exit, Oversize After Win, and Boredom Overtrade</strong>.
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-exclamation-triangle me-2"></i>Live Pattern Alerts (Last 7 Days)
+          <span class="float-end badge" style="background:rgba(248,81,73,.15);color:var(--r)">[TENDLER] Ch2, Ch9</span></div>
+        <div class="card-body" id="livePatternAlerts">
+          <span class="text-secondary">Analyzing...</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-book me-2"></i>Pattern Library — 8 Key Patterns</div>
+        <div class="card-body scroll-section" id="patternLibrary">
+          <span class="text-secondary">Loading...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 8 — EMERGENCY PROTOCOLS
+     [TENDLER] Ch6 Tilt, Ch7 Desperation, Ch9, Ch10
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-emergency" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--r)"><i class="bi bi-exclamation-octagon me-1"></i>What are Emergency Protocols?</strong><br>
+      These are your <strong>"break glass in case of emergency"</strong> procedures. Trading has extreme moments — big losses, streak losses, euphoric wins — and in those moments, your brain is NOT capable of rational decision-making. These 6 protocols tell you <strong>exactly what to do</strong> in each crisis situation:<br><br>
+      <span style="color:var(--r)">• Protocol A — After a Large Loss</span>: You just lost big money. You’re angry, scared, or desperate. The protocol says: STOP. Walk away. Don’t trade for at least 1 hour. Review what happened only after emotions settle.<br>
+      <span style="color:var(--o)">• Protocol B — After 3+ Consecutive Losses</span>: You’re in a losing streak. Cut position size by 50%. Take a break. Do NOT try to "make it back."<br>
+      <span style="color:var(--g)">• Protocol C — After a Large Win</span>: You feel amazing and invincible. This is DANGEROUS. Overconfidence leads to oversized positions. Lock in the win. Reduce size on next trade.<br>
+      <span style="color:var(--y)">• Protocol D — After 3+ Consecutive Wins</span>: Winning streak. Euphoria setting in. The protocol prevents you from doubling down and giving back all your profits.<br>
+      <span style="color:var(--b)">• Protocol E — About to Break a Rule</span>: You KNOW you’re about to do something stupid. Use the 4-step strategy: Recognize, Disrupt, Inject Logic, Strategic Reminder.<br>
+      <span style="color:var(--p)">• Protocol F — Already Broke a Rule</span>: Damage is done. Log it, identify the root cause, update your Performance Map, and plan how to prevent it next time.<br><br>
+      <strong>Log every protocol usage below.</strong> Tracking when you use these (and whether you followed them) helps you measure emotional discipline over time.
+    </div>
+  </div>
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-exclamation-octagon me-2 text-danger"></i>Emergency Protocols (A-F)
+      <span class="float-end badge" style="background:rgba(248,81,73,.15);color:var(--r)">[TENDLER] Ch6, Ch7, Ch9, Ch10</span></div>
+    <div class="card-body" id="emergencyProtocols">
+      <span class="text-secondary">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Log Emergency Use -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-journal-plus me-2"></i>Log Emergency Protocol Usage</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-3 mb-3">
+          <label class="form-label small text-secondary">Date</label>
+          <input type="date" class="form-control font-mono" id="emgDate">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label small text-secondary">Protocol Used</label>
+          <select class="form-select" id="emgType">
+            <option value="A">A — After Large Loss</option>
+            <option value="B">B — After 3+ Losses</option>
+            <option value="C">C — After Large Win</option>
+            <option value="D">D — After 3+ Wins</option>
+            <option value="E">E — About to Break Rule</option>
+            <option value="F">F — Already Broke Rule</option>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label small text-secondary">Outcome</label>
+          <select class="form-select" id="emgOutcome">
+            <option value="STOPPED">Stopped trading</option>
+            <option value="REDUCED">Reduced size/frequency</option>
+            <option value="CONTINUED">Continued with caution</option>
+            <option value="IGNORED">Ignored protocol</option>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label small text-secondary">Mental Score After</label>
+          <input type="number" class="form-control font-mono" id="emgScoreAfter" min="1" max="10" value="5">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small text-secondary">Notes</label>
+        <textarea class="form-control" id="emgNotes" rows="2" placeholder="What triggered it? Did the protocol help?"></textarea>
+      </div>
+      <button class="btn btn-danger" onclick="saveEmergency()"><i class="bi bi-save me-1"></i>Log Emergency</button>
+      <span class="text-secondary small" id="emgSaveStatus"></span>
+    </div>
+  </div>
+
+  <!-- Emergency History -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-clock-history me-2"></i>Emergency Protocol History</div>
+    <div class="card-body scroll-section" id="emgHistory">
+      <span class="text-secondary">Loading...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 9 — WEEKLY PSYCHOLOGICAL REPORT
+     [TENDLER] Ch9 Cooldown + [SYSTEM ARCHITECTURE]
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-weekly" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--g)"><i class="bi bi-calendar-week me-1"></i>What is the Weekly Psychological Report?</strong><br>
+      Every weekend, take 15 minutes to review your week — not just profits and losses, but your <strong>mental performance</strong>. This has two parts:<br><br>
+      <strong style="color:var(--b)">Auto-Computed Summary (Left Top)</strong>: The system automatically calculates your weekly stats from the trades you logged: total trades, what % followed rules, average mental score, most common emotion, most common rule break, and active pattern alerts. You don’t need to calculate anything — it’s done for you.<br><br>
+      <strong style="color:var(--p)">Manual Weekly Report (Left Bottom)</strong>: This is YOUR reflection. What was your biggest recurring pattern this week? What’s your ONE specific improvement goal for next week? Are things getting better, worse, or staying the same?<br><br>
+      <strong style="color:var(--y)">Why do this weekly?</strong> Daily reviews are too granular — you can’t see trends. Monthly is too late — you’ve already repeated mistakes for weeks. Weekly is the sweet spot for catching patterns and making adjustments before they compound into bigger problems.
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <!-- Auto-Computed Summary -->
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-calculator me-2"></i>Auto-Computed Weekly Summary
+          <span class="float-end badge" style="background:rgba(63,185,80,.15);color:var(--g)">[SYSTEM ARCHITECTURE]</span></div>
+        <div class="card-body" id="weeklyAutoSummary">
+          <span class="text-secondary">Loading...</span>
+        </div>
+      </div>
+
+      <!-- Manual Weekly Entry -->
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-pencil-square me-2"></i>Submit Weekly Report</div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-6 mb-3">
+              <label class="form-label small text-secondary">Week Start</label>
+              <input type="date" class="form-control font-mono" id="wkStart">
+            </div>
+            <div class="col-6 mb-3">
+              <label class="form-label small text-secondary">Week End</label>
+              <input type="date" class="form-control font-mono" id="wkEnd">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Top Recurring Pattern This Week <span style="color:#6e7681">(Which mistake did you make most often? e.g. FOMO, revenge trade, early exit)</span></label>
+            <input type="text" class="form-control" id="wkPattern" placeholder="e.g. FOMO">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">One Specific Improvement Goal for Next Week <span style="color:var(--g)">(Be very specific. Not "trade better" but "Complete pre-trade gate before every entry — zero exceptions")</span></label>
+            <textarea class="form-control" id="wkGoal" rows="2" placeholder="e.g. Complete pre-trade gate before every entry — zero exceptions"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Progress vs Last Week <span style="color:#6e7681">(Compared to last week, is your psychological performance getting better, staying the same, or getting worse?)</span></label>
+            <select class="form-select" id="wkProgress">
+              <option value="BETTER">BETTER</option>
+              <option value="SAME" selected>SAME</option>
+              <option value="WORSE">WORSE</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Reflection <span style="color:#6e7681">(What did you learn this week about yourself as a trader? What will you focus on next week?)</span></label>
+            <textarea class="form-control" id="wkReflection" rows="3" placeholder="What did I learn this week? What will I focus on?"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="saveWeekly()"><i class="bi bi-save me-1"></i>Submit Weekly Report</button>
+          <span class="text-secondary small" id="wkSaveStatus"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weekly History -->
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-clock-history me-2"></i>Past Weekly Reports</div>
+        <div class="card-body scroll-section" id="wkHistory">
+          <span class="text-secondary">Loading...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 10 — LEARNING CURVE TRACKER (Inchworm)
+     [TENDLER] Ch1: Inchworm concept; Ch2: competence levels
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-learning" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--g)"><i class="bi bi-graph-up me-1"></i>What is the Learning Curve Tracker?</strong><br>
+      This tracks your <strong>psychological growth over months</strong>. Jared Tendler uses the concept of an <strong>"Inchworm"</strong> — imagine your performance as a range, like a worm. The front end is your best trading day (A-game). The back end is your worst (C-game). You improve NOT by making your best days better, but by <strong>making your worst days less bad</strong>. The worm "inches" forward from the back.<br><br>
+      <strong style="color:var(--y)">The 4 Competence Levels:</strong><br>
+      <span class="lc-level lc-UI" style="font-size:.75rem">UI</span> <strong>Unconscious Incompetence</strong> = You don’t even know you have the problem. You’re making the mistake and don’t realize it. ("I’m fine, I don’t revenge trade." But you do.)<br>
+      <span class="lc-level lc-CI" style="font-size:.75rem">CI</span> <strong>Conscious Incompetence</strong> = You KNOW you have the problem but can’t stop it yet. ("I know I’m revenge trading but I can’t help it.")<br>
+      <span class="lc-level lc-CC" style="font-size:.75rem">CC</span> <strong>Conscious Competence</strong> = You can control it, but it takes effort and active attention. ("I caught myself about to revenge trade and stopped.")<br>
+      <span class="lc-level lc-UC" style="font-size:.75rem">UC</span> <strong>Unconscious Competence</strong> = <span style="color:var(--g)">RESOLVED</span>. You don’t even think about it anymore. The correct behavior is automatic.<br><br>
+      <strong style="color:var(--b)">Monthly Assessment:</strong> Once a month, rate yourself on 5 dimensions: <strong>Fear, Greed, Anger/Tilt, Confidence, and Discipline</strong>. For each one, select which competence level you’re currently at. Over time, you should see them move from UI→CI→CC→UC. That’s the inchworm moving forward.
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-graph-up me-2"></i>Learning Curve Tracker — Inchworm Concept
+          <span class="float-end badge" style="background:rgba(63,185,80,.15);color:var(--g)">[TENDLER] Ch1</span></div>
+        <div class="card-body">
+          <p class="text-secondary small mb-3"><strong>The Inchworm:</strong> Your performance has a range — A-game (front) and C-game (back). Fix the C-game and the entire range moves forward. You improve by "sucking less" at the worst moments. <span style="color:#6e7681">[TENDLER] Ch1</span></p>
+          <div id="lcTimeline">
+            <span class="text-secondary">Loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inchworm Chart -->
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-bar-chart-line me-2"></i>Inchworm Progress — Competence Over Time</div>
+        <div class="card-body"><div class="chart-container"><canvas id="inchwormChart"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <!-- Add Monthly Assessment -->
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-calendar-plus me-2"></i>Monthly Learning Assessment</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Month</label>
+            <input type="month" class="form-control font-mono" id="lcMonth">
+          </div>
+          <p class="text-secondary small" style="line-height:1.5">Rate each emotion/problem below on the 4-level competence scale. <strong>UI</strong> = you don't know you have the problem. <strong>CI</strong> = you know but can't stop it. <strong>CC</strong> = you can control it with effort. <strong>UC</strong> = it's resolved, automatic. Be brutally honest — this is how you track real growth.</p>
+          <div class="mb-2">
+            <label class="form-label small"><span style="color:var(--r)">Fear</span> — Competence Level</label>
+            <select class="form-select" id="lcFear"><option value="UI">UI — Unconscious Incompetence</option><option value="CI" selected>CI — Conscious Incompetence</option><option value="CC">CC — Conscious Competence</option><option value="UC">UC — Unconscious Competence (Resolved)</option></select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small"><span style="color:var(--y)">Greed</span> — Competence Level</label>
+            <select class="form-select" id="lcGreed"><option value="UI">UI</option><option value="CI" selected>CI</option><option value="CC">CC</option><option value="UC">UC</option></select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small"><span style="color:var(--o)">Anger/Tilt</span> — Competence Level</label>
+            <select class="form-select" id="lcAnger"><option value="UI">UI</option><option value="CI" selected>CI</option><option value="CC">CC</option><option value="UC">UC</option></select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small"><span style="color:var(--p)">Confidence</span> — Competence Level</label>
+            <select class="form-select" id="lcConfidence"><option value="UI">UI</option><option value="CI" selected>CI</option><option value="CC">CC</option><option value="UC">UC</option></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small"><span style="color:var(--b)">Discipline</span> — Competence Level</label>
+            <select class="form-select" id="lcDiscipline"><option value="UI">UI</option><option value="CI" selected>CI</option><option value="CC">CC</option><option value="UC">UC</option></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Notes</label>
+            <textarea class="form-control" id="lcNotes" rows="2" placeholder="e.g. FOMO down from CI to CC this month..."></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="saveLearningCurve()"><i class="bi bi-save me-1"></i>Save Assessment</button>
+          <span class="text-secondary small" id="lcSaveStatus"></span>
+        </div>
+      </div>
+
+      <!-- Competence Level Legend -->
+      <div class="card">
+        <div class="card-header"><i class="bi bi-info-circle me-2"></i>Competence Levels — [TENDLER] Ch1</div>
+        <div class="card-body" id="lcLegend">
+          <span class="text-secondary">Loading...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 11 — DAILY WORKFLOW
+     [TENDLER] Ch9 Build a Productive Routine
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-workflow" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(57,210,192,.05);border:1px solid rgba(57,210,192,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--c)"><i class="bi bi-calendar-day me-1"></i>What is the Daily Workflow?</strong><br>
+      This is your <strong>complete daily routine</strong> that combines both technical analysis AND psychological preparation in the right order. Think of it as your trading day recipe — follow these steps in order, every day, and you’ll build the habits that separate professional traders from amateurs.<br><br>
+      <strong style="color:var(--y)">Morning → Before Trade → During Trade → After Trade → End of Session → Weekly → Monthly</strong><br><br>
+      Each phase has specific steps. The key insight: <strong>psychology goes BEFORE technical analysis</strong>. You check your mental state first, then look at charts. If your mental check fails, you don’t even open the charts. This is backwards from what most traders do (charts first, then realize mid-trade they’re emotional), but it’s the correct order.<br><br>
+      <span style="color:var(--y)">Morning</span> = Pre-session checklist + mental score + warmup.<br>
+      <span style="color:var(--g)">Before Trade</span> = Pre-trade gate (5 checks) before every entry.<br>
+      <span style="color:var(--b)">During Trade</span> = Use in-trade rules + 4-step strategy if emotions spike.<br>
+      <span style="color:var(--p)">After Trade</span> = Log trade psychology (what you felt, system followed, pattern tag).<br>
+      <span style="color:var(--c)">End of Session</span> = Cooldown, review the day, update mental score.<br>
+      <span style="color:var(--o)">Weekly</span> = Write weekly report, review patterns and progress.<br>
+      <span style="color:var(--r)">Monthly</span> = Update learning curve, rate competence levels.
+    </div>
+  </div>
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-calendar-day me-2"></i>Complete Daily Workflow — Technical + Psychological Integration
+      <span class="float-end badge" style="background:rgba(57,210,192,.15);color:var(--c)">[TENDLER] Ch9</span></div>
+    <div class="card-body" id="dailyWorkflow">
+      <span class="text-secondary">Loading...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 12 — INTEGRATION RULES
+     [SYSTEM ARCHITECTURE] Connections 1-4
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="container-fluid tab-content" id="tab-integration" style="display:none">
+  <div class="p-3 mb-3" style="background:rgba(240,136,62,.05);border:1px solid rgba(240,136,62,.12);border-radius:10px">
+    <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <strong style="color:var(--o)"><i class="bi bi-link-45deg me-1"></i>How Does Psychology Connect to Your Technical Trading System?</strong><br>
+      This is where the Mental Game system <strong>directly integrates with your Portfolio Tracker and technical analysis</strong>. Most psychology systems are separate from trading — just a journal that sits in a corner. This system is different: your mental score <strong>actually changes what you’re allowed to do</strong> in real-time.<br><br>
+      <strong style="color:var(--b)">Connection 1 — Confluence Scoring:</strong> Your technical analysis uses confluence (how many indicators agree on a trade). When your mental score is low, the system <strong>raises the bar</strong> — you need MORE technical evidence to justify a trade. Score 8+ = need 4/5 confluence. Score 7 = need 5/5 (perfect setup only). Score 1-4 = no trading.<br><br>
+      <strong style="color:var(--g)">Connection 2 — Position Sizing:</strong> Your mental score controls how much money you’re allowed to risk per trade. Feeling great (9-10)? Full position size. Feeling off (6-7)? Half to three-quarter size. Emotionally compromised (1-4)? Zero — no trades at all.<br><br>
+      <strong style="color:var(--r)">Connection 3 — Pattern Detection:</strong> Every trade you log with a pattern tag (FOMO, revenge trade, etc.) feeds the automatic pattern detection engine. If the same pattern appears 3+ times = 50% size reduction on all trades. 5+ times = STOP trading until pattern is resolved.<br><br>
+      <strong style="color:var(--p)">Connection 4 — Rule Break Feedback Loop:</strong> When you mark "System Followed = NO" on any trade, it triggers the full feedback cycle: tag the pattern → identify root cause → run Emergency Protocol F → update Performance Map → update Learning Curve. This turns every mistake into a concrete learning opportunity.
+    </div>
+  </div>
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-link-45deg me-2"></i>Technical &amp; Psychological Integration Rules
+      <span class="float-end badge" style="background:rgba(240,136,62,.15);color:var(--o)">[SYSTEM ARCHITECTURE]</span></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <!-- Connection 1 -->
+        <div class="col-md-6">
+          <div class="p-3" style="background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.15);border-radius:10px">
+            <div class="fw-bold mb-2" style="color:var(--b)"><i class="bi bi-1-circle me-1"></i>Confluence Scoring Adjustment</div>
+            <div class="small text-secondary mb-2">Mental score directly affects the minimum technical confluence required to enter a trade.</div>
+            <table class="table table-sm table-dark mb-0" style="font-size:.82rem">
+              <thead><tr><th>Mental Score</th><th>Min Confluence</th><th>Logic</th></tr></thead>
+              <tbody>
+                <tr><td class="font-mono">8-10</td><td class="font-mono">4/5</td><td class="small">Normal — clear-headed decision-making</td></tr>
+                <tr><td class="font-mono">7</td><td class="font-mono">5/5</td><td class="small">Elevated emotional noise — need more evidence</td></tr>
+                <tr><td class="font-mono">5-6</td><td class="font-mono">5/5</td><td class="small">Compromised — only perfect setups</td></tr>
+                <tr><td class="font-mono">1-4</td><td class="font-mono">N/A</td><td class="small">NO TRADING</td></tr>
+              </tbody>
+            </table>
+            <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch9 emotional threshold + Yerkes-Dodson law. [SYSTEM ARCHITECTURE] Connection 1.</div>
+          </div>
+        </div>
+        <!-- Connection 2 -->
+        <div class="col-md-6">
+          <div class="p-3" style="background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.15);border-radius:10px">
+            <div class="fw-bold mb-2" style="color:var(--g)"><i class="bi bi-2-circle me-1"></i>Position Size Link</div>
+            <div class="small text-secondary mb-2">Mental score determines max position size. Lower score = smaller size = less damage potential.</div>
+            <table class="table table-sm table-dark mb-0" style="font-size:.82rem">
+              <thead><tr><th>Mental Score</th><th>Max Size</th><th>Max Trades</th></tr></thead>
+              <tbody>
+                <tr><td class="font-mono">9-10</td><td class="font-mono">100%</td><td class="font-mono">Unlimited</td></tr>
+                <tr><td class="font-mono">8</td><td class="font-mono">100%</td><td class="font-mono">Unlimited</td></tr>
+                <tr><td class="font-mono">7</td><td class="font-mono">75%</td><td class="font-mono">5</td></tr>
+                <tr><td class="font-mono">6</td><td class="font-mono">50%</td><td class="font-mono">2</td></tr>
+                <tr><td class="font-mono">5</td><td class="font-mono">50%</td><td class="font-mono">1</td></tr>
+                <tr><td class="font-mono">1-4</td><td class="font-mono">0%</td><td class="font-mono">0</td></tr>
+              </tbody>
+            </table>
+            <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch9 Yerkes-Dodson. [SYSTEM ARCHITECTURE] Connection 2.</div>
+          </div>
+        </div>
+        <!-- Connection 3 -->
+        <div class="col-md-6">
+          <div class="p-3" style="background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.15);border-radius:10px">
+            <div class="fw-bold mb-2" style="color:var(--r)"><i class="bi bi-3-circle me-1"></i>Pattern Tag Analysis</div>
+            <div class="small text-secondary mb-2">If the same pattern tag appears 3+ times in recent trades, position size drops by 50% until the pattern is resolved.</div>
+            <div class="small mt-2"><strong style="color:var(--r)">Rule:</strong> 3× same tag = 50% size reduction. 5× = STOP trading that pattern.</div>
+            <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch2 Map Your Pattern — recognition is the first step. [SYSTEM ARCHITECTURE] Connection 3.</div>
+          </div>
+        </div>
+        <!-- Connection 4 -->
+        <div class="col-md-6">
+          <div class="p-3" style="background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.15);border-radius:10px">
+            <div class="fw-bold mb-2" style="color:var(--p)"><i class="bi bi-4-circle me-1"></i>Rule Break Protocol</div>
+            <div class="small text-secondary mb-2">When "System Followed" = NO, the trade is tagged, root cause identified, and the feedback loop activates.</div>
+            <div class="small mt-2"><strong style="color:var(--p)">Flow:</strong> Rule Broken → Tag Pattern → Identify Root Cause → Run Emergency Protocol F → Update Performance Map → Update Learning Curve</div>
+            <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch3 Mental Hand History → Ch2 Map → Ch9 Real-Time Strategy. [SYSTEM ARCHITECTURE] Connection 4.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div style="height:60px"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  STATE & GLOBALS
+// ═══════════════════════════════════════════════════════════════
+let REF = null; // reference data from /api/mental-game/reference
+let scoreTrendChartObj = null, emotionPieChartObj = null, inchwormChartObj = null;
+
+// ═══════════════════════════════════════════════════════════════
+//  CLOCK
+// ═══════════════════════════════════════════════════════════════
+function updateClock(){
+  const d=new Date();
+  document.getElementById('clockSpan').textContent=d.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+setInterval(updateClock,1000);updateClock();
+
+// ═══════════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════
+document.querySelectorAll('#mgTabs a').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    document.querySelectorAll('#mgTabs a').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(t=>t.style.display='none');
+    const tab=a.getAttribute('data-tab');
+    document.getElementById('tab-'+tab).style.display='';
+    // Lazy-load certain tabs
+    if(tab==='patterns')loadPatternAlerts();
+    if(tab==='weekly')loadWeeklyAuto();
+    if(tab==='learning')loadLearningCurve();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT — Load reference data once
+// ═══════════════════════════════════════════════════════════════
+async function init(){
+  const res=await fetch('/api/mental-game/reference');
+  REF=await res.json();
+  renderPreSessionChecklist();
+  renderPreTradeGate();
+  renderInTradeRules();
+  renderScoringReference();
+  renderPatternLibrary();
+  renderEmergencyProtocols();
+  renderWorkflow();
+  renderCompetenceLegend();
+  updateScoreDisplay();
+  loadDashboard();
+  loadSessions();
+  loadTradePsychHistory();
+  loadPerfMap();
+  loadEmergencyHistory();
+  loadWeeklyHistory();
+  loadPatternAlerts();
+  loadWeeklyAuto();
+  loadLearningCurve();
+  // Set default dates
+  const today=new Date().toISOString().slice(0,10);
+  if(document.getElementById('tpDate'))document.getElementById('tpDate').value=today;
+  if(document.getElementById('emgDate'))document.getElementById('emgDate').value=today;
+  const mon=new Date();
+  if(document.getElementById('lcMonth'))document.getElementById('lcMonth').value=mon.toISOString().slice(0,7);
+  // Week dates
+  const d=new Date(),day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);
+  const wStart=new Date(d.setDate(diff));
+  const wEnd=new Date(wStart);wEnd.setDate(wStart.getDate()+6);
+  if(document.getElementById('wkStart'))document.getElementById('wkStart').value=wStart.toISOString().slice(0,10);
+  if(document.getElementById('wkEnd'))document.getElementById('wkEnd').value=wEnd.toISOString().slice(0,10);
+}
+init();
+
+// ═══════════════════════════════════════════════════════════════
+//  MASTER QUESTION
+// ═══════════════════════════════════════════════════════════════
+async function runMasterQuestion(){
+  const score=parseInt(document.getElementById('mqScore').value)||5;
+  const gate=document.getElementById('mqGate').value==='true';
+  const signal=document.getElementById('mqSignal').value==='true';
+  const res=await fetch('/api/mental-game/system-check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mental_score:score,gate_passed:gate,system_signal:signal})});
+  const d=await res.json();
+  const el=document.getElementById('mqResult');el.style.display='';
+  document.getElementById('mqVerdict').className='master-verdict '+d.color;
+  document.getElementById('mqVerdict').textContent=d.verdict;
+  document.getElementById('mqAction').innerHTML=`<span style="color:${d.color==='green'?'var(--g)':d.color==='yellow'?'var(--y)':'var(--r)'}">${d.action}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+async function loadDashboard(){
+  // Today's session
+  const today=new Date().toISOString().slice(0,10);
+  const sessRes=await fetch('/api/mental-game/session?date='+today);
+  const sess=await sessRes.json();
+  if(sess&&sess.mental_score){
+    document.getElementById('dshScore').textContent=sess.mental_score;
+    document.getElementById('dshScore').className='sum-val sc-'+sess.mental_score;
+    updateDashLimits(sess.mental_score);
+  }
+
+  // Analytics
+  const anaRes=await fetch('/api/mental-game/analytics?days=7');
+  const ana=await anaRes.json();
+  document.getElementById('dshFollowRate').textContent=(ana.follow_rate||0)+'%';
+  document.getElementById('dshTopEmotion').textContent=ana.common_emotion||'—';
+
+  // Alerts
+  const patRes=await fetch('/api/mental-game/patterns?days=7');
+  const pat=await patRes.json();
+  document.getElementById('dshPatterns').textContent=(pat.alerts||[]).length;
+  renderDashAlerts(pat.alerts||[]);
+
+  // Charts
+  loadScoreTrendChart();
+  loadEmotionPieChart(ana.emotion_distribution||{});
+
+  // Sync unlinked portfolio trades
+  loadUnlinkedTrades();
+}
+
+function updateDashLimits(score){
+  const s=parseInt(score)||7;
+  const band=REF?REF.score_bands[String(s)]:{};
+  document.getElementById('limSize').textContent=band.no_trade?'0%':(band.full_size?'100%':'50-75%');
+  document.getElementById('limSize').style.color=band.no_trade?'var(--r)':band.full_size?'var(--g)':'var(--y)';
+
+  const confs={10:4,9:4,8:4,7:5,6:5,5:5};
+  const maxT={10:'∞',9:'∞',8:'∞',7:'5',6:'2',5:'1'};
+  document.getElementById('limConf').textContent=s>=5?(confs[s]||'5')+'/5':'N/A';
+  document.getElementById('limTrades').textContent=s>=5?(maxT[s]||'0'):'0';
+
+  if(s>=8){document.getElementById('limStatus').textContent='GO';document.getElementById('limStatus').style.color='var(--g)';}
+  else if(s>=5){document.getElementById('limStatus').textContent='REDUCED';document.getElementById('limStatus').style.color='var(--y)';}
+  else{document.getElementById('limStatus').textContent='NO-GO';document.getElementById('limStatus').style.color='var(--r)';}
+}
+
+function renderDashAlerts(alerts){
+  const el=document.getElementById('dshAlerts');
+  if(!alerts.length){el.innerHTML='<div class="text-center py-3"><i class="bi bi-check-circle fs-3" style="color:var(--g)"></i><div class="small text-secondary mt-1">No active pattern alerts. Keep following the system.</div></div>';return;}
+  el.innerHTML=alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()}"><div class="d-flex justify-content-between"><strong>${a.name}</strong><span class="badge" style="background:${a.severity==='HIGH'?'rgba(248,81,73,.15)':'rgba(210,153,34,.15)'};color:${a.severity==='HIGH'?'var(--r)':'var(--y)'}">${a.severity} — ${a.count}x</span></div><div class="small mt-1">${a.action}</div><div style="font-size:.65rem;color:#6e7681" class="mt-1">${a.source}</div></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════════════════════════
+async function loadScoreTrendChart(){
+  const res=await fetch('/api/mental-game/session?limit=30');
+  const sessions=await res.json();
+  if(!Array.isArray(sessions)||!sessions.length)return;
+  const sorted=sessions.slice().reverse();
+  const labels=sorted.map(s=>s.session_date?s.session_date.slice(5):'');
+  const data=sorted.map(s=>s.mental_score||0);
+  const colors=data.map(v=>v>=8?'rgba(63,185,80,.8)':v>=6?'rgba(210,153,34,.8)':'rgba(248,81,73,.8)');
+  const ctx=document.getElementById('scoreTrendChart').getContext('2d');
+  if(scoreTrendChartObj)scoreTrendChartObj.destroy();
+  scoreTrendChartObj=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Mental Score',data,backgroundColor:colors,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:10,grid:{color:'rgba(255,255,255,.05)'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}}});
+}
+
+function loadEmotionPieChart(dist){
+  const labels=Object.keys(dist);
+  const data=Object.values(dist);
+  if(!labels.length)return;
+  const palette=['#bc8cff','#58a6ff','#f85149','#d29922','#3fb950','#f0883e','#39d2c0','#ff6b6b','#a5d8ff','#ffd43b'];
+  const ctx=document.getElementById('emotionPieChart').getContext('2d');
+  if(emotionPieChartObj)emotionPieChartObj.destroy();
+  emotionPieChartObj=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:palette.slice(0,labels.length)}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#c9d1d9',font:{size:11}}}}}});
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PRE-SESSION CHECKLIST
+// ═══════════════════════════════════════════════════════════════
+function renderPreSessionChecklist(){
+  if(!REF)return;
+  const items=REF.pre_session_checklist;
+  const el=document.getElementById('preSessionChecklist');
+  el.innerHTML=items.map((it,i)=>`<div class="chk-item" id="chk-${it.id}"><input type="checkbox" id="chkbox-${it.id}" onchange="updateChecklistCount()"><label for="chkbox-${it.id}" class="mb-0" style="cursor:pointer">${it.question}</label><span class="chk-src">${it.source}</span></div>`).join('');
+}
+
+function updateChecklistCount(){
+  if(!REF)return;
+  const items=REF.pre_session_checklist;
+  let pass=0;
+  items.forEach(it=>{
+    const cb=document.getElementById('chkbox-'+it.id);
+    const row=document.getElementById('chk-'+it.id);
+    if(cb&&cb.checked){pass++;row.classList.add('pass');row.classList.remove('fail');}
+    else{row.classList.remove('pass');row.classList.add('fail');}
+  });
+  document.getElementById('chkPassCount').textContent=pass;
+  const total=items.length;
+  const el=document.getElementById('chkVerdict');
+  if(pass>=8){el.textContent='GO — Trade normally';el.style.color='var(--g)';}
+  else if(pass>=5){el.textContent='REDUCED — Trade at 50-75%';el.style.color='var(--y)';}
+  else{el.textContent='NO-GO — Do not trade';el.style.color='var(--r)';}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PRE-TRADE GATE
+// ═══════════════════════════════════════════════════════════════
+function renderPreTradeGate(){
+  if(!REF)return;
+  const items=REF.pre_trade_gate;
+  const el=document.getElementById('preTradeGate');
+  el.innerHTML=items.map(it=>`<div class="chk-item" id="gate-${it.id}"><input type="checkbox" id="gatebox-${it.id}" onchange="updateGateStatus()"><label for="gatebox-${it.id}" class="mb-0" style="cursor:pointer">${it.question}</label><span class="chk-src">${it.source}</span></div>`).join('');
+}
+
+function updateGateStatus(){
+  if(!REF)return;
+  const items=REF.pre_trade_gate;
+  let pass=0;
+  items.forEach(it=>{
+    const cb=document.getElementById('gatebox-'+it.id);
+    const row=document.getElementById('gate-'+it.id);
+    if(cb&&cb.checked){pass++;row.classList.add('pass');row.classList.remove('fail');}
+    else{row.classList.remove('pass');row.classList.add('fail');}
+  });
+  const el=document.getElementById('gateVerdict');
+  if(pass===items.length){el.textContent='✅ GATE PASSED — Clear to enter';el.style.color='var(--g)';}
+  else{el.textContent='❌ GATE BLOCKED — Do NOT enter ('+pass+'/'+items.length+')';el.style.color='var(--r)';}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  IN-TRADE RULES
+// ═══════════════════════════════════════════════════════════════
+function renderInTradeRules(){
+  if(!REF)return;
+  const rules=REF.in_trade_rules;
+  const el=document.getElementById('inTradeRules');
+  el.innerHTML=rules.map(r=>`<div class="itr-card"><div class="itr-sit"><i class="bi bi-exclamation-circle me-1"></i>${r.situation}</div><div class="itr-rule">${r.rule}</div><div class="itr-src">${r.source}</div></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SCORING REFERENCE
+// ═══════════════════════════════════════════════════════════════
+function renderScoringReference(){
+  if(!REF)return;
+  const bands=REF.score_bands;
+  const el=document.getElementById('scoringReference');
+  let html='';
+  for(let s=10;s>=1;s--){
+    const b=bands[String(s)];if(!b)continue;
+    const clr=s>=8?'var(--g)':s>=6?'var(--y)':'var(--r)';
+    const bg=s>=8?'rgba(63,185,80,.05)':s>=6?'rgba(210,153,34,.05)':'rgba(248,81,73,.05)';
+    const border=s>=8?'rgba(63,185,80,.15)':s>=6?'rgba(210,153,34,.15)':'rgba(248,81,73,.15)';
+    html+=`<div class="p-3 mb-2" style="background:${bg};border:1px solid ${border};border-radius:10px">
+      <div class="d-flex align-items-center gap-2 mb-1"><span class="font-mono fw-bold fs-4" style="color:${clr}">${s}</span><span class="fw-bold" style="color:${clr}">${b.label}</span>
+      <span class="ms-auto">${b.no_trade?'<span class="badge bg-danger">NO TRADE</span>':b.full_size?'<span class="badge" style="background:rgba(63,185,80,.15);color:var(--g)">FULL SIZE</span>':'<span class="badge" style="background:rgba(210,153,34,.15);color:var(--y)">REDUCED</span>'}</span></div>
+      <div class="small text-secondary">${b.desc}</div>
+      <div class="small mt-1" style="color:${clr}"><strong>Action:</strong> ${b.action}</div>
+      <div class="mt-1" style="font-size:.65rem;color:#6e7681">${b.source}</div>
+    </div>`;
+  }
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SCORE DISPLAY (Session Tab)
+// ═══════════════════════════════════════════════════════════════
+function updateScoreDisplay(){
+  const s=parseInt(document.getElementById('sessScore').value)||7;
+  document.getElementById('sessScoreVal').textContent=s;
+  document.getElementById('sessScoreVal').className='text-center score-display mt-2 sc-'+s;
+  if(!REF)return;
+  const band=REF.score_bands[String(s)];
+  if(!band)return;
+  document.getElementById('bandLabel').textContent=s+' — '+band.label;
+  document.getElementById('bandLabel').style.color=s>=8?'var(--g)':s>=6?'var(--y)':'var(--r)';
+  document.getElementById('bandDesc').textContent=band.desc;
+  document.getElementById('bandAction').textContent='Action: '+band.action;
+  document.getElementById('bandSource').textContent=band.source;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SAVE SESSION
+// ═══════════════════════════════════════════════════════════════
+async function saveSession(){
+  const today=new Date().toISOString().slice(0,10);
+  const score=parseInt(document.getElementById('sessScore').value)||7;
+  const emotion=document.getElementById('sessPrimaryEmotion').value;
+  const notes=document.getElementById('sessNotes').value.trim();
+  // Build checklist answers
+  let chkAnswers={};
+  if(REF)REF.pre_session_checklist.forEach(it=>{
+    const cb=document.getElementById('chkbox-'+it.id);
+    chkAnswers[it.id]=cb?cb.checked:false;
+  });
+  const res=await fetch('/api/mental-game/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_date:today,mental_score:score,primary_emotion:emotion,warmup_notes:notes,checklist_answers:JSON.stringify(chkAnswers)})});
+  const d=await res.json();
+  if(d.error){alert(d.error);return;}
+  document.getElementById('sessSaveStatus').textContent='✅ Saved! Score: '+score+' | Size: '+d.position_size_pct+'% | Min Conf: '+d.min_confluence+'/5 | Max Trades: '+d.max_trades;
+  document.getElementById('sessSaveStatus').style.color='var(--g)';
+  loadSessions();
+  loadDashboard();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SESSION HISTORY
+// ═══════════════════════════════════════════════════════════════
+async function loadSessions(){
+  const res=await fetch('/api/mental-game/session?limit=20');
+  const sessions=await res.json();
+  const el=document.getElementById('sessHistory');
+  if(!Array.isArray(sessions)||!sessions.length){el.innerHTML='<div class="text-center text-secondary py-3">No sessions recorded yet.</div>';return;}
+  el.innerHTML=sessions.map(s=>{
+    const sc=s.mental_score||0;
+    const clr=sc>=8?'var(--g)':sc>=6?'var(--y)':'var(--r)';
+    return `<div class="d-flex align-items-center gap-2 py-2" style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <span class="font-mono fw-bold fs-5" style="color:${clr}">${sc}</span>
+      <div><div class="small font-mono">${s.session_date||''}</div><div style="font-size:.75rem;color:#8b949e">${s.primary_emotion||''}</div></div>
+      <div class="ms-auto small text-secondary">${s.warmup_notes?s.warmup_notes.slice(0,40)+'...':''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SAVE TRADE PSYCHOLOGY
+// ═══════════════════════════════════════════════════════════════
+async function saveTradePhych(){
+  const data={
+    ticker:document.getElementById('tpTicker').value.trim().toUpperCase(),
+    trade_date:document.getElementById('tpDate').value,
+    pre_mental_score:parseInt(document.getElementById('tpScore').value)||7,
+    pre_emotion:document.getElementById('tpEmotion').value,
+    system_followed:document.getElementById('tpSystemFollowed').value,
+    pattern_tag:document.getElementById('tpPattern').value,
+    rule_broken:document.getElementById('tpRuleBroken').value.trim(),
+    root_cause:document.getElementById('tpRootCause').value,
+    in_trade_emotion:document.getElementById('tpInTradeEmotion').value,
+    post_reflection:document.getElementById('tpReflection').value.trim(),
+  };
+  if(!data.ticker)return alert('Please enter a ticker');
+  if(!data.trade_date)return alert('Please select a trade date');
+  const res=await fetch('/api/mental-game/trade-psych',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const d=await res.json();
+  if(d.error){alert(d.error);return;}
+  document.getElementById('tpSaveStatus').textContent='✅ Saved';document.getElementById('tpSaveStatus').style.color='var(--g)';
+  // Reset form
+  document.getElementById('tpTicker').value='';
+  document.getElementById('tpRuleBroken').value='';
+  document.getElementById('tpReflection').value='';
+  loadTradePsychHistory();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TRADE PSYCH HISTORY
+// ═══════════════════════════════════════════════════════════════
+async function loadTradePsychHistory(){
+  const res=await fetch('/api/mental-game/trade-psych?limit=30');
+  const trades=await res.json();
+  const el=document.getElementById('tpHistory');
+  if(!Array.isArray(trades)||!trades.length){el.innerHTML='<div class="text-center text-secondary py-3">No trade psychology logs yet.</div>';return;}
+  el.innerHTML=trades.map(t=>{
+    const sc=t.pre_mental_score||0;
+    const clr=sc>=8?'var(--g)':sc>=6?'var(--y)':'var(--r)';
+    const sf=t.system_followed==='YES';
+    return `<div class="p-2 mb-2" style="background:rgba(255,255,255,.02);border-radius:8px;border-left:3px solid ${sf?'var(--g)':'var(--r)'}">
+      <div class="d-flex justify-content-between"><span class="font-mono fw-bold" style="color:var(--b)">${t.ticker||''}</span><span class="font-mono small">${t.trade_date||''}</span></div>
+      <div class="d-flex gap-2 mt-1 flex-wrap">
+        <span class="badge" style="background:rgba(188,140,255,.15);color:var(--p)">Score: ${sc}</span>
+        <span class="badge" style="background:${sf?'rgba(63,185,80,.15)':'rgba(248,81,73,.15)'};color:${sf?'var(--g)':'var(--r)'}">${sf?'System Followed':'Rule Broken'}</span>
+        ${t.pattern_tag?`<span class="badge" style="background:rgba(210,153,34,.15);color:var(--y)">${t.pattern_tag}</span>`:''}
+        ${t.pre_emotion?`<span class="badge" style="background:rgba(255,255,255,.08)">${t.pre_emotion}</span>`:''}
+      </div>
+      ${t.post_reflection?`<div class="small text-secondary mt-1">${t.post_reflection.slice(0,80)}${t.post_reflection.length>80?'...':''}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PERFORMANCE MAP
+// ═══════════════════════════════════════════════════════════════
+async function loadPerfMap(){
+  const res=await fetch('/api/mental-game/perf-map');
+  const entries=await res.json();
+  const el=document.getElementById('perfMapTable');
+  if(!Array.isArray(entries)||!entries.length){el.innerHTML='<div class="text-center text-secondary py-3">No performance map entries yet. Add your first mistake pattern above.</div>';return;}
+  let html='<table class="table table-sm table-dark pm-table"><thead><tr><th>Mistake</th><th>Emotion</th><th>Root Cause</th><th>Correction</th><th>Early Warning</th><th>Sev</th><th></th></tr></thead><tbody>';
+  entries.forEach(e=>{
+    html+=`<tr><td>${e.mistake||''}</td><td>${e.emotion_behind||''}</td><td class="small">${(e.root_cause||'').slice(0,60)}</td><td class="small" style="color:var(--g)">${(e.correction||'').slice(0,60)}</td><td class="small" style="color:var(--y)">${(e.early_warning||'').slice(0,60)}</td><td class="font-mono">${e.severity||''}</td><td><button class="btn btn-sm btn-outline-danger" onclick="deletePerfMap(${e.id})"><i class="bi bi-trash"></i></button></td></tr>`;
+  });
+  html+='</tbody></table>';
+  el.innerHTML=html;
+}
+
+async function savePerfMap(){
+  const data={
+    mistake:document.getElementById('pmMistake').value.trim(),
+    emotion_behind:document.getElementById('pmEmotion').value.trim(),
+    root_cause:document.getElementById('pmRootCause').value.trim(),
+    correction:document.getElementById('pmCorrection').value.trim(),
+    early_warning:document.getElementById('pmEarlyWarning').value.trim(),
+    severity:parseInt(document.getElementById('pmSeverity').value)||5,
+  };
+  if(!data.mistake||!data.emotion_behind||!data.root_cause||!data.correction||!data.early_warning){return alert('All fields are required for the Performance Map.');}
+  const res=await fetch('/api/mental-game/perf-map',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const d=await res.json();
+  if(d.error){alert(d.error);return;}
+  document.getElementById('pmSaveStatus').textContent='✅ Saved';document.getElementById('pmSaveStatus').style.color='var(--g)';
+  ['pmMistake','pmEmotion','pmRootCause','pmCorrection','pmEarlyWarning'].forEach(id=>document.getElementById(id).value='');
+  loadPerfMap();
+}
+
+async function deletePerfMap(mid){
+  if(!confirm('Delete this performance map entry?'))return;
+  await fetch('/api/mental-game/perf-map/'+mid,{method:'DELETE'});
+  loadPerfMap();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PATTERN LIBRARY + ALERTS
+// ═══════════════════════════════════════════════════════════════
+function renderPatternLibrary(){
+  if(!REF)return;
+  const pats=REF.patterns;
+  const el=document.getElementById('patternLibrary');
+  let html='';
+  for(const[key,p]of Object.entries(pats)){
+    html+=`<div class="pattern-card">
+      <div class="fw-bold mb-1" style="color:var(--y)"><i class="bi bi-cursor me-1"></i>${p.name}</div>
+      <div class="small"><strong class="text-secondary">Early Warnings:</strong><ul class="mb-1">${p.early_warnings.map(w=>'<li>'+w+'</li>').join('')}</ul></div>
+      <div class="small"><strong class="text-secondary">Confirmation:</strong><ul class="mb-1">${p.confirmation.map(c=>'<li>'+c+'</li>').join('')}</ul></div>
+      <div class="small" style="color:var(--r)"><strong>Immediate Action:</strong> ${p.immediate_action}</div>
+      <div class="small mt-1" style="color:var(--g)"><strong>Recovery:</strong> ${p.recovery}</div>
+      <div class="small mt-1" style="color:var(--b)"><strong>Prevention:</strong> ${p.prevention}</div>
+      <div style="font-size:.65rem;color:#6e7681" class="mt-1">${p.source}</div>
+    </div>`;
+  }
+  el.innerHTML=html;
+}
+
+async function loadPatternAlerts(){
+  const res=await fetch('/api/mental-game/patterns?days=7');
+  const d=await res.json();
+  const el=document.getElementById('livePatternAlerts');
+  const alerts=d.alerts||[];
+  if(!alerts.length){el.innerHTML=`<div class="text-center py-4"><i class="bi bi-check-circle fs-2" style="color:var(--g)"></i><div class="mt-2 fw-bold" style="color:var(--g)">No Active Alerts</div><div class="small text-secondary">${d.trade_count||0} trades analyzed in last 7 days. No recurring patterns detected.</div></div>`;return;}
+  el.innerHTML=alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()}"><div class="d-flex justify-content-between"><strong>${a.name}</strong><span class="badge" style="background:${a.severity==='HIGH'?'rgba(248,81,73,.15)':'rgba(210,153,34,.15)'};color:${a.severity==='HIGH'?'var(--r)':'var(--y)'}">${a.severity} — ${a.count}x</span></div><div class="small mt-1">${a.action}</div><div style="font-size:.65rem;color:#6e7681" class="mt-1">${a.source}</div></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EMERGENCY PROTOCOLS
+// ═══════════════════════════════════════════════════════════════
+function renderEmergencyProtocols(){
+  if(!REF)return;
+  const prots=REF.emergency_protocols;
+  const el=document.getElementById('emergencyProtocols');
+  const colors={A:'var(--r)',B:'var(--o)',C:'var(--g)',D:'var(--y)',E:'var(--b)',F:'var(--p)'};
+  let html='<div class="row g-3">';
+  for(const[key,p]of Object.entries(prots)){
+    html+=`<div class="col-md-6"><div class="emg-card" style="border-left:4px solid ${colors[key]||'var(--b)'}">
+      <div class="d-flex justify-content-between mb-1"><span class="fw-bold" style="color:${colors[key]||'var(--b)'}">Protocol ${key} — ${p.name}</span></div>
+      <div class="emg-trigger"><i class="bi bi-lightning me-1"></i>Trigger: ${p.trigger}</div>
+      ${p.steps.map(s=>`<div class="emg-step">${s}</div>`).join('')}
+      <div style="font-size:.65rem;color:#6e7681" class="mt-2">${p.source}</div>
+    </div></div>`;
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+async function saveEmergency(){
+  const data={
+    log_date:document.getElementById('emgDate').value,
+    protocol_type:document.getElementById('emgType').value,
+    outcome:document.getElementById('emgOutcome').value,
+    score_after:parseInt(document.getElementById('emgScoreAfter').value)||5,
+    notes:document.getElementById('emgNotes').value.trim(),
+  };
+  if(!data.log_date)return alert('Select a date');
+  const res=await fetch('/api/mental-game/emergency',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const d=await res.json();
+  if(d.error){alert(d.error);return;}
+  document.getElementById('emgSaveStatus').textContent='✅ Logged';document.getElementById('emgSaveStatus').style.color='var(--g)';
+  document.getElementById('emgNotes').value='';
+  loadEmergencyHistory();
+}
+
+async function loadEmergencyHistory(){
+  const res=await fetch('/api/mental-game/emergency');
+  const logs=await res.json();
+  const el=document.getElementById('emgHistory');
+  if(!Array.isArray(logs)||!logs.length){el.innerHTML='<div class="text-center text-secondary py-3">No emergency protocols logged yet.</div>';return;}
+  el.innerHTML=logs.map(l=>{
+    const colors={A:'var(--r)',B:'var(--o)',C:'var(--g)',D:'var(--y)',E:'var(--b)',F:'var(--p)'};
+    return `<div class="d-flex gap-2 py-2" style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <span class="fw-bold" style="color:${colors[l.protocol_type]||'var(--b)'}">Protocol ${l.protocol_type||''}</span>
+      <span class="font-mono small text-secondary">${l.log_date||''}</span>
+      <span class="badge" style="background:rgba(255,255,255,.08)">${l.outcome||''}</span>
+      <span class="ms-auto font-mono">Score After: ${l.score_after||'—'}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  WEEKLY REPORT
+// ═══════════════════════════════════════════════════════════════
+async function loadWeeklyAuto(){
+  const res=await fetch('/api/mental-game/analytics?days=7');
+  const d=await res.json();
+  const el=document.getElementById('weeklyAutoSummary');
+  if(!d.total_trades){el.innerHTML='<div class="text-center text-secondary py-3">No trade psychology data for this week yet. Log trades in the Pre-Trade Gate tab.</div>';return;}
+  const fr=d.follow_rate||0;
+  const frClr=fr>=90?'var(--g)':fr>=70?'var(--y)':'var(--r)';
+  el.innerHTML=`
+    <div class="row g-3 mb-3">
+      <div class="col-4 text-center"><div class="font-mono fw-bold fs-4">${d.total_trades}</div><div class="small text-secondary">Total Trades</div></div>
+      <div class="col-4 text-center"><div class="font-mono fw-bold fs-4" style="color:${frClr}">${fr}%</div><div class="small text-secondary">Rules Followed</div></div>
+      <div class="col-4 text-center"><div class="font-mono fw-bold fs-4" style="color:var(--p)">${d.avg_mental_score||0}</div><div class="small text-secondary">Avg Mental Score</div></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-4"><div class="small text-secondary">Most Common Emotion</div><div class="fw-bold" style="color:var(--o)">${d.common_emotion}</div></div>
+      <div class="col-md-4"><div class="small text-secondary">Most Common Rule Break</div><div class="fw-bold" style="color:var(--r)">${d.common_rule_break}</div></div>
+      <div class="col-md-4"><div class="small text-secondary">Most Common Pattern</div><div class="fw-bold" style="color:var(--y)">${d.common_pattern}</div></div>
+    </div>
+    ${d.alerts&&d.alerts.length?'<div class="mt-3"><div class="small text-secondary mb-1">Active Alerts:</div>'+d.alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()} mb-1"><strong>${a.name}</strong> — ${a.count}x — ${a.action}</div>`).join('')+'</div>':''}
+  `;
+}
+
+async function saveWeekly(){
+  const data={
+    week_start:document.getElementById('wkStart').value,
+    week_end:document.getElementById('wkEnd').value,
+    top_pattern:document.getElementById('wkPattern').value.trim(),
+    improvement_goal:document.getElementById('wkGoal').value.trim(),
+    progress:document.getElementById('wkProgress').value,
+    reflection:document.getElementById('wkReflection').value.trim(),
+  };
+  if(!data.week_start||!data.week_end)return alert('Week start and end dates required');
+  const res=await fetch('/api/mental-game/weekly',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const d=await res.json();
+  if(d.error){alert(d.error);return;}
+  document.getElementById('wkSaveStatus').textContent='✅ Saved';document.getElementById('wkSaveStatus').style.color='var(--g)';
+  loadWeeklyHistory();
+}
+
+async function loadWeeklyHistory(){
+  const res=await fetch('/api/mental-game/weekly');
+  const reports=await res.json();
+  const el=document.getElementById('wkHistory');
+  if(!Array.isArray(reports)||!reports.length){el.innerHTML='<div class="text-center text-secondary py-3">No weekly reports yet.</div>';return;}
+  el.innerHTML=reports.map(r=>{
+    const progClr=r.progress==='BETTER'?'var(--g)':r.progress==='WORSE'?'var(--r)':'var(--y)';
+    return `<div class="p-2 mb-2" style="background:rgba(255,255,255,.02);border-radius:8px;border-left:3px solid ${progClr}">
+      <div class="d-flex justify-content-between"><span class="font-mono small">${r.week_start||''} → ${r.week_end||''}</span><span class="badge" style="color:${progClr}">${r.progress||''}</span></div>
+      ${r.top_pattern?'<div class="small">Pattern: <strong style="color:var(--y)">'+r.top_pattern+'</strong></div>':''}
+      ${r.improvement_goal?'<div class="small">Goal: '+r.improvement_goal.slice(0,60)+'</div>':''}
+      ${r.reflection?'<div class="small text-secondary mt-1">'+r.reflection.slice(0,80)+'...</div>':''}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LEARNING CURVE
+// ═══════════════════════════════════════════════════════════════
+function renderCompetenceLegend(){
+  if(!REF)return;
+  const levels=REF.competence_levels;
+  const el=document.getElementById('lcLegend');
+  let html='';
+  for(const[key,lv]of Object.entries(levels)){
+    html+=`<div class="d-flex gap-2 align-items-start mb-2"><span class="lc-level lc-${lv.short}">${lv.short}</span><div><div class="small fw-bold">${lv.label}</div><div style="font-size:.78rem;color:#8b949e">${lv.desc}</div><div style="font-size:.65rem;color:#6e7681">${lv.source}</div></div></div>`;
+  }
+  el.innerHTML=html;
+}
+
+async function loadLearningCurve(){
+  const res=await fetch('/api/mental-game/learning-curve');
+  const entries=await res.json();
+  const el=document.getElementById('lcTimeline');
+  if(!Array.isArray(entries)||!entries.length){el.innerHTML='<div class="text-center text-secondary py-3">No learning curve data yet. Complete your first monthly assessment.</div>';return;}
+  // Timeline
+  let html='<table class="table table-sm table-dark" style="font-size:.82rem"><thead><tr><th>Month</th><th>Fear</th><th>Greed</th><th>Anger</th><th>Confidence</th><th>Discipline</th><th>Notes</th></tr></thead><tbody>';
+  entries.forEach(e=>{
+    html+=`<tr><td class="font-mono">${e.month||''}</td>
+      <td><span class="lc-level lc-${e.fear||'CI'}">${e.fear||'CI'}</span></td>
+      <td><span class="lc-level lc-${e.greed||'CI'}">${e.greed||'CI'}</span></td>
+      <td><span class="lc-level lc-${e.anger||'CI'}">${e.anger||'CI'}</span></td>
+      <td><span class="lc-level lc-${e.confidence||'CI'}">${e.confidence||'CI'}</span></td>
+      <td><span class="lc-level lc-${e.discipline||'CI'}">${e.discipline||'CI'}</span></td>
+      <td class="small text-secondary">${(e.notes||'').slice(0,50)}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  el.innerHTML=html;
+
+  // Inchworm chart
+  renderInchwormChart(entries);
+}
+
+function renderInchwormChart(entries){
+  if(!entries.length)return;
+  const levelMap={UI:1,CI:2,CC:3,UC:4};
+  const labels=entries.map(e=>e.month);
+  const mkDS=(field,label,color)=>({label,data:entries.map(e=>levelMap[e[field]]||1),borderColor:color,backgroundColor:color+'33',fill:false,tension:.3,pointRadius:4});
+  const datasets=[
+    mkDS('fear','Fear','#f85149'),
+    mkDS('greed','Greed','#d29922'),
+    mkDS('anger','Anger','#f0883e'),
+    mkDS('confidence','Confidence','#bc8cff'),
+    mkDS('discipline','Discipline','#58a6ff'),
+  ];
+  const ctx=document.getElementById('inchwormChart').getContext('2d');
+  if(inchwormChartObj)inchwormChartObj.destroy();
+  inchwormChartObj=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:5,ticks:{callback:v=>({1:'UI',2:'CI',3:'CC',4:'UC'}[v]||''),color:'#8b949e'},grid:{color:'rgba(255,255,255,.05)'}},x:{grid:{display:false}}},plugins:{legend:{labels:{color:'#c9d1d9',font:{size:11}}}}}});
+}
+
+async function saveLearningCurve(){
+  const data={
+    month:document.getElementById('lcMonth').value,
+    fear:document.getElementById('lcFear').value,
+    greed:document.getElementById('lcGreed').value,
+    anger:document.getElementById('lcAnger').value,
+    confidence:document.getElementById('lcConfidence').value,
+    discipline:document.getElementById('lcDiscipline').value,
+    notes:document.getElementById('lcNotes').value.trim(),
+  };
+  if(!data.month)return alert('Select a month');
+  const res=await fetch('/api/mental-game/learning-curve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const d=await res.json();
+  if(d.error){alert(d.error);return;}
+  document.getElementById('lcSaveStatus').textContent='✅ Saved';document.getElementById('lcSaveStatus').style.color='var(--g)';
+  loadLearningCurve();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DAILY WORKFLOW
+// ═══════════════════════════════════════════════════════════════
+function renderWorkflow(){
+  if(!REF)return;
+  const wf=REF.daily_workflow;
+  const el=document.getElementById('dailyWorkflow');
+  const icons={morning:'bi-sunrise',before_trade:'bi-check2-square',during_trade:'bi-activity',after_trade:'bi-journal-check',end_of_session:'bi-moon',weekly:'bi-calendar-week',monthly:'bi-calendar-month'};
+  const colors={morning:'var(--y)',before_trade:'var(--g)',during_trade:'var(--b)',after_trade:'var(--p)',end_of_session:'var(--c)',weekly:'var(--o)',monthly:'var(--r)'};
+  let html='<div class="row g-3">';
+  for(const[key,phase]of Object.entries(wf)){
+    html+=`<div class="col-md-6"><div class="p-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;border-top:3px solid ${colors[key]||'var(--b)'}">
+      <div class="fw-bold mb-2" style="color:${colors[key]||'var(--b)'}"><i class="bi ${icons[key]||'bi-calendar'} me-1"></i>${phase.title}</div>
+      ${phase.steps.map(s=>`<div class="wf-step"><span class="wf-num">${s.step}</span><span>${s.action}</span><span class="wf-src">${s.source}</span></div>`).join('')}
+    </div></div>`;
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PORTFOLIO SYNC — bring existing trades into Mental Game
+// ═══════════════════════════════════════════════════════════════
+let _unlinkData=[];
+async function loadUnlinkedTrades(){
+  const el=document.getElementById('syncTradesList');
+  el.innerHTML='<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div> Scanning portfolio...</div>';
+  try{
+    const res=await fetch('/api/mental-game/unlinked-trades');
+    const d=await res.json();
+    _unlinkData=d.unlinked||[];
+    document.getElementById('syncCount').textContent=_unlinkData.length;
+    document.getElementById('btnSyncAll').disabled=!_unlinkData.length;
+    if(!_unlinkData.length){
+      el.innerHTML='<div class="text-center py-3" style="color:var(--g)"><i class="bi bi-check-circle fs-4 me-2"></i>All trades are synced! Every portfolio trade has psychology data.</div>';
+      return;
+    }
+    let html='<table class="table table-sm" style="color:#c9d1d9"><thead><tr><th>Ticker</th><th>Date</th><th>Source</th><th>Status</th><th>Buy</th><th>Sell</th><th></th></tr></thead><tbody>';
+    _unlinkData.forEach((t,i)=>{
+      const pnl=t.sell_price?((t.sell_price-t.buy_price)/t.buy_price*100).toFixed(1)+'%':'';
+      const pnlClr=parseFloat(pnl)>=0?'var(--g)':'var(--r)';
+      html+=`<tr>
+        <td class="font-mono fw-bold" style="color:var(--b)">${t.ticker}</td>
+        <td class="font-mono small">${t.date}</td>
+        <td><span class="badge" style="background:rgba(88,166,255,.15);color:var(--b)">${t.source==='portfolio'?'Portfolio':'P&L Trades'}</span></td>
+        <td><span class="badge" style="background:${t.status==='OPEN'?'rgba(63,185,80,.15)':'rgba(139,148,158,.15)'};color:${t.status==='OPEN'?'var(--g)':'#8b949e'}">${t.status}</span></td>
+        <td class="font-mono small">₹${t.buy_price?t.buy_price.toFixed(2):'-'}</td>
+        <td class="font-mono small">${t.sell_price?'<span style="color:'+pnlClr+'">₹'+t.sell_price.toFixed(2)+' ('+pnl+')</span>':'-'}</td>
+        <td><button class="btn btn-sm btn-outline-primary" onclick="openSyncModal(${i})"><i class="bi bi-pencil me-1"></i>Tag</button></td>
+      </tr>`;
+    });
+    html+='</tbody></table>';
+    el.innerHTML=html;
+  }catch(e){
+    el.innerHTML='<div class="text-danger">Error: '+e.message+'</div>';
+  }
+}
+
+function openSyncModal(idx){
+  const t=_unlinkData[idx];
+  if(!t)return;
+  document.getElementById('syncTicker').textContent=t.ticker;
+  document.getElementById('syncDate').textContent=t.date;
+  const info=[];
+  if(t.strategy)info.push('Strategy: '+t.strategy);
+  if(t.buy_price)info.push('Buy: ₹'+t.buy_price.toFixed(2));
+  if(t.sell_price)info.push('Sell: ₹'+t.sell_price.toFixed(2));
+  if(t.notes)info.push('Notes: '+t.notes);
+  document.getElementById('syncTradeInfo').textContent=info.join(' | ');
+  document.getElementById('syncPositionId').value=t.position_id||'';
+  document.getElementById('syncSource').value=t.source;
+  // Reset form
+  document.getElementById('syncEmotion').value='NEUTRAL';
+  document.getElementById('syncScore').value='7';
+  document.getElementById('syncSystem').value='YES';
+  document.getElementById('syncPattern').value='';
+  document.getElementById('syncInTradeEmotion').value='';
+  document.getElementById('syncReflection').value='';
+  new bootstrap.Modal(document.getElementById('syncModal')).show();
+}
+
+async function saveSyncTrade(){
+  const ticker=document.getElementById('syncTicker').textContent;
+  const date=document.getElementById('syncDate').textContent;
+  const posId=document.getElementById('syncPositionId').value;
+  const data={
+    items:[{
+      ticker:ticker,
+      date:date,
+      position_id:posId?parseInt(posId):null,
+      pre_emotion:document.getElementById('syncEmotion').value,
+      pre_mental_score:parseInt(document.getElementById('syncScore').value)||7,
+      system_followed:document.getElementById('syncSystem').value,
+      pattern_tag:document.getElementById('syncPattern').value,
+      in_trade_emotion:document.getElementById('syncInTradeEmotion').value,
+      post_reflection:document.getElementById('syncReflection').value.trim(),
+    }]
+  };
+  const res=await fetch('/api/mental-game/bulk-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const d=await res.json();
+  if(d.error){alert(d.error);return;}
+  bootstrap.Modal.getInstance(document.getElementById('syncModal')).hide();
+  loadUnlinkedTrades();
+  loadTradePsychHistory();
+}
+
+async function bulkSyncAll(){
+  if(!_unlinkData.length)return;
+  if(!confirm('This will create psychology entries for all '+_unlinkData.length+' untagged trades with default values (Neutral emotion, Score 7, System Followed). You can edit each one individually later. Proceed?'))return;
+  const items=_unlinkData.map(t=>({
+    ticker:t.ticker,
+    date:t.date,
+    position_id:t.position_id||null,
+    pre_emotion:'NEUTRAL',
+    pre_mental_score:7,
+    system_followed:'YES',
+  }));
+  document.getElementById('btnSyncAll').disabled=true;
+  document.getElementById('btnSyncAll').innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Syncing...';
+  const res=await fetch('/api/mental-game/bulk-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:items})});
+  const d=await res.json();
+  if(d.error){alert(d.error);document.getElementById('btnSyncAll').disabled=false;document.getElementById('btnSyncAll').innerHTML='<i class="bi bi-check2-all me-1"></i>Quick Sync All';return;}
+  document.getElementById('btnSyncAll').innerHTML='<i class="bi bi-check-circle me-1"></i>'+d.created+' trades synced!';
+  setTimeout(()=>loadUnlinkedTrades(),1000);
+  loadTradePsychHistory();
+}
+
+</script>
+</body>
+</html>

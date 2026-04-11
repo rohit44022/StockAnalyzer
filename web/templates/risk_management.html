@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📐 Risk Management — Ralph Vince Money Management</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root {
+    --bs-body-bg:#0d1117; --bs-body-color:#c9d1d9;
+    --card-bg:#161b22; --card-border:#30363d;
+    --g:#3fb950; --r:#f85149; --y:#d29922; --b:#58a6ff; --p:#bc8cff; --o:#f0883e; --c:#39d2c0;
+}
+body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
+.card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
+
+/* ══ UNIFIED NAV ══ */
+.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
+.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
+@keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
+@keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
+.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
+.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+.sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#0d1117,#161b22 50%,#1a1f2b);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#f0883e,#bc8cff,#58a6ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+/* Summary cards */
+.sum-card{border-radius:14px;padding:1.2rem;transition:transform .15s}
+.sum-card:hover{transform:translateY(-2px)}
+.sum-val{font-size:1.5rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sum-label{font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* Concept box */
+.concept-box{background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.15);border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem;font-size:.88rem;line-height:1.65;color:#c9d1d9}
+.concept-box h6{color:var(--b);font-weight:700;margin-bottom:.5rem;font-size:.95rem}
+.concept-box .formula{font-family:'JetBrains Mono',monospace;color:var(--p);font-weight:500;display:block;margin:.5rem 0;font-size:.82rem}
+
+/* Metric row */
+.metric-row{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04)}
+.metric-row:last-child{border-bottom:none}
+.metric-label{min-width:180px;font-size:.82rem;color:#8b949e}
+.metric-val{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:.9rem}
+.metric-explain{font-size:.78rem;color:#8b949e;margin-left:auto;max-width:340px;text-align:right}
+
+/* Status badges */
+.badge-ok{background:rgba(63,185,80,.15);color:#3fb950}
+.badge-warn{background:rgba(210,153,34,.15);color:#d29922}
+.badge-bad{background:rgba(248,81,73,.15);color:#f85149}
+.badge-info{background:rgba(88,166,255,.15);color:#58a6ff}
+
+/* Chart box */
+.chart-box{position:relative;width:100%;max-height:300px}
+.chart-box canvas{max-height:300px}
+
+/* Form */
+.form-control,.form-select{background:#0d1117;border-color:var(--card-border);color:#c9d1d9}
+.form-control:focus,.form-select:focus{background:#0d1117;border-color:var(--b);color:#c9d1d9;box-shadow:0 0 0 .2rem rgba(88,166,255,.15)}
+
+/* Autocomplete */
+.ac-wrap{position:relative}
+.ac-list{position:absolute;z-index:1060;background:var(--card-bg);border:1px solid var(--card-border);border-radius:0 0 10px 10px;max-height:220px;overflow-y:auto;width:100%;left:0;top:100%;display:none}
+.ac-item{padding:7px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--bs-body-color)}
+.ac-item:hover,.ac-item.active{background:rgba(88,166,255,.12);color:var(--b)}
+
+/* Tabs */
+.nav-tabs .nav-link{color:#8b949e;border-radius:8px 8px 0 0;border:1px solid transparent}
+.nav-tabs .nav-link.active{background:var(--card-bg);color:var(--b);border-color:var(--card-border) var(--card-border) var(--card-bg)}
+
+/* Section headers */
+.section-hdr{color:var(--b);font-weight:700;font-size:1rem;margin-bottom:.8rem;display:flex;align-items:center;gap:6px}
+
+/* Loading */
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--card-border);border-top:2px solid var(--b);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ═══ UNIFIED NAVBAR ═══ -->
+<nav class="sc-nav">
+  <div class="container-fluid d-flex align-items-center px-3 gap-2">
+    <a class="sc-brand" href="/">हिरण्य</a>
+    <div class="sc-links">
+      <a class="sc-link" href="/">Home</a>
+      <a class="sc-link" href="/ta">TA</a>
+      <a class="sc-link" href="/pa">Price Action</a>
+      <a class="sc-link" href="/triple">Triple</a>
+      <a class="sc-link" href="/trades">Trades</a>
+      <a class="sc-link" href="/portfolio">Portfolio</a>
+      <a class="sc-link active" href="/risk-management">Risk</a>
+      <a class="sc-link" href="/mental-game">Mental</a>
+    </div>
+    <div class="sc-right">
+      <span class="sc-clock" id="clockSpan"></span>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════ HERO ═══════ -->
+<div class="hero">
+  <div class="container-fluid">
+    <h1><i class="bi bi-shield-check me-2"></i>Risk Management &amp; Money Management</h1>
+    <p class="text-secondary mb-0">Ralph Vince — The Mathematics of Money Management &bull; Optimal f &bull; Position Sizing &bull; Portfolio Optimisation &bull; Statistical Analysis</p>
+  </div>
+</div>
+
+<!-- ═══════ MAIN CONTENT ═══════ -->
+<div class="container-fluid mt-3">
+
+<!-- ── Ticker Input Row ── -->
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card p-3">
+      <label class="form-label small text-secondary">Stock Ticker</label>
+      <div class="ac-wrap">
+        <input type="text" class="form-control font-mono" id="tickerInput" placeholder="e.g. RELIANCE" autocomplete="off">
+        <div class="ac-list" id="acList"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="card p-3">
+      <label class="form-label small text-secondary">Account Equity (₹)</label>
+      <input type="number" class="form-control font-mono" id="equityInput" value="100000">
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="card p-3">
+      <label class="form-label small text-secondary">Lookback (days)</label>
+      <input type="number" class="form-control font-mono" id="periodInput" value="252" min="30" max="2000">
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="card p-3">
+      <label class="form-label small text-secondary">Fraction of f</label>
+      <input type="range" class="form-range mt-2" id="fractionSlider" min="0.05" max="1" step="0.05" value="0.5">
+      <div class="text-center font-mono small mt-1"><span id="fractionVal">50%</span> of Optimal f</div>
+    </div>
+  </div>
+  <div class="col-md-2 d-flex align-items-end">
+    <button class="btn btn-primary w-100 mb-3" id="analyzeBtn" onclick="runAnalysis()">
+      <i class="bi bi-calculator me-1"></i> Analyze Risk
+    </button>
+  </div>
+</div>
+
+<!-- ── Loading indicator ── -->
+<div id="loadingBar" class="text-center py-4 d-none">
+  <div class="spin me-2"></div> <span class="text-secondary">Running Vince analysis…</span>
+</div>
+
+<!-- ═══════ RESULTS ═══════ -->
+<div id="resultsArea" class="d-none">
+
+<!-- ── Summary Cards ── -->
+<div class="row g-3 mb-3" id="summaryCards"></div>
+
+<!-- ── Tabs ── -->
+<ul class="nav nav-tabs mb-0" role="tablist">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabOptimalF"><i class="bi bi-bullseye me-1"></i>Optimal f</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabPositionSize"><i class="bi bi-stack me-1"></i>Position Sizing</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabStatTests"><i class="bi bi-clipboard-data me-1"></i>Statistical Tests</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabDrawdown"><i class="bi bi-graph-down-arrow me-1"></i>Drawdown</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabVolatility"><i class="bi bi-activity me-1"></i>Volatility</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabFrontier"><i class="bi bi-diagram-3 me-1"></i>Frontier</a></li>
+</ul>
+
+<div class="tab-content card" style="border-top-left-radius:0">
+
+<!-- ═══ TAB: OPTIMAL F ═══ -->
+<div class="tab-pane fade show active p-4" id="tabOptimalF">
+  <div class="concept-box">
+    <h6><i class="bi bi-lightbulb me-1"></i>What is Optimal f?</h6>
+    The <b>optimal f</b> is the exact fraction of your account equity you should risk on each trade to
+    <b>maximise long-term geometric growth</b>. It's NOT about maximising the average return — it's about
+    maximising the <i>compound</i> growth rate, which is what actually grows your account.<br>
+    <span class="formula">HPR = 1 + f × (−Trade ÷ |Biggest Loss|)</span>
+    <span class="formula">TWR = HPR₁ × HPR₂ × … × HPRₙ &nbsp;&nbsp;(Terminal Wealth Relative)</span>
+    <span class="formula">Geometric Mean = TWR^(1/N) &nbsp;&nbsp;(needs to be &gt; 1.0 to grow)</span>
+    <b>Warning:</b> Trading at full optimal f produces SEVERE drawdowns (often 30–95%).
+    In practice, use <b>half-f or less</b> and accept slower but smoother growth.
+  </div>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="section-hdr"><i class="bi bi-bullseye"></i> Core Optimal f Results</div>
+      <div id="optFResults"></div>
+    </div>
+    <div class="col-md-6">
+      <div class="section-hdr"><i class="bi bi-graph-up"></i> f-Curve (TWR vs f)</div>
+      <div class="concept-box" style="font-size:.82rem">
+        This bell-shaped curve shows your Terminal Wealth Relative (TWR) at every possible f value.
+        The <b>peak</b> is optimal f. Trading to the RIGHT of the peak is <b>worse than useless</b> —
+        you get LESS growth with MORE risk. Always stay on the LEFT side.
+      </div>
+      <div class="chart-box"><canvas id="fCurveChart"></canvas></div>
+    </div>
+  </div>
+  <div class="row g-3 mt-2">
+    <div class="col-md-6">
+      <div class="section-hdr"><i class="bi bi-calculator"></i> By-products of Optimal f</div>
+      <div id="byProductResults"></div>
+    </div>
+    <div class="col-md-6">
+      <div class="section-hdr"><i class="bi bi-sliders"></i> Fractional f Comparison</div>
+      <div class="concept-box" style="font-size:.82rem">
+        Compares growth at different fractions of optimal f. Lower fraction = less growth but
+        dramatically less drawdown. The "sweet spot" is typically 25–50% of optimal f.
+      </div>
+      <div class="chart-box"><canvas id="fracFChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB: POSITION SIZING ═══ -->
+<div class="tab-pane fade p-4" id="tabPositionSize">
+  <div class="concept-box">
+    <h6><i class="bi bi-lightbulb me-1"></i>Position Sizing with f</h6>
+    Once you know optimal f, calculating position size is straightforward:<br>
+    <span class="formula">f₹ = |Biggest Loss| ÷ f &nbsp;&nbsp;(rupees to risk per "unit")</span>
+    <span class="formula">Units = Account Equity ÷ f₹</span>
+    <span class="formula">Shares = Units × (f₹ ÷ Price per Share)</span>
+    The <b>f₹</b> (f-rupee) tells you how much capital to allocate per unit of trading.
+    If your account has ₹1,00,000 and f₹ is ₹50,000, you can trade 2 units.
+    Use the <b>fraction slider</b> above to adjust how aggressively you want to trade.
+  </div>
+  <div id="positionSizeResults"></div>
+</div>
+
+<!-- ═══ TAB: STATISTICAL TESTS ═══ -->
+<div class="tab-pane fade p-4" id="tabStatTests">
+  <div class="concept-box">
+    <h6><i class="bi bi-lightbulb me-1"></i>Why Statistical Tests Matter</h6>
+    Before applying optimal f, you MUST verify two things:<br>
+    <b>1. Dependency:</b> Are your trade outcomes random, or do they have patterns?
+       If trades are dependent (streaking or alternating), you can exploit this by
+       adjusting position size based on the last trade's outcome.<br>
+    <b>2. Distribution:</b> Are your trades Normally distributed?
+       If yes, you can use the parametric (formula-based) optimal f.
+       If not, use the empirical (brute-force) method — which is what we default to.
+  </div>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="section-hdr"><i class="bi bi-shuffle"></i> Dependency Tests</div>
+      <div id="dependencyResults"></div>
+    </div>
+    <div class="col-md-6">
+      <div class="section-hdr"><i class="bi bi-distribute-vertical"></i> Distribution Tests</div>
+      <div id="distributionResults"></div>
+    </div>
+  </div>
+  <div class="row g-3 mt-2">
+    <div class="col-md-6">
+      <div class="section-hdr"><i class="bi bi-bar-chart"></i> Trade Distribution</div>
+      <div class="chart-box"><canvas id="distChart"></canvas></div>
+    </div>
+    <div class="col-md-6">
+      <div class="section-hdr"><i class="bi bi-hourglass-split"></i> Arc Sine Law</div>
+      <div class="concept-box" style="font-size:.82rem">
+        The Arc Sine Law says: in a random series of trades, you're MOST likely to spend
+        almost ALL the time either winning or losing — NOT 50/50. Long drawdowns are
+        statistically NORMAL, not a sign your system is broken.
+      </div>
+      <div id="arcSineResults"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB: DRAWDOWN ═══ -->
+<div class="tab-pane fade p-4" id="tabDrawdown">
+  <div class="concept-box">
+    <h6><i class="bi bi-lightbulb me-1"></i>Understanding Drawdowns</h6>
+    A <b>drawdown</b> is the peak-to-trough decline in your equity. At optimal f,
+    expect drawdowns of <b>30–95%</b> of peak equity! This is the "price" of maximum growth.<br>
+    <span class="formula">Drawdown % = (Peak − Trough) ÷ Peak × 100</span>
+    The key question is: <b>can you psychologically tolerate the drawdown?</b>
+    If not, reduce your f fraction. Remember: a 50% drawdown needs a 100% gain to recover!
+  </div>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div id="ddMetrics"></div>
+    </div>
+    <div class="col-md-8">
+      <div class="chart-box" style="max-height:260px"><canvas id="ddChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB: VOLATILITY ═══ -->
+<div class="tab-pane fade p-4" id="tabVolatility">
+  <div class="concept-box">
+    <h6><i class="bi bi-lightbulb me-1"></i>Historical Volatility</h6>
+    Historical Volatility (HV) measures how wildly a stock's price has been swinging, expressed
+    as an annualised percentage. It's the same volatility used in Black-Scholes option pricing.<br>
+    <span class="formula">HV = σ(ln(Close_i / Close_{i-1})) × √252 &nbsp;&nbsp;(annualised)</span>
+    Higher volatility = bigger daily swings = larger optimal f₹ (you need more capital per position).
+    When volatility spikes, consider reducing your fraction of f to control risk.
+  </div>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div id="volMetrics"></div>
+    </div>
+    <div class="col-md-8">
+      <div class="chart-box" style="max-height:260px"><canvas id="volChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB: FRONTIER ═══ -->
+<div class="tab-pane fade p-4" id="tabFrontier">
+  <div class="concept-box">
+    <h6><i class="bi bi-lightbulb me-1"></i>Efficient Frontier (Markowitz + Vince)</h6>
+    The <b>Efficient Frontier</b> shows the best possible portfolio combinations.
+    Each point represents a different allocation among your stocks.
+    Points ON the frontier give the maximum return for their level of risk.<br>
+    <span class="formula">Portfolio Return = Σ(w_i × AHPR_i) &nbsp;&nbsp;(weighted average)</span>
+    <span class="formula">Portfolio Risk = √(Σ Σ w_i × w_j × COV(i,j)) &nbsp;&nbsp;(accounts for diversification)</span>
+    Vince's insight: use the <b>Geometric</b> efficient frontier (GHPR), not just the arithmetic one.
+    The geometric optimal is where <b>AHPR − 1 = Variance</b>.
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label small text-secondary">Tickers (comma-sep, or leave blank for portfolio)</label>
+      <div class="input-group">
+        <input type="text" class="form-control font-mono" id="frontierTickers" placeholder="e.g. RELIANCE,INFY,TCS">
+        <button class="btn btn-outline-primary" onclick="runFrontier()"><i class="bi bi-diagram-3 me-1"></i>Build</button>
+      </div>
+    </div>
+    <div class="col-md-4" id="corrMatrixBox"></div>
+    <div class="col-md-4" id="frontierStatsBox"></div>
+  </div>
+  <div class="chart-box" style="max-height:350px"><canvas id="frontierChart"></canvas></div>
+</div>
+
+</div><!-- /tab-content -->
+
+<!-- ═══ PORTFOLIO RISK TABLE ═══ -->
+<div class="card mt-3 mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-shield-exclamation me-1"></i>Portfolio Position Risk Assessment</span>
+    <button class="btn btn-outline-info btn-sm" onclick="loadPortfolioRisk()">
+      <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:.88rem">
+        <thead><tr>
+          <th class="text-secondary small">TICKER</th>
+          <th class="text-secondary small">PRICE</th>
+          <th class="text-secondary small">QTY</th>
+          <th class="text-secondary small">OPT f</th>
+          <th class="text-secondary small">REC SHARES<br><span style="font-size:.65rem">(50% f)</span></th>
+          <th class="text-secondary small">SIZING</th>
+          <th class="text-secondary small">VOL %</th>
+          <th class="text-secondary small">GEO MEAN</th>
+          <th class="text-secondary small">TWR</th>
+        </tr></thead>
+        <tbody id="portRiskBody"><tr><td colspan="9" class="text-center text-secondary py-3">Click Refresh to load…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /resultsArea -->
+
+</div><!-- /container -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  GLOBALS
+// ═══════════════════════════════════════════════════════════════════
+const TICKERS = {{ tickers|safe }};
+let D = null;  // analysis result cache
+let charts = {};  // Chart.js instances
+
+// Colors from the existing system
+const C = {g:'#3fb950',r:'#f85149',y:'#d29922',b:'#58a6ff',p:'#bc8cff',o:'#f0883e',c:'#39d2c0'};
+
+// ═══════════════════════════════════════════════════════════════════
+//  CLOCK
+// ═══════════════════════════════════════════════════════════════════
+setInterval(()=>{
+  const d=new Date();
+  document.getElementById('clockSpan').textContent=d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+},1000);
+
+// ═══════════════════════════════════════════════════════════════════
+//  AUTOCOMPLETE
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+  const inp=document.getElementById('tickerInput'),list=document.getElementById('acList');
+  let idx=-1;
+  inp.addEventListener('input',()=>{
+    const v=inp.value.trim().toUpperCase();
+    if(v.length<1){list.style.display='none';return}
+    const m=TICKERS.filter(t=>t.startsWith(v)).slice(0,15);
+    list.innerHTML=m.map(t=>`<div class="ac-item">${t.replace(new RegExp('^('+v+')'),'<span class="ac-match">$1</span>')}</div>`).join('');
+    list.style.display=m.length?'block':'none';
+    idx=-1;
+    list.querySelectorAll('.ac-item').forEach(el=>el.addEventListener('click',()=>{
+      inp.value=el.textContent;list.style.display='none';
+    }));
+  });
+  inp.addEventListener('keydown',e=>{
+    const items=list.querySelectorAll('.ac-item');
+    if(e.key==='ArrowDown'){e.preventDefault();idx=Math.min(idx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('active',i===idx))}
+    else if(e.key==='ArrowUp'){e.preventDefault();idx=Math.max(idx-1,0);items.forEach((el,i)=>el.classList.toggle('active',i===idx))}
+    else if(e.key==='Enter'&&idx>=0){e.preventDefault();inp.value=items[idx].textContent;list.style.display='none'}
+    else if(e.key==='Escape')list.style.display='none';
+  });
+  document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))list.style.display='none'});
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+//  FRACTION SLIDER
+// ═══════════════════════════════════════════════════════════════════
+document.getElementById('fractionSlider').addEventListener('input', e => {
+  document.getElementById('fractionVal').textContent = Math.round(e.target.value*100) + '%';
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  MAIN ANALYSIS
+// ═══════════════════════════════════════════════════════════════════
+async function runAnalysis() {
+  const ticker = document.getElementById('tickerInput').value.trim();
+  if (!ticker) return alert('Enter a ticker');
+  const equity = document.getElementById('equityInput').value || 100000;
+  const period = document.getElementById('periodInput').value || 252;
+
+  document.getElementById('loadingBar').classList.remove('d-none');
+  document.getElementById('resultsArea').classList.add('d-none');
+
+  try {
+    const r = await fetch(`/api/vince/analyze?ticker=${encodeURIComponent(ticker)}&equity=${equity}&period=${period}`);
+    D = await r.json();
+    if (D.error) { alert(D.error); return; }
+    renderAll();
+    document.getElementById('resultsArea').classList.remove('d-none');
+  } catch(e) {
+    alert('Analysis failed: ' + e.message);
+  } finally {
+    document.getElementById('loadingBar').classList.add('d-none');
+  }
+}
+
+// Allow Enter in ticker input
+document.getElementById('tickerInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('acList').style.display === 'none') runAnalysis();
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER ALL SECTIONS
+// ═══════════════════════════════════════════════════════════════════
+function renderAll() {
+  renderSummaryCards();
+  renderOptimalF();
+  renderFCurve();
+  renderByProducts();
+  renderFracF();
+  renderPositionSizing();
+  renderStatTests();
+  renderDistChart();
+  renderArcSine();
+  renderDrawdown();
+  renderVolatility();
+}
+
+// ── Helpers ──
+function fmt(v, d=2) { return v != null ? Number(v).toFixed(d) : '—'; }
+function fmtPct(v, d=2) { return v != null ? Number(v).toFixed(d) + '%' : '—'; }
+function fmtCur(v) { return v != null ? '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits:0}) : '—'; }
+function metricRow(label, val, explain) {
+  return `<div class="metric-row"><span class="metric-label">${label}</span><span class="metric-val">${val}</span>${explain ? `<span class="metric-explain">${explain}</span>` : ''}</div>`;
+}
+function badge(text, type) { return `<span class="badge badge-${type} px-2 py-1">${text}</span>`; }
+function destroyChart(key) { if(charts[key]){charts[key].destroy();delete charts[key];} }
+
+// ═══════════════════════════════════════════════════════════════════
+//  SUMMARY CARDS
+// ═══════════════════════════════════════════════════════════════════
+function renderSummaryCards() {
+  const o = D.optimal_f || {};
+  const bp = D.by_products || {};
+  const dd = D.drawdown || {};
+  const v = D.volatility || {};
+
+  const cards = [
+    { label: 'Optimal f', val: fmtPct(o.optimal_f*100,1), color: C.b, icon: 'bullseye' },
+    { label: 'Geometric Mean', val: fmt(bp.geometric_mean, 4), color: bp.geometric_mean > 1 ? C.g : C.r, icon: 'graph-up' },
+    { label: 'TWR', val: fmt(bp.twr, 2), color: bp.twr > 1 ? C.g : C.r, icon: 'bar-chart-steps' },
+    { label: 'Max Drawdown', val: fmtPct(dd.max_drawdown_pct), color: C.r, icon: 'graph-down-arrow' },
+    { label: 'f₹ (per unit)', val: fmtCur(bp.f_dollar), color: C.o, icon: 'cash' },
+    { label: 'Volatility', val: fmtPct(v.current_volatility_pct), color: C.y, icon: 'activity' },
+  ];
+
+  document.getElementById('summaryCards').innerHTML = cards.map(c =>
+    `<div class="col-6 col-md-2"><div class="sum-card card">
+      <div class="sum-val" style="color:${c.color}"><i class="bi bi-${c.icon} me-1" style="font-size:.9rem"></i>${c.val}</div>
+      <div class="sum-label">${c.label}</div>
+    </div></div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  OPTIMAL F TAB
+// ═══════════════════════════════════════════════════════════════════
+function renderOptimalF() {
+  const o = D.optimal_f || {};
+  document.getElementById('optFResults').innerHTML =
+    metricRow('Optimal f', fmtPct(o.optimal_f*100,2), 'Fraction to risk per trade') +
+    metricRow('Biggest Loss', fmtCur(o.biggest_loss), 'Worst trade in the series') +
+    metricRow('TWR', fmt(o.twr,4), 'Terminal Wealth at optimal f') +
+    metricRow('Geometric Mean', fmt(o.geometric_mean,6), '> 1.0 = profitable system') +
+    metricRow('f₹ (per unit)', fmtCur(o.f_dollar), 'Rupees per trading unit');
+}
+
+function renderFCurve() {
+  destroyChart('fCurve');
+  const fc = D.f_curve;
+  if (!fc || !fc.f_values) return;
+
+  const ctx = document.getElementById('fCurveChart').getContext('2d');
+  const optIdx = fc.f_values.findIndex(v => Math.abs(v - (D.optimal_f?.optimal_f||0)) < 0.015);
+
+  charts.fCurve = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: fc.f_values.map(v => (v*100).toFixed(0) + '%'),
+      datasets: [{
+        label: 'TWR',
+        data: fc.twr_values,
+        borderColor: C.b,
+        backgroundColor: 'rgba(88,166,255,.1)',
+        fill: true,
+        tension: .3,
+        pointRadius: fc.f_values.map((v,i) => i===optIdx ? 8 : 0),
+        pointBackgroundColor: C.o,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => 'TWR: ' + fmt(ctx.raw, 4) } }
+      },
+      scales: {
+        x: { title: { display: true, text: 'f (fraction)', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y: { title: { display: true, text: 'TWR', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
+      }
+    }
+  });
+}
+
+function renderByProducts() {
+  const bp = D.by_products || {};
+  const fe = D.fundamental_equation || {};
+  document.getElementById('byProductResults').innerHTML =
+    metricRow('AHPR', fmt(bp.ahpr, 6), 'Arithmetic mean HPR') +
+    metricRow('SD of HPR', fmt(bp.sd_hpr, 6), 'Standard deviation') +
+    metricRow('Geometric Mean', fmt(bp.geometric_mean, 6), 'Compound growth factor') +
+    metricRow('TWR (actual)', fmt(bp.twr, 4), 'Product of all HPRs') +
+    metricRow('GAT', fmtCur(bp.gat), 'Geometric Avg Trade (₹)') +
+    metricRow('f₹ (per unit)', fmtCur(bp.f_dollar), 'Capital per 1 unit') +
+    metricRow('EGM', fmt(fe.estimated_geometric_mean, 6), 'Estimated Geometric Mean') +
+    metricRow('Fundamental TWR', fmt(fe.fundamental_twr, 4), '(AHPR²−SD²)^(N/2)');
+}
+
+function renderFracF() {
+  destroyChart('fracF');
+  const frac = D.fractional_f;
+  if (!frac || !frac.fractions) return;
+
+  const ctx = document.getElementById('fracFChart').getContext('2d');
+  const labels = frac.fractions.map(f => Math.round(f.fraction * 100) + '%');
+
+  charts.fracF = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Geom Mean (FGHPR)',
+          data: frac.fractions.map(f => f.fghpr),
+          backgroundColor: frac.fractions.map(f => f.fghpr >= 1 ? 'rgba(63,185,80,.5)' : 'rgba(248,81,73,.5)'),
+          borderColor: frac.fractions.map(f => f.fghpr >= 1 ? C.g : C.r),
+          borderWidth: 1,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Time to Double (trades)',
+          data: frac.fractions.map(f => f.time_to_double),
+          type: 'line',
+          borderColor: C.o,
+          borderDash: [4,4],
+          pointRadius: 3,
+          fill: false,
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#8b949e' } } },
+      scales: {
+        x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y: { position: 'left', title: { display: true, text: 'FGHPR', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y1: { position: 'right', title: { display: true, text: 'Trades to Double', color: C.o }, ticks: { color: C.o }, grid: { drawOnChartArea: false } },
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  POSITION SIZING TAB
+// ═══════════════════════════════════════════════════════════════════
+function renderPositionSizing() {
+  const ps = D.position_sizing || {};
+  document.getElementById('positionSizeResults').innerHTML =
+    `<div class="row g-3">
+      <div class="col-md-6">
+        <div class="section-hdr"><i class="bi bi-stack"></i> Position Size Calculation</div>` +
+    metricRow('Account Equity', fmtCur(ps.account_equity)) +
+    metricRow('Optimal f', fmtPct(ps.optimal_f*100,2)) +
+    metricRow('Fraction Used', fmtPct(ps.fraction_used*100,0), 'Adjust with slider above') +
+    metricRow('Effective f', fmtPct(ps.effective_f*100,2)) +
+    metricRow('f₹ (per unit)', fmtCur(ps.f_dollar), 'Capital allocated per unit') +
+    metricRow('Shares to Buy', `<span style="color:${C.g};font-size:1.2rem">${ps.shares_to_buy || '—'}</span>`, 'At current price') +
+    metricRow('Investment Amount', fmtCur(ps.investment_amount)) +
+    metricRow('Risk per Trade', `<span style="color:${C.r}">${fmtCur(ps.risk_per_trade)}</span>`, fmtPct(ps.risk_pct) + ' of equity') +
+    `</div><div class="col-md-6">
+      <div class="concept-box">
+        <h6><i class="bi bi-info-circle me-1"></i>How to Use This</h6>
+        <ol style="padding-left:1.2rem;margin:0">
+          <li><b>f₹ = ₹${(ps.f_dollar||0).toLocaleString('en-IN',{maximumFractionDigits:0})}</b> — This is how much capital backs one "unit" of trading</li>
+          <li><b>${ps.shares_to_buy||0} shares</b> — Buy this many shares at the current price</li>
+          <li><b>Risk = ₹${(ps.risk_per_trade||0).toLocaleString('en-IN',{maximumFractionDigits:0})}</b> — Maximum you could lose on this trade (${fmtPct(ps.risk_pct)} of equity)</li>
+          <li>If the trade goes against you by the biggest historical loss, you lose exactly this much</li>
+          <li>Adjust the <b>Fraction of f</b> slider to trade more or less aggressively</li>
+        </ol>
+      </div>` +
+    (ps.explanation ? `<div class="concept-box mt-2" style="font-size:.82rem">${ps.explanation}</div>` : '') +
+    `</div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATISTICAL TESTS TAB
+// ═══════════════════════════════════════════════════════════════════
+function renderStatTests() {
+  // Dependency
+  const rt = D.runs_test || {};
+  const sc = D.serial_correlation || {};
+  const tp = D.turning_points || {};
+
+  document.getElementById('dependencyResults').innerHTML =
+    `<div class="card p-3 mb-2"><b>Runs Test</b> ${rt.is_random ? badge('RANDOM','ok') : badge(rt.dependency_type,'warn')}<br>` +
+    metricRow('Z-score', fmt(rt.z_score,4)) +
+    metricRow('Runs', `${rt.runs_observed} / ${rt.runs_expected} expected`) +
+    metricRow('Confidence', fmtPct(rt.confidence_pct,1)) +
+    `<div class="text-secondary small mt-1">${rt.explanation||''}</div></div>` +
+
+    `<div class="card p-3 mb-2"><b>Serial Correlation</b> ${sc.is_dependent ? badge('DEPENDENT','warn') : badge('INDEPENDENT','ok')}<br>` +
+    metricRow('Correlation (r)', fmt(sc.correlation,4)) +
+    metricRow('Z-score', fmt(sc.z_score,4)) +
+    metricRow('Confidence', fmtPct(sc.confidence_pct,1)) +
+    `<div class="text-secondary small mt-1">${sc.explanation||''}</div></div>` +
+
+    `<div class="card p-3"><b>Turning Points</b> ${tp.is_random ? badge('RANDOM','ok') : badge('DEPENDENT','warn')}<br>` +
+    metricRow('Turning Points', `${tp.turning_points} / ${tp.expected} expected`) +
+    metricRow('Z-score', fmt(tp.z_score,4)) +
+    `<div class="text-secondary small mt-1">${tp.explanation||''}</div></div>`;
+
+  // Distribution
+  const ks = D.ks_test || {};
+  const mom = D.moments || {};
+
+  document.getElementById('distributionResults').innerHTML =
+    `<div class="card p-3 mb-2"><b>K-S Test (Normality)</b> ${ks.is_normal ? badge('NORMAL','ok') : badge('NOT NORMAL','warn')}<br>` +
+    metricRow('K-S Statistic', fmt(ks.ks_statistic,6)) +
+    metricRow('Critical (5%)', fmt(ks.critical_5pct,6)) +
+    metricRow('Mean', fmtCur(ks.mean)) +
+    metricRow('Std Dev', fmtCur(ks.std)) +
+    `<div class="text-secondary small mt-1">${ks.explanation||''}</div></div>` +
+
+    `<div class="card p-3"><b>Distribution Moments</b><br>` +
+    metricRow('Mean', fmtCur(mom.mean)) +
+    metricRow('Std Dev', fmtCur(mom.std)) +
+    metricRow('Skewness', fmt(mom.skewness,4), mom.interpretation?.skewness||'') +
+    metricRow('Kurtosis', fmt(mom.kurtosis,4), mom.interpretation?.kurtosis||'') +
+    metricRow('Excess Kurtosis', fmt(mom.excess_kurtosis,4), '>0 = fat tails') +
+    `</div>`;
+}
+
+function renderDistChart() {
+  destroyChart('dist');
+  const mom = D.moments;
+  if (!mom || !D.optimal_f) return;
+
+  // Build histogram from trades
+  const trades = []; // We'll approximate from moments
+  // Actually use f-curve data since we have it
+  // Build a simple histogram of daily changes
+  const fc = D.f_curve;
+  if (!fc) return;
+
+  // We'll use the runs test data to create a histogram
+  const rt = D.runs_test || {};
+  const n = rt.total_trades || 0;
+  const wins = rt.positive_trades || 0;
+  const losses = rt.negative_trades || 0;
+
+  const ctx = document.getElementById('distChart').getContext('2d');
+  charts.dist = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Losses', 'Wins'],
+      datasets: [{
+        data: [losses, wins],
+        backgroundColor: ['rgba(248,81,73,.5)', 'rgba(63,185,80,.5)'],
+        borderColor: [C.r, C.g],
+        borderWidth: 1,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: `Win/Loss Distribution (${n} trades)`, color: '#8b949e' }
+      },
+      scales: {
+        x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y: { title: { display: true, text: 'Count', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
+      }
+    }
+  });
+}
+
+function renderArcSine() {
+  const as = D.arc_sine || {};
+  document.getElementById('arcSineResults').innerHTML =
+    metricRow('Extreme prob', fmtPct(as.prob_extreme*100,1), '<25% or >75% positive') +
+    `<div class="text-secondary small mt-2">${as.explanation||''}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  DRAWDOWN TAB
+// ═══════════════════════════════════════════════════════════════════
+function renderDrawdown() {
+  const dd = D.drawdown || {};
+  document.getElementById('ddMetrics').innerHTML =
+    `<div class="section-hdr"><i class="bi bi-graph-down-arrow"></i> Drawdown Metrics</div>` +
+    metricRow('Max Drawdown', `<span style="color:${C.r}">${fmtPct(dd.max_drawdown_pct)}</span>`) +
+    metricRow('Peak', fmtCur(dd.max_drawdown_peak)) +
+    metricRow('Trough', fmtCur(dd.max_drawdown_trough)) +
+    metricRow('Recovered?', dd.recovered ? badge('YES — ' + dd.recovery_trades + ' trades','ok') : badge('NOT YET','bad')) +
+    metricRow('Current DD', fmtPct(dd.current_drawdown_pct)) +
+    metricRow('Significant DDs', dd.significant_drawdowns) +
+    metricRow('Avg DD Duration', fmt(dd.avg_drawdown_duration,0) + ' periods') +
+    `<div class="text-secondary small mt-2">${dd.explanation||''}</div>`;
+
+  // Chart
+  destroyChart('dd');
+  if (!dd.dd_series || !dd.dd_series.length) return;
+  const ctx = document.getElementById('ddChart').getContext('2d');
+  charts.dd = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: dd.dd_series.map((_,i) => i+1),
+      datasets: [{
+        label: 'Drawdown %',
+        data: dd.dd_series,
+        borderColor: C.r,
+        backgroundColor: 'rgba(248,81,73,.1)',
+        fill: true,
+        tension: .1,
+        pointRadius: 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: 'Trade #', color: '#8b949e' }, ticks: { color: '#8b949e', maxTicksLimit: 15 }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y: { title: { display: true, text: 'Drawdown %', color: C.r }, ticks: { color: C.r }, grid: { color: 'rgba(255,255,255,.04)' } },
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  VOLATILITY TAB
+// ═══════════════════════════════════════════════════════════════════
+function renderVolatility() {
+  const v = D.volatility || {};
+  document.getElementById('volMetrics').innerHTML =
+    `<div class="section-hdr"><i class="bi bi-activity"></i> Volatility Metrics</div>` +
+    metricRow('Current HV', `<span style="color:${C.y}">${fmtPct(v.current_volatility_pct)}</span>`) +
+    metricRow('Average HV', fmtPct(v.average_volatility_pct)) +
+    metricRow('Max HV', fmtPct(v.max_volatility_pct)) +
+    metricRow('Min HV', fmtPct(v.min_volatility_pct)) +
+    metricRow('Period', v.period + '-day') +
+    `<div class="text-secondary small mt-2">${v.explanation||''}</div>`;
+
+  destroyChart('vol');
+  if (!v.vol_series || !v.vol_series.length) return;
+  const ctx = document.getElementById('volChart').getContext('2d');
+  const avgLine = Array(v.vol_series.length).fill(v.average_volatility_pct);
+
+  charts.vol = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: v.vol_series.map((_,i) => i+1),
+      datasets: [
+        {
+          label: v.period + '-day HV%',
+          data: v.vol_series,
+          borderColor: C.y,
+          backgroundColor: 'rgba(210,153,34,.08)',
+          fill: true,
+          tension: .2,
+          pointRadius: 0,
+        },
+        {
+          label: 'Average',
+          data: avgLine,
+          borderColor: 'rgba(255,255,255,.3)',
+          borderDash: [6,3],
+          pointRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#8b949e' } } },
+      scales: {
+        x: { title: { display: true, text: 'Day', color: '#8b949e' }, ticks: { color: '#8b949e', maxTicksLimit: 15 }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y: { title: { display: true, text: 'Volatility %', color: C.y }, ticks: { color: C.y }, grid: { color: 'rgba(255,255,255,.04)' } },
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  EFFICIENT FRONTIER
+// ═══════════════════════════════════════════════════════════════════
+async function runFrontier() {
+  const tickers = document.getElementById('frontierTickers').value.trim();
+  const period = document.getElementById('periodInput').value || 252;
+  try {
+    const r = await fetch(`/api/vince/frontier?tickers=${encodeURIComponent(tickers)}&period=${period}`);
+    const data = await r.json();
+    if (data.error) { alert(data.error); return; }
+    renderFrontier(data);
+  } catch(e) { alert('Frontier failed: ' + e.message); }
+}
+
+function renderFrontier(data) {
+  // Correlation matrix
+  const corr = data.correlation || {};
+  if (corr.matrix && corr.tickers) {
+    let html = '<div class="section-hdr"><i class="bi bi-grid-3x3"></i> Correlation Matrix</div>';
+    html += '<table class="table table-sm" style="font-size:.75rem"><thead><tr><th></th>';
+    corr.tickers.forEach(t => html += `<th>${t.replace('.NS','')}</th>`);
+    html += '</tr></thead><tbody>';
+    corr.matrix.forEach((row, i) => {
+      html += `<tr><td class="text-secondary">${corr.tickers[i].replace('.NS','')}</td>`;
+      row.forEach((v,j) => {
+        const clr = i===j ? '#8b949e' : v > 0.5 ? C.r : v < -0.2 ? C.g : C.y;
+        html += `<td class="font-mono" style="color:${clr}">${v.toFixed(2)}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('corrMatrixBox').innerHTML = html;
+  }
+
+  // Stats
+  const stats = data.stats || {};
+  let shtml = '<div class="section-hdr"><i class="bi bi-bar-chart"></i> Per-Ticker Stats</div>';
+  for (const [t, s] of Object.entries(stats)) {
+    shtml += metricRow(t.replace('.NS',''), `AHPR=${fmt(s.ahpr,4)} SD=${fmt(s.sd,4)}`);
+  }
+  document.getElementById('frontierStatsBox').innerHTML = shtml;
+
+  // Frontier chart
+  destroyChart('frontier');
+  const fr = data.frontier || {};
+  const pts = fr.all_portfolios || [];
+  if (!pts.length) return;
+
+  const ctx = document.getElementById('frontierChart').getContext('2d');
+  const maxS = fr.max_sharpe_portfolio || {};
+  const minV = fr.min_variance_portfolio || {};
+  const geoOpt = fr.geometric_optimal || {};
+
+  charts.frontier = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Portfolios',
+          data: pts.map(p => ({ x: p.std*100, y: p.return*100 })),
+          backgroundColor: 'rgba(88,166,255,.3)',
+          pointRadius: 3,
+        },
+        {
+          label: 'Max Sharpe',
+          data: [{ x: maxS.std*100, y: maxS.return*100 }],
+          backgroundColor: C.g,
+          pointRadius: 10,
+          pointStyle: 'star',
+        },
+        {
+          label: 'Min Variance',
+          data: [{ x: minV.std*100, y: minV.return*100 }],
+          backgroundColor: C.y,
+          pointRadius: 10,
+          pointStyle: 'triangle',
+        },
+        {
+          label: 'Geo Optimal',
+          data: [{ x: geoOpt.std*100, y: geoOpt.return*100 }],
+          backgroundColor: C.p,
+          pointRadius: 10,
+          pointStyle: 'rectRot',
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#8b949e' } } },
+      scales: {
+        x: { title: { display: true, text: 'Risk (Std Dev %)', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y: { title: { display: true, text: 'Return %', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PORTFOLIO RISK TABLE
+// ═══════════════════════════════════════════════════════════════════
+async function loadPortfolioRisk() {
+  const equity = document.getElementById('equityInput').value || 100000;
+  const period = document.getElementById('periodInput').value || 252;
+  const body = document.getElementById('portRiskBody');
+  body.innerHTML = '<tr><td colspan="9" class="text-center py-3"><div class="spin me-2"></div> Loading…</td></tr>';
+
+  try {
+    const r = await fetch(`/api/vince/portfolio-risk?equity=${equity}&period=${period}`);
+    const data = await r.json();
+    if (data.error) { body.innerHTML = `<tr><td colspan="9" class="text-center text-secondary py-3">${data.error}</td></tr>`; return; }
+
+    body.innerHTML = data.positions.map(p => {
+      if (p.error) return `<tr><td class="font-mono">${p.ticker.replace('.NS','')}</td><td colspan="8" class="text-secondary">${p.error}</td></tr>`;
+      const sizClr = p.sizing_status==='OPTIMAL' ? 'ok' : p.sizing_status==='OVERSIZED' ? 'bad' : 'warn';
+      return `<tr>
+        <td class="font-mono" style="color:${C.b}">${p.ticker.replace('.NS','')}</td>
+        <td class="font-mono">${fmtCur(p.current_price)}</td>
+        <td class="font-mono">${p.quantity||'—'}</td>
+        <td class="font-mono">${fmtPct(p.optimal_f*100,1)}</td>
+        <td class="font-mono">${p.recommended_shares||'—'}</td>
+        <td>${p.sizing_status ? badge(p.sizing_status, sizClr) : '—'}</td>
+        <td class="font-mono">${p.volatility_pct ? fmtPct(p.volatility_pct) : '—'}</td>
+        <td class="font-mono" style="color:${(p.geometric_mean||0)>1?C.g:C.r}">${fmt(p.geometric_mean,4)}</td>
+        <td class="font-mono">${fmt(p.twr,2)}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    body.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-3">${e.message}</td></tr>`;
+  }
+}
+</script>
+</body>
+</html>

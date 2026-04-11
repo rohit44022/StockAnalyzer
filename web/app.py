@@ -45,6 +45,9 @@ from web.hybrid_routes import hybrid_bp
 from web.top_picks_routes import top_picks_bp
 from web.pa_routes import pa_bp
 from web.triple_routes import triple_bp
+from web.vince_routes import vince_bp
+from web.mental_game_routes import mental_game_bp
+from mental_game.db import init_mental_game_db as _init_mental_game_db
 
 app = Flask(__name__)
 app.register_blueprint(ta_bp)
@@ -52,10 +55,13 @@ app.register_blueprint(hybrid_bp)
 app.register_blueprint(top_picks_bp)
 app.register_blueprint(pa_bp)
 app.register_blueprint(triple_bp)
+app.register_blueprint(vince_bp)
+app.register_blueprint(mental_game_bp)
 
 # Ensure DBs exist
 _init_trade_db()
 _init_portfolio_db()
+_init_mental_game_db()
 
 # ─────────────────────────────────────────────────────────────────
 #  HELPERS
@@ -162,6 +168,14 @@ def _fund_dict(fd):
             "revenue": _safe(q.revenue), "revenue_str": _fmt_cr(q.revenue),
             "net_income": _safe(q.net_income), "net_income_str": _fmt_cr(q.net_income),
             "eps": _safe(q.eps), "ebitda": _safe(q.ebitda), "ebitda_str": _fmt_cr(q.ebitda),
+            "gross_profit": _safe(q.gross_profit), "gross_profit_str": _fmt_cr(q.gross_profit),
+            "operating_income": _safe(q.operating_income), "operating_income_str": _fmt_cr(q.operating_income),
+            "interest_expense": _safe(q.interest_expense),
+            "pretax_income": _safe(q.pretax_income),
+            "tax_provision": _safe(q.tax_provision),
+            "gross_margin": _safe(q.gross_margin),
+            "operating_margin": _safe(q.operating_margin),
+            "net_margin": _safe(q.net_margin),
         }
 
     def _sh(s):
@@ -1134,6 +1148,85 @@ def api_portfolio_analyze_all():
     positions = get_open_positions()
     results = analyze_all_open_positions(positions)
     return jsonify(results)
+
+
+@app.route("/api/portfolio/unrealized-daily", methods=["GET"])
+def api_portfolio_unrealized_daily():
+    """Return per-day unrealized P&L as total and per-stock series for open positions."""
+    positions = get_open_positions()
+    if not positions:
+        return jsonify({"dates": [], "pnl": [], "series": [], "meta": {"positions": 0, "stocks": 0}})
+
+    pnl_series = []
+
+    for p in positions:
+        ticker = (p.get("ticker") or "").strip().upper()
+        if not ticker:
+            continue
+
+        df = load_stock_data(ticker, CSV_DIR, use_live_fallback=False)
+        if df is None or df.empty or "Close" not in df.columns:
+            continue
+
+        try:
+            buy_dt = pd.to_datetime(p.get("buy_date"))
+            buy_price = float(p.get("buy_price") or 0)
+            qty = int(p.get("quantity") or 1)
+        except Exception:
+            continue
+
+        if buy_price <= 0 or qty <= 0:
+            continue
+
+        close = df["Close"].copy()
+        close.index = pd.to_datetime(close.index)
+        close = close.sort_index()
+        close = close[close.index >= buy_dt]
+        if close.empty:
+            continue
+
+        # Position-level unrealized P&L per day: (close - buy_price) * quantity.
+        pnl = (close - buy_price) * qty
+        pnl.name = ticker
+        pnl_series.append((ticker, pnl))
+
+    if not pnl_series:
+        return jsonify({"dates": [], "pnl": [], "series": [], "meta": {"positions": len(positions), "stocks": 0}})
+
+    all_dates = sorted(set().union(*[set(s.index) for _, s in pnl_series]))
+    idx = pd.DatetimeIndex(all_dates)
+
+    by_ticker = {}
+    for ticker, s in pnl_series:
+        aligned = s.reindex(idx).ffill().fillna(0.0)
+        if ticker in by_ticker:
+            by_ticker[ticker] = by_ticker[ticker] + aligned
+        else:
+            by_ticker[ticker] = aligned
+
+    series_payload = []
+    for ticker in sorted(by_ticker.keys()):
+        ts = by_ticker[ticker]
+        series_payload.append({
+            "ticker": ticker,
+            "label": ticker.replace(".NS", ""),
+            "pnl": [round(float(v), 2) for v in ts.values],
+            "latest": round(float(ts.iloc[-1]), 2) if len(ts) else 0.0,
+        })
+
+    portfolio_pnl = pd.concat(list(by_ticker.values()), axis=1).sum(axis=1)
+
+    return jsonify({
+        "dates": [d.strftime("%Y-%m-%d") for d in portfolio_pnl.index],
+        "pnl": [round(float(v), 2) for v in portfolio_pnl.values],
+        "series": series_payload,
+        "meta": {
+            "positions": len(positions),
+            "stocks": len(series_payload),
+            "series_used": len(pnl_series),
+            "latest": round(float(portfolio_pnl.iloc[-1]), 2) if len(portfolio_pnl) else 0.0,
+        },
+    })
 
 
 # ─────────────────────────────────────────────────────────────────

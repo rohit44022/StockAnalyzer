@@ -36,7 +36,8 @@ logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 #  CONFIGURATION  — edit only this section if needed
 # ══════════════════════════════════════════════════════════════════
 
-START_DATE  = "2020-01-01"
+# 3 years of history — dynamic so it's always "last 3 years to today"
+START_DATE  = (date.today() - timedelta(days=3*365)).strftime("%Y-%m-%d")
 # yfinance 'end' is exclusive — use tomorrow so today's EOD data is included
 END_DATE    = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 SAVE_PATH   = "/Users/rttripathirttripathi/Rohit/coding/StockCode/ historical_data/stock_csv/"
@@ -212,6 +213,20 @@ def _clean_df(data: pd.DataFrame, ticker: str) -> pd.DataFrame | None:
     df = df.dropna(subset=["Close"])
     df = df[df["Close"] > 0]
 
+    # ── Remove phantom pre-market rows ──
+    # yfinance sometimes returns a partial row for the current/latest day
+    # where Open=High=Low (no real trading happened) but Close carries
+    # the previous day's value.  This fools freshness checks.
+    if len(df) >= 2:
+        last = df.iloc[-1]
+        prev = df.iloc[-2]
+        o, h, l, c = last["Open"], last["High"], last["Low"], last["Close"]
+        if (o == h == l                           # zero intraday range
+                and abs(c - o) > 0.01             # close ≠ open  → carried from prev day
+                and abs(c - prev["Close"]) < 0.01 # close matches previous close exactly
+        ):
+            df = df.iloc[:-1]
+
     return df if not df.empty else None
 
 
@@ -230,10 +245,18 @@ def _download_one(ticker: str, start: str, end: str,
             existing = pd.read_csv(file_path)
             # valid file must have 'Date' column and meaningful data
             if existing.columns[0] == "Date" and len(existing) > 10:
-                last_date = pd.to_datetime(existing["Date"].iloc[-1])
+                # Detect phantom last row (O=H=L, Close=prev Close)
+                effective_last = existing
+                if len(existing) >= 2:
+                    lr = existing.iloc[-1]
+                    pr = existing.iloc[-2]
+                    o, h, l = float(lr.get("Open",0)), float(lr.get("High",0)), float(lr.get("Low",0))
+                    c, pc = float(lr.get("Close",0)), float(pr.get("Close",0))
+                    if o == h == l and abs(c - o) > 0.01 and abs(c - pc) < 0.01:
+                        effective_last = existing.iloc[:-1]  # ignore phantom row
+
+                last_date = pd.to_datetime(effective_last["Date"].iloc[-1])
                 today = pd.Timestamp.today().normalize()
-                # consider the file up-to-date if last row is within STALENESS_DAYS
-                # of today (accounts for weekends / holidays)
                 days_old = (today - last_date).days
                 if days_old <= STALENESS_DAYS:
                     return "skipped"

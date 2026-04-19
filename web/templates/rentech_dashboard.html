@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>RenTech Quant Engine — Jim Simons Inspired</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--bull:#00c853;--bear:#ff1744;--neutral:#ffc107;--card-bg:#0d1117;--bg:#010409;--accent:#58a6ff;--accent2:#7c4dff;--accent3:#f0883e;--green-dim:rgba(0,200,83,.15);--red-dim:rgba(255,23,68,.15);--blue-dim:rgba(88,166,255,.12)}
+body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;color:#c9d1d9}
+.card{background:var(--card-bg);border:1px solid #21262d;border-radius:10px}
+.card-header{background:rgba(255,255,255,.03);border-bottom:1px solid #21262d;padding:12px 16px}
+.bull{color:var(--bull)}.bear{color:var(--bear)}.neutral{color:var(--neutral)}.accent{color:var(--accent)}
+.bg-bull{background:var(--green-dim)!important}.bg-bear{background:var(--red-dim)!important}
+.bg-neutral{background:rgba(255,193,7,.1)!important}
+.score-bar{height:8px;border-radius:4px;background:#161b22;overflow:hidden;margin-top:4px}
+.score-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.verdict-badge{font-size:1.6rem;padding:10px 28px;border-radius:8px;font-weight:700;letter-spacing:2px;display:inline-block}
+.indicator-val{font-size:1.3rem;font-weight:600}
+.section-title{font-size:.85rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:0}
+.mini-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.4)}
+.ticker-search{max-width:520px;margin:0 auto;position:relative}
+.ticker-search input{background:rgba(255,255,255,.05);border:1px solid #30363d;color:#fff;border-radius:8px;padding:10px 16px;font-size:1.05rem}
+.ticker-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(88,166,255,.25)}
+.autocomplete-list{position:absolute;top:100%;left:0;z-index:9999;width:100%;max-height:240px;overflow-y:auto;background:#161b22;border:1px solid #30363d;border-radius:0 0 8px 8px;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.autocomplete-list .item{padding:8px 16px;cursor:pointer;font-size:.95rem}
+.autocomplete-list .item:hover,.autocomplete-list .item.active{background:rgba(88,166,255,.2)}
+.alpha-row{padding:10px 14px;border-bottom:1px solid #21262d;transition:background .2s}
+.alpha-row:last-child{border-bottom:none}
+.alpha-row:hover{background:rgba(88,166,255,.05)}
+.alpha-bar{height:6px;border-radius:3px;background:#161b22;position:relative;margin-top:4px}
+.alpha-fill{height:100%;border-radius:3px;position:absolute;top:0;transition:width .5s ease}
+.stat-card{padding:14px;border-radius:8px;background:rgba(255,255,255,.02);border:1px solid #21262d;height:100%}
+.stat-val{font-size:1.5rem;font-weight:700;line-height:1.2}
+.stat-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.4);margin-top:2px}
+.regime-badge{padding:6px 14px;border-radius:6px;font-weight:600;font-size:.85rem;letter-spacing:1px}
+.edu-box{background:rgba(88,166,255,.06);border:1px solid rgba(88,166,255,.15);border-radius:8px;padding:14px;margin-top:12px;font-size:.82rem;line-height:1.7;color:rgba(255,255,255,.7)}
+.edu-box strong{color:var(--accent)}
+.transition-bar{display:flex;height:24px;border-radius:4px;overflow:hidden;font-size:.7rem;font-weight:600}
+.transition-bar div{display:flex;align-items:center;justify-content:center;transition:width .5s}
+.grade-A{color:#00c853;border-color:#00c853}.grade-B{color:#69f0ae;border-color:#69f0ae}
+.grade-C{color:#ffc107;border-color:#ffc107}.grade-D{color:#ff5252;border-color:#ff5252}
+#loading{display:none}
+.spinner-border{width:2rem;height:2rem}
+.help-box{background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.12);border-radius:10px;padding:16px 18px;margin-top:14px;font-size:.8rem;line-height:1.8;color:rgba(255,255,255,.65)}
+.help-box h6{color:var(--accent);font-size:.82rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+.help-box .term{display:inline;color:var(--accent);font-weight:600}
+.help-box .good{color:var(--bull)}.help-box .bad{color:var(--bear)}.help-box .mid{color:var(--neutral)}
+.help-box ul{margin:4px 0 4px 16px;padding:0}
+.help-box li{margin-bottom:2px}
+.intro-card{background:linear-gradient(135deg,rgba(88,166,255,.08),rgba(124,77,255,.06));border:1px solid rgba(88,166,255,.18);border-radius:12px;padding:20px 24px;margin-bottom:20px}
+.intro-card h5{color:var(--accent);margin-bottom:10px}
+.intro-card p{font-size:.85rem;line-height:1.7;color:rgba(255,255,255,.65);margin-bottom:6px}
+.grade-legend{display:inline-flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+.grade-legend span{font-size:.78rem;font-weight:600;padding:3px 10px;border-radius:5px;border:1px solid}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="navbar navbar-dark" style="background:#0d1117;border-bottom:1px solid #21262d">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="/rentech">
+      <i class="bi bi-graph-up-arrow me-2" style="color:var(--accent)"></i>RenTech Quant Engine
+    </a>
+    <div class="d-flex gap-2">
+      <a href="/" class="btn btn-outline-secondary btn-sm">BB Squeeze</a>
+      <a href="/ta" class="btn btn-outline-secondary btn-sm">TA</a>
+      <a href="/triple" class="btn btn-outline-secondary btn-sm">Triple</a>
+    </div>
+  </div>
+</nav>
+
+<!-- SEARCH -->
+<div class="container-fluid py-3">
+  <div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8">
+      <div class="ticker-search position-relative">
+        <div class="input-group">
+          <span class="input-group-text" style="background:rgba(255,255,255,.05);border:1px solid #30363d;color:var(--accent)"><i class="bi bi-search"></i></span>
+          <input type="text" id="tickerInput" class="form-control" placeholder="Enter NSE ticker (e.g. RELIANCE, TCS, INFY)" autocomplete="off">
+          <button class="btn btn-primary" id="analyzeBtn" style="background:var(--accent);border-color:var(--accent)">
+            <i class="bi bi-cpu me-1"></i>Analyze
+          </button>
+        </div>
+        <div class="autocomplete-list" id="autoList"></div>
+      </div>
+      <div class="text-center mt-2" style="font-size:.75rem;color:rgba(255,255,255,.3)">
+        Renaissance Technologies-inspired quantitative analysis for Indian equities
+        <span id="tickerCount" style="margin-left:8px;color:var(--accent)"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ERROR BANNER -->
+<div id="errorBanner" class="container-fluid px-3" style="display:none">
+  <div class="alert alert-danger d-flex align-items-center" role="alert" style="background:rgba(255,23,68,.12);border:1px solid rgba(255,23,68,.3);color:#ff8a80;border-radius:10px">
+    <i class="bi bi-exclamation-triangle-fill me-2" style="font-size:1.3rem"></i>
+    <div id="errorText" style="flex:1"></div>
+    <button type="button" class="btn-close btn-close-white ms-2" onclick="qs('#errorBanner').style.display='none'"></button>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading" class="text-center py-5">
+  <div class="spinner-border text-primary" role="status"></div>
+  <div class="mt-2" style="color:rgba(255,255,255,.5)">Running 7 statistical models + regime detection + risk analysis…</div>
+</div>
+
+<!-- RESULTS -->
+<div id="results" class="container-fluid px-3 pb-5" style="display:none">
+
+  <!-- VERDICT BANNER -->
+  <div id="verdictBanner" class="text-center mb-4"></div>
+
+  <!-- SYSTEM INTRO (rendered by JS) -->
+  <div id="introPanel" class="mb-4"></div>
+
+  <!-- ROW 1: Score + Regime + Risk -->
+  <div class="row g-3 mb-3">
+    <div class="col-lg-4" id="scorePanel"></div>
+    <div class="col-lg-4" id="regimePanel"></div>
+    <div class="col-lg-4" id="riskPanel"></div>
+  </div>
+
+  <!-- ROW 2: Alpha Signals -->
+  <div class="row g-3 mb-3">
+    <div class="col-12" id="alphaPanel"></div>
+  </div>
+
+  <!-- ROW 3: Statistical Profile -->
+  <div class="row g-3 mb-3">
+    <div class="col-12" id="statsPanel"></div>
+  </div>
+
+  <!-- ROW 4: Risk Levels + Transaction Costs -->
+  <div class="row g-3 mb-3">
+    <div class="col-lg-6" id="levelsPanel"></div>
+    <div class="col-lg-6" id="costsPanel"></div>
+  </div>
+
+  <!-- ROW 5: Regime Transitions + Micro Regime -->
+  <div class="row g-3 mb-3">
+    <div class="col-lg-6" id="transitionPanel"></div>
+    <div class="col-lg-6" id="microPanel"></div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* avoid potential conflicts with browser extensions that define $ */
+const qs = function(s){ return document.querySelector(s); };
+const qsa = function(s){ return document.querySelectorAll(s); };
+var TICKERS = [];
+var DATA = null;
+
+// ─── Autocomplete ────────────────────────────
+(function initAutocomplete(){
+  var inp = document.getElementById('tickerInput');
+  var autoList = document.getElementById('autoList');
+  var tickerCountEl = document.getElementById('tickerCount');
+
+  if(!inp){ console.error('[RenTech] #tickerInput not found!'); return; }
+  if(!autoList){ console.error('[RenTech] #autoList not found!'); return; }
+
+  console.log('[RenTech] Autocomplete init: inp=', inp, 'autoList=', autoList);
+
+  // Load tickers
+  function loadTickers(){
+    console.log('[RenTech] Fetching tickers...');
+    fetch('/api/rentech/tickers?_=' + Date.now())
+      .then(function(r){
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        return r.json();
+      })
+      .then(function(t){
+        TICKERS = t;
+        console.log('[RenTech] Loaded', t.length, 'tickers');
+        if(tickerCountEl) tickerCountEl.textContent = '(' + t.length + ' stocks available)';
+      })
+      .catch(function(e){
+        console.error('[RenTech] Failed to load tickers:', e);
+        if(tickerCountEl) tickerCountEl.textContent = '(ticker load failed - retrying...)';
+        setTimeout(function(){
+          fetch('/api/rentech/tickers?_=' + Date.now()).then(function(r){ return r.json(); }).then(function(t){
+            TICKERS = t;
+            console.log('[RenTech] Loaded', t.length, 'tickers (retry)');
+            if(tickerCountEl) tickerCountEl.textContent = '(' + t.length + ' stocks available)';
+          }).catch(function(e2){
+            console.error('[RenTech] Retry failed:', e2);
+            if(tickerCountEl) tickerCountEl.textContent = '(ticker load failed)';
+          });
+        }, 2000);
+      });
+  }
+  loadTickers();
+
+  // Input handler for autocomplete
+  inp.addEventListener('input', function(){
+    var q = inp.value.toUpperCase().trim();
+    console.log('[RenTech] Input event, query="'+q+'", TICKERS.length='+TICKERS.length);
+    if(q.length < 1){ autoList.style.display = 'none'; return; }
+    var matches = TICKERS.filter(function(t){
+      var clean = t.replace('.NS','').replace('.BO','');
+      return clean.indexOf(q) !== -1 || t.indexOf(q) !== -1;
+    }).slice(0, 20);
+    console.log('[RenTech] Matches:', matches.length);
+    if(matches.length > 0){
+      autoList.innerHTML = matches.map(function(t){
+        return '<div class="item">' + t.replace('.NS','') + '</div>';
+      }).join('');
+      autoList.style.display = 'block';
+    } else {
+      autoList.style.display = 'none';
+    }
+  });
+
+  // Click handler for autocomplete items
+  autoList.addEventListener('click', function(e){
+    if(e.target.classList.contains('item')){
+      inp.value = e.target.textContent;
+      autoList.style.display = 'none';
+      runAnalysis();
+    }
+  });
+
+  // Enter key triggers analysis
+  inp.addEventListener('keydown', function(e){ if(e.key === 'Enter') runAnalysis(); });
+
+  // Click outside closes autocomplete
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('.ticker-search')) autoList.style.display = 'none';
+  });
+})();
+
+// Analyze button
+document.getElementById('analyzeBtn').addEventListener('click', runAnalysis);
+
+// ─── Analysis ────────────────────────────────
+function showError(msg){
+  qs('#errorText').textContent = msg;
+  qs('#errorBanner').style.display='block';
+  qs('#results').style.display='none';
+}
+
+function runAnalysis(){
+  var ticker = document.getElementById('tickerInput').value.trim();
+  if(!ticker)return;
+  qs('#loading').style.display='block';
+  qs('#results').style.display='none';
+  qs('#errorBanner').style.display='none';
+  fetch(`/api/rentech/analyze?ticker=${encodeURIComponent(ticker)}`)
+    .then(r=>{
+      if(!r.ok && r.status !== 404 && r.status !== 400){
+        throw new Error(`Server error (HTTP ${r.status})`);
+      }
+      return r.json();
+    })
+    .then(d=>{
+      qs('#loading').style.display='none';
+      DATA=d;
+      if(!d.success){
+        showError(d.error || 'Analysis failed — unknown error');
+        return;
+      }
+      try{
+        renderAll(d);
+        qs('#results').style.display='block';
+      }catch(renderErr){
+        console.error('Render error:', renderErr);
+        showError('Dashboard render error: ' + renderErr.message);
+      }
+    })
+    .catch(e=>{
+      qs('#loading').style.display='none';
+      showError('Request failed: ' + e.message);
+    });
+}
+
+// ─── Color helpers ───────────────────────────
+function scoreColor(s){return s>30?'var(--bull)':s<-30?'var(--bear)':'var(--neutral)'}
+function dirColor(d){return d.includes('LONG')?'var(--bull)':d.includes('SHORT')?'var(--bear)':'var(--neutral)'}
+function gradeClass(g){return 'grade-'+g}
+function actionBg(a){
+  if(a.includes('BUY'))return 'background:rgba(0,200,83,.2);border:2px solid var(--bull)';
+  if(a.includes('SELL'))return 'background:rgba(255,23,68,.2);border:2px solid var(--bear)';
+  return 'background:rgba(255,193,7,.15);border:2px solid var(--neutral)';
+}
+function actionColor(a){
+  if(a.includes('BUY'))return 'var(--bull)';
+  if(a.includes('SELL'))return 'var(--bear)';
+  return 'var(--neutral)';
+}
+function regimeBg(r){
+  if(r==='BULL')return 'background:var(--green-dim);color:var(--bull)';
+  if(r==='BEAR')return 'background:var(--red-dim);color:var(--bear)';
+  if(r==='HIGH_VOLATILITY')return 'background:rgba(255,152,0,.15);color:#ff9800';
+  return 'background:var(--blue-dim);color:var(--accent)';
+}
+
+// ─── Render ──────────────────────────────────
+function renderAll(d){
+  renderVerdict(d.verdict, d.ticker);
+  renderIntro(d);
+  renderScore(d.verdict, d.signals);
+  renderRegime(d.regime);
+  renderRisk(d.risk);
+  renderAlphas(d.signals);
+  renderStats(d.statistical_profile);
+  renderLevels(d.risk);
+  renderCosts(d.risk);
+  renderTransitions(d.regime);
+  renderMicro(d.regime);
+}
+
+function renderIntro(d){
+  qs('#introPanel').innerHTML = `
+    <div class="intro-card">
+      <h5><i class="bi bi-lightbulb me-2"></i>How to Read This Dashboard</h5>
+      <p>This dashboard uses <strong style="color:var(--accent)">7 mathematical models</strong> — inspired by Renaissance Technologies, the most successful quant hedge fund in history — to analyze whether a stock is worth buying, selling, or holding. Think of it as a <strong style="color:var(--accent)">doctor's report for a stock</strong>: each test checks a different "vital sign" of the stock's health.</p>
+      <div class="row mt-3">
+        <div class="col-md-4 mb-2">
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5)">
+            <strong style="color:var(--accent)"><i class="bi bi-1-circle me-1"></i>Action & Grade</strong> — The big verdict at the top tells you what to do (<span class="good">BUY</span>, <span class="bad">SELL</span>, or <span class="mid">HOLD</span>) and rates the confidence from <span class="good">A (excellent)</span> to <span class="bad">D (weak)</span>. Only act on Grade A or B signals.
+          </div>
+        </div>
+        <div class="col-md-4 mb-2">
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5)">
+            <strong style="color:var(--accent)"><i class="bi bi-2-circle me-1"></i>Score Bar (−100 to +100)</strong> — A single number that combines all 7 models. <span class="good">Positive = bullish (stock likely to go up)</span>. <span class="bad">Negative = bearish (stock likely to go down)</span>. The stronger the number, the stronger the signal.
+          </div>
+        </div>
+        <div class="col-md-4 mb-2">
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5)">
+            <strong style="color:var(--accent)"><i class="bi bi-3-circle me-1"></i>Risk & Position Size</strong> — Even a great signal needs risk management. The system calculates exactly how many shares to buy, where to set your stop-loss, and your maximum possible loss — so you never risk too much.
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderVerdict(v, ticker){
+  const t = ticker.replace('.NS','');
+  const gradeExp = {
+    'A':'Grade A = Excellent setup. Multiple models agree strongly. High conviction — this is the best quality signal.',
+    'B':'Grade B = Good setup. Most models agree with decent conviction. Worth acting on, but not as strong as A.',
+    'C':'Grade C = Mixed signals. Some models say buy, others disagree. Proceed with caution or wait for a better setup.',
+    'D':'Grade D = Weak or conflicting signals. Not enough statistical evidence to act. Best to stay on the sidelines.'
+  };
+  const actionExp = {
+    'STRONG_BUY':'All signals point strongly upward. The math says this stock has a very high probability of going up.',
+    'BUY':'Most signals are positive. The stock looks attractive from a quantitative perspective.',
+    'WEAK_BUY':'Slightly more bullish than bearish. A tentative positive outlook — not a strong conviction.',
+    'HOLD':'Signals are mixed or neutral. No clear direction — best to wait for a clearer opportunity.',
+    'WEAK_SELL':'Slightly more bearish than bullish. Minor caution — the stock may drift lower.',
+    'SELL':'Most signals are negative. The stock looks unattractive — consider reducing exposure.',
+    'STRONG_SELL':'All signals point strongly downward. The math says this stock has a high probability of falling.'
+  };
+  qs('#verdictBanner').innerHTML = `
+    <h4 class="mb-2" style="color:rgba(255,255,255,.5)">${t} — RenTech Quant Analysis</h4>
+    <span class="verdict-badge" style="${actionBg(v.action)};color:${actionColor(v.action)}">
+      ${v.action}
+    </span>
+    <span class="ms-3 ${gradeClass(v.grade)}" style="font-size:1.4rem;font-weight:700;border:2px solid;padding:6px 14px;border-radius:8px">
+      Grade ${v.grade}
+    </span>
+    <div class="mt-2" style="font-size:.9rem;color:rgba(255,255,255,.6)">${v.reason}</div>
+    <div class="mt-1" style="font-size:.75rem;color:rgba(255,255,255,.35)">
+      Compute: ${DATA.compute_time_ms}ms | Bars: ${DATA.data_bars} | Signal decays in ~${v.decay_days} days
+    </div>
+    <div class="help-box mt-3 text-start" style="max-width:800px;margin-left:auto;margin-right:auto">
+      <h6><i class="bi bi-info-circle me-1"></i>What does this verdict mean?</h6>
+      <p style="margin:0 0 6px"><strong class="term">${v.action}:</strong> ${actionExp[v.action]||'The system is evaluating this stock based on 7 statistical models.'}</p>
+      <p style="margin:0 0 6px"><strong class="term">Grade ${v.grade}:</strong> ${gradeExp[v.grade]||''}</p>
+      <p style="margin:0 0 6px"><strong class="term">Signal Decay (~${v.decay_days} days):</strong> This signal is <em>not permanent</em>. Stock patterns change. In about ${v.decay_days} days, this analysis should be re-run because market conditions will have shifted and the recommendation may no longer be valid.</p>
+      <div class="grade-legend mt-2">
+        <span class="grade-A" style="background:rgba(0,200,83,.1)">A = Excellent</span>
+        <span class="grade-B" style="background:rgba(105,240,174,.08)">B = Good</span>
+        <span class="grade-C" style="background:rgba(255,193,7,.08)">C = Mixed</span>
+        <span class="grade-D" style="background:rgba(255,82,82,.08)">D = Weak</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderScore(v, sig){
+  const s = sig.composite;
+  const pct = (s.score+100)/2; // -100..100 → 0..100%
+  qs('#scorePanel').innerHTML = `
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="section-title"><i class="bi bi-speedometer2 me-1"></i>Composite Signal</span>
+        <span style="color:${scoreColor(s.score)};font-weight:700;font-size:1.2rem">${s.score>0?'+':''}${s.score.toFixed(1)}</span>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="mini-label">STRONG SHORT</span>
+          <span class="mini-label">STRONG LONG</span>
+        </div>
+        <div class="score-bar">
+          <div class="score-fill" style="width:${pct}%;background:${scoreColor(s.score)}"></div>
+        </div>
+        <div class="row mt-3 text-center">
+          <div class="col-4">
+            <div class="stat-val" style="color:${dirColor(s.direction)}">${s.direction.replace('_',' ')}</div>
+            <div class="stat-label">Direction</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-val">${s.conviction.toFixed(0)}%</div>
+            <div class="stat-label">Conviction</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-val">${s.quality.toFixed(0)}</div>
+            <div class="stat-label">Quality</div>
+          </div>
+        </div>
+        <div class="row mt-2 text-center">
+          <div class="col-4">
+            <div class="indicator-val ${gradeClass(v.grade)}">${v.grade}</div>
+            <div class="stat-label">Grade</div>
+          </div>
+          <div class="col-4">
+            <div class="indicator-val" style="color:var(--accent)">${v.edge_score.toFixed(0)}</div>
+            <div class="stat-label">Stat Edge</div>
+          </div>
+          <div class="col-4">
+            <div class="indicator-val">${v.sharpe_est!=null?v.sharpe_est.toFixed(2):'—'}</div>
+            <div class="stat-label">Sharpe Est</div>
+          </div>
+        </div>
+        <div class="help-box">
+          <h6><i class="bi bi-info-circle me-1"></i>Understanding the Composite Signal</h6>
+          <ul>
+            <li><strong class="term">Score (−100 to +100):</strong> This is the "master score" — a weighted average of all 7 alpha models. <span class="good">Above +30 is bullish</span>, <span class="bad">below −30 is bearish</span>, and anything in between is <span class="mid">neutral (no clear edge)</span>.</li>
+            <li><strong class="term">Direction:</strong> Which way the math says the stock is headed — LONG (going up), SHORT (going down), or NEUTRAL (sideways).</li>
+            <li><strong class="term">Conviction (0–100%):</strong> How strongly the models agree with each other. Think of it as "how sure is the system?" — <span class="good">above 70% = high confidence</span>, <span class="mid">40–70% = moderate</span>, <span class="bad">below 40% = low confidence</span>.</li>
+            <li><strong class="term">Quality (0–100):</strong> How many of the 7 models are giving valid, non-conflicting signals. Higher = more models are working and agree.</li>
+            <li><strong class="term">Stat Edge (0–100):</strong> The statistical advantage you have over random chance. A higher edge means the signal is more reliable — like having better odds at a card game.</li>
+            <li><strong class="term">Sharpe Estimate:</strong> Expected return-per-unit-of-risk. <span class="good">Above 1.0 is good</span>, <span class="good">above 2.0 is excellent</span>. It answers: "Is the potential profit worth the risk?"</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRegime(r){
+  const c = r.current;
+  qs('#regimePanel').innerHTML = `
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="section-title"><i class="bi bi-layers me-1"></i>Market Regime</span>
+        <span class="regime-badge" style="${regimeBg(c.regime)}">${c.regime}</span>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-4">
+            <div class="stat-val">${c.sub_regime.replace('_',' ')}</div>
+            <div class="stat-label">Sub-Regime</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-val">${c.duration_days}d</div>
+            <div class="stat-label">Duration</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-val">${c.confidence.toFixed(0)}%</div>
+            <div class="stat-label">Confidence</div>
+          </div>
+        </div>
+        <div class="mt-3">
+          <div class="mini-label mb-1">OPTIMAL STRATEGIES</div>
+          <div>${r.optimal_strategies.map(s=>`<span class="badge bg-secondary me-1">${s.replace(/_/g,' ')}</span>`).join('')}</div>
+        </div>
+        <div class="mt-2">
+          <div class="mini-label mb-1">REGIME SCORE</div>
+          <div class="d-flex align-items-center">
+            <span style="color:${r.regime_score>0?'var(--bull)':'var(--bear)'};font-weight:700;font-size:1.1rem">${r.regime_score>0?'+':''}${r.regime_score.toFixed(0)}</span>
+            <span class="ms-2" style="font-size:.75rem;color:rgba(255,255,255,.4)">(-100 deep bear … +100 deep bull)</span>
+          </div>
+        </div>
+        <div class="help-box">
+          <h6><i class="bi bi-info-circle me-1"></i>What is Market Regime?</h6>
+          <p style="margin:0 0 6px">Think of a "regime" as the <em>mood of the market</em>. Just like weather has seasons, markets cycle through distinct phases:</p>
+          <ul>
+            <li><strong class="good">BULL:</strong> Prices are in an uptrend. Buyers are in control. This is the "summer" — good for buying stocks.</li>
+            <li><strong class="bad">BEAR:</strong> Prices are falling. Sellers dominate. This is the "winter" — caution, look for short opportunities or stay out.</li>
+            <li><strong class="term">SIDEWAYS:</strong> No clear direction. Prices bounce between a range. Good for mean-reversion (buy low, sell high within the range).</li>
+            <li><strong class="mid">HIGH VOLATILITY:</strong> Prices are swinging wildly. High risk, high uncertainty. Reduce position sizes.</li>
+          </ul>
+          <p style="margin:0 0 4px"><strong class="term">Sub-Regime:</strong> A more detailed breakdown — e.g., "EARLY BULL" (uptrend just starting) vs "LATE BULL" (uptrend may be ending).</p>
+          <p style="margin:0 0 4px"><strong class="term">Duration:</strong> How many days the current regime has lasted. Longer durations may signal either stability or an upcoming regime change.</p>
+          <p style="margin:0 0 4px"><strong class="term">Confidence:</strong> How certain the system is about the current regime classification. <span class="good">Higher = more certain</span>.</p>
+          <p style="margin:0"><strong class="term">Optimal Strategies:</strong> The system recommends which trading strategies work best in this regime (e.g., "momentum" in BULL, "mean reversion" in SIDEWAYS).</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRisk(r){
+  const dd = r.drawdown;
+  const ddColor = dd.status==='NORMAL'?'var(--bull)':dd.status==='HALTED'?'var(--bear)':'var(--neutral)';
+  qs('#riskPanel').innerHTML = `
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="section-title"><i class="bi bi-shield-check me-1"></i>Risk Assessment</span>
+        <span class="badge" style="background:${r.risk_rating==='LOW'?'var(--green-dim)':r.risk_rating==='MODERATE'?'rgba(255,193,7,.15)':'var(--red-dim)'};color:${r.risk_rating==='LOW'?'var(--bull)':r.risk_rating==='HIGH'?'var(--bear)':'var(--neutral)'};padding:5px 12px">${r.risk_rating}</span>
+      </div>
+      <div class="card-body">
+        <div class="row text-center mb-2">
+          <div class="col-4">
+            <div class="stat-val">${r.position.shares}</div>
+            <div class="stat-label">Shares</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-val">₹${(r.position.capital/1000).toFixed(0)}K</div>
+            <div class="stat-label">Capital</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-val">${r.position.capital_pct!=null?r.position.capital_pct.toFixed(1):'0'}%</div>
+            <div class="stat-label">Of Portfolio</div>
+          </div>
+        </div>
+        <div class="row text-center mb-2">
+          <div class="col-4">
+            <div class="stat-val">${r.win_probability!=null?(r.win_probability*100).toFixed(0):'—'}%</div>
+            <div class="stat-label">Win Prob</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-val" style="color:${r.expected_value_pct>0?'var(--bull)':'var(--bear)'}">${r.expected_value_pct!=null?r.expected_value_pct.toFixed(2):'—'}%</div>
+            <div class="stat-label">Expected Value</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-val" style="color:var(--bear)">₹${r.max_loss_rupees!=null?(r.max_loss_rupees/1000).toFixed(1)+'K':'—'}</div>
+            <div class="stat-label">Max Loss</div>
+          </div>
+        </div>
+        <div class="d-flex justify-content-between mt-2" style="font-size:.8rem">
+          <span>Drawdown: <strong style="color:${ddColor}">${dd.current_pct!=null?dd.current_pct.toFixed(1):'0'}%</strong></span>
+          <span>Exposure: <strong>${dd.exposure_mult!=null?(dd.exposure_mult*100).toFixed(0):'100'}%</strong></span>
+          <span style="color:${ddColor}">${dd.status}</span>
+        </div>
+        <div class="help-box">
+          <h6><i class="bi bi-info-circle me-1"></i>Understanding Risk Assessment</h6>
+          <p style="margin:0 0 6px">This section is your <em>safety net</em>. Even the best signal is useless without proper risk management. Here is what each number means:</p>
+          <ul>
+            <li><strong class="term">Risk Rating (<span class="good">LOW</span> / <span class="mid">MODERATE</span> / <span class="bad">HIGH</span>):</strong> An overall danger level. <span class="good">LOW = safer bet</span>. <span class="bad">HIGH = risky, reduce position size</span>.</li>
+            <li><strong class="term">Shares:</strong> The exact number of shares to buy, calculated so that if you hit your stop-loss, you lose a maximum of 2% of your portfolio — not your life savings.</li>
+            <li><strong class="term">Capital (₹):</strong> How much money (in thousands) this position would cost you.</li>
+            <li><strong class="term">Of Portfolio (%):</strong> What percentage of your total portfolio this trade would use. <span class="good">Below 10% is conservative</span>. Above 20% is aggressive.</li>
+            <li><strong class="term">Win Probability (%):</strong> Based on historical patterns, how likely is this trade to be profitable? <span class="good">Above 55% is decent</span>. Above 65% is strong.</li>
+            <li><strong class="term">Expected Value (%):</strong> Your average expected return per trade. <span class="good">Positive = profitable on average</span>. <span class="bad">Negative = losing proposition</span>. This accounts for both wins AND losses.</li>
+            <li><strong class="term">Max Loss (₹):</strong> The absolute worst-case loss in rupees if the stop-loss is hit. This is your maximum risk on this trade.</li>
+            <li><strong class="term">Drawdown:</strong> How much the stock has fallen from its recent peak. Large drawdowns may signal more pain ahead — or a recovery opportunity.</li>
+            <li><strong class="term">Exposure (%):</strong> How much of the normal position size is being used. In dangerous markets, the system automatically reduces exposure to protect capital.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAlphas(sig){
+  const alphas = sig.alphas;
+  let rows = alphas.map(a=>{
+    const pct = (a.score+100)/2;
+    const col = a.score>10?'var(--bull)':a.score<-10?'var(--bear)':'#555';
+    const dirBadge = a.direction==='LONG'?'<span class="badge" style="background:var(--green-dim);color:var(--bull)">LONG</span>'
+      :a.direction==='SHORT'?'<span class="badge" style="background:var(--red-dim);color:var(--bear)">SHORT</span>'
+      :'<span class="badge" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.4)">NEUTRAL</span>';
+    const metricsHtml = Object.entries(a.metrics).map(([k,v])=>{
+      const val = typeof v==='number'?(v%1===0?v:v.toFixed(2)):v;
+      return `<span class="badge bg-dark me-1" style="font-weight:400;font-size:.7rem">${k}: ${val}</span>`;
+    }).join('');
+    return `
+      <div class="alpha-row">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <strong style="font-size:.9rem">${a.name}</strong>
+            <span class="ms-2" style="font-size:.75rem;color:rgba(255,255,255,.35)">w=${(a.weight*100).toFixed(0)}%</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            ${dirBadge}
+            <span style="color:${col};font-weight:700;font-size:1rem;min-width:50px;text-align:right">${a.score>0?'+':''}${a.score.toFixed(0)}</span>
+          </div>
+        </div>
+        <div class="alpha-bar mt-1">
+          <div class="alpha-fill" style="width:${pct}%;background:${col};left:0"></div>
+        </div>
+        <div class="mt-1">${metricsHtml}</div>
+        <div style="font-size:.75rem;color:rgba(255,255,255,.4);margin-top:2px">${a.explanation}</div>
+      </div>
+    `;
+  }).join('');
+
+  qs('#alphaPanel').innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="section-title"><i class="bi bi-diagram-3 me-1"></i>Alpha Signal Ensemble (7 Sources)</span>
+      </div>
+      <div class="card-body p-0">${rows}
+        <div class="help-box" style="margin:14px;border-radius:8px">
+          <h6><i class="bi bi-info-circle me-1"></i>What are Alpha Signals?</h6>
+          <p style="margin:0 0 8px">"Alpha" means <em>excess return above the market average</em>. Each row above is a different mathematical model that looks at the stock from a unique angle — like getting 7 different expert opinions. The system combines all 7 to reach its final verdict.</p>
+          <ul>
+            <li><strong class="term">Score (−100 to +100):</strong> Each model's individual opinion. <span class="good">Positive = bullish</span>, <span class="bad">negative = bearish</span>.</li>
+            <li><strong class="term">Weight (w=X%):</strong> How much importance this model gets in the final score. Models with higher weight have more influence on the verdict. Weights are adjusted based on the current market regime.</li>
+            <li><strong class="term">Direction (LONG / SHORT / NEUTRAL):</strong> This model's recommended action — <span class="good">LONG = buy</span>, <span class="bad">SHORT = sell</span>, NEUTRAL = no opinion.</li>
+            <li><strong class="term">The 7 Models Explained:</strong></li>
+            <li><strong>1. Mean Reversion:</strong> "What goes up must come down." This model checks if the stock is overextended and due for a pullback (or recovery).</li>
+            <li><strong>2. Momentum:</strong> "The trend is your friend." Measures if the stock has strong upward or downward momentum that is likely to continue.</li>
+            <li><strong>3. Statistical Arbitrage:</strong> Finds mathematical mispricings using z-scores and half-life calculations.</li>
+            <li><strong>4. Volatility:</strong> Analyzes price swings. Expanding volatility can mean breakouts; contracting volatility (squeeze) can signal imminent big moves.</li>
+            <li><strong>5. Microstructure:</strong> Looks at volume patterns and price-volume relationships to detect hidden buying or selling pressure.</li>
+            <li><strong>6. Regime:</strong> Adjusts signals based on whether the market is in a bull, bear, or sideways phase.</li>
+            <li><strong>7. Entropy:</strong> Measures randomness. Low entropy = predictable patterns the system can exploit. High entropy = chaotic, harder to trade.</li>
+          </ul>
+          <p style="margin:4px 0 0;font-style:italic;color:rgba(255,255,255,.4)">When most models agree (e.g., 5 out of 7 say LONG), the composite signal and conviction are high — this is a stronger signal.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderStats(sp){
+  const scores = sp.scores;
+  const tests = [
+    {name:'Hurst Exponent', val:sp.hurst.value.toFixed(3), sub:sp.hurst.regime, color:sp.hurst.regime==='MEAN_REVERTING'?'var(--bull)':sp.hurst.regime==='TRENDING'?'var(--accent3)':'var(--neutral)', exp:sp.hurst.explanation},
+    {name:'OU Half-Life', val:sp.ou.half_life.toFixed(1)+'d', sub:sp.ou.is_tradeable?'TRADEABLE':'NOT TRADEABLE', color:sp.ou.is_tradeable?'var(--bull)':'var(--bear)', exp:sp.ou.explanation},
+    {name:'Variance Ratio', val:sp.variance_ratio.ratio.toFixed(3), sub:sp.variance_ratio.regime, color:sp.variance_ratio.regime==='MEAN_REVERTING'?'var(--bull)':sp.variance_ratio.regime==='TRENDING'?'var(--accent3)':'var(--neutral)', exp:sp.variance_ratio.explanation},
+    {name:'ADF Test', val:sp.adf.statistic.toFixed(2), sub:sp.adf.is_stationary?'STATIONARY':'NON-STATIONARY', color:sp.adf.is_stationary?'var(--bull)':'var(--bear)', exp:sp.adf.explanation},
+    {name:'Autocorrelation', val:`L1=${sp.autocorrelation.lag1.toFixed(3)}`, sub:sp.autocorrelation.pattern, color:sp.autocorrelation.pattern==='REVERSAL'?'var(--bull)':sp.autocorrelation.pattern==='CONTINUATION'?'var(--accent3)':'var(--neutral)', exp:sp.autocorrelation.explanation},
+    {name:'Entropy', val:sp.entropy.normalized.toFixed(3), sub:`Predictability: ${(sp.entropy.predictability*100).toFixed(0)}%`, color:'var(--accent)', exp:sp.entropy.explanation},
+    {name:'Vol Clustering', val:sp.vol_cluster.persistence.toFixed(3), sub:sp.vol_cluster.vol_state, color:sp.vol_cluster.vol_state==='EXTREME'?'var(--bear)':sp.vol_cluster.vol_state==='HIGH'?'var(--neutral)':'var(--bull)', exp:sp.vol_cluster.explanation},
+  ];
+
+  const testCards = tests.map(t=>`
+    <div class="col-lg-3 col-md-4 col-6">
+      <div class="stat-card">
+        <div class="mini-label">${t.name}</div>
+        <div class="stat-val" style="color:${t.color}">${t.val}</div>
+        <div style="font-size:.75rem;color:${t.color}">${t.sub}</div>
+        <div class="edu-box mt-2" style="padding:8px;margin:0;font-size:.72rem">${t.exp}</div>
+      </div>
+    </div>
+  `).join('');
+
+  const scoreCards = [
+    {name:'Mean Reversion', val:scores.mean_reversion, color:'var(--bull)'},
+    {name:'Momentum', val:scores.momentum, color:'var(--accent3)'},
+    {name:'Predictability', val:scores.predictability, color:'var(--accent)'},
+    {name:'Statistical Edge', val:scores.statistical_edge, color:'var(--accent2)'},
+  ].map(s=>`
+    <div class="col-3">
+      <div class="stat-card text-center">
+        <div class="stat-val" style="color:${s.color}">${s.val!=null?s.val.toFixed(0):'—'}</div>
+        <div class="stat-label">${s.name}</div>
+        <div class="score-bar mt-1"><div class="score-fill" style="width:${s.val||0}%;background:${s.color}"></div></div>
+      </div>
+    </div>
+  `).join('');
+
+  qs('#statsPanel').innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="section-title"><i class="bi bi-calculator me-1"></i>Statistical Profile — 7 Core Tests</span>
+        <span class="ms-2 badge bg-secondary">${sp.optimal_strategy}</span>
+      </div>
+      <div class="card-body">
+        <div class="help-box mb-3">
+          <h6><i class="bi bi-info-circle me-1"></i>What is the Statistical Profile?</h6>
+          <p style="margin:0 0 8px">These are 7 advanced mathematical tests that examine the stock's price history to find exploitable patterns. Think of it as a "blood test" for the stock — each test checks a different property:</p>
+          <div class="row" style="font-size:.76rem">
+            <div class="col-md-6">
+              <ul style="margin-bottom:0">
+                <li><strong class="term">Mean Reversion Score (0–100):</strong> Does the stock tend to return to its average price? <span class="good">High score = stock bounces back after big moves</span> — great for "buy the dip" strategies.</li>
+                <li><strong class="term">Momentum Score (0–100):</strong> Does the stock trend strongly? <span class="good">High score = strong trends</span> you can ride. Low = stock moves randomly.</li>
+                <li><strong class="term">Predictability Score (0–100):</strong> How non-random are the price movements? <span class="good">Higher = more predictable patterns</span> the system can exploit.</li>
+                <li><strong class="term">Statistical Edge (0–100):</strong> The overall mathematical advantage. <span class="good">Above 60 = solid edge</span>. Below 30 = the stock is too random to trade reliably.</li>
+              </ul>
+            </div>
+            <div class="col-md-6">
+              <ul style="margin-bottom:0">
+                <li><strong class="term">Hurst Exponent:</strong> Below 0.5 = mean-reverting. Above 0.5 = trending. At 0.5 = random walk (coin flip). This tells you WHICH strategy to use.</li>
+                <li><strong class="term">OU Half-Life:</strong> If mean-reverting, how many days until price snaps back? Shorter = faster trades. "TRADEABLE" means the cycle is fast enough to profit from.</li>
+                <li><strong class="term">ADF Test:</strong> Checks if the stock is "stationary" (stays in a range) vs "non-stationary" (wanders freely). Stationary stocks are easier to trade with mean-reversion.</li>
+                <li><strong class="term">Entropy:</strong> Measures disorder/randomness. Low entropy = more order = <span class="good">higher predictability</span>. High entropy = chaos = <span class="bad">harder to trade</span>.</li>
+              </ul>
+            </div>
+          </div>
+          <p style="margin:8px 0 0;font-size:.75rem;color:rgba(255,255,255,.45)"><strong>Optimal Strategy badge</strong> (shown above): Based on all test results, the system recommends the best trading approach for this particular stock — e.g., "mean_reversion" or "momentum" or "stat_arb".</p>
+        </div>
+        <div class="row g-2 mb-3">${scoreCards}</div>
+        <div class="row g-2">${testCards}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderLevels(r){
+  const l = r.levels;
+  qs('#levelsPanel').innerHTML = `
+    <div class="card h-100">
+      <div class="card-header"><span class="section-title"><i class="bi bi-signpost-2 me-1"></i>Risk Levels (ATR-Based)</span></div>
+      <div class="card-body">
+        <table class="table table-sm table-dark mb-0" style="font-size:.85rem">
+          <tr><td>Entry</td><td class="text-end fw-bold">₹${l.entry.toFixed(2)}</td></tr>
+          <tr style="color:var(--bear)"><td>Stop Loss</td><td class="text-end fw-bold">₹${l.stop_loss.toFixed(2)} (${l.stop_distance_pct.toFixed(1)}%)</td></tr>
+          <tr><td>Trailing Stop</td><td class="text-end">₹${l.trailing_stop.toFixed(2)}</td></tr>
+          <tr style="color:var(--bull)"><td>Target 1 (${l.rr_1.toFixed(1)}R)</td><td class="text-end fw-bold">₹${l.target_1.toFixed(2)}</td></tr>
+          <tr style="color:var(--bull)"><td>Target 2 (${l.rr_2.toFixed(1)}R)</td><td class="text-end">₹${l.target_2.toFixed(2)}</td></tr>
+          <tr style="color:var(--bull)"><td>Target 3 (${l.rr_3.toFixed(1)}R)</td><td class="text-end">₹${l.target_3.toFixed(2)}</td></tr>
+          <tr><td>ATR(14)</td><td class="text-end">₹${l.atr.toFixed(2)}</td></tr>
+        </table>
+        <div class="edu-box">${l.explanation}</div>
+        <div class="help-box">
+          <h6><i class="bi bi-info-circle me-1"></i>Price Levels Explained</h6>
+          <ul>
+            <li><strong class="term">Entry Price:</strong> The current/recommended price to enter the trade. This is typically the latest closing price.</li>
+            <li><strong class="bad">Stop Loss:</strong> The "emergency exit" price. If the stock falls to this level, you sell immediately to limit your loss. The % shows how far below your entry this is.</li>
+            <li><strong class="term">Trailing Stop:</strong> A dynamic stop that moves up as the stock rises. It locks in profits while still giving the trade room to breathe.</li>
+            <li><strong class="good">Target 1, 2, 3:</strong> Profit-taking levels. The "R" value (e.g., 2.0R) means the reward-to-risk ratio. Target 1 at 2.0R means your potential profit is 2x your risk. A common strategy: sell 1/3 at Target 1, 1/3 at Target 2, and 1/3 at Target 3.</li>
+            <li><strong class="term">ATR(14):</strong> "Average True Range" over 14 days — measures how much the stock typically moves in one day. A higher ATR means the stock is more volatile. All stop-loss and target levels are calculated using ATR multiples.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCosts(r){
+  const c = r.costs;
+  const p = r.position;
+  qs('#costsPanel').innerHTML = `
+    <div class="card h-100">
+      <div class="card-header"><span class="section-title"><i class="bi bi-cash-stack me-1"></i>Transaction Costs & Position</span></div>
+      <div class="card-body">
+        <table class="table table-sm table-dark mb-2" style="font-size:.85rem">
+          <tr><td>Buy Cost</td><td class="text-end">${c.buy_pct!=null?c.buy_pct.toFixed(3):'—'}%</td></tr>
+          <tr><td>Sell Cost (STT)</td><td class="text-end">${c.sell_pct!=null?c.sell_pct.toFixed(3):'—'}%</td></tr>
+          <tr class="fw-bold"><td>Round-Trip</td><td class="text-end">${c.round_trip_pct!=null?c.round_trip_pct.toFixed(3):'—'}% (₹${c.round_trip_rupees!=null?c.round_trip_rupees.toFixed(0):'—'})</td></tr>
+          <tr style="color:var(--neutral)"><td>Breakeven Move</td><td class="text-end">${c.breakeven_pct!=null?c.breakeven_pct.toFixed(3):'—'}%</td></tr>
+        </table>
+        <div class="mini-label mb-1">POSITION SIZING METHOD</div>
+        <div class="badge bg-secondary mb-2">${p.method}</div>
+        <div class="edu-box">${p.explanation}</div>
+        <div class="help-box">
+          <h6><i class="bi bi-info-circle me-1"></i>Costs & Position Sizing Explained</h6>
+          <ul>
+            <li><strong class="term">Buy Cost (%):</strong> The brokerage + taxes you pay when buying shares (typically ~0.03–0.05% on Indian exchanges including brokerage, stamp duty, GST, exchange fees).</li>
+            <li><strong class="term">Sell Cost (STT):</strong> The charges when selling, including Securities Transaction Tax (STT). Selling is slightly more expensive than buying in India.</li>
+            <li><strong class="term">Round-Trip Cost:</strong> Total cost for one complete trade (buy + sell). This is the "toll" you must pay regardless of profit. Example: 0.1% round-trip on ₹1 lakh = ₹100 lost to fees.</li>
+            <li><strong class="mid">Breakeven Move:</strong> The stock must move at LEAST this much in your direction just to cover transaction costs. Any move smaller than this is a loss after fees. <span class="mid">This is why over-trading is expensive!</span></li>
+            <li><strong class="term">Position Sizing Method:</strong> How the system decides how many shares to buy. Common methods: "Kelly Criterion" (math-optimal sizing), "Fixed Risk" (always risk same % of portfolio), "Volatility Adjusted" (bigger positions in calm stocks, smaller in volatile ones).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderTransitions(r){
+  const t = r.transition;
+  const total = (t.to_bull+t.to_bear+t.to_sideways+t.to_high_vol)||1;
+  qs('#transitionPanel').innerHTML = `
+    <div class="card h-100">
+      <div class="card-header"><span class="section-title"><i class="bi bi-arrow-left-right me-1"></i>Regime Transition Probabilities</span></div>
+      <div class="card-body">
+        <div class="transition-bar mb-3">
+          <div style="width:${t.to_bull/total*100}%;background:var(--green-dim);color:var(--bull)">Bull ${(t.to_bull*100).toFixed(0)}%</div>
+          <div style="width:${t.to_bear/total*100}%;background:var(--red-dim);color:var(--bear)">Bear ${(t.to_bear*100).toFixed(0)}%</div>
+          <div style="width:${t.to_sideways/total*100}%;background:var(--blue-dim);color:var(--accent)">Side ${(t.to_sideways*100).toFixed(0)}%</div>
+          <div style="width:${t.to_high_vol/total*100}%;background:rgba(255,152,0,.15);color:#ff9800">Vol ${(t.to_high_vol*100).toFixed(0)}%</div>
+        </div>
+        <div class="text-center mb-2">
+          Most likely next: <strong style="color:var(--accent)">${t.most_likely_next}</strong>
+        </div>
+        <div class="edu-box">${t.explanation}</div>
+        <div class="help-box">
+          <h6><i class="bi bi-info-circle me-1"></i>What are Transition Probabilities?</h6>
+          <p style="margin:0 0 6px">Markets don't stay in one mood forever. This bar chart shows the <em>probability of what comes next</em>, based on historical patterns:</p>
+          <ul>
+            <li>The colored bar represents the likelihood of the market transitioning to each regime. For example, if Bull is 45%, there is a 45% chance the market moves into a bullish phase next.</li>
+            <li><strong class="term">Most Likely Next:</strong> The regime with the highest probability — this is where the market is most likely headed.</li>
+            <li><strong>Why it matters:</strong> If you are in a BULL regime but transition probabilities show 60% chance of BEAR next — that is an early warning signal to tighten stops or reduce exposure.</li>
+            <li>These probabilities are calculated from how the stock has historically behaved after similar regimes. Think of it as weather forecasting — "after sunny days in this city, there is usually a 30% chance of rain."</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderMicro(r){
+  const m = r.micro;
+  const flowColor = m.flow_proxy==='ACCUMULATION'?'var(--bull)':m.flow_proxy==='DISTRIBUTION'?'var(--bear)':'var(--neutral)';
+  const breadthColor = m.breadth==='BROAD_ADVANCE'?'var(--bull)':m.breadth==='BROAD_DECLINE'?'var(--bear)':'var(--neutral)';
+  qs('#microPanel').innerHTML = `
+    <div class="card h-100">
+      <div class="card-header"><span class="section-title"><i class="bi bi-microscope me-1"></i>Micro Regime</span></div>
+      <div class="card-body">
+        <div class="row text-center mb-3">
+          <div class="col-3">
+            <div class="stat-val">${m.trend_strength!=null?m.trend_strength.toFixed(0):'—'}</div>
+            <div class="stat-label">ADX Trend</div>
+          </div>
+          <div class="col-3">
+            <div class="stat-val" style="color:${m.vol_compression?'var(--accent3)':'rgba(255,255,255,.3)'}">${m.vol_compression?'YES':'NO'}</div>
+            <div class="stat-label">Squeeze</div>
+          </div>
+          <div class="col-3">
+            <div class="stat-val" style="color:${breadthColor}">${m.breadth.replace(/_/g,' ')}</div>
+            <div class="stat-label">Breadth</div>
+          </div>
+          <div class="col-3">
+            <div class="stat-val" style="color:${flowColor}">${m.flow_proxy}</div>
+            <div class="stat-label">Flow</div>
+          </div>
+        </div>
+        <div class="edu-box">${m.explanation}</div>
+        <div class="help-box">
+          <h6><i class="bi bi-info-circle me-1"></i>Micro Regime — Short-Term Market Clues</h6>
+          <p style="margin:0 0 6px">While the Market Regime above shows the big-picture trend, the Micro Regime zooms in on <em>right now</em> — what is happening in the last few days:</p>
+          <ul>
+            <li><strong class="term">ADX Trend Strength (0–100):</strong> ADX measures how strong the current trend is — regardless of direction. <span class="good">Above 25 = a strong trend is underway</span>. Below 20 = the stock is moving sideways with no clear trend. ADX does NOT tell you which direction — just how strong.</li>
+            <li><strong class="mid">Squeeze (YES/NO):</strong> A \"volatility squeeze\" means the stock's price range has been <em>unusually compressed</em> — like a coiled spring. When a squeeze is detected, a <strong>big move is likely coming soon</strong> (though which direction is uncertain). Think of it as calm before the storm.</li>
+            <li><strong class="term">Breadth:</strong> Whether the move involves broad participation. <span class="good">BROAD ADVANCE = many signals agree on upward movement</span>. <span class="bad">BROAD DECLINE = widespread selling pressure</span>. MIXED = no consensus.</li>
+            <li><strong class="term">Flow (<span class="good">ACCUMULATION</span> / <span class="bad">DISTRIBUTION</span> / <span class="mid">NEUTRAL</span>):</strong> Are big players (institutions) quietly buying or selling? <span class="good">Accumulation = smart money is buying</span> (bullish sign even if price is flat). <span class="bad">Distribution = smart money is selling</span> (bearish sign even if price looks fine). This is detected through volume-price analysis.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>

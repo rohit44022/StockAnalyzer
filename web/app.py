@@ -47,6 +47,7 @@ from web.pa_routes import pa_bp
 from web.triple_routes import triple_bp
 from web.vince_routes import vince_bp
 from web.mental_game_routes import mental_game_bp
+from web.rentech_routes import rentech_bp
 from mental_game.db import init_mental_game_db as _init_mental_game_db
 
 app = Flask(__name__)
@@ -57,6 +58,7 @@ app.register_blueprint(pa_bp)
 app.register_blueprint(triple_bp)
 app.register_blueprint(vince_bp)
 app.register_blueprint(mental_game_bp)
+app.register_blueprint(rentech_bp)
 
 # Ensure DBs exist
 _init_trade_db()

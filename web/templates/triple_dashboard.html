@@ -3587,9 +3587,31 @@ function renderPADetails(d){
             <div class="mini-label">Sell Pressure</div>
             <div class="indicator-val bear">${fmt(pa.selling_pressure,1)}%</div>
           </div>
+          ${(pa.ema_gap_bar_count||0) > 0 ? `<div class="col-auto text-center">
+            <div class="mini-label">EMA Gap Bars</div>
+            <div class="indicator-val ${(pa.ema_gap_bar_count||0)>=20?'bull':''}">
+              ${pa.ema_gap_bar_count}${(pa.ema_gap_bar_count||0)>=20?' ⚡':''}
+            </div>
+            ${(pa.ema_gap_bar_count||0)>=20?'<div class="mini-label bull">Sign of Strength</div>':''}
+          </div>` : ''}
+          ${pa.gap_bar_setup ? `<div class="col-auto text-center">
+            <div class="mini-label">Gap Bar Setup</div>
+            <div class="indicator-val bull">ACTIVE ⚡</div>
+            <div class="mini-label">Pullback Entry</div>
+          </div>` : ''}
+          ${pa.two_leg_complete ? `<div class="col-auto text-center">
+            <div class="mini-label">Two-Leg</div>
+            <div class="indicator-val acc">COMPLETE</div>
+            ${pa.measured_move_target ? '<div class="mini-label">Target: '+fmt(pa.measured_move_target,2)+'</div>' : ''}
+          </div>` : ''}
         </div>
         ${entryHtml ? '<div class="row g-3 mb-3">'+entryHtml+'</div>' : ''}
-        ${pa.active_patterns && pa.active_patterns.length ? '<div class="mb-2"><span class="mini-label">Active Patterns:</span> '+pa.active_patterns.map(p=>'<span class="badge bg-secondary me-1">'+p+'</span>').join('')+'</div>' : ''}
+        ${pa.active_patterns && pa.active_patterns.length ? '<div class="mb-2"><span class="mini-label">Active Patterns:</span> '+pa.active_patterns.map(function(p){
+          const labels={'TWO_BAR_BULL_REV':'🔄 Two-Bar Bull Rev','TWO_BAR_BEAR_REV':'🔄 Two-Bar Bear Rev','BARBWIRE':'⚠️ BARBWIRE','WEDGE_BULL':'📐 Bull Wedge','WEDGE_BEAR':'📐 Bear Wedge','DB_BULL_FLAG':'📈 DB Bull Flag','DT_BEAR_FLAG':'📉 DT Bear Flag','EXPANDING_TRIANGLE':'🔷 Exp Triangle'};
+          const lbl=labels[p]||p.replace(/_/g,' ');
+          const cls=p==='BARBWIRE'?'badge bg-danger me-1':'badge bg-secondary me-1';
+          return '<span class="'+cls+'">'+lbl+'</span>';
+        }).join('')+'</div>' : ''}
         ${pa.al_brooks_context ? '<div class="obs-card" style="border-left-color:var(--accent3)">'+pa.al_brooks_context+'</div>' : ''}
         ${(pa.reasons||[]).slice(0,6).map(r=>'<div style="font-size:.82rem;padding:2px 0">'+r+'</div>').join('')}
       </div>

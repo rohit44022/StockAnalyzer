@@ -14,6 +14,11 @@ from bb_squeeze.config import (
     VOLUME_SMA_PERIOD,
     CMF_PERIOD,
     MFI_PERIOD,
+    II_NORM_PERIOD, AD_NORM_PERIOD,
+    VWMACD_FAST, VWMACD_SLOW, VWMACD_SIGNAL,
+    EXPANSION_LOOKBACK,
+    NORM_RSI_PERIOD, NORM_RSI_BB_LEN, NORM_RSI_BB_STD,
+    NORM_MFI_BB_LEN, NORM_MFI_BB_STD,
 )
 
 
@@ -219,19 +224,200 @@ def money_flow_index(high: pd.Series, low: pd.Series,
 
 
 # ═══════════════════════════════════════════════════════════════
+# GROUP D — INTRADAY INTENSITY (II) — Book Ch.18 Table 18.3
+# II = (2*Close − High − Low) / (High − Low) × Volume
+# II% = normalised oscillator (Table 18.4)
+# ═══════════════════════════════════════════════════════════════
+
+def intraday_intensity(high: pd.Series, low: pd.Series,
+                       close: pd.Series, volume: pd.Series) -> pd.Series:
+    """
+    Intraday Intensity (open form) — Book Ch.18 Table 18.3.
+    Measures intraperiod money flow based on where the close falls
+    within the high-low range, weighted by volume.
+    """
+    hl_range = (high - low).replace(0, np.nan)
+    ii = ((2.0 * close - high - low) / hl_range) * volume
+    return ii.fillna(0.0).rename("II")
+
+
+def intraday_intensity_pct(ii: pd.Series, volume: pd.Series,
+                           period: int = II_NORM_PERIOD) -> pd.Series:
+    """
+    II% — Normalised Intraday Intensity oscillator (Table 18.4).
+    II% = sum(II, period) / sum(Volume, period)
+    Positive = accumulation. Negative = distribution.
+    Used in Method III buy rule: %b < 0.05 AND II% > 0.
+    """
+    vol_sum = volume.rolling(window=period).sum().replace(0, np.nan)
+    ii_pct = ii.rolling(window=period).sum() / vol_sum
+    return ii_pct.fillna(0.0).rename("II_Pct")
+
+
+# ═══════════════════════════════════════════════════════════════
+# GROUP D — ACCUMULATION DISTRIBUTION (AD) — Book Ch.18 Table 18.3
+# AD = (Close − Open) / (High − Low) × Volume
+# AD% = normalised oscillator (Table 18.4)
+# ═══════════════════════════════════════════════════════════════
+
+def accumulation_distribution(high: pd.Series, low: pd.Series,
+                              close: pd.Series, open_price: pd.Series,
+                              volume: pd.Series) -> pd.Series:
+    """
+    Accumulation Distribution (open form) — Book Ch.18 Table 18.3.
+    Uses the open-to-close relationship (requires Open data).
+    Positive when close > open (buying). Negative when close < open.
+    """
+    hl_range = (high - low).replace(0, np.nan)
+    ad = ((close - open_price) / hl_range) * volume
+    return ad.fillna(0.0).rename("AD")
+
+
+def accumulation_distribution_pct(ad: pd.Series, volume: pd.Series,
+                                  period: int = AD_NORM_PERIOD) -> pd.Series:
+    """
+    AD% — Normalised Accumulation Distribution oscillator (Table 18.4).
+    AD% = sum(AD, period) / sum(Volume, period)
+    Used in Method III sell rule: %b > 0.95 AND AD% < 0.
+    """
+    vol_sum = volume.rolling(window=period).sum().replace(0, np.nan)
+    ad_pct = ad.rolling(window=period).sum() / vol_sum
+    return ad_pct.fillna(0.0).rename("AD_Pct")
+
+
+# ═══════════════════════════════════════════════════════════════
+# GROUP D — VOLUME-WEIGHTED MACD (VWMACD) — Book Ch.18 Table 18.3
+# VWMACD = 12-period VW avg of last − 26-period VW avg of last
+# Signal = 9-period EMA of VWMACD
+# ═══════════════════════════════════════════════════════════════
+
+def _volume_weighted_avg(close: pd.Series, volume: pd.Series,
+                         period: int) -> pd.Series:
+    """n-day volume-weighted average = sum(close × volume, n) / sum(volume, n)."""
+    cv = (close * volume).rolling(window=period).sum()
+    v  = volume.rolling(window=period).sum().replace(0, np.nan)
+    return cv / v
+
+
+def volume_weighted_macd(close: pd.Series, volume: pd.Series,
+                         fast: int = VWMACD_FAST,
+                         slow: int = VWMACD_SLOW,
+                         signal_period: int = VWMACD_SIGNAL):
+    """
+    VWMACD — Book Ch.18 Table 18.3.
+    Closed-form volume indicator that acts like MACD but weights by volume.
+    Returns: vwmacd line, signal line, histogram.
+    """
+    vw_fast = _volume_weighted_avg(close, volume, fast)
+    vw_slow = _volume_weighted_avg(close, volume, slow)
+    vwmacd  = vw_fast - vw_slow
+    signal  = vwmacd.ewm(span=signal_period, adjust=False).mean()
+    hist    = vwmacd - signal
+    return (vwmacd.rename("VWMACD"),
+            signal.rename("VWMACD_Signal"),
+            hist.rename("VWMACD_Hist"))
+
+
+# ═══════════════════════════════════════════════════════════════
+# GROUP E — EXPANSION DETECTION — Book Ch.15 p.123
+# "When a powerful trend is born, volatility expands so much that
+#  the lower band turns down in an uptrend or the upper band turns
+#  up in a downtrend."  When the Expansion REVERSES → trend likely
+#  at an end.
+# ═══════════════════════════════════════════════════════════════
+
+def detect_expansion(upper: pd.Series, lower: pd.Series,
+                     close: pd.Series, mid: pd.Series,
+                     lookback: int = EXPANSION_LOOKBACK):
+    """
+    Detect Bollinger Band Expansion and its reversal.
+
+    Returns:
+      expansion_up   — True when lower band is falling while close > mid (uptrend Expansion)
+      expansion_down — True when upper band is rising while close < mid (downtrend Expansion)
+      expansion_end  — True when a prior Expansion reverses (end-of-trend warning)
+    """
+    lower_falling = lower.diff(lookback) < 0   # lower band turned down
+    upper_rising  = upper.diff(lookback) > 0   # upper band turned up
+    above_mid     = close > mid
+    below_mid     = close < mid
+
+    expansion_up   = lower_falling & above_mid
+    expansion_down = upper_rising  & below_mid
+
+    # Expansion reversal: was expanding, now contracting
+    prev_exp_up   = expansion_up.shift(1).fillna(False).astype(bool)
+    prev_exp_down = expansion_down.shift(1).fillna(False).astype(bool)
+    lower_recovering = lower.diff(lookback) >= 0
+    upper_recovering = upper.diff(lookback) <= 0
+
+    end_up   = prev_exp_up   & lower_recovering   # uptrend Expansion ending
+    end_down = prev_exp_down & upper_recovering   # downtrend Expansion ending
+    expansion_end = end_up | end_down
+
+    return (expansion_up.rename("Expansion_Up"),
+            expansion_down.rename("Expansion_Down"),
+            expansion_end.rename("Expansion_End"))
+
+
+# ═══════════════════════════════════════════════════════════════
+# GROUP E — RSI (for normalisation) — Wilder's formula
+# ═══════════════════════════════════════════════════════════════
+
+def rsi(close: pd.Series, period: int = NORM_RSI_PERIOD) -> pd.Series:
+    """RSI — Relative Strength Index (Wilder's smoothing)."""
+    delta = close.diff()
+    gain = delta.where(delta > 0, 0.0)
+    loss = (-delta).where(delta < 0, 0.0)
+    avg_gain = gain.ewm(alpha=1.0 / period, min_periods=period, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1.0 / period, min_periods=period, adjust=False).mean()
+    rs = avg_gain / avg_loss.replace(0, np.nan)
+    return (100.0 - (100.0 / (1.0 + rs))).fillna(50.0).rename("RSI")
+
+
+# ═══════════════════════════════════════════════════════════════
+# GROUP E — INDICATOR NORMALISATION — Book Ch.21 Table 21.1
+# Apply Bollinger Bands to indicators for adaptive OB/OS levels.
+# %b(indicator) = (indicator − ind_lower) / (ind_upper − ind_lower)
+# ═══════════════════════════════════════════════════════════════
+
+def normalize_indicator(indicator: pd.Series, bb_len: int,
+                        bb_std: float) -> pd.Series:
+    """
+    Normalise any indicator using Bollinger Bands (Book Ch.21 Table 21.2).
+    Returns %b of the indicator: 1.0 = at upper band (overbought),
+    0.0 = at lower band (oversold), adapts to current regime.
+    """
+    mid   = indicator.rolling(window=bb_len).mean()
+    sigma = indicator.rolling(window=bb_len).std(ddof=0)
+    upper = mid + bb_std * sigma
+    lower = mid - bb_std * sigma
+    band_range = (upper - lower).replace(0, np.nan)
+    return ((indicator - lower) / band_range).fillna(0.5)
+
+
+# ═══════════════════════════════════════════════════════════════
 # COMPOSITE INDICATOR CALCULATION
 # ═══════════════════════════════════════════════════════════════
 
 def compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Master function: calculates ALL 7 indicators for a stock DataFrame.
+    Master function: calculates ALL indicators for a stock DataFrame.
     Input df must have: Open, High, Low, Close, Volume columns.
     Returns enriched DataFrame with all indicator columns added.
+
+    Indicator groups (all per "Bollinger on Bollinger Bands"):
+      A — Bollinger Bands, %b, BandWidth, Squeeze, Parabolic SAR
+      B — Volume SMA
+      C — CMF, MFI  (existing)
+      D — II, II%, AD, AD%, VWMACD  (Book Ch.18 — NEW)
+      E — Expansion, RSI, Normalised RSI/MFI  (Book Ch.15, Ch.21 — NEW)
     """
     close  = df["Close"].astype(float)
     high   = df["High"].astype(float)
     low    = df["Low"].astype(float)
     volume = df["Volume"].astype(float)
+    open_price = df["Open"].astype(float) if "Open" in df.columns else close
 
     # ── Bollinger Bands ──
     mid, upper, lower = bollinger_bands(close)
@@ -263,5 +449,35 @@ def compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     # ── MFI ──
     df["MFI"] = money_flow_index(high, low, close, volume)
+
+    # ── Intraday Intensity (Book Ch.18 Table 18.3) ──
+    ii_raw = intraday_intensity(high, low, close, volume)
+    df["II"]     = ii_raw
+    df["II_Pct"] = intraday_intensity_pct(ii_raw, volume)
+
+    # ── Accumulation Distribution (Book Ch.18 Table 18.3) ──
+    ad_raw = accumulation_distribution(high, low, close, open_price, volume)
+    df["AD"]     = ad_raw
+    df["AD_Pct"] = accumulation_distribution_pct(ad_raw, volume)
+
+    # ── Volume-Weighted MACD (Book Ch.18 Table 18.3) ──
+    vwmacd_line, vwmacd_sig, vwmacd_hist = volume_weighted_macd(close, volume)
+    df["VWMACD"]        = vwmacd_line
+    df["VWMACD_Signal"] = vwmacd_sig
+    df["VWMACD_Hist"]   = vwmacd_hist
+
+    # ── Expansion Detection (Book Ch.15 p.123) ──
+    exp_up, exp_down, exp_end = detect_expansion(upper, lower, close, mid)
+    df["Expansion_Up"]   = exp_up
+    df["Expansion_Down"] = exp_down
+    df["Expansion_End"]  = exp_end
+
+    # ── RSI (for normalisation — Book Ch.21) ──
+    rsi_series = rsi(close)
+    df["RSI"] = rsi_series
+
+    # ── Normalised Indicators (Book Ch.21 Table 21.1) ──
+    df["RSI_Norm"] = normalize_indicator(rsi_series, NORM_RSI_BB_LEN, NORM_RSI_BB_STD)
+    df["MFI_Norm"] = normalize_indicator(df["MFI"], NORM_MFI_BB_LEN, NORM_MFI_BB_STD)
 
     return df

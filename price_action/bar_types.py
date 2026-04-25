@@ -308,6 +308,11 @@ def _detect_signal_bars(bars: List[BarAnalysis]) -> None:
             else:
                 bar.signal_quality = "WEAK"
 
+            # Brooks: countertrend signal bars need small body (indecision)
+            # Large body reversal bars are more likely traps
+            if bar.body_pct > C.REVERSAL_BAR_BODY_MAX and not bar.is_bull:
+                bar.signal_quality = "WEAK"
+
         # ── Bear Reversal Bar ──
         # After an up move: prominent upper tail, close in lower half
         elif (up_move or bull_count >= bear_count) and \
@@ -326,6 +331,10 @@ def _detect_signal_bars(bars: List[BarAnalysis]) -> None:
             elif bar.is_bear or bar.upper_tail_pct > 0.35:
                 bar.signal_quality = "MODERATE" if not excessive_overlap else "WEAK"
             else:
+                bar.signal_quality = "WEAK"
+
+            # Brooks: countertrend signal bars need small body
+            if bar.body_pct > C.REVERSAL_BAR_BODY_MAX and not bar.is_bear:
                 bar.signal_quality = "WEAK"
 
     # Rebuild descriptions for signal bars
@@ -399,6 +408,9 @@ def classify_bars(df: pd.DataFrame) -> List[BarAnalysis]:
     # Count bars in current directional move
     _count_bars_in_move(bars)
 
+    # Refine climax bars — Brooks: climax only counts when late in a trend
+    _refine_climax_bars(bars)
+
     return bars
 
 
@@ -419,6 +431,41 @@ def _count_bars_in_move(bars: List[BarAnalysis]) -> None:
             move_dir = current_dir
             count = 1
         bars[i].bars_in_current_move = count
+
+
+def _refine_climax_bars(bars: List[BarAnalysis]) -> None:
+    """
+    Refine climax detection using trend context.
+
+    Al Brooks: A climax bar is only meaningful when it occurs LATE in a trend
+    (after CLIMAX_MIN_BARS_IN_TREND bars in the current move). A large range
+    bar early in a move is a spike, not a climax.
+    """
+    if not bars:
+        return
+
+    for i, bar in enumerate(bars):
+        if not bar.is_climax_bar:
+            continue
+
+        # Count how many bars in the same direction preceded this bar
+        same_dir_count = 0
+        for j in range(i - 1, max(i - C.CLIMAX_LOOKBACK, -1), -1):
+            prev = bars[j]
+            if bar.is_bull and prev.is_bull:
+                same_dir_count += 1
+            elif bar.is_bear and prev.is_bear:
+                same_dir_count += 1
+            elif prev.is_doji:
+                same_dir_count += 1  # Dojis don't break the count
+            else:
+                break  # Opposite direction bar — stop
+
+        # Brooks: must be late in trend for true climax
+        if same_dir_count < C.CLIMAX_MIN_BARS_IN_TREND:
+            bar.is_climax_bar = False
+            bar.climax_direction = "NONE"
+            bar.description = _build_description(bar)
 
 
 # ─────────────────────────────────────────────────────────────────

@@ -410,6 +410,33 @@ nav a.active{color:var(--accent)!important;font-weight:600}
         </div>
 
         <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-twobar" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Two-Bar Reversal</button></h2>
+          <div id="g-twobar" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              A <strong style="color:var(--accent)">Two-Bar Reversal</strong> is one of Al Brooks' most fundamental reversal patterns. It consists of two consecutive bars that together show a shift in control.
+              <br><br><strong style="color:var(--bull)">Bull Two-Bar Reversal</strong> — A bear bar followed by a bull bar of similar or greater size. The bull bar closes above the midpoint of the bear bar, showing that buyers have taken over. Most reliable at or near a swing low.
+              <br><br><strong style="color:var(--bear)">Bear Two-Bar Reversal</strong> — A bull bar followed by a bear bar. The bear bar closes below the midpoint of the bull bar. Most reliable at or near a swing high.
+              <br><br><em>Why it works:</em> On a higher time frame, a two-bar reversal is simply a single reversal bar. It represents the same exhaustion-and-takeover dynamic compressed into two bars.
+              <br><br><strong>Entry:</strong> Buy above the high of the bull bar (for bull reversal), stop below the low of both bars. Sell below the low of the bear bar (for bear reversal), stop above the high of both bars.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
+          <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-barbwire" style="background:rgba(255,255,255,.03);color:#c9d1d9">
+            Barbwire (Stay Out Signal)</button></h2>
+          <div id="g-barbwire" class="accordion-collapse collapse">
+            <div class="accordion-body" style="font-size:.88rem;line-height:1.7;color:#8b949e">
+              <strong style="color:var(--bear)">Barbwire</strong> is Al Brooks' term for a series of overlapping bars with prominent tails, many dojis, and alternating bull/bear bodies. It indicates extreme choppiness where both bulls and bears are losing money.
+              <br><br><em>Key rule:</em> <strong>Do NOT trade in barbwire.</strong> It means the market is in a tight, messy trading range where stop losses get hit in both directions. The best trade is NO trade.
+              <br><br><em>How to recognize it:</em> Look for 5+ bars where most are dojis or have small bodies, there's heavy overlap between bars, and direction alternates frequently. It feels "choppy" and unpredictable.
+              <br><br><strong>What to do:</strong> Wait for a strong trend bar to break out of the barbwire. Until then, sit on your hands. When you see ⚠️ BARBWIRE in the active patterns, the system automatically reduces signal conviction.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" style="background:var(--card-bg);border-color:rgba(255,255,255,.06)">
           <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#g-wedge" style="background:rgba(255,255,255,.03);color:#c9d1d9">
             Wedge / Double Top / Double Bottom</button></h2>
           <div id="g-wedge" class="accordion-collapse collapse">
@@ -706,7 +733,14 @@ nav a.active{color:var(--accent)!important;font-weight:600}
               <span class="bear" id="pressureSellPct">50%</span>
             </div>
 
-            <div class="detail-row mt-2"><span class="field-label">Two-Leg Complete <i class="bi bi-question-circle info-icon" title="Has a two-leg measured move completed? Markets move in two legs (AB-CD). If YES, the move may be exhausted and a pullback or reversal is likely. Important for timing exits."></i></span><span id="tTwoLeg">—</span></div>
+            <div class="detail-row mt-2"><span class="field-label">EMA 20 <i class="bi bi-question-circle info-icon" title="The 20-period Exponential Moving Average — the most important MA in Al Brooks' method. Acts as dynamic support in uptrends and resistance in downtrends. Institutional traders watch this level closely."></i></span><span id="tEma20">—</span></div>
+            <div class="detail-row"><span class="field-label">Price vs EMA <i class="bi bi-question-circle info-icon" title="Is price currently above, below, or at the 20 EMA? ABOVE = bullish context. BELOW = bearish context. Price returning to EMA after gap = potential pullback entry."></i></span><span id="tPriceEma">—</span></div>
+            <div class="detail-row"><span class="field-label">Spike Active <i class="bi bi-question-circle info-icon" title="Is the market currently in a spike (explosive move)? Spikes are the strongest phase of a trend — large trend bars with little overlap. Most reliable entries happen at the start of spikes or on pullbacks after."></i></span><span id="tSpike">—</span></div>
+            <div class="detail-row"><span class="field-label">Recent Climax <i class="bi bi-question-circle info-icon" title="Has a climax bar appeared in the last 5 bars? Climax = extreme move late in a trend. Often signals exhaustion and a pending reversal. Be cautious of new with-trend entries after a climax."></i></span><span id="tClimax">—</span></div>
+            <div class="detail-row"><span class="field-label">Consecutive Trend Bars <i class="bi bi-question-circle info-icon" title="How many trend bars in a row in the same direction. Brooks: 3+ consecutive bull trend bars = strong buying conviction. The more consecutive bars, the more likely the trend continues."></i></span><span id="tConsec">—</span></div>
+            <div class="detail-row"><span class="field-label">EMA Gap Bars <i class="bi bi-question-circle info-icon" title="Consecutive bars where price doesn't touch the 20 EMA. Al Brooks: 20+ gap bars is a major sign of trend strength — the trend is so strong that even pullbacks don't reach the moving average."></i></span><span id="tGapBars">—</span></div>
+            <div class="detail-row"><span class="field-label">Gap Bar Setup <i class="bi bi-question-circle info-icon" title="First EMA touch after 20+ gap bars. Al Brooks considers this a HIGH-PROBABILITY pullback entry. The strong trend is finally pulling back to the mean — institutional traders step in here."></i></span><span id="tGapSetup">—</span></div>
+            <div class="detail-row"><span class="field-label">Two-Leg Complete <i class="bi bi-question-circle info-icon" title="Has a two-leg measured move completed? Markets move in two legs (AB-CD). If YES, the move may be exhausted and a pullback or reversal is likely. Important for timing exits."></i></span><span id="tTwoLeg">—</span></div>
             <div class="detail-row"><span class="field-label">Measured Target <i class="bi bi-question-circle info-icon" title="Price target from the measured move projection. If the first leg was ₹50, the second leg targets ₹50 from the pullback extreme. One of the most reliable price targets in Al Brooks' methodology."></i></span><span id="tMeasured">—</span></div>
           </div>
         </div>
@@ -717,6 +751,7 @@ nav a.active{color:var(--accent)!important;font-weight:600}
           <div class="card-body">
             <div class="card-desc">What patterns are currently active and how the last bar behaved. Active patterns are the building blocks of the setup — they explain WHY the signal was generated. See the glossary above for detailed explanations of each pattern.</div>
             <div class="detail-row"><span class="field-label">Last Bar <i class="bi bi-question-circle info-icon" title="Classification of the most recent bar. STRONG_BULL/BEAR_TREND = very directional (body >70%). MODERATE = medium conviction. DOJI = indecision (body <30%). Shows who won the last round of the buyer vs seller fight."></i></span><span id="pLastBar">—</span></div>
+            <div id="pBarDesc" style="font-size:.82rem;color:#8b949e;padding:4px 0 8px;display:none"></div>
             <div class="detail-row"><span class="field-label">Signal Bar? <i class="bi bi-question-circle info-icon" title="Is the last bar a valid signal bar? YES means it has the right characteristics to trigger a trade entry on the NEXT bar. Requirements: reversal tail, trend bar strength, or specific pattern completion."></i></span><span id="pSignalBar">—</span></div>
             <div class="detail-row"><span class="field-label">Breakout Mode <i class="bi bi-question-circle info-icon" title="Is the stock currently breaking out of a key level? ACTIVE means price has just broken above a high or below a low with conviction. Breakouts can lead to fast moves — or fail and reverse."></i></span><span id="pBreakout">—</span></div>
             <div class="detail-row"><span class="field-label">Last H Count <i class="bi bi-question-circle info-icon" title="In a bull trend pullback, how many times has price tried to go above the previous bar's high? H1 = first attempt (often fails). H2 = second attempt (highest probability entry). H4 = trend may be exhausted."></i></span><span id="pHCount">—</span></div>
@@ -724,6 +759,15 @@ nav a.active{color:var(--accent)!important;font-weight:600}
             <div class="detail-row"><span class="field-label">Channel Position <i class="bi bi-question-circle info-icon" title="Where is price within the current channel? TOP = near upper trend line (overbought zone). BOTTOM = near lower trend line (oversold zone). MIDDLE = no edge from position. Best BUY entries are near BOTTOM of bull channel."></i></span><span id="pChannel">—</span></div>
             <div class="mt-2 mini-label" title="Currently active Al Brooks patterns. Each pattern contributes to the final signal. Hover patterns for definitions in the glossary. Common patterns: H2 (second entry buy), L2 (second entry sell), ii/iii (inside bar compression), DB/DT (double bottom/top), WEDGE (three pushes).">Active Patterns <i class="bi bi-question-circle" style="font-size:.65rem;color:rgba(255,255,255,.25)"></i></div>
             <div id="pPatterns" class="mt-1">—</div>
+          </div>
+        </div>
+
+        <!-- Bar Breakdown (last 20 bars) -->
+        <div class="card mb-3" id="barBreakdownCard" style="display:none">
+          <div class="card-header py-2"><span class="section-title"><i class="bi bi-bar-chart-steps me-1 acc"></i> Bar Breakdown (Last 20 Bars)</span></div>
+          <div class="card-body">
+            <div class="card-desc">Al Brooks counts bull vs bear trend bars to determine who is winning. More bull trend bars = bullish pressure. More dojis = indecision. Climax bars = exhaustion. This is how institutions read the tape.</div>
+            <div id="barBreakdown"></div>
           </div>
         </div>
 
@@ -892,6 +936,51 @@ function renderResult(d) {
     document.getElementById('pressureBuyPct').textContent = bp.toFixed(0) + '% Buy';
     document.getElementById('pressureSellPct').textContent = sp.toFixed(0) + '% Sell';
 
+    // EMA20 & Price vs EMA
+    document.getElementById('tEma20').textContent = t.ema20 ? '₹' + t.ema20.toFixed(2) : '—';
+    const emaPos = t.price_vs_ema || 'AT';
+    const emaCls = emaPos === 'ABOVE' ? 'bull' : emaPos === 'BELOW' ? 'bear' : 'neutral';
+    document.getElementById('tPriceEma').innerHTML = '<span class="' + emaCls + '">' + emaPos + '</span>';
+
+    // Spike
+    if (t.in_spike) {
+        const spDir = t.spike_direction === 'BULL' ? 'bull' : 'bear';
+        document.getElementById('tSpike').innerHTML = '<span class="' + spDir + '">🔥 ' + t.spike_direction + ' SPIKE (' + (t.spike_bars||0) + ' bars, strength ' + (t.spike_strength||0).toFixed(0) + ')</span>';
+    } else {
+        document.getElementById('tSpike').innerHTML = '<span class="text-secondary">No</span>';
+    }
+
+    // Recent Climax
+    document.getElementById('tClimax').innerHTML = t.recent_climax
+        ? '<span class="bear">⚠ YES — Exhaustion Warning</span>'
+        : '<span class="text-secondary">No</span>';
+
+    // Consecutive trend bars
+    const bullCons = t.consecutive_bull_trend || 0;
+    const bearCons = t.consecutive_bear_trend || 0;
+    if (bullCons >= 3) {
+        document.getElementById('tConsec').innerHTML = '<span class="bull">' + bullCons + ' Bull ↑</span>';
+    } else if (bearCons >= 3) {
+        document.getElementById('tConsec').innerHTML = '<span class="bear">' + bearCons + ' Bear ↓</span>';
+    } else {
+        document.getElementById('tConsec').textContent = (bullCons || bearCons || 0) + (bullCons ? ' Bull' : bearCons ? ' Bear' : '');
+    }
+
+    // EMA Gap Bars & Gap Bar Setup (Brooks sign of strength)
+    const gapCount = t.ema_gap_bar_count || 0;
+    const gapEl = document.getElementById('tGapBars');
+    if (gapCount >= 20) {
+        gapEl.innerHTML = '<span class="bull">' + gapCount + ' ⚡ Sign of Strength</span>';
+    } else if (gapCount >= 10) {
+        gapEl.innerHTML = '<span class="acc">' + gapCount + '</span>';
+    } else {
+        gapEl.textContent = gapCount;
+    }
+    const gapSetup = t.gap_bar_setup || false;
+    document.getElementById('tGapSetup').innerHTML = gapSetup
+        ? '<span class="bull">ACTIVE ⚡ High-Probability Pullback Entry</span>'
+        : '<span class="text-secondary">No</span>';
+
     // Two-leg
     const tl = d.two_leg;
     document.getElementById('tTwoLeg').innerHTML = tl.complete ? '<span class="bull">YES ✓</span>' : '<span class="text-secondary">No</span>';
@@ -900,15 +989,62 @@ function renderResult(d) {
     // Patterns
     const lb = d.last_bar;
     document.getElementById('pLastBar').textContent = lb.type.replace(/_/g, ' ');
+    // Bar description (Brooks detailed description)
+    const descEl = document.getElementById('pBarDesc');
+    if (lb.description) {
+        descEl.textContent = lb.description;
+        descEl.style.display = 'block';
+    } else {
+        descEl.style.display = 'none';
+    }
     document.getElementById('pSignalBar').innerHTML = lb.is_signal ? '<span class="acc">YES ✓</span>' : 'No';
+
+    // Bar Breakdown (last 20 bars)
+    const bs = (d.summaries && d.summaries.bar) ? d.summaries.bar : null;
+    const bbCard = document.getElementById('barBreakdownCard');
+    if (bs && bs.lookback) {
+        bbCard.style.display = 'block';
+        const domCls = bs.trend_dominance === 'BULL' ? 'bull' : bs.trend_dominance === 'BEAR' ? 'bear' : 'neutral';
+        document.getElementById('barBreakdown').innerHTML =
+            '<div class="row g-2 text-center mb-2">' +
+            '<div class="col"><div class="mini-label">Dominance</div><div class="indicator-val ' + domCls + '" style="font-size:1rem">' + bs.trend_dominance + '</div></div>' +
+            '<div class="col"><div class="mini-label">Bull Trend</div><div class="indicator-val bull" style="font-size:1rem">' + bs.bull_trend_bars + ' (' + bs.bull_pct + '%)</div></div>' +
+            '<div class="col"><div class="mini-label">Bear Trend</div><div class="indicator-val bear" style="font-size:1rem">' + bs.bear_trend_bars + ' (' + bs.bear_pct + '%)</div></div>' +
+            '<div class="col"><div class="mini-label">Dojis</div><div class="indicator-val neutral" style="font-size:1rem">' + bs.doji_bars + ' (' + bs.doji_pct + '%)</div></div>' +
+            '</div>' +
+            '<div class="row g-2 text-center">' +
+            '<div class="col"><div class="mini-label">Strong Bull</div><div style="font-size:.95rem" class="bull">' + (bs.strong_bull_bars||0) + '</div></div>' +
+            '<div class="col"><div class="mini-label">Strong Bear</div><div style="font-size:.95rem" class="bear">' + (bs.strong_bear_bars||0) + '</div></div>' +
+            '<div class="col"><div class="mini-label">Inside</div><div style="font-size:.95rem">' + (bs.inside_bars||0) + '</div></div>' +
+            '<div class="col"><div class="mini-label">Outside</div><div style="font-size:.95rem">' + (bs.outside_bars||0) + '</div></div>' +
+            '<div class="col"><div class="mini-label">Signal</div><div style="font-size:.95rem" class="acc">' + (bs.signal_bars||0) + '</div></div>' +
+            '<div class="col"><div class="mini-label">Climax</div><div style="font-size:.95rem" class="bear">' + (bs.climax_bars||0) + '</div></div>' +
+            '</div>';
+    } else {
+        bbCard.style.display = 'none';
+    }
     document.getElementById('pBreakout').innerHTML = p.breakout_mode ? '<span class="acc">ACTIVE ⚡</span>' : 'No';
     document.getElementById('pHCount').textContent = p.last_h || '—';
     document.getElementById('pLCount').textContent = p.last_l || '—';
     document.getElementById('pChannel').textContent = d.channel.price_position.replace(/_/g, ' ');
 
     const patsEl = document.getElementById('pPatterns');
+    const patternLabels = {
+        'TWO_BAR_BULL_REV': '🔄 Two-Bar Bull Reversal',
+        'TWO_BAR_BEAR_REV': '🔄 Two-Bar Bear Reversal',
+        'BARBWIRE': '⚠️ BARBWIRE (Stay Out)',
+        'WEDGE_BULL': '📐 Bull Wedge (3-Push)',
+        'WEDGE_BEAR': '📐 Bear Wedge (3-Push)',
+        'DB_BULL_FLAG': '📈 Double Bottom Bull Flag',
+        'DT_BEAR_FLAG': '📉 Double Top Bear Flag',
+        'EXPANDING_TRIANGLE': '🔷 Expanding Triangle',
+    };
     if (p.active && p.active.length) {
-        patsEl.innerHTML = p.active.map(n => '<span class="pattern-pill">' + n + '</span>').join('');
+        patsEl.innerHTML = p.active.map(n => {
+            const label = patternLabels[n] || n.replace(/_/g, ' ');
+            const cls = n === 'BARBWIRE' ? 'pattern-pill" style="background:rgba(255,23,68,.2);color:var(--bear)' : 'pattern-pill';
+            return '<span class="' + cls + '">' + label + '</span>';
+        }).join('');
     } else {
         patsEl.innerHTML = '<span class="text-secondary small">None active</span>';
     }

@@ -14,8 +14,8 @@ All parameters sourced from: "Bollinger on Bollinger Bands" by John Bollinger
 # %b thresholds for Method II signals
 M2_PCT_B_BUY_THRESHOLD  = 0.8     # %b > 0.8 → price in upper zone
 M2_PCT_B_SELL_THRESHOLD = 0.2     # %b < 0.2 → price in lower zone
-M2_MFI_CONFIRM_BUY      = 60      # MFI must confirm with > 60
-M2_MFI_CONFIRM_SELL      = 40      # MFI must confirm with < 40
+M2_MFI_CONFIRM_BUY      = 80      # MFI must confirm with > 80 (Book Ch.19 p.155)
+M2_MFI_CONFIRM_SELL      = 20      # MFI must confirm with < 20 (Book Ch.19 p.155)
 M2_MFI_DIVERGE_LOOKBACK  = 10     # Bars to look back for divergence
 
 # Volume confirmation
@@ -55,6 +55,24 @@ M4_WALK_TOUCH_TOLERANCE = 0.005  # Price within 0.5% of band = "touch"
 M4_WALK_PCT_B_UPPER     = 0.85   # Walking upper: %b consistently > 0.85
 M4_WALK_PCT_B_LOWER     = 0.15   # Walking lower: %b consistently < 0.15
 M4_WALK_BB_MID_PULLBACK = True   # Allow pullback to middle band during walk
+
+# ─────────────────────────────────────────────────────────────────
+#  THREE PUSHES TO A HIGH — Book Ch.13 p.108
+#  "First push outside upper band. Second push makes new high and
+#   touches band. Third push may make marginal new high but FAILS
+#   to tag the band. Volume diminishes steadily."
+# ─────────────────────────────────────────────────────────────────
+M3_PUSH_LOOKBACK       = 40    # Bars to scan for three-push pattern
+M3_PUSH_MIN_SEPARATION = 3     # Min bars between successive highs
+M3_PUSH_MAX_SEPARATION = 15    # Max bars between successive highs
+
+# ─────────────────────────────────────────────────────────────────
+#  METHOD III ENTRY/EXIT DISCIPLINE — Book Ch.12 p.102, Ch.20 p.165
+#  Buy on rally day with > average range AND > average volume.
+#  Stop beneath the most recent low (right side of W).
+# ─────────────────────────────────────────────────────────────────
+M3_ENTRY_RANGE_LOOKBACK  = 20   # Bars to compute average range
+M3_ENTRY_VOLUME_LOOKBACK = 50   # Bars to compute average volume
 
 # ─────────────────────────────────────────────────────────────────
 #  DISPLAY

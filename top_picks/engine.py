@@ -165,18 +165,42 @@ def find_top_picks(
         qualified, method, signal_filter, capital, progress_callback
     )
 
-    # ── Stage 5: Rank and select top N ──────────────────────────
+    # ── Stage 5: Strict method-specific checklist filter ────────
+    # Only keep stocks where ALL conditions for the method are met.
+    # For M1: check bb_conditions (5 buy conditions)
+    # For M2/M3/M4: check the strategy's buy_checklist or sell_checklist
+    def _all_conditions_met(pick):
+        if method == "M1":
+            conds = pick.get("bb_conditions", {})
+            return all(conds.get(k, False) for k in [
+                "squeeze", "price_breakout", "volume_confirm",
+                "cmf_positive", "mfi_above_50",
+            ])
+        else:
+            strats = pick.get("bb_strategies", [])
+            method_strat = next((s for s in strats if s.get("code") == method), None)
+            if not method_strat:
+                return False
+            ind = method_strat.get("indicators", {})
+            checklist_key = "buy_checklist" if signal_filter == "BUY" else "sell_checklist"
+            checklist = ind.get(checklist_key, [])
+            if not checklist:
+                return False
+            return all(item.get("ok", False) for item in checklist)
+
     scored.sort(key=lambda x: x["composite_score"], reverse=True)
 
     # Apply minimum score threshold
-    good_picks = [
+    above_min = [
         p for p in scored if p["composite_score"] >= MIN_COMPOSITE_SCORE
     ]
 
-    # Take top N
-    top = good_picks[:TOP_N]
+    # Strict filter: ALL method conditions must be met — no exceptions
+    strict_picks = [p for p in above_min if _all_conditions_met(p)]
 
-    # Add rank numbers (1st, 2nd, 3rd, etc.)
+    # ── Stage 6: Rank and select top N ──────────────────────────
+    top = strict_picks[:TOP_N]
+
     for i, pick in enumerate(top):
         pick["rank"] = i + 1
 
@@ -187,7 +211,11 @@ def find_top_picks(
         "total_signals": total_signals,
         "total_qualified": total_qualified,
         "total_analyzed": len(scored),
+        "total_strict": len(strict_picks),
         "picks": top,
+        "message": f"Showing {len(top)} stocks with ALL {method} {signal_filter} conditions strictly met."
+                   if top
+                   else f"No stocks met ALL {method} {signal_filter} conditions strictly. 0 out of {len(scored)} analyzed stocks passed.",
     }
 
 
@@ -529,16 +557,33 @@ def _deep_analyze_stock(
             "bb_squeeze_days": bb_data.get("squeeze_days", 0),
             "bb_direction_lean": bb_data.get("direction_lean", ""),
 
+            # ── BB Indicators (from hybrid_engine bb_data) ──
+            "bb_indicators": bb_data.get("indicators", {}),
+            "bb_conditions": bb_data.get("conditions", {}),
+            "bb_exit_signals": bb_data.get("exit_signals", {}),
+            "bb_short_signal": bb_data.get("short_signal", False),
+            "bb_short_conditions": bb_data.get("short_conditions", {}),
+            "bb_summary": bb_data.get("summary", ""),
+            "bb_action_message": bb_data.get("action_message", ""),
+
+            # ── BB Strategy Results (M2/M3/M4 from run_all_strategies) ──
+            "bb_strategies": triple.get("bb_strategies", []),
+
             # ── TA Data ──
             "ta_verdict": ta_signal.get("verdict", "HOLD"),
             "ta_score": _safe(ta_signal.get("score", 0)),
             "ta_categories": category_summary,
             "ta_action_items": action_items[:5],  # Top 5 action items
 
-            # ── Triple Conviction Data ──
+            # ── Triple Conviction Data (from _generate_triple_verdict) ──
             "triple_verdict": tv.get("verdict", "UNKNOWN"),
+            "triple_emoji": tv.get("emoji", ""),
+            "triple_color": tv.get("color", "neutral"),
             "triple_combined_score": _safe(tv.get("score", 0)),
+            "triple_max_score": tv.get("max_score", 425),
             "triple_confidence": _safe(tv.get("confidence", 0)),
+            "triple_conviction_text": tv.get("conviction_text", ""),
+            "triple_alignment": tv.get("alignment", ""),
             "triple_bb_total": _safe(triple.get("bb_score", {}).get("total", 0)),
             "triple_ta_total": _safe(triple.get("ta_score", {}).get("total", 0)),
             "triple_pa_total": _safe(triple.get("pa_score", {}).get("total", 0)),

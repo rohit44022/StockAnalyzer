@@ -156,6 +156,22 @@ def _signal_dict(sig):
         "exit_sar_flip":    sig.exit_sar_flip,
         "exit_lower_band":  sig.exit_lower_band_tag,
         "exit_double_neg":  sig.exit_double_neg,
+        # ── New Book Indicators (Ch.15, 18, 21) ──
+        "ii_pct":           _safe(sig.ii_pct, 4),
+        "ad_pct":           _safe(sig.ad_pct, 4),
+        "vwmacd_hist":      _safe(sig.vwmacd_hist, 4),
+        "expansion_up":     sig.expansion_up,
+        "expansion_down":   sig.expansion_down,
+        "expansion_end":    sig.expansion_end,
+        "rsi_norm":         _safe(sig.rsi_norm, 3),
+        "mfi_norm":         _safe(sig.mfi_norm, 3),
+        # ── Method I Short-Side (Ch.16) ──
+        "short_signal":         sig.short_signal,
+        "cond_short_squeeze":   sig.cond_short_squeeze,
+        "cond_short_price":     sig.cond_short_price,
+        "cond_short_volume":    sig.cond_short_volume,
+        "cond_short_ii_neg":    sig.cond_short_ii_neg,
+        "cond_short_mfi_low":   sig.cond_short_mfi_low,
     }
 
 

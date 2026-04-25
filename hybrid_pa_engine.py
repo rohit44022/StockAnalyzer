@@ -127,6 +127,9 @@ def _score_bb_method_1(bb_signal) -> dict:
     if bb_signal.buy_signal:
         score += 30
         details.append(f"✅ BUY SIGNAL — All 5 conditions met (Confidence: {bb_signal.confidence}%)")
+    elif bb_signal.short_signal:
+        score -= 30
+        details.append(f"🔴 SHORT SIGNAL — All 5 short conditions met (Confidence: {bb_signal.confidence}%)")
     elif bb_signal.head_fake:
         score -= 20
         details.append("❌ HEAD FAKE — breakout is likely false")
@@ -154,6 +157,17 @@ def _score_bb_method_1(bb_signal) -> dict:
     if bb_signal.cond5_mfi_above_50:
         score += 2
         details.append("✅ MFI > 50")
+
+    # Short-side condition bonuses (symmetric with buy conditions)
+    if hasattr(bb_signal, 'cond_short_price') and bb_signal.cond_short_price:
+        score -= 5
+        details.append("🔴 Price below lower BB")
+    if hasattr(bb_signal, 'cond_short_ii_neg') and bb_signal.cond_short_ii_neg:
+        score -= 2
+        details.append("🔴 II% negative (distribution)")
+    if hasattr(bb_signal, 'cond_short_mfi_low') and bb_signal.cond_short_mfi_low:
+        score -= 2
+        details.append("🔴 MFI < 50 (weak money flow)")
 
     if bb_signal.exit_sar_flip:
         score -= 10
@@ -307,6 +321,10 @@ def _score_pa(pa_result: PriceActionResult) -> dict:
         details.append("⚡ BREAKOUT MODE (inside bar / ii / iii pattern)")
     if pa_result.in_breakout:
         details.append(f"🔥 Active breakout: {pa_result.breakout_direction}")
+    if hasattr(pa_result, 'gap_bar_setup') and pa_result.gap_bar_setup:
+        details.append("⚡ MA Gap Bar Setup — first EMA touch after 20+ gap bars (Brooks)")
+    if "BARBWIRE" in (pa_result.active_patterns or []):
+        details.append("⚠️ BARBWIRE — choppy action, stay out per Brooks")
 
     return {
         "total": round(pa_total, 1),
@@ -894,6 +912,7 @@ def run_triple_analysis(
         "confidence": bb_signal.confidence,
         "direction_lean": bb_signal.direction_lean,
         "summary": bb_signal.summary,
+        "action_message": bb_signal.action_message,
         "indicators": {
             "price": _safe(bb_signal.current_price),
             "bb_upper": _safe(bb_signal.bb_upper),
@@ -905,6 +924,16 @@ def run_triple_analysis(
             "sar_bull": bb_signal.sar_bull,
             "cmf": _safe(bb_signal.cmf),
             "mfi": _safe(bb_signal.mfi),
+            "volume": _safe(bb_signal.volume),
+            "vol_sma50": _safe(bb_signal.vol_sma50),
+            "ii_pct": _safe(bb_signal.ii_pct),
+            "ad_pct": _safe(bb_signal.ad_pct),
+            "vwmacd_hist": _safe(bb_signal.vwmacd_hist),
+            "rsi_norm": _safe(bb_signal.rsi_norm),
+            "mfi_norm": _safe(bb_signal.mfi_norm),
+            "expansion_up": bb_signal.expansion_up,
+            "expansion_down": bb_signal.expansion_down,
+            "expansion_end": bb_signal.expansion_end,
         },
         "conditions": {
             "squeeze": bb_signal.cond1_squeeze_on,
@@ -917,7 +946,17 @@ def run_triple_analysis(
             "sar_flip": bb_signal.exit_sar_flip,
             "lower_band_tag": bb_signal.exit_lower_band_tag,
             "double_negative": bb_signal.exit_double_neg,
+            "expansion_end": bb_signal.expansion_end,
         },
+        "short_signal": bb_signal.short_signal,
+        "short_conditions": {
+            "squeeze": bb_signal.cond_short_squeeze,
+            "price_below": bb_signal.cond_short_price,
+            "volume_confirm": bb_signal.cond_short_volume,
+            "ii_negative": bb_signal.cond_short_ii_neg,
+            "mfi_low": bb_signal.cond_short_mfi_low,
+        },
+        "stop_loss": _safe(bb_signal.stop_loss),
     }
 
     # ══════════════════════════════════════════════════════════
@@ -948,6 +987,19 @@ def run_triple_analysis(
         "risk_reward": _safe(pa_result.risk_reward),
         "two_leg_complete": pa_result.two_leg_complete,
         "measured_move_target": _safe(pa_result.measured_move_target),
+        "ema_gap_bar_count": pa_result.ema_gap_bar_count,
+        "gap_bar_setup": pa_result.gap_bar_setup,
+        "in_spike": pa_result.in_spike,
+        "spike_direction": pa_result.spike_direction,
+        "spike_bars": pa_result.spike_bars,
+        "spike_strength": _safe(pa_result.spike_strength),
+        "recent_climax": pa_result.recent_climax,
+        "consecutive_bull_trend": pa_result.consecutive_bull_trend,
+        "consecutive_bear_trend": pa_result.consecutive_bear_trend,
+        "price_vs_ema": pa_result.price_vs_ema,
+        "ema20": _safe(pa_result.ema20),
+        "trend_strength": _safe(pa_result.trend_strength),
+        "last_bar_description": pa_result.last_bar_description,
         "bar_summary": _safe_json(pa_result.bar_summary_data) if isinstance(pa_result.bar_summary_data, dict) else {},
         "al_brooks_context": pa_result.al_brooks_context,
         "reasons": pa_result.reasons[:10],

@@ -114,6 +114,22 @@ def _signal_dict(sig):
         "stop_loss": _s(sig.stop_loss),
         "summary": sig.summary,
         "action_message": sig.action_message,
+        # ── New Book Indicators (Ch.15, 18, 21) ──
+        "ii_pct": _s(sig.ii_pct, 4),
+        "ad_pct": _s(sig.ad_pct, 4),
+        "vwmacd_hist": _s(sig.vwmacd_hist, 4),
+        "expansion_up": sig.expansion_up,
+        "expansion_down": sig.expansion_down,
+        "expansion_end": sig.expansion_end,
+        "rsi_norm": _s(sig.rsi_norm, 3),
+        "mfi_norm": _s(sig.mfi_norm, 3),
+        # ── Method I Short-Side (Ch.16) ──
+        "short_signal": sig.short_signal,
+        "cond_short_squeeze": sig.cond_short_squeeze,
+        "cond_short_price": sig.cond_short_price,
+        "cond_short_volume": sig.cond_short_volume,
+        "cond_short_ii_neg": sig.cond_short_ii_neg,
+        "cond_short_mfi_low": sig.cond_short_mfi_low,
     }
 
 

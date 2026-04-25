@@ -67,6 +67,46 @@ MFI_OVERSOLD    = 20    # NOT 30 — as specified in the strategy
 MFI_MID         = 50    # Breakout fuel check midline
 
 # ─────────────────────────────────────────────────────────────────
+#  INTRADAY INTENSITY (II) — Book Ch.18 Table 18.3
+#  II = (2*Close - High - Low) / (High - Low) * Volume
+#  II% = 21-day normalised oscillator (Table 18.4)
+# ─────────────────────────────────────────────────────────────────
+II_NORM_PERIOD = 21    # Normalisation period for II% oscillator
+
+# ─────────────────────────────────────────────────────────────────
+#  ACCUMULATION DISTRIBUTION (AD) — Book Ch.18 Table 18.3
+#  AD = (Close - Open) / (High - Low) * Volume
+#  AD% = 21-day normalised oscillator (Table 18.4)
+# ─────────────────────────────────────────────────────────────────
+AD_NORM_PERIOD = 21    # Normalisation period for AD% oscillator
+
+# ─────────────────────────────────────────────────────────────────
+#  VOLUME-WEIGHTED MACD (VWMACD) — Book Ch.18 Table 18.3
+#  VWMACD = 12-period VW avg − 26-period VW avg
+#  Signal = 9-period EMA of VWMACD
+# ─────────────────────────────────────────────────────────────────
+VWMACD_FAST   = 12
+VWMACD_SLOW   = 26
+VWMACD_SIGNAL = 9
+
+# ─────────────────────────────────────────────────────────────────
+#  EXPANSION DETECTION — Book Ch.15 p.123
+#  "When a powerful trend is born, volatility expands so much that
+#   the lower band turns down in an uptrend." Reverse = end of trend.
+# ─────────────────────────────────────────────────────────────────
+EXPANSION_LOOKBACK = 5    # Bars to check band direction
+
+# ─────────────────────────────────────────────────────────────────
+#  INDICATOR NORMALISATION — Book Ch.21 Table 21.1
+#  Apply Bollinger Bands to indicators for adaptive OB/OS levels.
+# ─────────────────────────────────────────────────────────────────
+NORM_RSI_PERIOD    = 14   # RSI calculation period
+NORM_RSI_BB_LEN    = 50   # BB length on 14-period RSI (Table 21.1)
+NORM_RSI_BB_STD    = 2.1  # BB width on 14-period RSI (Table 21.1)
+NORM_MFI_BB_LEN    = 40   # BB length on 10-period MFI (Table 21.1)
+NORM_MFI_BB_STD    = 2.0  # BB width on 10-period MFI (Table 21.1)
+
+# ─────────────────────────────────────────────────────────────────
 #  DATA SETTINGS
 # ─────────────────────────────────────────────────────────────────
 HISTORY_START  = "2020-01-01"

@@ -676,8 +676,8 @@
                     <div class="d-flex flex-wrap gap-1 mb-2">
                         <span class="indicator-pill pill-buy"><i class="bi bi-percent"></i> %b &gt; 0.8 = bullish zone</span>
                         <span class="indicator-pill pill-sell"><i class="bi bi-percent"></i> %b &lt; 0.2 = bearish zone</span>
-                        <span class="indicator-pill pill-buy"><i class="bi bi-water"></i> MFI &gt; 60 = strong inflow</span>
-                        <span class="indicator-pill pill-sell"><i class="bi bi-water"></i> MFI &lt; 40 = weak outflow</span>
+                        <span class="indicator-pill pill-buy"><i class="bi bi-water"></i> MFI &gt; 80 = strong inflow</span>
+                        <span class="indicator-pill pill-sell"><i class="bi bi-water"></i> MFI &lt; 20 = weak outflow</span>
                         <span class="indicator-pill pill-warn"><i class="bi bi-shuffle"></i> Divergence = danger</span>
                     </div>
 
@@ -686,13 +686,13 @@
                         <div class="signal-rule"><span class="arrow-buy">▲ BUY — Confirmed Uptrend:</span></div>
                         <ol class="steps-list steps-buy">
                             <li data-step="1"><span class="sig-buy">%b &gt; 0.8</span> — price is in the upper 20% of the bands (strong position)</li>
-                            <li data-step="2"><span class="sig-buy">MFI &gt; 60</span> — money is actively flowing into the stock (institutional support)</li>
+                            <li data-step="2"><span class="sig-buy">MFI &gt; 80</span> — money is actively flowing into the stock (institutional support)</li>
                             <li data-step="3">Both <span class="sig-buy">rising together</span> — %b trending up AND MFI trending up = confirmed trend</li>
                         </ol>
                         <div class="signal-rule mt-2"><span class="arrow-sell">▼ SELL — Confirmed Downtrend:</span></div>
                         <ol class="steps-list steps-sell">
                             <li data-step="1"><span class="sig-sell">%b &lt; 0.2</span> — price is in the lower 20% of bands (weak position)</li>
-                            <li data-step="2"><span class="sig-sell">MFI &lt; 40</span> — money is flowing OUT of the stock (distribution)</li>
+                            <li data-step="2"><span class="sig-sell">MFI &lt; 20</span> — money is flowing OUT of the stock (distribution)</li>
                             <li data-step="3">Both <span class="sig-sell">falling together</span> — %b down AND MFI down = confirmed downtrend</li>
                         </ol>
                         <div class="signal-rule mt-2"><span class="sig-warn">⚠ DIVERGENCE — Trend Exhaustion Warning:</span></div>
@@ -1863,66 +1863,69 @@
             return '#d29922';
         }
 
-        // ── TRIPLE CONVICTION VERDICT (computed from existing pick data) ──
+        // ── TRIPLE CONVICTION VERDICT (from backend _generate_triple_verdict) ──
         const tripleVerdictHtml = (function(){
-            // Gather directions from all 3 systems
+            const tv = pick.triple_verdict || 'UNKNOWN';
+            const tvEmoji = pick.triple_emoji || '🟡';
+            const tvScore = pick.triple_combined_score || 0;
+            const tvMax = pick.triple_max_score || 425;
+            const tvConf = pick.triple_confidence || 0;
+            const tvText = pick.triple_conviction_text || '';
+            const tvAlignment = pick.triple_alignment || '';
+
+            // Color from verdict
+            const tvU = tv.toUpperCase();
+            const tvColor = tvU.includes('SUPER STRONG BUY') ? '#3fb950'
+                : tvU.includes('STRONG BUY') ? '#3fb950'
+                : tvU.includes('BUY') ? '#56d364'
+                : tvU.includes('SUPER STRONG SELL') ? '#f85149'
+                : tvU.includes('STRONG SELL') ? '#f85149'
+                : tvU.includes('SELL') ? '#ff7b72'
+                : '#d29922';
+
+            // Individual system scores
+            const bbTotal = pick.triple_bb_total || 0;
+            const taTotal = pick.triple_ta_total || 0;
+            const paTotal = pick.triple_pa_total || 0;
+
+            // System direction badges
             const bbDir = (pick.bb_signal_type||'').toUpperCase();
             const taDir = (pick.ta_verdict||'').toUpperCase();
             const paDir = pick.pa_data && pick.pa_data.success ? (pick.pa_data.signal_type||'').toUpperCase() : '';
-
             const isBuyLike = v => v.includes('BUY');
             const isSellLike = v => v.includes('SELL');
-
             const systems = [
-                {name:'BB', dir:bbDir, score:pick.bb_confidence||0},
-                {name:'TA', dir:taDir, score:pick.ta_score||0},
-                {name:'PA', dir:paDir, score:pick.pa_data?pick.pa_data.confidence||0:0},
+                {name:'BB', dir:bbDir, score:bbTotal},
+                {name:'TA', dir:taDir, score:taTotal},
+                {name:'PA', dir:paDir, score:paTotal},
             ];
-
-            const buyVotes = systems.filter(s=>isBuyLike(s.dir)).length;
-            const sellVotes = systems.filter(s=>isSellLike(s.dir)).length;
-            const hasPa = pick.pa_data && pick.pa_data.success;
-
-            let tripleVerdict, tripleEmoji, tripleColor, tripleExplain;
-            if(buyVotes === 3){
-                tripleVerdict = 'STRONG BUY'; tripleEmoji = '🟢🟢🟢'; tripleColor = '#3fb950';
-                tripleExplain = 'All 3 engines agree — BUY. Maximum conviction.';
-            } else if(sellVotes === 3){
-                tripleVerdict = 'STRONG SELL'; tripleEmoji = '🔴🔴🔴'; tripleColor = '#f85149';
-                tripleExplain = 'All 3 engines agree — SELL. Maximum bearish conviction.';
-            } else if(buyVotes >= 2){
-                tripleVerdict = 'BUY'; tripleEmoji = '🟢🟢'; tripleColor = '#56d364';
-                tripleExplain = `${buyVotes}/3 engines say BUY. Majority bullish.`;
-            } else if(sellVotes >= 2){
-                tripleVerdict = 'SELL'; tripleEmoji = '🔴🔴'; tripleColor = '#ff7b72';
-                tripleExplain = `${sellVotes}/3 engines say SELL. Majority bearish.`;
-            } else {
-                tripleVerdict = 'MIXED'; tripleEmoji = '🟡'; tripleColor = '#d29922';
-                tripleExplain = 'Engines disagree — no consensus. Wait for clarity.';
-            }
-
-            // Cross-system verdict from PA engine (if available)
-            const csVerdict = pick.pa_data ? (pick.pa_data.cross_system||{}).combined_verdict||'' : '';
-            const csConf = pick.pa_data ? (pick.pa_data.cross_system||{}).combined_confidence||0 : 0;
-
-            // Summary badges for each system
             const sysBadges = systems.map(s => {
                 if(!s.dir) return '';
                 const c = isBuyLike(s.dir) ? '#3fb950' : isSellLike(s.dir) ? '#f85149' : '#d29922';
                 return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:0.68rem;background:${c}18;color:${c};border:1px solid ${c}33"><strong>${s.name}</strong> ${s.dir.replace('STRONG ','⚡')}</span>`;
             }).filter(Boolean).join(' ');
 
+            const hasPa = pick.pa_data && pick.pa_data.success;
+
             return `
-                <div class="tp-triple-verdict" style="border:1px solid ${tripleColor}33;border-radius:10px;padding:12px 14px;margin:10px 0;background:${tripleColor}0A">
+                <div class="tp-triple-verdict" style="border:1px solid ${tvColor}33;border-radius:10px;padding:12px 14px;margin:10px 0;background:${tvColor}0A">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
                         <div style="display:flex;align-items:center;gap:8px">
                             <span style="font-size:0.8rem;font-weight:700;color:#c9d1d9">⚡ Triple Conviction</span>
-                            <span style="font-size:0.9rem;font-weight:800;padding:3px 12px;border-radius:6px;background:${tripleColor}22;color:${tripleColor};border:1px solid ${tripleColor}44">${tripleEmoji} ${tripleVerdict}</span>
+                            <span style="font-size:0.9rem;font-weight:800;padding:3px 12px;border-radius:6px;background:${tvColor}22;color:${tvColor};border:1px solid ${tvColor}44">${tvEmoji} ${tv}</span>
                         </div>
-                        ${csVerdict ? `<span style="font-size:0.68rem;color:#8b949e">Cross-System: <strong style="color:${verdictColor(csVerdict)}">${csVerdict}</strong> (${csConf}%)</span>` : ''}
+                        <span style="font-size:0.68rem;color:#8b949e">Combined: <strong style="color:${tvColor}">+${tvScore.toFixed?tvScore.toFixed(1):tvScore}</strong>/±${tvMax} · ${tvConf.toFixed?tvConf.toFixed(1):tvConf}% confidence</span>
                     </div>
-                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">${sysBadges}</div>
-                    <div style="font-size:0.72rem;color:#8b949e;line-height:1.5">${tripleExplain}${hasPa?'':' <em>(PA data unavailable — verdict based on BB + TA only)</em>'}</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+                        ${sysBadges}
+                        ${tvAlignment?`<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:0.68rem;background:#58a6ff18;color:#58a6ff;border:1px solid #58a6ff33">${tvAlignment.replace('_',' ')}</span>`:''}
+                    </div>
+                    <div style="font-size:0.68rem;color:#6e7681;display:flex;gap:12px;margin-bottom:4px">
+                        <span>BB: ${bbTotal.toFixed?bbTotal.toFixed(1):bbTotal}</span>
+                        <span>TA: ${taTotal.toFixed?taTotal.toFixed(1):taTotal}</span>
+                        <span>PA: ${paTotal.toFixed?paTotal.toFixed(1):paTotal}</span>
+                    </div>
+                    <div style="font-size:0.72rem;color:#8b949e;line-height:1.5">${tvText||''}${hasPa?'':' <em>(PA data unavailable)</em>'}</div>
                 </div>
             `;
         })();
@@ -1987,7 +1990,7 @@
                 </div>
                 <div class="tp-verdict-item">
                     <span class="tp-verdict-label">Triple:</span>
-                    <span class="tp-verdict-value" style="color:${verdictColor(hybridVerdict)}">${hybridVerdict} (${pick.triple_combined_score >= 0 ? '+' : ''}${pick.triple_combined_score||0}/390)</span>
+                    <span class="tp-verdict-value" style="color:${verdictColor(hybridVerdict)}">${hybridVerdict} (${pick.triple_combined_score >= 0 ? '+' : ''}${typeof pick.triple_combined_score==='number'?pick.triple_combined_score.toFixed(1):pick.triple_combined_score||0}/${pick.triple_max_score||425})</span>
                 </div>
                 ${pick.pa_data && pick.pa_data.success ? `
                 <div class="tp-verdict-item">
@@ -1996,6 +1999,272 @@
                 </div>
                 ` : ''}
             </div>
+
+            <!-- BOLLINGER BAND DEEP DIVE — New book indicators + conditions -->
+            ${(function(){
+                const ind = pick.bb_indicators || {};
+                const cond = pick.bb_conditions || {};
+                const exits = pick.bb_exit_signals || {};
+                const sCond = pick.bb_short_conditions || {};
+                const strats = pick.bb_strategies || [];
+
+                // ── Helper: format number with sign ──
+                const fmtS = (v,d=4) => v==null?'—':((v>=0?'+':'')+Number(v).toFixed(d));
+                const fmt = (v,d=2) => v==null?'—':Number(v).toFixed(d);
+                const pctB = ind.percent_b;
+                const pctBcolor = pctB==null?'#8b949e':pctB>0.8?'#3fb950':pctB<0.2?'#f85149':'#d29922';
+
+                // ── 1. Core BB Indicators grid ──
+                const coreRows = [
+                    ['%b (Percent B)', fmt(pctB,4), pctBcolor,
+                     pctB==null?'Position within bands':pctB>1?'ABOVE upper band — strong breakout':pctB>0.8?'Upper 20% — bullish zone (Ch.19)':pctB<0?'BELOW lower band — extreme weakness':pctB<0.2?'Lower 20% — bearish zone (Ch.19)':'Mid-band zone — neutral'],
+                    ['BandWidth (BBW)', fmt(ind.bbw,6), '#58a6ff',
+                     'Measures band spread — lower = tighter squeeze (Ch.15, p.120)'],
+                    ['Parabolic SAR', fmt(ind.sar), ind.sar_bull?'#3fb950':'#f85149',
+                     ind.sar_bull?'SAR below price — bullish trend support':'SAR above price — bearish, trend may reverse'],
+                    ['CMF (Chaikin)', fmt(ind.cmf,4), ind.cmf>0?'#3fb950':'#f85149',
+                     ind.cmf==null?'—':ind.cmf>0?'Positive — buying pressure (institutional accumulation)':'Negative — selling pressure (distribution)'],
+                    ['MFI (Money Flow)', fmt(ind.mfi), ind.mfi>80?'#3fb950':ind.mfi<20?'#f85149':ind.mfi>50?'#56d364':'#d29922',
+                     ind.mfi==null?'—':ind.mfi>80?'> 80 — strong inflow, confirms trend (Ch.19 p.155)':ind.mfi>50?'> 50 — moderate positive flow':ind.mfi<20?'< 20 — weak outflow, bearish (Ch.19 p.155)':'< 50 — weak flow, caution'],
+                ];
+
+                // ── 2. New Book Indicators (Ch.15, 18, 21) ──
+                const bookRows = [
+                    ['II% (Intraday Intensity)', fmtS(ind.ii_pct), ind.ii_pct>0?'#3fb950':ind.ii_pct<0?'#f85149':'#8b949e',
+                     ind.ii_pct==null?'—':ind.ii_pct>0?'Positive — smart money accumulating (closes near high, Ch.18 p.148)':'Negative — smart money distributing (closes near low)'],
+                    ['AD% (Accum/Dist)', fmtS(ind.ad_pct), ind.ad_pct>0?'#3fb950':ind.ad_pct<0?'#f85149':'#8b949e',
+                     ind.ad_pct==null?'—':ind.ad_pct>0?'Positive — accumulation phase, volume supports price rise':'Negative — distribution phase, volume supports decline'],
+                    ['VWMACD Histogram', fmtS(ind.vwmacd_hist), ind.vwmacd_hist>0?'#3fb950':ind.vwmacd_hist<0?'#f85149':'#8b949e',
+                     ind.vwmacd_hist==null?'—':ind.vwmacd_hist>0?'Positive — volume-weighted momentum is bullish (Table 19.1 p.157)':'Negative — volume-weighted momentum is bearish'],
+                    ['RSI Norm (%b of RSI)', fmt(ind.rsi_norm,3), ind.rsi_norm>0.8?'#f85149':ind.rsi_norm<0.2?'#3fb950':'#d29922',
+                     ind.rsi_norm==null?'—':ind.rsi_norm>0.8?'> 0.8 — RSI overbought relative to its own bands (Ch.21 p.171)':ind.rsi_norm<0.2?'< 0.2 — RSI oversold relative to its own bands — potential bounce':'RSI in normal range within its Bollinger Bands'],
+                    ['MFI Norm (%b of MFI)', fmt(ind.mfi_norm,3), ind.mfi_norm>0.8?'#f85149':ind.mfi_norm<0.2?'#3fb950':'#d29922',
+                     ind.mfi_norm==null?'—':ind.mfi_norm>0.8?'> 0.8 — MFI overbought per normalized bands (Ch.21 p.171)':ind.mfi_norm<0.2?'< 0.2 — MFI oversold per normalized bands — potential bounce':'MFI in normal range within its Bollinger Bands'],
+                ];
+
+                // ── 3. Expansion status ──
+                let expansionHtml = '';
+                if (ind.expansion_end) {
+                    expansionHtml = '<div style="margin:6px 0;padding:6px 10px;border-radius:6px;background:#f8514922;border:1px solid #f8514933;font-size:0.75rem"><span style="color:#f85149;font-weight:700">⚠ EXPANSION ENDING</span> <span style="color:#8b949e">— Bands were widening but are now contracting. The big move may be over. Consider tightening stops or taking profits (Ch.15).</span></div>';
+                } else if (ind.expansion_up) {
+                    expansionHtml = '<div style="margin:6px 0;padding:6px 10px;border-radius:6px;background:#3fb95022;border:1px solid #3fb95033;font-size:0.75rem"><span style="color:#3fb950;font-weight:700">📈 EXPANSION UP</span> <span style="color:#8b949e">— Bands are actively widening upward. Strong bullish volatility breakout in progress. Ride the trend (Ch.15 p.120).</span></div>';
+                } else if (ind.expansion_down) {
+                    expansionHtml = '<div style="margin:6px 0;padding:6px 10px;border-radius:6px;background:#f8514922;border:1px solid #f8514933;font-size:0.75rem"><span style="color:#f85149;font-weight:700">📉 EXPANSION DOWN</span> <span style="color:#8b949e">— Bands are actively widening downward. Strong bearish volatility breakout. Avoid longs or consider shorts.</span></div>';
+                }
+
+                // ── 4. Method-specific conditions checklist ──
+                // For M1: use the generic 5 buy conditions from bb_data
+                // For M2/M3/M4: use the strategy's own buy_checklist/sell_checklist
+                const methodStrat = strats.find(s => s.code === method);
+                const methodInd = methodStrat ? (methodStrat.indicators || {}) : {};
+                const isBuyFilter = (pick.bb_signal_type||'').toUpperCase().includes('BUY') || !(pick.bb_signal_type||'').toUpperCase().includes('SELL');
+                const methodChecklist = isBuyFilter ? (methodInd.buy_checklist || []) : (methodInd.sell_checklist || []);
+
+                let condHtml = '';
+                let condCount = 0;
+                let condTotal = 0;
+
+                if (method === 'M1' || methodChecklist.length === 0) {
+                    // M1 Squeeze: use the existing 5 conditions from bb_data
+                    const condItems = [
+                        [cond.squeeze, 'Squeeze Active', 'BandWidth at 6-month low — volatility coiled, breakout imminent (Ch.15 p.120)'],
+                        [cond.price_breakout, 'Price Breakout', 'Price above upper band (%b > 1.0) — breakout confirmed (Ch.8 p.60)'],
+                        [cond.volume_confirm, 'Volume Confirm', 'Volume above 50-day SMA — institutional participation backing the move'],
+                        [cond.cmf_positive, 'CMF Positive', 'Chaikin Money Flow > 0 — money flowing INTO the stock (Ch.18 p.148)'],
+                        [cond.mfi_above_50, 'MFI > 50', 'Money Flow Index above 50 — more buying pressure than selling'],
+                    ];
+                    condCount = condItems.filter(([ok]) => ok).length;
+                    condTotal = condItems.length;
+                    condHtml = condItems.map(([ok, lbl, desc]) =>
+                        `<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:0.73rem">
+                            <span style="color:${ok?'#3fb950':'#484f58'};flex-shrink:0">${ok?'✅':'⬜'}</span>
+                            <div><span style="color:${ok?'#c9d1d9':'#6e7681'};font-weight:600">${lbl}</span>
+                            <span style="color:#6e7681"> — ${desc}</span></div>
+                        </div>`
+                    ).join('');
+                } else {
+                    // M2/M3/M4: use method-specific checklist from strategy indicators
+                    condCount = methodChecklist.filter(c => c.ok).length;
+                    condTotal = methodChecklist.length;
+                    condHtml = methodChecklist.map(c =>
+                        `<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:0.73rem">
+                            <span style="color:${c.ok?'#3fb950':'#484f58'};flex-shrink:0">${c.ok?'✅':'⬜'}</span>
+                            <div>
+                                <span style="color:${c.ok?'#c9d1d9':'#6e7681'};font-weight:600">${c.name||'—'}</span>
+                                ${c.detail?`<span style="color:#58a6ff;font-size:0.7rem;margin-left:6px">${c.detail}</span>`:''}
+                                ${c.explain?`<div style="color:#6e7681;font-size:0.68rem;margin-top:1px">${c.explain}</div>`:''}
+                            </div>
+                        </div>`
+                    ).join('');
+                }
+
+                // ── 5. Exit signals ──
+                // M1: use bb_data exit signals
+                // M2/M3/M4: also show method-relevant exit criteria
+                const exitItems = [
+                    [exits.sar_flip, 'SAR Flip', 'Parabolic SAR crossed above price — trend support lost (Ch.16 p.129)'],
+                    [exits.lower_band_tag, 'Lower Band Tag', 'Price touched the lower band — momentum has reversed'],
+                    [exits.double_negative, 'Double Negative', 'CMF < 0 AND MFI < 50 simultaneously — money draining out'],
+                    [exits.expansion_end, 'Expansion End', 'Bands were expanding but now contracting — move may be exhausted'],
+                ];
+                const activeExits = exitItems.filter(([ok]) => ok);
+                const exitHtml = activeExits.length > 0
+                    ? activeExits.map(([ok, lbl, desc]) =>
+                        `<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:0.73rem">
+                            <span style="color:#f85149;flex-shrink:0">🚨</span>
+                            <div><span style="color:#f85149;font-weight:600">${lbl}</span>
+                            <span style="color:#8b949e"> — ${desc}</span></div>
+                        </div>`
+                      ).join('')
+                    : '<div style="font-size:0.73rem;color:#3fb950;padding:3px 0">✅ No exit signals active — position can be held</div>';
+
+                // ── 6. Short-side conditions (only if squeeze active) ──
+                let shortHtml = '';
+                if (pick.bb_short_signal || cond.squeeze) {
+                    const sItems = [
+                        [sCond.squeeze, 'Squeeze Active', 'BandWidth at 6-month low (same as buy-side)'],
+                        [sCond.price_below, 'Price Below Lower Band', '%b < 0 — bearish breakout below lower band'],
+                        [sCond.volume_confirm, 'Volume Confirm', 'Volume above 50-day SMA on the downside break'],
+                        [sCond.ii_negative, 'II% Negative', 'Intraday Intensity negative — smart money selling (Ch.18)'],
+                        [sCond.mfi_low, 'MFI < 50', 'Money Flow below 50 — more selling pressure than buying'],
+                    ];
+                    const sCount = sItems.filter(([ok]) => ok).length;
+                    shortHtml = `
+                        <div style="margin-top:8px;padding-top:6px;border-top:1px solid #21262d">
+                            <div style="font-size:0.75rem;font-weight:600;color:${pick.bb_short_signal?'#f85149':'#8b949e'};margin-bottom:4px">
+                                ${pick.bb_short_signal?'🔴 SHORT-SIDE BREAKOUT ACTIVE':'⬇️ Short-Side Conditions'} (${sCount}/5)
+                            </div>
+                            ${sItems.map(([ok, lbl, desc]) =>
+                                `<div style="display:flex;align-items:flex-start;gap:6px;padding:2px 0;font-size:0.72rem">
+                                    <span style="color:${ok?'#f85149':'#484f58'};flex-shrink:0">${ok?'🔴':'⬜'}</span>
+                                    <div><span style="color:${ok?'#c9d1d9':'#6e7681'};font-weight:600">${lbl}</span>
+                                    <span style="color:#6e7681"> — ${desc}</span></div>
+                                </div>`
+                            ).join('')}
+                        </div>`;
+                }
+
+                // ── 7. Strategy-specific details (only for the selected method) ──
+                let stratHtml = '';
+                for (const s of strats) {
+                    if (!s || !s.signal) continue;
+                    const sig = s.signal || {};
+                    const code = s.code || '';
+                    // Only show the method the user selected (M1/M2/M3/M4)
+                    if (code !== method) continue;
+                    const sigType = sig.type || 'NONE';
+                    const sigColor = sigType==='BUY'?'#3fb950':sigType==='SELL'?'#f85149':'#d29922';
+                    const pats = (s.patterns || []).slice(0,3);
+
+                    let detail = '';
+                    if (code === 'M2') {
+                        const m2Ind = s.indicators || {};
+                        detail = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:0.72rem;color:#8b949e;margin-top:4px">
+                            <div><span style="color:#484f58">%b:</span> <span style="color:#c9d1d9">${fmt(m2Ind.pct_b,4)}</span> <span style="color:#6e7681">${m2Ind.pct_b>0.8?'(bullish > 0.8)':m2Ind.pct_b<0.2?'(bearish < 0.2)':'(neutral)'}</span></div>
+                            <div><span style="color:#484f58">MFI:</span> <span style="color:#c9d1d9">${fmt(m2Ind.mfi)}</span> <span style="color:#6e7681">${m2Ind.mfi>80?'(strong inflow > 80)':m2Ind.mfi<20?'(weak outflow < 20)':'(moderate)'}</span></div>
+                            ${m2Ind.vwmacd_hist!=null?`<div><span style="color:#484f58">VWMACD:</span> <span style="color:${m2Ind.vwmacd_hist>0?'#3fb950':'#f85149'}">${fmtS(m2Ind.vwmacd_hist)}</span> <span style="color:#6e7681">(volume-weighted momentum, Table 19.1 p.157)</span></div>`:''}
+                            <div><span style="color:#484f58">Trend:</span> <span style="color:#c9d1d9">%b ${m2Ind.pct_b_trend||'—'}, MFI ${m2Ind.mfi_trend||'—'}</span> · Price ${m2Ind.price_vs_mid||'—'} middle band</div>
+                            ${m2Ind.bearish_divergence?`<div style="grid-column:1/3"><span style="color:#d29922;font-weight:600">⚠ Bearish Divergence</span> — %b rising but MFI falling, smart money may be exiting (Ch.19)</div>`:''}
+                            ${m2Ind.bullish_divergence?`<div style="grid-column:1/3"><span style="color:#3fb950;font-weight:600">📈 Bullish Divergence</span> — %b falling but MFI rising, smart money may be accumulating (Ch.19)</div>`:''}
+                        </div>`;
+                    } else if (code === 'M3') {
+                        const m3Ind = s.indicators || {};
+                        const m3SL = m3Ind.w_stop_loss || m3Ind.m_stop_loss || null;
+                        detail = `<div style="font-size:0.72rem;color:#8b949e;margin-top:4px">
+                            ${m3Ind.ii_pct!=null?`<div><span style="color:#484f58">II%:</span> <span style="color:${m3Ind.ii_pct>0?'#3fb950':'#f85149'}">${fmtS(m3Ind.ii_pct)}</span> — ${m3Ind.ii_pct>0?'accumulation (confirms reversal up)':'distribution (confirms reversal down)'}</div>`:''}
+                            ${m3Ind.ad_pct!=null?`<div><span style="color:#484f58">AD%:</span> <span style="color:${m3Ind.ad_pct>0?'#3fb950':'#f85149'}">${fmtS(m3Ind.ad_pct)}</span> — accumulation/distribution confirmation</div>`:''}
+                            <div><span style="color:#484f58">W-Bottoms:</span> <span style="color:#c9d1d9">${m3Ind.w_bottoms_found||0}</span> found (${m3Ind.recent_w_bottoms||0} recent) — bullish reversal pattern (Ch.12 p.100)</div>
+                            <div><span style="color:#484f58">M-Tops:</span> <span style="color:#c9d1d9">${m3Ind.m_tops_found||0}</span> found (${m3Ind.recent_m_tops||0} recent) — bearish reversal pattern (Ch.13 p.108)</div>
+                            ${m3Ind.three_push_high_found?`<div><span style="color:#484f58">Three Pushes High:</span> <span style="color:#f85149">${m3Ind.three_push_high_found}</span> — bearish reversal exhaustion (Ch.20 p.160)</div>`:''}
+                            ${m3Ind.three_push_low_found?`<div><span style="color:#484f58">Three Pushes Low:</span> <span style="color:#3fb950">${m3Ind.three_push_low_found}</span> — bullish reversal exhaustion (Ch.20 p.160)</div>`:''}
+                            ${m3Ind.systematised_buy?`<div><span style="color:#3fb950;font-weight:600">✅ Systematised BUY</span> — II% positive + AD% confirms accumulation (Ch.20 p.163)</div>`:''}
+                            ${m3Ind.systematised_sell?`<div><span style="color:#f85149;font-weight:600">🔴 Systematised SELL</span> — II% negative + AD% confirms distribution (Ch.20 p.163)</div>`:''}
+                            ${m3Ind.rally_day?`<div><span style="color:#3fb950;font-weight:600">📈 Rally Day</span> — entry discipline confirmed, safe to enter (Ch.20 p.165)</div>`:''}
+                            ${m3SL?`<div><span style="color:#484f58">Stop Loss:</span> <span style="color:#f85149">₹${Number(m3SL).toLocaleString('en-IN')}</span> — set at pattern low/high</div>`:''}
+                        </div>`;
+                    } else if (code === 'M4') {
+                        const m4Ind = s.indicators || {};
+                        detail = `<div style="font-size:0.72rem;color:#8b949e;margin-top:4px">
+                            <div><span style="color:#484f58">Upper Walk:</span> <span style="color:${m4Ind.upper_walk_active?'#3fb950':'#6e7681'}">${m4Ind.upper_walk_active?'ACTIVE — riding upper band (bullish persistence)':'Not detected'}</span></div>
+                            <div><span style="color:#484f58">Lower Walk:</span> <span style="color:${m4Ind.lower_walk_active?'#f85149':'#6e7681'}">${m4Ind.lower_walk_active?'ACTIVE — riding lower band (bearish persistence)':'Not detected'}</span></div>
+                            <div><span style="color:#484f58">SAR:</span> <span style="color:${m4Ind.sar_bull?'#3fb950':'#f85149'}">${m4Ind.sar_bull?'Bullish (dots below price — trend support)':'Bearish (dots above price — trend reversing)'}</span></div>
+                            <div style="color:#6e7681;margin-top:2px">Tags of the bands are just that — tags, NOT signals. A tag of the upper band is NOT a sell signal (Rule 15, p.184).</div>
+                        </div>`;
+                    }
+
+                    const patHtml = pats.length > 0
+                        ? pats.map(p => {
+                            const nm = (p.name||p.type||'').replace(/_/g,' ');
+                            const pc = (nm.toUpperCase().includes('W-BOTTOM')||nm.toUpperCase().includes('THREE-PUSH-LOW'))?'#3fb950':'#f85149';
+                            return `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:0.68rem;background:${pc}18;color:${pc};border:1px solid ${pc}33;margin:2px">${nm}</span>`;
+                          }).join('')
+                        : '';
+
+                    stratHtml += `
+                        <div style="margin-top:6px;padding:8px 10px;border-radius:6px;border:1px solid #30363d;background:#0d1117">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                <span style="font-size:0.78rem;font-weight:700;color:#c9d1d9">${s.name||code}</span>
+                                <span style="padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:700;background:${sigColor}22;color:${sigColor};border:1px solid ${sigColor}44">${sigType} · ${sig.strength||''} (${sig.confidence||0}%)</span>
+                            </div>
+                            ${patHtml?`<div style="margin-top:4px">${patHtml}</div>`:''}
+                            ${detail}
+                        </div>`;
+                }
+
+                // ── Combine all sections ──
+                const methodNames = {M1:'Method I — Squeeze',M2:'Method II — Trend Following',M3:'Method III — Reversals',M4:'Method IV — Walking the Bands'};
+                return `
+                <div class="tp-bb-deep-dive" style="border:1px solid #30363d;border-radius:10px;padding:12px 14px;margin:10px 0;background:#161b22">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                        <span style="font-size:0.85rem;font-weight:700;color:#c9d1d9">📊 Bollinger Band Deep Dive</span>
+                        <span style="font-size:0.68rem;padding:2px 8px;border-radius:4px;background:#30363d;color:#8b949e">Book Ch.15–21</span>
+                        ${pick.bb_direction_lean && pick.bb_direction_lean!=='NEUTRAL'?`<span style="font-size:0.68rem;padding:2px 8px;border-radius:4px;background:${pick.bb_direction_lean==='BULLISH'?'#3fb950':'#f85149'}22;color:${pick.bb_direction_lean==='BULLISH'?'#3fb950':'#f85149'};font-weight:600">Lean: ${pick.bb_direction_lean}</span>`:''}
+                    </div>
+
+                    <!-- Core indicators -->
+                    <div style="font-size:0.73rem;font-weight:600;color:#58a6ff;margin-bottom:4px">Core Indicators</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;margin-bottom:8px">
+                        ${coreRows.map(([lbl,val,clr,desc]) => `
+                            <div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:0.73rem" title="${desc}">
+                                <span style="color:#484f58;min-width:100px;flex-shrink:0">${lbl}</span>
+                                <span style="color:${clr};font-weight:600;font-family:monospace">${val}</span>
+                            </div>
+                            <div style="font-size:0.68rem;color:#6e7681;padding:2px 0">${desc}</div>
+                        `).join('')}
+                    </div>
+
+                    <!-- New Book Indicators -->
+                    <div style="font-size:0.73rem;font-weight:600;color:#d29922;margin:6px 0 4px">Volume & Normalized Indicators (Ch.18–21)</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;margin-bottom:8px">
+                        ${bookRows.map(([lbl,val,clr,desc]) => `
+                            <div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:0.73rem" title="${desc}">
+                                <span style="color:#484f58;min-width:120px;flex-shrink:0">${lbl}</span>
+                                <span style="color:${clr};font-weight:600;font-family:monospace">${val}</span>
+                            </div>
+                            <div style="font-size:0.68rem;color:#6e7681;padding:2px 0">${desc}</div>
+                        `).join('')}
+                    </div>
+
+                    ${expansionHtml}
+
+                    <!-- Buy Conditions Checklist -->
+                    <div style="font-size:0.73rem;font-weight:600;color:#3fb950;margin:8px 0 4px">${isBuyFilter?'Buy':'Sell'} Conditions — ${methodNames[method]||method} (${condCount}/${condTotal} met)</div>
+                    ${condHtml}
+
+                    <!-- Exit Signals -->
+                    <div style="font-size:0.73rem;font-weight:600;color:#f85149;margin:8px 0 4px">Exit Signals</div>
+                    ${exitHtml}
+
+                    ${shortHtml}
+
+                    <!-- Strategy-Specific Details -->
+                    ${stratHtml?`<div style="font-size:0.73rem;font-weight:600;color:#58a6ff;margin:10px 0 4px">Strategy Signals</div>${stratHtml}`:''}
+
+                    <!-- BB Summary -->
+                    ${pick.bb_action_message?`<div style="margin-top:8px;padding:6px 10px;border-radius:6px;background:#0d1117;border:1px solid #21262d;font-size:0.73rem;color:#c9d1d9">💡 <strong>Action:</strong> ${pick.bb_action_message}</div>`:''}
+                </div>
+                `;
+            })()}
 
             <!-- PRICE ACTION (Al Brooks) DETAILS -->
             ${(function(){

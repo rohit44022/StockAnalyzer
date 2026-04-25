@@ -547,6 +547,15 @@ function renderBBIndicators(d){
     ['Volume',fmtVol(ind.volume),'neutral'],
     ['Vol 50-SMA',fmtVol(ind.vol_sma50),'neutral'],
   ];
+  // New book indicators (Ch.15, 18, 21)
+  if(ind.ii_pct!=null) items.push(['II%',(ind.ii_pct>=0?'+':'')+ind.ii_pct.toFixed(4),ind.ii_pct>0?'bull':'bear']);
+  if(ind.ad_pct!=null) items.push(['AD%',(ind.ad_pct>=0?'+':'')+ind.ad_pct.toFixed(4),ind.ad_pct>0?'bull':'bear']);
+  if(ind.vwmacd_hist!=null) items.push(['VWMACD',(ind.vwmacd_hist>=0?'+':'')+ind.vwmacd_hist.toFixed(4),ind.vwmacd_hist>0?'bull':'bear']);
+  if(ind.rsi_norm!=null) items.push(['RSI %b',ind.rsi_norm.toFixed(3),ind.rsi_norm>0.8?'bear':ind.rsi_norm<0.2?'bull':'neutral']);
+  if(ind.mfi_norm!=null) items.push(['MFI %b',ind.mfi_norm.toFixed(3),ind.mfi_norm>0.8?'bear':ind.mfi_norm<0.2?'bull':'neutral']);
+  if(ind.expansion_end) items.push(['Expansion','ENDING','bear']);
+  else if(ind.expansion_up) items.push(['Expansion','UP','bull']);
+  else if(ind.expansion_down) items.push(['Expansion','DOWN','bear']);
   for(const [label,val,clr] of items){
     h+=`<div class="col-6 col-md-3"><div class="card p-2 text-center"><div class="mini-label">${label}</div><div class="indicator-val ${clr}" style="font-size:1.1rem">${val}</div></div></div>`;
   }

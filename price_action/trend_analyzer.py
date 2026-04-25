@@ -81,6 +81,8 @@ class TrendState:
     recent_climax: bool = False             # Climax bar in last 5 bars
     ema_gap_bar_count: int = 0              # Consecutive bars not touching EMA20
                                             # Brooks: 20+ = very strong trend (sign of strength)
+    gap_bar_setup: bool = False              # Brooks: first EMA touch after 20+ gap bars
+                                            # = high-probability pullback entry
 
     # ── Summary ──
     description: str = ""
@@ -680,6 +682,23 @@ def analyze_trend(
             else:
                 break  # First bar touching EMA ends the count
         state.ema_gap_bar_count = gap_count
+
+        # Brooks: First EMA touch after 20+ gap bars is a high-probability
+        # pullback entry setup ("moving average gap bar" setup).
+        # If gap_count was 20+ and the LAST bar touches EMA, setup is active.
+        if gap_count == 0 and len(df) >= 2:
+            # Last bar touches EMA — check if the bar before it was a gap bar
+            prev_gap_count = 0
+            for j in range(len(df) - 2, max(0, len(df) - 62), -1):
+                bl = df["Low"].iloc[j]
+                bh = df["High"].iloc[j]
+                ev = ema_values[j]
+                if bl > ev or bh < ev:
+                    prev_gap_count += 1
+                else:
+                    break
+            if prev_gap_count >= 20:
+                state.gap_bar_setup = True
 
     # 8. Recent climax
     recent_5 = bars[-5:]

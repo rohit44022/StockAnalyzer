@@ -565,7 +565,189 @@ def detect_micro_doubles(bars: List[BarAnalysis]) -> List[PatternDetection]:
 
 
 # ─────────────────────────────────────────────────────────────────
-#  6. EXPANDING TRIANGLE
+#  6. TWO-BAR REVERSAL
+# ─────────────────────────────────────────────────────────────────
+
+def detect_two_bar_reversals(bars: List[BarAnalysis]) -> List[PatternDetection]:
+    """
+    Detect two-bar reversal patterns.
+
+    Al Brooks: "A two-bar reversal at a swing high is a bull bar followed by
+    a bear bar of similar size. At a swing low, it is a bear bar followed by
+    a bull bar. The second bar closes beyond the midpoint of the first bar,
+    signaling the other side has taken control."
+
+    Bull Two-Bar Reversal (at bottom):
+    - Bar 1: bear body, Bar 2: bull body
+    - Bar 2 close > midpoint of Bar 1
+    - Bar 2 body >= 50% of Bar 1 body (strength)
+    - Ideally at or near a swing low
+
+    Bear Two-Bar Reversal (at top):
+    - Bar 1: bull body, Bar 2: bear body
+    - Bar 2 close < midpoint of Bar 1
+    - Bar 2 body >= 50% of Bar 1 body
+    - Ideally at or near a swing high
+    """
+    patterns: List[PatternDetection] = []
+    if len(bars) < 5:
+        return patterns
+
+    for i in range(1, len(bars)):
+        bar = bars[i]
+        prev = bars[i - 1]
+
+        # Skip if either bar is a doji (not a meaningful reversal)
+        if bar.is_doji or prev.is_doji:
+            continue
+
+        prev_mid = (prev.high + prev.low) / 2.0
+
+        # ── Bull Two-Bar Reversal ──
+        # Bear bar followed by bull bar; bull bar closes above midpoint of bear bar
+        if prev.is_bear and bar.is_bull and bar.close > prev_mid:
+            # Body strength check: second bar should be comparable
+            if prev.body_size > 0 and bar.body_size >= prev.body_size * 0.50:
+                # Context: prefer this at a recent low (look back 5 bars)
+                at_low = True
+                if i >= 3:
+                    recent_lows = [bars[j].low for j in range(max(0, i - 5), i - 1)]
+                    at_low = prev.low <= min(recent_lows) if recent_lows else True
+
+                reliability = "HIGH" if at_low and bar.body_size >= prev.body_size * 0.80 else "MODERATE"
+                trigger = bar.high
+                stop = min(bar.low, prev.low)
+
+                patterns.append(PatternDetection(
+                    name="TWO_BAR_BULL_REV",
+                    pattern_type="REVERSAL",
+                    direction="BULL",
+                    start_idx=i - 1,
+                    end_idx=i,
+                    start_date=prev.date,
+                    end_date=bar.date,
+                    reliability=reliability,
+                    description=f"Bull Two-Bar Reversal — bear bar then bull bar closing "
+                                f"above midpoint. Buy above {trigger:.2f}, stop {stop:.2f}",
+                    trigger_price=trigger,
+                    stop_price=stop,
+                ))
+
+        # ── Bear Two-Bar Reversal ──
+        # Bull bar followed by bear bar; bear bar closes below midpoint of bull bar
+        elif prev.is_bull and bar.is_bear and bar.close < prev_mid:
+            if prev.body_size > 0 and bar.body_size >= prev.body_size * 0.50:
+                at_high = True
+                if i >= 3:
+                    recent_highs = [bars[j].high for j in range(max(0, i - 5), i - 1)]
+                    at_high = prev.high >= max(recent_highs) if recent_highs else True
+
+                reliability = "HIGH" if at_high and bar.body_size >= prev.body_size * 0.80 else "MODERATE"
+                trigger = bar.low
+                stop = max(bar.high, prev.high)
+
+                patterns.append(PatternDetection(
+                    name="TWO_BAR_BEAR_REV",
+                    pattern_type="REVERSAL",
+                    direction="BEAR",
+                    start_idx=i - 1,
+                    end_idx=i,
+                    start_date=prev.date,
+                    end_date=bar.date,
+                    reliability=reliability,
+                    description=f"Bear Two-Bar Reversal — bull bar then bear bar closing "
+                                f"below midpoint. Sell below {trigger:.2f}, stop {stop:.2f}",
+                    trigger_price=trigger,
+                    stop_price=stop,
+                ))
+
+    return patterns
+
+
+# ─────────────────────────────────────────────────────────────────
+#  7. BARBWIRE DETECTION
+# ─────────────────────────────────────────────────────────────────
+
+def detect_barbwire(bars: List[BarAnalysis]) -> List[PatternDetection]:
+    """
+    Detect barbwire — a strong "stay out" signal per Al Brooks.
+
+    Al Brooks: "Barbwire is a series of bars with prominent tails, much overlap,
+    many dojis, and alternating bull/bear bodies. It means the market is in a
+    tight, choppy trading range where both sides are losing. The best trade is
+    NO trade."
+
+    Detection: Within the last N bars, check for:
+    - High doji ratio (>40%)
+    - High overlap ratio (>70%)
+    - Mixed direction (no clear bull/bear dominance)
+    - Many inside bars or bars with prominent tails on both sides
+    """
+    patterns: List[PatternDetection] = []
+    if len(bars) < 8:
+        return patterns
+
+    # Check the last 10 bars for barbwire characteristics
+    lookback = min(10, len(bars))
+    recent = bars[-lookback:]
+    n = len(recent)
+
+    doji_count = sum(1 for b in recent if b.is_doji)
+    inside_count = sum(1 for b in recent if b.is_inside_bar)
+    bull_count = sum(1 for b in recent if b.is_bull and not b.is_doji)
+    bear_count = sum(1 for b in recent if b.is_bear and not b.is_doji)
+    both_tails = sum(1 for b in recent
+                     if b.upper_tail_pct > 0.25 and b.lower_tail_pct > 0.25)
+
+    # Overlap ratio
+    overlap_count = 0
+    for j in range(1, n):
+        overlap_high = min(recent[j].high, recent[j - 1].high)
+        overlap_low = max(recent[j].low, recent[j - 1].low)
+        if overlap_high > overlap_low:
+            bar_range = recent[j].range_size
+            if bar_range > 0 and (overlap_high - overlap_low) / bar_range > 0.50:
+                overlap_count += 1
+    overlap_pct = overlap_count / (n - 1) if n > 1 else 0
+
+    doji_pct = doji_count / n
+    inside_pct = inside_count / n
+    mixed = abs(bull_count - bear_count) <= 2  # No clear dominance
+    both_tails_pct = both_tails / n
+
+    # Barbwire criteria: high doji + high overlap + mixed direction
+    is_barbwire = (
+        doji_pct >= 0.35 and overlap_pct >= 0.65 and mixed
+    ) or (
+        overlap_pct >= 0.75 and both_tails_pct >= 0.40 and mixed
+    ) or (
+        doji_pct >= 0.30 and inside_pct >= 0.20 and overlap_pct >= 0.60 and mixed
+    )
+
+    if is_barbwire:
+        start_idx = len(bars) - lookback
+        end_idx = len(bars) - 1
+        patterns.append(PatternDetection(
+            name="BARBWIRE",
+            pattern_type="BARBWIRE",
+            direction="NEUTRAL",
+            start_idx=start_idx,
+            end_idx=end_idx,
+            start_date=bars[start_idx].date,
+            end_date=bars[end_idx].date,
+            reliability="HIGH",
+            description=f"BARBWIRE — choppy, overlapping bars with no clear direction. "
+                        f"Dojis: {doji_pct:.0%}, overlap: {overlap_pct:.0%}. "
+                        f"Al Brooks: STAY OUT until price breaks free.",
+            trigger_price=0.0,
+            stop_price=0.0,
+        ))
+
+    return patterns
+
+
+# ─────────────────────────────────────────────────────────────────
+#  8. EXPANDING TRIANGLE
 # ─────────────────────────────────────────────────────────────────
 
 def detect_expanding_triangle(bars: List[BarAnalysis]) -> List[PatternDetection]:
@@ -700,6 +882,8 @@ def detect_all_patterns(bars: List[BarAnalysis]) -> PatternSummary:
     all_patterns.extend(detect_double_patterns(bars))
     all_patterns.extend(detect_wedge_patterns(bars))
     all_patterns.extend(detect_micro_doubles(bars))
+    all_patterns.extend(detect_two_bar_reversals(bars))
+    all_patterns.extend(detect_barbwire(bars))
     all_patterns.extend(detect_expanding_triangle(bars))
 
     # Sort by end_idx (most recent patterns last)

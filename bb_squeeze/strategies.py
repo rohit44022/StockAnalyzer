@@ -34,6 +34,10 @@ from bb_squeeze.strategy_config import (
     M3_W_FIRST_LOW_PCT_B, M3_W_SECOND_LOW_PCT_B, M3_W_PRICE_TOLERANCE,
     M3_M_FIRST_HIGH_PCT_B, M3_M_SECOND_HIGH_PCT_B, M3_M_PRICE_TOLERANCE,
     M3_MFI_DIVERGE_THRESHOLD,
+    # Three Pushes (Book Ch.13 p.108)
+    M3_PUSH_LOOKBACK, M3_PUSH_MIN_SEPARATION, M3_PUSH_MAX_SEPARATION,
+    # Method III Entry/Exit Discipline (Book Ch.12, Ch.20)
+    M3_ENTRY_RANGE_LOOKBACK, M3_ENTRY_VOLUME_LOOKBACK,
     # Method IV
     M4_WALK_MIN_TOUCHES, M4_WALK_LOOKBACK, M4_WALK_TOUCH_TOLERANCE,
     M4_WALK_PCT_B_UPPER, M4_WALK_PCT_B_LOWER, M4_WALK_BB_MID_PULLBACK,
@@ -104,11 +108,12 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
     """
     Method II — Trend Following.
 
-    Logic straight from the book:
+    Logic straight from the book (Ch.19 p.155):
     1. Calculate %b and MFI (already in df from indicators.py)
-    2. BUY when %b > 0.8 AND MFI confirms (> 60)
-    3. SELL when %b < 0.2 AND MFI confirms (< 40)
+    2. BUY when %b > 0.8 AND MFI > 80  (strict book thresholds)
+    3. SELL when %b < 0.2 AND MFI < 20  (strict book thresholds)
     4. WATCH for divergence: %b rising but MFI falling = weakening trend
+    5. VWMACD as supplementary confirmation (Book Ch.18 Table 18.3)
     """
 
     if len(df) < 30:
@@ -129,6 +134,9 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
     cmf     = _nan_safe(row["CMF"], 0.0)
     close   = float(row["Close"])
     bb_mid  = float(row["BB_Mid"])
+
+    # VWMACD (Book Ch.18) — supplementary confirmation
+    vwmacd_hist = _nan_safe(row.get("VWMACD_Hist", 0), 0.0)
 
     prev_pct_b = _nan_safe(prev["Percent_B"], 0.5)
     prev_mfi   = _nan_safe(prev["MFI"], 50.0)
@@ -299,6 +307,7 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
         "pct_b": round(pct_b, 4),
         "mfi": round(mfi, 2),
         "cmf": round(cmf, 4),
+        "vwmacd_hist": round(vwmacd_hist, 4),
         "pct_b_trend": pct_b_trend,
         "mfi_trend": mfi_trend,
         "bullish_divergence": bullish_divergence,
@@ -511,6 +520,193 @@ def _detect_m_tops(df: pd.DataFrame, lookback: int = M3_W_LOOKBACK) -> List[Patt
     return patterns
 
 
+# ═══════════════════════════════════════════════════════════════
+#  THREE PUSHES TO A HIGH — Book Ch.13 p.108
+#  "First push outside upper band.  Second push makes new high and
+#   touches band.  Third push may make marginal new high but FAILS
+#   to tag the band.  Volume diminishes steadily."
+#  Mirror image: Three Pushes to a Low.
+# ═══════════════════════════════════════════════════════════════
+
+def _detect_three_pushes(df: pd.DataFrame, lookback: int = M3_PUSH_LOOKBACK) -> List[PatternMatch]:
+    """
+    Detect three-pushes-to-a-high (bearish) and three-pushes-to-a-low (bullish).
+    """
+    patterns = []
+    window = df.iloc[-lookback:].copy()
+    if len(window) < 15:
+        return patterns
+
+    prices_h = window["High"].values.astype(float)
+    prices_l = window["Low"].values.astype(float)
+    pct_b    = window["Percent_B"].values.astype(float)
+    vol      = window["Volume"].values.astype(float)
+    dates    = pd.to_datetime(window["Date"]).values if "Date" in window.columns else window.index
+
+    # ── Three Pushes to a High (Bearish) ──
+    local_highs = _find_local_highs(prices_h, order=2)
+    for i in range(len(local_highs)):
+        for j in range(i + 1, len(local_highs)):
+            for k in range(j + 1, len(local_highs)):
+                h1, h2, h3 = local_highs[i], local_highs[j], local_highs[k]
+                sep_12 = h2 - h1
+                sep_23 = h3 - h2
+                if not (M3_PUSH_MIN_SEPARATION <= sep_12 <= M3_PUSH_MAX_SEPARATION):
+                    continue
+                if not (M3_PUSH_MIN_SEPARATION <= sep_23 <= M3_PUSH_MAX_SEPARATION):
+                    continue
+
+                p1, p2, p3 = prices_h[h1], prices_h[h2], prices_h[h3]
+                pb1, pb2, pb3 = pct_b[h1], pct_b[h2], pct_b[h3]
+                v1, v2, v3 = vol[h1], vol[h2], vol[h3]
+
+                # Book criteria:
+                # 1. Each successive high is >= previous (trending up)
+                if not (p2 >= p1 * 0.99 and p3 >= p2 * 0.99):
+                    continue
+                # 2. %b diminishes on each push (key signal)
+                if not (pb1 > pb2 > pb3):
+                    continue
+                # 3. Volume diminishes (weakening conviction)
+                vol_declining = v1 > v2 > v3
+
+                desc = (
+                    f"Three Pushes to a High ({'strong' if vol_declining else 'moderate'}): "
+                    f"Push 1: {pd.Timestamp(dates[h1]).strftime('%d-%b')} ₹{p1:.2f} (%b={pb1:.2f}), "
+                    f"Push 2: {pd.Timestamp(dates[h2]).strftime('%d-%b')} ₹{p2:.2f} (%b={pb2:.2f}), "
+                    f"Push 3: {pd.Timestamp(dates[h3]).strftime('%d-%b')} ₹{p3:.2f} (%b={pb3:.2f}). "
+                )
+                if vol_declining:
+                    desc += "Volume declining on each push — classic exhaustion pattern."
+                else:
+                    desc += "Volume not strictly declining — pattern present but weaker."
+
+                patterns.append(PatternMatch(
+                    name="THREE-PUSH-HIGH",
+                    start_idx=h1, end_idx=h3,
+                    start_date=pd.Timestamp(dates[h1]).strftime("%Y-%m-%d"),
+                    end_date=pd.Timestamp(dates[h3]).strftime("%Y-%m-%d"),
+                    description=desc,
+                ))
+
+    # ── Three Pushes to a Low (Bullish) ──
+    local_lows = _find_local_lows(prices_l, order=2)
+    for i in range(len(local_lows)):
+        for j in range(i + 1, len(local_lows)):
+            for k in range(j + 1, len(local_lows)):
+                l1, l2, l3 = local_lows[i], local_lows[j], local_lows[k]
+                sep_12 = l2 - l1
+                sep_23 = l3 - l2
+                if not (M3_PUSH_MIN_SEPARATION <= sep_12 <= M3_PUSH_MAX_SEPARATION):
+                    continue
+                if not (M3_PUSH_MIN_SEPARATION <= sep_23 <= M3_PUSH_MAX_SEPARATION):
+                    continue
+
+                p1, p2, p3 = prices_l[l1], prices_l[l2], prices_l[l3]
+                pb1, pb2, pb3 = pct_b[l1], pct_b[l2], pct_b[l3]
+                v1, v2, v3 = vol[l1], vol[l2], vol[l3]
+
+                # Mirror criteria:
+                if not (p2 <= p1 * 1.01 and p3 <= p2 * 1.01):
+                    continue
+                # %b rising on each push (exhaustion of selling)
+                if not (pb1 < pb2 < pb3):
+                    continue
+                vol_declining = v1 > v2 > v3
+
+                desc = (
+                    f"Three Pushes to a Low ({'strong' if vol_declining else 'moderate'}): "
+                    f"Push 1: {pd.Timestamp(dates[l1]).strftime('%d-%b')} ₹{p1:.2f} (%b={pb1:.2f}), "
+                    f"Push 2: {pd.Timestamp(dates[l2]).strftime('%d-%b')} ₹{p2:.2f} (%b={pb2:.2f}), "
+                    f"Push 3: {pd.Timestamp(dates[l3]).strftime('%d-%b')} ₹{p3:.2f} (%b={pb3:.2f}). "
+                )
+                if vol_declining:
+                    desc += "Volume declining on each push — selling exhaustion."
+                else:
+                    desc += "Volume not strictly declining — pattern present but weaker."
+
+                patterns.append(PatternMatch(
+                    name="THREE-PUSH-LOW",
+                    start_idx=l1, end_idx=l3,
+                    start_date=pd.Timestamp(dates[l1]).strftime("%Y-%m-%d"),
+                    end_date=pd.Timestamp(dates[l3]).strftime("%Y-%m-%d"),
+                    description=desc,
+                ))
+
+    return patterns
+
+
+# ═══════════════════════════════════════════════════════════════
+#  METHOD III ENTRY/EXIT DISCIPLINE — Book Ch.12, Ch.20 p.165
+#  Buy: "rally day with greater-than-average range AND volume."
+#  Stop: "beneath the most recent low (right side of W)."
+# ═══════════════════════════════════════════════════════════════
+
+def _is_rally_day(df: pd.DataFrame) -> bool:
+    """
+    True when today's range AND volume both exceed their averages.
+    Book Ch.12: "Buy on a rally day with greater-than-average range
+    and greater-than-average volume."
+    """
+    if len(df) < max(M3_ENTRY_RANGE_LOOKBACK, M3_ENTRY_VOLUME_LOOKBACK) + 1:
+        return False
+    row = df.iloc[-1]
+    today_range = float(row["High"]) - float(row["Low"])
+    avg_range   = (df["High"].iloc[-(M3_ENTRY_RANGE_LOOKBACK + 1):-1]
+                   - df["Low"].iloc[-(M3_ENTRY_RANGE_LOOKBACK + 1):-1]).mean()
+    today_vol   = float(row["Volume"])
+    avg_vol     = float(df["Volume"].iloc[-(M3_ENTRY_VOLUME_LOOKBACK + 1):-1].mean())
+    return today_range > avg_range and today_vol > avg_vol
+
+
+def _compute_w_stop_loss(df: pd.DataFrame, lookback: int = M3_W_LOOKBACK) -> Optional[float]:
+    """
+    Stop beneath the most recent swing low (right side of W).
+    Book Ch.12: "set stop beneath the most recent low."
+    """
+    window = df.iloc[-lookback:]
+    if len(window) < 5:
+        return None
+    lows = _find_local_lows(window["Low"].values.astype(float), order=2)
+    if lows:
+        return float(window["Low"].values[lows[-1]])
+    return float(window["Low"].min())
+
+
+def _compute_m_stop_loss(df: pd.DataFrame, lookback: int = M3_W_LOOKBACK) -> Optional[float]:
+    """
+    Stop above the most recent swing high (right side of M).
+    Mirror image for sell/short stop.
+    """
+    window = df.iloc[-lookback:]
+    if len(window) < 5:
+        return None
+    highs = _find_local_highs(window["High"].values.astype(float), order=2)
+    if highs:
+        return float(window["High"].values[highs[-1]])
+    return float(window["High"].max())
+
+
+# ═══════════════════════════════════════════════════════════════
+#  BOOK'S SYSTEMATISED METHOD III RULES — Ch.20 p.163-165
+#  Buy  : %b < 0.05 AND II% > 0   (Book's exact buy rule)
+#  Sell : %b > 0.95 AND AD% < 0   (Book's exact sell rule)
+# ═══════════════════════════════════════════════════════════════
+
+def _systematised_m3_buy(row: pd.Series) -> bool:
+    """Book Ch.20 p.163: Buy when %b < 0.05 AND II% > 0."""
+    pct_b = _nan_safe(row.get("Percent_B", 0.5), 0.5)
+    ii_pct = _nan_safe(row.get("II_Pct", 0), 0)
+    return pct_b < 0.05 and ii_pct > 0
+
+
+def _systematised_m3_sell(row: pd.Series) -> bool:
+    """Book Ch.20 p.165: Sell when %b > 0.95 AND AD% < 0."""
+    pct_b = _nan_safe(row.get("Percent_B", 0.5), 0.5)
+    ad_pct = _nan_safe(row.get("AD_Pct", 0), 0)
+    return pct_b > 0.95 and ad_pct < 0
+
+
 def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
     """
     Method III — Reversals (W-Bottoms & M-Tops).
@@ -518,6 +714,12 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
     The book says: "The most important pattern recognition technique
     applied to Bollinger Bands is the identification of M-type tops
     and W-type bottoms."
+
+    Now also includes:
+    - Three-pushes-to-a-high/low (Book Ch.13 p.108)
+    - Book's systematised buy/sell rules (Ch.20 p.163-165)
+    - Entry discipline: rally day with > avg range + volume (Ch.12)
+    - Stop levels beneath/above recent swing points
     """
     if len(df) < M3_W_LOOKBACK:
         return StrategyResult(
@@ -531,12 +733,15 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
 
     w_patterns = _detect_w_bottoms(df)
     m_patterns = _detect_m_tops(df)
-    all_patterns = w_patterns + m_patterns
+    push_patterns = _detect_three_pushes(df)
+    all_patterns = w_patterns + m_patterns + push_patterns
 
     row  = df.iloc[-1]
     pct_b = _nan_safe(row["Percent_B"], 0.5)
     mfi   = _nan_safe(row["MFI"], 50.0)
     close = float(row["Close"])
+    ii_pct = _nan_safe(row.get("II_Pct", 0), 0)
+    ad_pct = _nan_safe(row.get("AD_Pct", 0), 0)
 
     # ── Determine current signal based on recent patterns ──
     signal_type = "NONE"
@@ -549,12 +754,29 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
     recent_w = [p for p in w_patterns if p.end_idx >= len(df.iloc[-M3_W_LOOKBACK:]) - 5]
     recent_m = [p for p in m_patterns if p.end_idx >= len(df.iloc[-M3_W_LOOKBACK:]) - 5]
 
+    # ── Book's Systematised Rules (Ch.20 p.163-165) ──
+    sys_buy  = _systematised_m3_buy(row)
+    sys_sell = _systematised_m3_sell(row)
+
+    # ── Entry discipline (Ch.12) ──
+    rally_day = _is_rally_day(df)
+
+    # ── Stop levels ──
+    w_stop = _compute_w_stop_loss(df)
+    m_stop = _compute_m_stop_loss(df)
+
+    # ── Three pushes (recent) ──
+    recent_push_high = [p for p in push_patterns
+                        if p.name == "THREE-PUSH-HIGH" and p.end_idx >= len(df.iloc[-M3_PUSH_LOOKBACK:]) - 5]
+    recent_push_low  = [p for p in push_patterns
+                        if p.name == "THREE-PUSH-LOW" and p.end_idx >= len(df.iloc[-M3_PUSH_LOOKBACK:]) - 5]
+
     if recent_w:
         last_w = recent_w[-1]
         if pct_b > 0.3:  # Price starting to recover
             signal_type = "BUY"
-            strength = "STRONG" if "strong" in last_w.description else "MODERATE"
-            confidence = 75 if strength == "STRONG" else 55
+            strength = "STRONG" if ("strong" in last_w.description and rally_day) else "MODERATE"
+            confidence = 80 if (strength == "STRONG" and ii_pct > 0) else (65 if strength == "STRONG" else 55)
             reason = "W-Bottom reversal detected — buy signal"
             details_lines.append(last_w.description)
             details_lines.append(
@@ -562,6 +784,19 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
                 "but the second low MUST hold above it.' This is your signal "
                 "that selling pressure is exhausted."
             )
+            if rally_day:
+                details_lines.append(
+                    "Entry discipline (Ch.12): TODAY is a rally day (range AND volume > average). "
+                    "This is the ideal entry point per the book."
+                )
+            else:
+                details_lines.append(
+                    "Entry discipline (Ch.12): Wait for a rally day (range + volume > average) to enter."
+                )
+            if w_stop is not None:
+                details_lines.append(
+                    f"Book stop level: ₹{w_stop:.2f} (beneath right side of W-Bottom)."
+                )
         else:
             signal_type = "WATCH"
             strength = "MODERATE"
@@ -573,12 +808,25 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
                 "Wait for a close above the middle Bollinger Band to confirm."
             )
 
+    elif sys_buy:
+        # Book's systematised buy: %b < 0.05 AND II% > 0 (Ch.20 p.163)
+        signal_type = "BUY"
+        strength = "STRONG" if rally_day else "MODERATE"
+        confidence = 70 if rally_day else 55
+        reason = f"Systematised Method III Buy — %b = {pct_b:.3f}, II% = {ii_pct:+.4f}"
+        details_lines.append(
+            f"Book Ch.20 p.163 rule: %b < 0.05 (current: {pct_b:.3f}) AND II% > 0 (current: {ii_pct:+.4f}). "
+            "Both conditions met — this is the book's mechanical reversal buy signal."
+        )
+        if w_stop is not None:
+            details_lines.append(f"Suggested stop: ₹{w_stop:.2f} (below recent swing low).")
+
     elif recent_m:
         last_m = recent_m[-1]
         if pct_b < 0.7:  # Price starting to decline
             signal_type = "SELL"
-            strength = "STRONG" if "strong" in last_m.description else "MODERATE"
-            confidence = 75 if strength == "STRONG" else 55
+            strength = "STRONG" if ("strong" in last_m.description and ad_pct < 0) else "MODERATE"
+            confidence = 80 if (strength == "STRONG" and ad_pct < 0) else (65 if strength == "STRONG" else 55)
             reason = "M-Top reversal detected — sell signal"
             details_lines.append(last_m.description)
             details_lines.append(
@@ -586,12 +834,51 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
                 "but the second high MUST fail to reach it.' This shows "
                 "buying momentum is fading."
             )
+            if m_stop is not None:
+                details_lines.append(
+                    f"Book stop level: ₹{m_stop:.2f} (above right side of M-Top)."
+                )
         else:
             signal_type = "WATCH"
             strength = "MODERATE"
             confidence = 40
             reason = "M-Top forming — watch for confirmation"
             details_lines.append(last_m.description)
+
+    elif sys_sell:
+        # Book's systematised sell: %b > 0.95 AND AD% < 0 (Ch.20 p.165)
+        signal_type = "SELL"
+        strength = "STRONG"
+        confidence = 70
+        reason = f"Systematised Method III Sell — %b = {pct_b:.3f}, AD% = {ad_pct:+.4f}"
+        details_lines.append(
+            f"Book Ch.20 p.165 rule: %b > 0.95 (current: {pct_b:.3f}) AND AD% < 0 (current: {ad_pct:+.4f}). "
+            "Both conditions met — this is the book's mechanical reversal sell signal."
+        )
+        if m_stop is not None:
+            details_lines.append(f"Suggested stop: ₹{m_stop:.2f} (above recent swing high).")
+
+    elif recent_push_high:
+        signal_type = "SELL"
+        strength = "MODERATE"
+        confidence = 60
+        reason = "Three Pushes to a High — bearish exhaustion"
+        details_lines.append(recent_push_high[-1].description)
+        details_lines.append(
+            "Book Ch.13 p.108: Each successive push makes a new high but %b declines "
+            "and volume diminishes. This shows buying exhaustion — expect a reversal down."
+        )
+
+    elif recent_push_low:
+        signal_type = "BUY"
+        strength = "MODERATE"
+        confidence = 60
+        reason = "Three Pushes to a Low — bullish exhaustion"
+        details_lines.append(recent_push_low[-1].description)
+        details_lines.append(
+            "Mirror of three pushes to a high: each successive low has rising %b "
+            "and declining volume. Selling is exhausted — expect a reversal up."
+        )
 
     else:
         # No recent pattern — describe current position
@@ -712,10 +999,19 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
     indicators = {
         "pct_b": round(pct_b, 4),
         "mfi": round(mfi, 2),
+        "ii_pct": round(ii_pct, 4),
+        "ad_pct": round(ad_pct, 4),
         "w_bottoms_found": len(w_patterns),
         "m_tops_found": len(m_patterns),
+        "three_push_high_found": len([p for p in push_patterns if p.name == "THREE-PUSH-HIGH"]),
+        "three_push_low_found": len([p for p in push_patterns if p.name == "THREE-PUSH-LOW"]),
         "recent_w_bottoms": len(recent_w),
         "recent_m_tops": len(recent_m),
+        "systematised_buy": sys_buy,
+        "systematised_sell": sys_sell,
+        "rally_day": rally_day,
+        "w_stop_loss": round(w_stop, 2) if w_stop is not None else None,
+        "m_stop_loss": round(m_stop, 2) if m_stop is not None else None,
         "buy_checklist": buy_checklist,
         "sell_checklist": sell_checklist,
     }

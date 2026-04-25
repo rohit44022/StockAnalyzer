@@ -706,6 +706,55 @@
                         </div>
                     </div>
                     <div class="accordion-item">
+                        <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sgShort"><i class="bi bi-arrow-down-circle me-2 text-red"></i> Short-Side Squeeze (Bearish Breakout)</button></h2>
+                        <div id="sgShort" class="accordion-collapse collapse" data-bs-parent="#strategyGuideAccordion">
+                            <div class="accordion-body">
+                                The <strong>short-side squeeze</strong> is the <strong>mirror image</strong> of the buy signal. Instead of breaking above the upper band, price breaks <strong>below the lower band</strong> from a squeeze.
+                                <br><br>
+                                <strong>5 Short Conditions (Book Ch.16):</strong>
+                                <ul class="mb-0 mt-1">
+                                    <li><strong>Squeeze Active</strong> — Same BBW trigger as bullish side</li>
+                                    <li><strong>Price Below Lower BB</strong> — Bearish breakout from squeeze</li>
+                                    <li><strong>Volume Above Average</strong> — Confirms the downside move is real</li>
+                                    <li><strong>II% Negative</strong> — Intraday Intensity showing smart money selling (Book Ch.18)</li>
+                                    <li><strong>MFI Below 50</strong> — Buying fuel exhausted</li>
+                                </ul>
+                                <br>
+                                <em>Action: Avoid new longs. If already long, tighten stop-loss. Consider hedging.</em>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sgPushes"><i class="bi bi-stack me-2 text-yellow"></i> Three Pushes to a High/Low</button></h2>
+                        <div id="sgPushes" class="accordion-collapse collapse" data-bs-parent="#strategyGuideAccordion">
+                            <div class="accordion-body">
+                                <strong>Three Pushes to a High</strong> (Book Ch.13 p.108) is a classic <strong>exhaustion pattern</strong>:
+                                <br><br>
+                                <strong>Bearish (Three Pushes to a High):</strong> Price makes three successive highs, but each one shows <strong>declining %b</strong> and ideally <strong>declining volume</strong>. The price is rising, but the bands say momentum is fading. Expect a reversal down.
+                                <br><br>
+                                <strong>Bullish (Three Pushes to a Low):</strong> Mirror image — three successive lows with <strong>rising %b</strong> and declining volume. Selling is exhausting itself. Expect a reversal up.
+                                <br><br>
+                                <em>Look for this pattern in the Method III section. It appears alongside W-Bottoms and M-Tops.</em>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sgNewInd"><i class="bi bi-clipboard-data me-2 text-blue"></i> New Indicators: II%, AD%, VWMACD, Normalised RSI/MFI</button></h2>
+                        <div id="sgNewInd" class="accordion-collapse collapse" data-bs-parent="#strategyGuideAccordion">
+                            <div class="accordion-body">
+                                <strong>II% (Intraday Intensity)</strong> — Book Ch.18: Measures where the close falls within the day's range, weighted by volume. Positive = smart money buying within the bar. Used in the book's systematised buy rule: <strong>%b &lt; 0.05 AND II% &gt; 0 = BUY</strong>.
+                                <br><br>
+                                <strong>AD% (Accumulation/Distribution)</strong> — Book Ch.18: Measures cumulative buying vs selling pressure. Used in the systematised sell rule: <strong>%b &gt; 0.95 AND AD% &lt; 0 = SELL</strong>.
+                                <br><br>
+                                <strong>VWMACD</strong> — Book Ch.18: Volume-Weighted MACD. Like standard MACD but weights price by volume. Gives a truer momentum signal — volume days count more. Positive histogram = bullish momentum.
+                                <br><br>
+                                <strong>RSI %b / MFI %b (Normalised)</strong> — Book Ch.21: Bollinger Bands applied to RSI and MFI create <strong>adaptive</strong> overbought/oversold levels. Instead of fixed 70/30, the bands adapt to the indicator's own volatility regime.
+                                <br><br>
+                                <strong>Band Expansion</strong> — Book Ch.15: When the <strong>opposite band</strong> moves away during a trend (lower band falls in uptrend), it confirms the trend. When it <strong>reverses</strong> direction, the trend is ending — this is an early exit signal.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
                         <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sgFundamentals"><i class="bi bi-bank2 me-2 text-green"></i> Understanding Fundamental Verdicts</button></h2>
                         <div id="sgFundamentals" class="accordion-collapse collapse" data-bs-parent="#strategyGuideAccordion">
                             <div class="accordion-body">
@@ -1100,6 +1149,9 @@
         if(s.buy_signal) {
             cls='action-buy'; icon='🚀'; label='BUY — ALL 5 CONDITIONS MET';
             sub = `Enter at next market open. Set Stop Loss at ₹${v(s.stop_loss)} (Parabolic SAR).`;
+        } else if(s.short_signal) {
+            cls='action-sell'; icon='🔻'; label='SHORT-SIDE BREAKOUT — BEARISH';
+            sub = 'Squeeze broke downward with volume + negative II% + weak MFI. Avoid longs or consider hedging.';
         } else if(s.sell_signal) {
             cls='action-sell'; icon='🔴'; label='SELL / EXIT';
             sub = detail || 'Exit signal triggered. Close your position.';
@@ -1257,6 +1309,40 @@
                   met>=3  ? `⏳ ${met}/5 conditions met — Getting close. Watch for remaining conditions.` :
                             `❌ Only ${met}/5 conditions met — No buy signal. Wait for setup.`}
             </div>`;
+
+        // ── Short-Side (Bearish) Conditions — Book Ch.16 ──
+        if(s.cond1 || s.short_signal) {
+            const shortConds = [
+                { ok: s.cond_short_squeeze, name: 'Squeeze Active (BBW at trigger)', detail: `BBW: ${v(s.bbw,6)}`, explain: 'Same squeeze detection as bullish side — the spring must be coiled.' },
+                { ok: s.cond_short_price, name: 'Price Below Lower BB (Breakdown)', detail: `Close: ₹${v(s.current_price)} · Lower: ₹${v(s.bb_lower)}`, explain: 'Price broke BELOW the lower Bollinger Band — bearish breakout from squeeze.' },
+                { ok: s.cond_short_volume, name: 'Volume Confirms (Above 50-SMA)', detail: `Vol: ${s.volume?.toLocaleString()||'N/A'} · SMA: ${s.vol_sma50?.toLocaleString()||'N/A'}`, explain: 'Volume must be above average to confirm the downside breakout is real.' },
+                { ok: s.cond_short_ii_neg, name: 'II% Negative (Intraday Selling)', detail: `II%: ${s.ii_pct!=null?(s.ii_pct>=0?'+':'')+s.ii_pct.toFixed(4):'N/A'}`, explain: 'Book Ch.18: Negative Intraday Intensity confirms smart money is selling within the bar.' },
+                { ok: s.cond_short_mfi_low, name: 'MFI Below 50 (Weak Fuel)', detail: `MFI: ${v(s.mfi,1)}`, explain: 'MFI below 50 means buying fuel is exhausted — sellers dominate.' },
+            ];
+            const shortMet = shortConds.filter(c => c.ok).length;
+            el.innerHTML += `
+                <div class="mt-4 p-3 rounded" style="background:rgba(248,81,73,0.05); border:1px solid rgba(248,81,73,0.15);">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold text-red"><i class="bi bi-arrow-down-circle me-1"></i> Short-Side Bearish Conditions (Book Ch.16)</span>
+                        <span class="badge ${shortMet===5?'bg-danger':'bg-warning text-dark'} font-mono">${shortMet}/5</span>
+                    </div>
+                    <p class="small text-secondary mb-2"><i class="bi bi-info-circle"></i> Mirror of the 5 buy conditions for <strong>downside breakouts</strong>. All 5 = strong bearish signal.</p>
+                    ${shortConds.map(c => `
+                        <div class="d-flex gap-3 py-1 border-bottom" style="border-color:rgba(139,148,158,0.1)!important;">
+                            <span class="mt-1">${c.ok?'🔴':'⬜'}</span>
+                            <div class="flex-grow-1">
+                                <div class="small ${c.ok?'text-red':'text-secondary'}">${c.name}</div>
+                                <div class="small font-mono text-secondary">${c.detail}</div>
+                            </div>
+                        </div>`).join('')}
+                    <div class="text-center mt-2 py-2 rounded fw-bold small ${shortMet===5?'text-red':'text-secondary'}"
+                         style="background:${shortMet===5?'rgba(248,81,73,0.1)':'rgba(139,148,158,0.05)'};">
+                        ${shortMet===5 ? '🔻 ALL 5 SHORT CONDITIONS MET — BEARISH BREAKOUT!'
+                          : shortMet>=3 ? `⚠️ ${shortMet}/5 bearish conditions — watch for downside breakout.`
+                          : `${shortMet}/5 bearish conditions — no short signal.`}
+                    </div>
+                </div>`;
+        }
     }
 
     // ═══════════ EXIT SIGNALS ═══════════
@@ -1268,6 +1354,7 @@
         if(s.exit_sar_flip)   exits.push({name:'SAR Flip', icon:'bi-arrow-repeat', desc:'Parabolic SAR dots flipped from green (below candles) to red (above candles). The uptrend has reversed — trend is now bearish.'});
         if(s.exit_lower_band) exits.push({name:'Lower Band Tag', icon:'bi-arrow-down-circle', desc:'Price has touched or closed below the lower Bollinger Band. The bullish momentum is exhausted.'});
         if(s.exit_double_neg) exits.push({name:'CMF + MFI Double Negative', icon:'bi-dash-circle', desc:'Both CMF went below zero AND MFI dropped below 50. Money is flowing out of the stock — institutional selling detected.'});
+        if(s.expansion_end)   exits.push({name:'Band Expansion Reversing', icon:'bi-arrows-collapse', desc:'Book Ch.15: The prior band Expansion is now reversing — the lower band is recovering (uptrend) or upper band is dropping (downtrend). The trend is at an end.'});
         document.getElementById('exitSignals').innerHTML =
             exits.map(e => `
                 <div class="d-flex gap-3 align-items-start mb-2">
@@ -1432,6 +1519,16 @@
                 if(ind.volume_confirmed != null) html += `<span>Volume: <strong class="${ind.volume_confirmed ? 'text-green' : 'text-red'}">${ind.volume_confirmed ? '✅ Confirmed' : '❌ Weak'}</strong></span>`;
                 if(ind.w_bottoms_found != null) html += `<span>W-Bottoms: <strong>${ind.w_bottoms_found}</strong></span>`;
                 if(ind.m_tops_found != null) html += `<span>M-Tops: <strong>${ind.m_tops_found}</strong></span>`;
+                if(ind.three_push_high_found) html += `<span class="text-red">3-Push High: <strong>${ind.three_push_high_found}</strong></span>`;
+                if(ind.three_push_low_found) html += `<span class="text-green">3-Push Low: <strong>${ind.three_push_low_found}</strong></span>`;
+                if(ind.ii_pct != null) { const c = ind.ii_pct > 0 ? 'text-green' : 'text-red'; html += `<span>II%: <strong class="${c}">${ind.ii_pct >= 0 ? '+' : ''}${ind.ii_pct.toFixed(4)}</strong></span>`; }
+                if(ind.ad_pct != null) { const c = ind.ad_pct > 0 ? 'text-green' : 'text-red'; html += `<span>AD%: <strong class="${c}">${ind.ad_pct >= 0 ? '+' : ''}${ind.ad_pct.toFixed(4)}</strong></span>`; }
+                if(ind.vwmacd_hist != null) { const c = ind.vwmacd_hist > 0 ? 'text-green' : 'text-red'; html += `<span>VWMACD: <strong class="${c}">${ind.vwmacd_hist >= 0 ? '+' : ''}${ind.vwmacd_hist.toFixed(4)}</strong></span>`; }
+                if(ind.systematised_buy) html += `<span class="text-green">📘 Sys Buy: <strong>ACTIVE</strong></span>`;
+                if(ind.systematised_sell) html += `<span class="text-red">📘 Sys Sell: <strong>ACTIVE</strong></span>`;
+                if(ind.rally_day != null) html += `<span>Rally Day: <strong class="${ind.rally_day ? 'text-green' : 'text-secondary'}">${ind.rally_day ? '✅ YES' : 'No'}</strong></span>`;
+                if(ind.w_stop_loss != null) html += `<span>W Stop: <strong class="text-red">₹${ind.w_stop_loss}</strong></span>`;
+                if(ind.m_stop_loss != null) html += `<span>M Stop: <strong class="text-red">₹${ind.m_stop_loss}</strong></span>`;
                 if(ind.upper_walk_active != null) html += `<span>Upper Walk: <strong class="${ind.upper_walk_active ? 'text-green' : 'text-secondary'}">${ind.upper_walk_active ? 'ACTIVE' : 'No'}</strong></span>`;
                 if(ind.lower_walk_active != null) html += `<span>Lower Walk: <strong class="${ind.lower_walk_active ? 'text-red' : 'text-secondary'}">${ind.lower_walk_active ? 'ACTIVE' : 'No'}</strong></span>`;
                 if(ind.sar_bull != null) html += `<span>SAR: <strong class="${ind.sar_bull ? 'text-green' : 'text-red'}">${ind.sar_bull ? '↑ Bullish' : '↓ Bearish'}</strong></span>`;
@@ -1441,9 +1538,11 @@
             // ── Patterns ──
             if(st.patterns && st.patterns.length) {
                 st.patterns.forEach(p => {
-                    const pColor = p.name.includes('BOTTOM') || p.name.includes('UPPER') ? 'text-green' : 'text-red';
+                    const isBullish = p.name.includes('BOTTOM') || p.name.includes('UPPER') || p.name.includes('PUSH-LOW');
+                    const pColor = isBullish ? 'text-green' : 'text-red';
+                    const pIcon = isBullish ? 'bi-arrow-up-circle' : 'bi-arrow-down-circle';
                     html += `<div class="strat-pattern">`;
-                    html += `  <span class="strat-pattern-name ${pColor}"><i class="bi ${p.name.includes('BOTTOM')?'bi-arrow-up-circle':'bi-arrow-down-circle'} me-1"></i>${p.name}</span>`;
+                    html += `  <span class="strat-pattern-name ${pColor}"><i class="bi ${pIcon} me-1"></i>${p.name}</span>`;
                     html += `  <span class="small text-secondary ms-2">${p.start_date} → ${p.end_date}</span>`;
                     html += `  <div class="small mt-1" style="color:#8b949e;line-height:1.6;">${p.description}</div>`;
                     html += `</div>`;
@@ -2572,6 +2671,65 @@
             ['C','MFI (Money Flow)', v(s.mfi,1), 'Levels: 20 / 50 / 80', mfiSignal, mfiColor,
              'Volume-weighted RSI. Above 50 = sufficient buying fuel. Above 80 = maximum fuel. Below 20 = oversold.'],
         ];
+
+        // ── New Book Indicators (Ch.15, 18, 21) ──
+        const iiPct = s.ii_pct;
+        const adPct = s.ad_pct;
+        const vwHist = s.vwmacd_hist;
+
+        if(iiPct != null) {
+            let iiSig, iiCol;
+            if(iiPct > 0.05) { iiSig = 'Strong intraday buying'; iiCol = 'text-green'; }
+            else if(iiPct > 0) { iiSig = 'Mild intraday buying'; iiCol = 'text-green'; }
+            else if(iiPct < -0.05) { iiSig = 'Strong intraday selling'; iiCol = 'text-red'; }
+            else { iiSig = 'Mild intraday selling'; iiCol = 'text-red'; }
+            rows.push(['D','II% (Intraday Intensity)', (iiPct>=0?'+':'')+iiPct.toFixed(4), 'Book Ch.18 Table 18.3', iiSig, iiCol,
+                'Intraday Intensity normalised over 21 days. Positive = smart money buying within the bar. Used in systematised Method III buy rule (%b < 0.05 AND II% > 0).']);
+        }
+        if(adPct != null) {
+            let adSig, adCol;
+            if(adPct > 0.05) { adSig = 'Accumulation (buying pressure)'; adCol = 'text-green'; }
+            else if(adPct > 0) { adSig = 'Mild accumulation'; adCol = 'text-green'; }
+            else if(adPct < -0.05) { adSig = 'Distribution (selling pressure)'; adCol = 'text-red'; }
+            else { adSig = 'Mild distribution'; adCol = 'text-red'; }
+            rows.push(['D','AD% (Accum/Dist)', (adPct>=0?'+':'')+adPct.toFixed(4), 'Book Ch.18 Table 18.3', adSig, adCol,
+                'Accumulation/Distribution normalised over 21 days. Positive = accumulation. Used in systematised Method III sell rule (%b > 0.95 AND AD% < 0).']);
+        }
+        if(vwHist != null) {
+            let vwSig, vwCol;
+            if(vwHist > 0) { vwSig = 'VWMACD bullish — volume-weighted momentum up'; vwCol = 'text-green'; }
+            else { vwSig = 'VWMACD bearish — volume-weighted momentum down'; vwCol = 'text-red'; }
+            rows.push(['D','VWMACD Histogram', (vwHist>=0?'+':'')+vwHist.toFixed(4), 'Book Ch.18', vwSig, vwCol,
+                'Volume-Weighted MACD (12/26/9). Weights price by volume — gives truer momentum signal than standard MACD. Positive = bullish volume-momentum.']);
+        }
+
+        // Normalised indicators (Book Ch.21)
+        if(s.rsi_norm != null) {
+            let rnSig, rnCol;
+            if(s.rsi_norm > 0.8) { rnSig = 'RSI overbought (adaptive)'; rnCol = 'text-red'; }
+            else if(s.rsi_norm < 0.2) { rnSig = 'RSI oversold (adaptive)'; rnCol = 'text-green'; }
+            else { rnSig = 'RSI neutral (adaptive)'; rnCol = 'text-yellow'; }
+            rows.push(['E','RSI %b (Normalised)', v(s.rsi_norm,3), 'Adaptive OB/OS via BB on RSI', rnSig, rnCol,
+                'Book Ch.21: Bollinger Bands applied to RSI create adaptive overbought/oversold levels. Above 0.8 = overbought in current regime. Below 0.2 = oversold.']);
+        }
+        if(s.mfi_norm != null) {
+            let mnSig, mnCol;
+            if(s.mfi_norm > 0.8) { mnSig = 'MFI overbought (adaptive)'; mnCol = 'text-red'; }
+            else if(s.mfi_norm < 0.2) { mnSig = 'MFI oversold (adaptive)'; mnCol = 'text-green'; }
+            else { mnSig = 'MFI neutral (adaptive)'; mnCol = 'text-yellow'; }
+            rows.push(['E','MFI %b (Normalised)', v(s.mfi_norm,3), 'Adaptive OB/OS via BB on MFI', mnSig, mnCol,
+                'Book Ch.21: Bollinger Bands on MFI. Adapts to volatility regime rather than using fixed 20/80 levels. More reliable OB/OS in trending markets.']);
+        }
+
+        // Expansion (Book Ch.15)
+        if(s.expansion_up || s.expansion_down || s.expansion_end) {
+            let expSig, expCol;
+            if(s.expansion_end) { expSig = '⚠️ Expansion REVERSING — trend at an end'; expCol = 'text-red'; }
+            else if(s.expansion_up) { expSig = 'Uptrend Expansion — lower band falling'; expCol = 'text-green'; }
+            else { expSig = 'Downtrend Expansion — upper band rising'; expCol = 'text-red'; }
+            rows.push(['E','Band Expansion', s.expansion_end ? 'ENDING' : 'ACTIVE', 'Book Ch.15', expSig, expCol,
+                'Book Ch.15: During a strong trend, the opposite band moves away (Expansion). When it reverses direction, the trend is ending. This is an early exit warning.']);
+        }
         tbody.innerHTML = rows.map(([g,name,val,details,signal,sigColor,explain]) => `
             <tr><td class="text-secondary">${g}</td><td>${name}</td><td class="font-mono">${val}</td><td class="small text-secondary font-mono">${details}</td><td class="${sigColor} small fw-500">${signal}</td></tr>
             <tr><td colspan="5" class="ind-explain border-0 pt-0 pb-1 ps-5">${explain}</td></tr>`).join('');

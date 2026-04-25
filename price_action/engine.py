@@ -70,6 +70,16 @@ class PriceActionResult:
     buying_pressure: float = 0.0
     selling_pressure: float = 0.0
     ema_gap_bar_count: int = 0              # Brooks: 20+ = very strong trend
+    gap_bar_setup: bool = False             # Brooks: first EMA touch after 20+ gap bars
+    in_spike: bool = False                  # Brooks: explosive start of trend
+    spike_direction: str = "NONE"           # "BULL" | "BEAR" | "NONE"
+    spike_bars: int = 0
+    spike_strength: float = 0.0
+    recent_climax: bool = False             # Climax bar in last 5 bars
+    consecutive_bull_trend: int = 0         # Consecutive bull trend bars
+    consecutive_bear_trend: int = 0
+    price_vs_ema: str = "AT"                # "ABOVE" | "BELOW" | "AT"
+    ema20: float = 0.0                      # Current EMA20 value
 
     # ── Bar Analysis ──
     last_bar_type: str = "UNKNOWN"
@@ -388,6 +398,16 @@ def run_price_action_analysis(
         result.buying_pressure = trend.buying_pressure
         result.selling_pressure = trend.selling_pressure
         result.ema_gap_bar_count = trend.ema_gap_bar_count
+        result.gap_bar_setup = trend.gap_bar_setup
+        result.in_spike = trend.in_spike
+        result.spike_direction = trend.spike_direction
+        result.spike_bars = trend.spike_bars
+        result.spike_strength = trend.spike_strength
+        result.recent_climax = trend.recent_climax
+        result.consecutive_bull_trend = trend.consecutive_bull_trend
+        result.consecutive_bear_trend = trend.consecutive_bear_trend
+        result.price_vs_ema = trend.price_vs_ema
+        result.ema20 = trend.ema20
 
         # Last bar info
         last_bar = bars[-1]
@@ -475,6 +495,16 @@ def pa_result_to_dict(result: PriceActionResult) -> dict:
             "buying_pressure": result.buying_pressure,
             "selling_pressure": result.selling_pressure,
             "ema_gap_bar_count": result.ema_gap_bar_count,
+            "gap_bar_setup": result.gap_bar_setup,
+            "in_spike": result.in_spike,
+            "spike_direction": result.spike_direction,
+            "spike_bars": result.spike_bars,
+            "spike_strength": result.spike_strength,
+            "recent_climax": result.recent_climax,
+            "consecutive_bull_trend": result.consecutive_bull_trend,
+            "consecutive_bear_trend": result.consecutive_bear_trend,
+            "price_vs_ema": result.price_vs_ema,
+            "ema20": result.ema20,
         },
 
         "last_bar": {

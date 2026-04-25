@@ -111,6 +111,12 @@ def _score_trend_direction(trend: TrendState, direction: str) -> float:
            (direction == "SELL" and trend.trend_direction == "BEAR"):
             score += 5  # Very strong with-trend bonus
 
+    # Brooks: first EMA touch after 20+ gap bars = high-probability pullback entry
+    if hasattr(trend, 'gap_bar_setup') and trend.gap_bar_setup:
+        if (direction == "BUY" and trend.trend_direction == "BULL") or \
+           (direction == "SELL" and trend.trend_direction == "BEAR"):
+            score += 5  # Gap bar setup bonus
+
     return min(score, C.W_TREND_DIRECTION)
 
 
@@ -171,6 +177,11 @@ def _score_pattern_match(patterns: PatternSummary, direction: str) -> float:
     score = 0.0
 
     for p in patterns.active_patterns:
+        # Barbwire penalty — Brooks: stay out in barbwire
+        if p.name == "BARBWIRE":
+            score -= 10
+            continue
+
         if direction == "BUY" and p.direction in ("BULL", "NEUTRAL"):
             reliability_map = {"HIGH": 12, "MODERATE": 7, "LOW": 3}
             score += reliability_map.get(p.reliability, 0)
@@ -181,6 +192,9 @@ def _score_pattern_match(patterns: PatternSummary, direction: str) -> float:
             # Wedge reversal bonus
             if p.name == "WEDGE_BULL":
                 score += 5
+            # Two-bar reversal bonus
+            if p.name == "TWO_BAR_BULL_REV":
+                score += 4
 
         elif direction == "SELL" and p.direction in ("BEAR", "NEUTRAL"):
             reliability_map = {"HIGH": 12, "MODERATE": 7, "LOW": 3}
@@ -190,8 +204,10 @@ def _score_pattern_match(patterns: PatternSummary, direction: str) -> float:
                 score += 5
             if p.name == "WEDGE_BEAR":
                 score += 5
+            if p.name == "TWO_BAR_BEAR_REV":
+                score += 4
 
-    return min(score, C.W_PATTERN_MATCH)
+    return min(max(score, 0), C.W_PATTERN_MATCH)
 
 
 def _score_pressure(trend: TrendState, direction: str) -> float:
@@ -356,6 +372,13 @@ def _determine_setup_type(
         if direction == "SELL" and bars[-1].signal_direction == "BEAR_REVERSAL":
             return "REVERSAL"
 
+    # Two-bar reversal
+    for p in patterns.active_patterns:
+        if p.name == "TWO_BAR_BULL_REV" and direction == "BUY":
+            return "REVERSAL"
+        if p.name == "TWO_BAR_BEAR_REV" and direction == "SELL":
+            return "REVERSAL"
+
     # Default: trend continuation
     if trend.in_spike:
         return "BREAKOUT"
@@ -440,15 +463,34 @@ def _compute_price_levels(
         target_1 = entry + risk * 1.5     # 1.5R
         target_2 = entry + risk * 2.5     # 2.5R
 
-        # Use measured move if available
+        # Use measured move if available (two-leg)
         if trend.measured_move_target > entry:
             target_2 = trend.measured_move_target
+
+        # Brooks: trading range measured move — height of range projected from breakout
+        for bo in breakouts.active_breakouts:
+            if bo.level_type == "RANGE" and "BULL" in bo.breakout_type and bo.level_price > 0:
+                # Range height is approximated as distance from level to recent low
+                range_height = bo.level_price - stop if stop > 0 else risk * 2
+                range_target = bo.level_price + range_height
+                if range_target > target_2:
+                    target_2 = range_target
+                break
     else:
         target_1 = entry - risk * 1.5
         target_2 = entry - risk * 2.5
 
         if 0 < trend.measured_move_target < entry:
             target_2 = trend.measured_move_target
+
+        # Brooks: trading range measured move for shorts
+        for bo in breakouts.active_breakouts:
+            if bo.level_type == "RANGE" and "BEAR" in bo.breakout_type and bo.level_price > 0:
+                range_height = stop - bo.level_price if stop > 0 else risk * 2
+                range_target = bo.level_price - range_height
+                if 0 < range_target < target_2:
+                    target_2 = range_target
+                break
 
     rr = abs(target_1 - entry) / risk if risk > 0 else 0
 
@@ -526,6 +568,15 @@ def _build_reasons(
         reasons.append(f"{trend.consecutive_bull_trend} consecutive bull trend bars")
     elif trend.consecutive_bear_trend >= 3 and direction == "SELL":
         reasons.append(f"{trend.consecutive_bear_trend} consecutive bear trend bars")
+
+    # Gap bar setup
+    if hasattr(trend, 'gap_bar_setup') and trend.gap_bar_setup:
+        reasons.append("⚡ MA Gap Bar Setup — first EMA touch after 20+ gap bars (Brooks sign of strength)")
+
+    # Barbwire warning
+    for p in patterns.active_patterns:
+        if p.name == "BARBWIRE":
+            reasons.append("⚠ BARBWIRE detected — choppy action, reduced conviction")
 
     return reasons
 

@@ -1,0 +1,17 @@
+{
+  "source": "conversation_todo_list",
+  "exported_at": "2026-04-24T00:00:00Z",
+  "tasks": [
+    {"title": "Add CSS for help/tooltip elements", "status": "completed"},
+    {"title": "Add system intro section after verdict", "status": "completed"},
+    {"title": "Enrich Verdict Banner with explanations", "status": "completed"},
+    {"title": "Enrich Composite Signal panel", "status": "pending"},
+    {"title": "Enrich Market Regime panel", "status": "pending"},
+    {"title": "Enrich Risk Assessment panel", "status": "pending"},
+    {"title": "Enrich Alpha Signals panel", "status": "pending"},
+    {"title": "Enrich Statistical Profile panel", "status": "pending"},
+    {"title": "Enrich Risk Levels + Costs panels", "status": "pending"},
+    {"title": "Enrich Transitions + Micro panels", "status": "pending"},
+    {"title": "Restart server and verify", "status": "pending"}
+  ]
+}

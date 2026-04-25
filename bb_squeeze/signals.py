@@ -74,6 +74,28 @@ class SignalResult:
     cmf:            float = 0.0
     mfi:            float = 0.0
 
+    # ── Book Ch.18 — New Volume Indicators ──
+    ii_pct:         float = 0.0   # Intraday Intensity %  (II%)
+    ad_pct:         float = 0.0   # Accumulation Distribution %  (AD%)
+    vwmacd_hist:    float = 0.0   # VWMACD histogram
+
+    # ── Book Ch.15 — Expansion ──
+    expansion_up:   bool  = False  # Lower band falling in uptrend
+    expansion_down: bool  = False  # Upper band rising in downtrend
+    expansion_end:  bool  = False  # Expansion reversing → end-of-trend
+
+    # ── Book Ch.21 — Normalised Indicators ──
+    rsi_norm:       float = 0.5   # %b of RSI (adaptive OB/OS)
+    mfi_norm:       float = 0.5   # %b of MFI (adaptive OB/OS)
+
+    # ── Method I Short-Side (Book Ch.16) ──
+    short_signal:   bool  = False  # Bearish squeeze breakout
+    cond_short_squeeze: bool = False
+    cond_short_price:   bool = False
+    cond_short_volume:  bool = False
+    cond_short_ii_neg:  bool = False
+    cond_short_mfi_low: bool = False
+
     # ── Direction Lean ──
     direction_lean: str = "NEUTRAL"    # "BULLISH" | "BEARISH" | "NEUTRAL"
 
@@ -162,6 +184,20 @@ def _direction_lean(row: pd.Series) -> str:
     else:
         bear_score += 1
 
+    # II% — Book Ch.18: primary directional clue for squeeze breakouts
+    ii_pct = float(row.get("II_Pct", 0))
+    if ii_pct > 0:
+        bull_score += 2
+    elif ii_pct < 0:
+        bear_score += 2
+
+    # VWMACD histogram — Book Ch.18: closed-form directional clue
+    vwmacd_hist = float(row.get("VWMACD_Hist", 0))
+    if vwmacd_hist > 0:
+        bull_score += 1
+    elif vwmacd_hist < 0:
+        bear_score += 1
+
     if bull_score > bear_score + 1:
         return "BULLISH"
     elif bear_score > bull_score + 1:
@@ -246,6 +282,16 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     result.cmf           = _nan_safe(row.get("CMF", 0), 0)
     result.mfi           = _nan_safe(row.get("MFI", 50), 50)
 
+    # ── New Book Indicators (Ch.18, Ch.15, Ch.21) ──
+    result.ii_pct        = _nan_safe(row.get("II_Pct", 0), 0)
+    result.ad_pct        = _nan_safe(row.get("AD_Pct", 0), 0)
+    result.vwmacd_hist   = _nan_safe(row.get("VWMACD_Hist", 0), 0)
+    result.expansion_up  = bool(row.get("Expansion_Up", False))
+    result.expansion_down = bool(row.get("Expansion_Down", False))
+    result.expansion_end = bool(row.get("Expansion_End", False))
+    result.rsi_norm      = _nan_safe(row.get("RSI_Norm", 0.5), 0.5)
+    result.mfi_norm      = _nan_safe(row.get("MFI_Norm", 0.5), 0.5)
+
     # ── Phase Detection ──
     result.phase         = _phase_detection(row, prev_df)
     result.direction_lean = _direction_lean(row)
@@ -308,6 +354,30 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     result.buy_signal = all_five_green and not result.head_fake
 
     # ──────────────────────────────────────────────────────────
+    # METHOD I SHORT-SIDE — Bearish Squeeze Breakout (Book Ch.16)
+    # "A short sale signal is triggered by falling below the lower
+    #  band after a Squeeze."
+    # ──────────────────────────────────────────────────────────
+    result.cond_short_squeeze = result.cond1_squeeze_on
+    result.cond_short_price   = result.current_price < result.bb_lower
+
+    prev_close_short = float(prev_df["Close"].iloc[-1]) if len(prev_df) >= 1 else result.current_price
+    is_red_candle     = result.current_price < prev_close_short
+    result.cond_short_volume = is_red_candle and vol_above_sma
+
+    result.cond_short_ii_neg  = result.ii_pct < 0    # II% negative = distribution (Book Ch.18)
+    result.cond_short_mfi_low = result.mfi < MFI_MID # MFI below 50 = weak buying
+
+    short_conditions_met = (
+        result.cond_short_squeeze and
+        result.cond_short_price and
+        result.cond_short_volume and
+        result.cond_short_ii_neg and
+        result.cond_short_mfi_low
+    )
+    result.short_signal = short_conditions_met
+
+    # ──────────────────────────────────────────────────────────
     # STOP LOSS — Parabolic SAR
     # ──────────────────────────────────────────────────────────
     result.stop_loss = result.sar
@@ -347,13 +417,17 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     mfi_below_50   = result.mfi < 50
     result.exit_double_neg = cmf_below_zero and mfi_below_50
 
+    # Exit Signal 4 — Expansion End (Book Ch.15 p.123)
+    # When a prior Expansion reverses, the trend is at an end.
+    exit_expansion_end = result.expansion_end
+
     # Sell signal logic:
     # In squeeze-related phases, a single exit trigger is enough (we're in a trade).
     # In NORMAL phase (no squeeze context), require stronger evidence:
     #   - at least 2 exit conditions firing, OR
     #   - SAR flip + price below mid band (confirmed downtrend)
     # This prevents the system from flooding SELL signals on every normal stock.
-    exit_count = sum([result.exit_sar_flip, result.exit_lower_band_tag, result.exit_double_neg])
+    exit_count = sum([result.exit_sar_flip, result.exit_lower_band_tag, result.exit_double_neg, exit_expansion_end])
     is_squeeze_context = result.phase in ("COMPRESSION", "DIRECTION", "EXPLOSION", "POST-BREAKOUT")
 
     if is_squeeze_context:
@@ -424,6 +498,13 @@ def _build_action(r: SignalResult) -> str:
             f"   Stop Loss: ₹{r.stop_loss:.2f} (Parabolic SAR). Exit if price closes below this."
         )
 
+    if r.short_signal:
+        return (
+            f"🔻 SHORT SIGNAL (Method I Bearish Breakout) — Price broke below lower band from Squeeze.\n"
+            f"   II% = {r.ii_pct:+.4f} (distribution), MFI = {r.mfi:.0f} (weak buying).\n"
+            f"   Stop Loss: ₹{r.stop_loss:.2f} (Parabolic SAR). Cover if price closes above this."
+        )
+
     if r.head_fake and r.cond2_price_above:
         return (
             "⚠️  HEAD FAKE DETECTED — Do NOT enter. One or more confirming indicators are contradicting "
@@ -439,6 +520,8 @@ def _build_action(r: SignalResult) -> str:
             reasons.append("Price tagged/crossed lower Bollinger Band")
         if r.exit_double_neg:
             reasons.append("CMF below 0 AND MFI below 50 (double negative = fuel exhausted)")
+        if r.expansion_end:
+            reasons.append("Band Expansion reversing (Ch.15 — trend at an end)")
         return (
             f"🔴 SELL / EXIT SIGNAL — Exit at tomorrow's market open.\n"
             f"   Reason(s): {' | '.join(reasons)}"

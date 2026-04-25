@@ -15,6 +15,13 @@ import pandas as pd
 import numpy as np
 import time as _time
 
+# Load .env file if present (for auth config, SMTP, Google OAuth, etc.)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
+except ImportError:
+    pass
+
 # ── Ensure project root is on path ──────────────────────────────
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -69,7 +76,10 @@ from web.triple_routes import triple_bp
 from web.vince_routes import vince_bp
 from web.mental_game_routes import mental_game_bp
 from web.rentech_routes import rentech_bp
+from web.auth_routes import auth_bp
 from mental_game.db import init_mental_game_db as _init_mental_game_db
+from auth.db import init_auth_db as _init_auth_db
+from auth.middleware import init_auth_middleware
 
 app = Flask(__name__)
 app.json_provider_class = _NumpySafeJSONProvider
@@ -82,11 +92,16 @@ app.register_blueprint(triple_bp)
 app.register_blueprint(vince_bp)
 app.register_blueprint(mental_game_bp)
 app.register_blueprint(rentech_bp)
+app.register_blueprint(auth_bp)
 
 # Ensure DBs exist
 _init_trade_db()
 _init_portfolio_db()
 _init_mental_game_db()
+_init_auth_db()
+
+# ── Auth middleware (must be AFTER all blueprints are registered) ──
+init_auth_middleware(app)
 
 # ─────────────────────────────────────────────────────────────────
 #  HELPERS

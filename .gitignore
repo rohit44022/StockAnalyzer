@@ -28,6 +28,7 @@ env/
 *.db
 *.db-wal
 *.db-shm
+data/
 
 # ── Large data (CSV stock data — 322MB, 2000+ files) ──
 # These are downloaded via the app's "Download Data" feature.

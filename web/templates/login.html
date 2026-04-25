@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hiranya — Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --border-color: #30363d;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+            --accent-purple: #bc8cff;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(88,166,255,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(188,140,255,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 60% 80%, rgba(63,185,80,0.05) 0%, transparent 50%);
+            z-index: -1;
+        }
+        .auth-container { width: 100%; max-width: 520px; padding: 20px; }
+        .auth-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .auth-card::-webkit-scrollbar { width: 6px; }
+        .auth-card::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        .brand-header { text-align: center; margin-bottom: 24px; }
+        .brand-logo { font-size: 2.2rem; margin-bottom: 4px; }
+        .brand-title {
+            font-size: 1.6rem; font-weight: 800;
+            background: linear-gradient(135deg, #58a6ff, #bc8cff, #f0883e);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent; color: transparent;
+            margin: 0;
+        }
+        .brand-subtitle { color: var(--text-secondary); font-size: 0.8rem; margin-top: 2px; }
+
+        .auth-tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); }
+        .auth-tab {
+            flex: 1; text-align: center; padding: 10px 0; cursor: pointer;
+            color: var(--text-secondary); font-weight: 500; font-size: 0.9rem;
+            border: none; border-bottom: 2px solid transparent;
+            background: none; transition: all 0.2s;
+        }
+        .auth-tab:hover { color: var(--text-primary); }
+        .auth-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+
+        .form-section { display: none; }
+        .form-section.active { display: block; }
+
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block; font-size: 0.8rem; font-weight: 500;
+            color: var(--text-secondary); margin-bottom: 4px;
+        }
+        .form-group label .req { color: var(--accent-red); }
+        .form-input {
+            width: 100%; padding: 9px 12px;
+            background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-primary);
+            font-family: 'Inter', sans-serif; font-size: 0.9rem;
+            transition: border-color 0.2s; outline: none;
+        }
+        .form-input:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(88,166,255,0.15); }
+        .form-input::placeholder { color: var(--text-secondary); opacity: 0.4; }
+        .form-input.is-valid { border-color: var(--accent-green); }
+        .form-input.is-invalid { border-color: var(--accent-red); }
+        .form-select {
+            width: 100%; padding: 9px 12px;
+            background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-primary);
+            font-family: 'Inter', sans-serif; font-size: 0.9rem; outline: none;
+        }
+        .form-select:focus { border-color: var(--accent-blue); }
+        .form-hint { font-size: 0.75rem; color: var(--text-secondary); margin-top: 3px; }
+        .form-hint.valid { color: var(--accent-green); }
+        .form-hint.invalid { color: var(--accent-red); }
+
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+        .pw-wrapper { position: relative; }
+        .pw-toggle {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; color: var(--text-secondary);
+            cursor: pointer; font-size: 1rem;
+        }
+        .pw-toggle:hover { color: var(--text-primary); }
+
+        .pw-strength { height: 3px; border-radius: 2px; margin-top: 6px; background: var(--border-color); overflow: hidden; }
+        .pw-strength-bar { height: 100%; width: 0; border-radius: 2px; transition: width 0.3s, background 0.3s; }
+
+        .form-check { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+        .form-check input[type="checkbox"] { accent-color: var(--accent-blue); width: 15px; height: 15px; }
+        .form-check label { font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; }
+
+        .btn-auth {
+            width: 100%; padding: 11px; border: none; border-radius: 8px;
+            background: linear-gradient(135deg, #58a6ff, #388bfd);
+            color: #fff; font-weight: 600; font-size: 0.95rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-auth:hover { background: linear-gradient(135deg, #79b8ff, #58a6ff); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(88,166,255,0.3); }
+        .btn-auth:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-loading .spinner { display: inline-block; }
+        .btn-loading { pointer-events: none; opacity: 0.7; }
+
+        .spinner {
+            display: none; width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+            border-radius: 50%; animation: spin 0.6s linear infinite;
+            margin-right: 6px; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .alert-auth {
+            padding: 10px 14px; border-radius: 8px; font-size: 0.83rem;
+            margin-bottom: 16px; display: flex; align-items: flex-start; gap: 8px;
+        }
+        .alert-error { background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3); color: var(--accent-red); }
+        .alert-success { background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3); color: var(--accent-green); }
+        .alert-auth i { margin-top: 2px; flex-shrink: 0; }
+
+        .auth-footer { text-align: center; margin-top: 16px; color: var(--text-secondary); font-size: 0.75rem; }
+
+        .section-title {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
+            color: var(--accent-purple); font-weight: 600; margin: 18px 0 10px;
+            padding-bottom: 4px; border-bottom: 1px solid rgba(188,140,255,0.15);
+        }
+        .pincode-loading { display: none; font-size: 0.75rem; color: var(--accent-yellow); margin-top: 3px; }
+
+        @media (max-width: 480px) {
+            .auth-card { padding: 20px; }
+            .brand-title { font-size: 1.3rem; }
+            .row-2, .row-3 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="brand-header">
+                <div class="brand-logo">📈</div>
+                <h1 class="brand-title">Hiranya</h1>
+                <p class="brand-subtitle">Stock Analyzer Dashboard</p>
+            </div>
+
+            {% if error %}
+            <div class="alert-auth alert-error">
+                <i class="bi bi-exclamation-circle"></i>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+            {% if success %}
+            <div class="alert-auth alert-success">
+                <i class="bi bi-check-circle"></i>
+                <span>{{ success }}</span>
+            </div>
+            {% endif %}
+
+            <div class="auth-tabs">
+                <button class="auth-tab {{ '' if show_signup else 'active' }}" data-tab="login" onclick="switchTab('login')">
+                    <i class="bi bi-box-arrow-in-right"></i> Sign In
+                </button>
+                <button class="auth-tab {{ 'active' if show_signup else '' }}" data-tab="signup" onclick="switchTab('signup')">
+                    <i class="bi bi-person-plus"></i> Sign Up
+                </button>
+            </div>
+
+            <!-- ══════════════ LOGIN FORM ══════════════ -->
+            <div class="form-section {{ '' if show_signup else 'active' }}" id="loginForm">
+                <form method="POST" action="/auth/login" onsubmit="return submitBtn(this,'loginBtn')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="next" value="{{ next_url }}">
+                    <div class="form-group">
+                        <label><i class="bi bi-person"></i> Username or Email</label>
+                        <input type="text" class="form-input" name="identifier"
+                               placeholder="Enter username or email" autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="bi bi-lock"></i> Password</label>
+                        <div class="pw-wrapper">
+                            <input type="password" class="form-input" id="loginPw"
+                                   name="password" placeholder="Enter password"
+                                   autocomplete="current-password" required>
+                            <button type="button" class="pw-toggle" onclick="togglePw('loginPw',this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" id="remember" name="remember">
+                        <label for="remember">Remember me for 30 days</label>
+                    </div>
+                    <button type="submit" class="btn-auth" id="loginBtn">
+                        <span class="spinner"></span>Sign In
+                    </button>
+                </form>
+            </div>
+
+            <!-- ══════════════ SIGNUP FORM ══════════════ -->
+            <div class="form-section {{ 'active' if show_signup else '' }}" id="signupForm">
+                <form method="POST" action="/auth/signup" id="signupFormEl" onsubmit="return submitBtn(this,'signupBtn')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                    <!-- Account Credentials -->
+                    <div class="section-title"><i class="bi bi-shield-lock"></i> Account Credentials</div>
+                    <div class="form-group">
+                        <label>Username <span class="req">*</span></label>
+                        <input type="text" class="form-input" id="su_username" name="username"
+                               placeholder="Choose a username (e.g. rohit_trader)"
+                               autocomplete="off" required minlength="3" maxlength="30">
+                        <div class="form-hint" id="usernameFeedback"></div>
+                    </div>
+                    <div class="row-2">
+                        <div class="form-group">
+                            <label>Password <span class="req">*</span></label>
+                            <div class="pw-wrapper">
+                                <input type="password" class="form-input" id="su_password" name="password"
+                                       placeholder="Min 8 chars" autocomplete="new-password" required minlength="8">
+                                <button type="button" class="pw-toggle" onclick="togglePw('su_password',this)">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="pw-strength"><div class="pw-strength-bar" id="pwBar"></div></div>
+                            <div class="form-hint" id="pwHint"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm Password <span class="req">*</span></label>
+                            <div class="pw-wrapper">
+                                <input type="password" class="form-input" id="su_confirm" name="confirm_password"
+                                       placeholder="Re-enter password" autocomplete="new-password" required>
+                                <button type="button" class="pw-toggle" onclick="togglePw('su_confirm',this)">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-hint" id="confirmHint"></div>
+                        </div>
+                    </div>
+
+                    <!-- Personal Details -->
+                    <div class="section-title"><i class="bi bi-person-vcard"></i> Personal Details</div>
+                    <div class="row-2">
+                        <div class="form-group">
+                            <label>First Name <span class="req">*</span></label>
+                            <input type="text" class="form-input" name="first_name"
+                                   placeholder="First name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name <span class="req">*</span></label>
+                            <input type="text" class="form-input" name="last_name"
+                                   placeholder="Last name" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Email <span class="req">*</span></label>
+                        <input type="email" class="form-input" name="email"
+                               placeholder="you@example.com" autocomplete="email" required>
+                    </div>
+                    <div class="row-2">
+                        <div class="form-group">
+                            <label>Mobile Number <span class="req">*</span></label>
+                            <input type="tel" class="form-input" name="mobile"
+                                   placeholder="10-digit mobile" maxlength="10"
+                                   pattern="[6-9][0-9]{9}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Alternate Mobile</label>
+                            <input type="tel" class="form-input" name="alt_mobile"
+                                   placeholder="Optional" maxlength="10">
+                        </div>
+                    </div>
+
+                    <!-- Address -->
+                    <div class="section-title"><i class="bi bi-geo-alt"></i> Address</div>
+                    <div class="form-group">
+                        <label>Pincode <span class="req">*</span></label>
+                        <input type="text" class="form-input" id="su_pincode" name="pincode"
+                               placeholder="6-digit pincode" maxlength="6"
+                               pattern="[0-9]{6}" required>
+                        <div class="pincode-loading" id="pincodeLoading">
+                            <i class="bi bi-arrow-repeat"></i> Looking up pincode...
+                        </div>
+                    </div>
+                    <div class="row-2">
+                        <div class="form-group">
+                            <label>City <span class="req">*</span></label>
+                            <input type="text" class="form-input" id="su_city" name="city"
+                                   placeholder="Auto-fills from pincode" required>
+                        </div>
+                        <div class="form-group">
+                            <label>State <span class="req">*</span></label>
+                            <input type="text" class="form-input" id="su_state" name="state"
+                                   placeholder="Auto-fills from pincode" required>
+                        </div>
+                    </div>
+
+                    <!-- Trading Experience -->
+                    <div class="section-title"><i class="bi bi-graph-up-arrow"></i> Trading Profile</div>
+                    <div class="form-group">
+                        <label>Trading Experience <span class="req">*</span></label>
+                        <select class="form-select" name="trading_experience" required>
+                            <option value="beginner">Beginner (less than 1 year)</option>
+                            <option value="intermediate">Intermediate (1-3 years)</option>
+                            <option value="experienced">Experienced (3-5 years)</option>
+                            <option value="expert">Expert (5+ years)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-auth" id="signupBtn" style="margin-top:8px">
+                        <span class="spinner"></span>Create Account
+                    </button>
+                </form>
+            </div>
+
+            <div class="auth-footer">
+                <p style="margin:0">🔒 Secured with encrypted passwords & server-side sessions</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function switchTab(tab) {
+        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
+        document.querySelector(`.auth-tab[data-tab="${tab}"]`).classList.add('active');
+        document.getElementById(tab === 'login' ? 'loginForm' : 'signupForm').classList.add('active');
+    }
+
+    function togglePw(id, btn) {
+        const el = document.getElementById(id);
+        const ic = btn.querySelector('i');
+        if (el.type === 'password') { el.type = 'text'; ic.className = 'bi bi-eye-slash'; }
+        else { el.type = 'password'; ic.className = 'bi bi-eye'; }
+    }
+
+    function submitBtn(form, btnId) {
+        const btn = document.getElementById(btnId);
+        btn.classList.add('btn-loading');
+        btn.disabled = true;
+        return true;
+    }
+
+    /* ── Username availability check ── */
+    let _userTimer;
+    document.getElementById('su_username').addEventListener('input', function() {
+        clearTimeout(_userTimer);
+        const v = this.value.trim();
+        const fb = document.getElementById('usernameFeedback');
+        if (v.length < 3) { fb.textContent = 'Min 3 characters'; fb.className = 'form-hint invalid'; this.classList.remove('is-valid','is-invalid'); return; }
+        if (!/^[a-zA-Z0-9_]+$/.test(v)) { fb.textContent = 'Only letters, digits, underscores'; fb.className = 'form-hint invalid'; this.classList.add('is-invalid'); this.classList.remove('is-valid'); return; }
+        fb.textContent = 'Checking...'; fb.className = 'form-hint';
+        const inp = this;
+        _userTimer = setTimeout(() => {
+            fetch('/auth/api/check-username?username=' + encodeURIComponent(v))
+                .then(r => r.json()).then(d => {
+                    if (d.available) { fb.textContent = '✓ ' + d.msg; fb.className = 'form-hint valid'; inp.classList.add('is-valid'); inp.classList.remove('is-invalid'); }
+                    else { fb.textContent = '✗ ' + d.msg; fb.className = 'form-hint invalid'; inp.classList.add('is-invalid'); inp.classList.remove('is-valid'); }
+                }).catch(() => { fb.textContent = ''; fb.className = 'form-hint'; });
+        }, 400);
+    });
+
+    /* ── Password strength meter ── */
+    document.getElementById('su_password').addEventListener('input', function() {
+        const v = this.value;
+        const bar = document.getElementById('pwBar');
+        const hint = document.getElementById('pwHint');
+        let score = 0;
+        if (v.length >= 8) score++;
+        if (/[A-Z]/.test(v)) score++;
+        if (/[a-z]/.test(v)) score++;
+        if (/[0-9]/.test(v)) score++;
+        if (/[^a-zA-Z0-9]/.test(v)) score++;
+
+        const pct = (score / 5) * 100;
+        bar.style.width = pct + '%';
+        if (score <= 2) { bar.style.background = 'var(--accent-red)'; hint.textContent = 'Weak'; hint.className = 'form-hint invalid'; }
+        else if (score <= 3) { bar.style.background = 'var(--accent-yellow)'; hint.textContent = 'Fair'; hint.className = 'form-hint'; }
+        else if (score <= 4) { bar.style.background = 'var(--accent-blue)'; hint.textContent = 'Good'; hint.className = 'form-hint'; }
+        else { bar.style.background = 'var(--accent-green)'; hint.textContent = 'Strong'; hint.className = 'form-hint valid'; }
+        checkConfirm();
+    });
+
+    function checkConfirm() {
+        const pw = document.getElementById('su_password').value;
+        const cf = document.getElementById('su_confirm').value;
+        const hint = document.getElementById('confirmHint');
+        if (!cf) { hint.textContent = ''; return; }
+        if (pw === cf) { hint.textContent = '✓ Passwords match'; hint.className = 'form-hint valid'; }
+        else { hint.textContent = '✗ Passwords do not match'; hint.className = 'form-hint invalid'; }
+    }
+    document.getElementById('su_confirm').addEventListener('input', checkConfirm);
+
+    /* ── Pincode auto-fill city/state (pure client-side) ── */
+    let _pinTimer;
+    document.getElementById('su_pincode').addEventListener('input', function() {
+        clearTimeout(_pinTimer);
+        const v = this.value.trim();
+        if (v.length !== 6 || !/^\d{6}$/.test(v)) return;
+        const loading = document.getElementById('pincodeLoading');
+        loading.style.display = 'block';
+        _pinTimer = setTimeout(() => { lookupPincode(v); }, 300);
+    });
+
+    async function lookupPincode(pin) {
+        const loading = document.getElementById('pincodeLoading');
+        const cityEl = document.getElementById('su_city');
+        const stateEl = document.getElementById('su_state');
+
+        /* API 1: India Post */
+        try {
+            const r1 = await fetch('https://api.postalpincode.in/pincode/' + pin);
+            const d1 = await r1.json();
+            if (d1 && d1[0] && d1[0].Status === 'Success') {
+                const po = d1[0].PostOffice[0];
+                cityEl.value = po.District || '';
+                stateEl.value = po.State || '';
+                loading.style.display = 'none';
+                return;
+            }
+        } catch(e) { /* try next */ }
+
+        /* API 2: Zippopotam */
+        try {
+            const r2 = await fetch('https://api.zippopotam.us/in/' + pin);
+            if (r2.ok) {
+                const d2 = await r2.json();
+                if (d2.places && d2.places.length) {
+                    stateEl.value = d2.places[0]['state'] || '';
+                    cityEl.value = d2.places[0]['place name'] || '';
+                    loading.style.display = 'none';
+                    return;
+                }
+            }
+        } catch(e) { /* try next */ }
+
+        /* API 3: Server-side fallback */
+        try {
+            const r3 = await fetch('/auth/api/pincode/' + pin);
+            const d3 = await r3.json();
+            if (d3.success) {
+                cityEl.value = d3.city;
+                stateEl.value = d3.state;
+                loading.style.display = 'none';
+                return;
+            }
+        } catch(e) { /* all failed */ }
+
+        loading.style.display = 'none';
+    }
+
+    /* ── Auto-focus ── */
+    document.addEventListener('DOMContentLoaded', function() {
+        const af = document.querySelector('.form-section.active');
+        if (af) { const i = af.querySelector('input[type="text"],input[type="email"]'); if (i) i.focus(); }
+    });
+    </script>
+</body>
+</html>

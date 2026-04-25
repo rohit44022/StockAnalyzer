@@ -211,10 +211,14 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
   </div>
 
   <!-- ═══════ TABS: OPEN / CLOSED / ADD ═══════ -->
-  <ul class="nav nav-pills mb-3">
+  <ul class="nav nav-pills mb-3 align-items-center">
     <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#tabOpen" id="tabOpenBtn">Open Positions</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#tabClosed" id="tabClosedBtn">Closed</a></li>
-    <li class="nav-item ms-auto"><button class="btn btn-sm btn-outline-light" onclick="showAddModal()"><i class="bi bi-plus-lg me-1"></i>Add Position</button></li>
+    <li class="nav-item ms-auto">
+      <button class="btn btn-sm btn-outline-success me-2" onclick="exportPortfolio('xlsx')" title="Download Excel"><i class="bi bi-file-earmark-excel me-1"></i>Excel</button>
+      <button class="btn btn-sm btn-outline-danger me-2" onclick="exportPortfolio('pdf')" title="Download PDF"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</button>
+      <button class="btn btn-sm btn-outline-light" onclick="showAddModal()"><i class="bi bi-plus-lg me-1"></i>Add Position</button>
+    </li>
   </ul>
 
   <div class="tab-content">
@@ -2934,6 +2938,26 @@ fetch('/api/tickers').then(r=>r.json()).then(data => { allTickers = data; });
 
     document.addEventListener('click', e => { if (!e.target.closest('.ac-wrap')) list.style.display = 'none'; });
 })();
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPORT (Excel / PDF) — picks active tab (open / closed)
+// ═══════════════════════════════════════════════════════════════
+function exportPortfolio(fmt) {
+    // Determine current active tab (open or closed)
+    let tab = 'open';
+    const closedPill = document.getElementById('tabClosedBtn');
+    if (closedPill && closedPill.classList.contains('active')) {
+        tab = 'closed';
+    }
+    const url = `/api/portfolio/export/${fmt}?tab=${tab}&t=${Date.now()}`;
+    // Trigger download via hidden anchor
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = ''; // let server-side Content-Disposition set the filename
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  INIT

@@ -12,6 +12,7 @@ import sys, os, json, math, threading
 from dataclasses import asdict
 from datetime import date, timedelta
 import pandas as pd
+import numpy as np
 import time as _time
 
 # ── Ensure project root is on path ──────────────────────────────
@@ -20,6 +21,26 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from flask import Flask, render_template, jsonify, request, Response
+from flask.json.provider import DefaultJSONProvider
+
+
+class _NumpySafeJSONProvider(DefaultJSONProvider):
+    """Extend Flask's default JSON provider to handle numpy types."""
+
+    @staticmethod
+    def default(o):
+        if isinstance(o, (np.bool_,)):
+            return bool(o)
+        if isinstance(o, (np.integer,)):
+            return int(o)
+        if isinstance(o, (np.floating,)):
+            v = float(o)
+            if math.isnan(v) or math.isinf(v):
+                return None
+            return v
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        return DefaultJSONProvider.default(o)
 
 from bb_squeeze.data_loader import (
     normalise_ticker, load_stock_data, get_all_tickers_from_csv, get_data_freshness,
@@ -51,6 +72,8 @@ from web.rentech_routes import rentech_bp
 from mental_game.db import init_mental_game_db as _init_mental_game_db
 
 app = Flask(__name__)
+app.json_provider_class = _NumpySafeJSONProvider
+app.json = _NumpySafeJSONProvider(app)
 app.register_blueprint(ta_bp)
 app.register_blueprint(hybrid_bp)
 app.register_blueprint(top_picks_bp)
@@ -1245,6 +1268,538 @@ def api_portfolio_unrealized_daily():
             "latest": round(float(portfolio_pnl.iloc[-1]), 2) if len(portfolio_pnl) else 0.0,
         },
     })
+
+
+# ─────────────────────────────────────────────────────────────────
+#  PORTFOLIO EXPORT (Excel / PDF)
+# ─────────────────────────────────────────────────────────────────
+
+def _days_between(date_str, end=None):
+    """Helper: days between a YYYY-MM-DD string and end (or today)."""
+    try:
+        d1 = pd.to_datetime(date_str).date()
+    except Exception:
+        return 0
+    if end:
+        try:
+            d2 = pd.to_datetime(end).date()
+        except Exception:
+            d2 = date.today()
+    else:
+        d2 = date.today()
+    return max(0, (d2 - d1).days)
+
+
+def _risk_label(vince_risk):
+    """Classify risk from vince_risk dict into Low/Moderate/High risk."""
+    if not vince_risk or not isinstance(vince_risk, dict):
+        return ""
+    # Prefer the volatility_label if already computed by the analyzer
+    vol = vince_risk.get("volatility_label")
+    if vol:
+        vol_u = str(vol).upper()
+        if "LOW" in vol_u:
+            return "LOW RISK"
+        if "MOD" in vol_u or "MEDIUM" in vol_u:
+            return "MODERATE RISK"
+        if "HIGH" in vol_u or "EXTREME" in vol_u:
+            return "HIGH RISK"
+    # Fallback: derive from optimal_f
+    try:
+        opt_f = vince_risk.get("optimal_f")
+        if opt_f is None:
+            return ""
+        opt_f = float(opt_f)
+        if opt_f <= 0.1:
+            return "LOW RISK"
+        elif opt_f <= 0.25:
+            return "MODERATE RISK"
+        else:
+            return "HIGH RISK"
+    except Exception:
+        return ""
+
+
+def _sizing_label(vince_risk, buy_price, quantity):
+    """Return sizing classification (UNDERSIZED / OPTIMAL / OVERSIZED)."""
+    if not vince_risk or not isinstance(vince_risk, dict):
+        return ""
+    # Prefer the precomputed label
+    status = vince_risk.get("sizing_status")
+    if status:
+        return str(status).upper()
+    # Fallback: compare current qty to recommended
+    try:
+        rec_qty = (
+            vince_risk.get("recommended_shares")
+            or vince_risk.get("recommended_quantity")
+        )
+        if rec_qty is None or not quantity:
+            return ""
+        rec_qty = float(rec_qty)
+        cur = float(quantity)
+        if rec_qty <= 0:
+            return ""
+        ratio = cur / rec_qty
+        if ratio < 0.7:
+            return "UNDERSIZED"
+        elif ratio > 1.3:
+            return "OVERSIZED"
+        else:
+            return "OPTIMAL"
+    except Exception:
+        return ""
+
+
+def _build_open_export_rows():
+    """Build rows for Open Positions export (includes live analysis data)."""
+    positions = get_open_positions()
+    if not positions:
+        return []
+
+    # Run analysis for live data
+    try:
+        analyses = analyze_all_open_positions(positions)
+    except Exception:
+        analyses = {}
+
+    # Build lookup by position id.  analyze_all_open_positions returns a list of
+    # dicts shaped like: { 'position': {id, ticker, ...}, 'holding': {...},
+    # 'targets': {...}, 'recommendation': {...}, 'vince_risk': {...}, ... }
+    analysis_map = {}
+    if isinstance(analyses, list):
+        for a in analyses:
+            if not isinstance(a, dict):
+                continue
+            pos_obj = a.get("position") or {}
+            pid = (
+                pos_obj.get("id")
+                if isinstance(pos_obj, dict)
+                else None
+            ) or a.get("position_id") or a.get("id")
+            if pid is not None:
+                analysis_map[pid] = a
+    elif isinstance(analyses, dict):
+        analysis_map = analyses
+
+    rows = []
+    for p in positions:
+        pid = p.get("id")
+        a = analysis_map.get(pid) or {}
+
+        buy_price = float(p.get("buy_price") or 0)
+        qty = int(p.get("quantity") or 0)
+        invested = buy_price * qty
+
+        # Extract current price from nested analysis structures
+        holding = a.get("holding") or {}
+        targets = a.get("targets") or {}
+        indicators = a.get("indicators") or {}
+        current = (
+            holding.get("current_price")
+            if isinstance(holding, dict) else None
+        )
+        if current is None and isinstance(targets, dict):
+            current = targets.get("current_price")
+        if current is None and isinstance(indicators, dict):
+            current = indicators.get("price")
+        if current is None:
+            current = a.get("current_price") or a.get("latest_price")
+        try:
+            current = float(current) if current is not None else None
+        except Exception:
+            current = None
+
+        # P&L — prefer analyzer values if present, else compute
+        pnl = None
+        pnl_pct = None
+        if isinstance(holding, dict):
+            pnl = (
+                holding.get("pnl_amount")
+                if holding.get("pnl_amount") is not None
+                else (holding.get("pnl") if holding.get("pnl") is not None else holding.get("unrealized_pnl"))
+            )
+            pnl_pct = holding.get("pnl_pct")
+        if pnl is None and isinstance(targets, dict):
+            pnl = targets.get("pnl_amount")
+            pnl_pct = pnl_pct if pnl_pct is not None else targets.get("pnl_pct")
+        if pnl is None and current is not None and buy_price:
+            pnl = (current - buy_price) * qty
+            pnl_pct = ((current - buy_price) / buy_price) * 100.0
+        try:
+            pnl = float(pnl) if pnl is not None else None
+        except Exception:
+            pnl = None
+        try:
+            pnl_pct = float(pnl_pct) if pnl_pct is not None else None
+        except Exception:
+            pnl_pct = None
+
+        days = _days_between(p.get("buy_date"))
+
+        # Recommendation / Action
+        rec_obj = a.get("recommendation")
+        if isinstance(rec_obj, dict):
+            recommendation = rec_obj.get("action") or rec_obj.get("verdict") or ""
+        else:
+            recommendation = (
+                rec_obj
+                or a.get("action")
+                or (a.get("signal") or {}).get("action")
+                or ""
+            )
+
+        vince_risk = a.get("vince_risk") or {}
+        risk = _risk_label(vince_risk)
+        sizing = _sizing_label(vince_risk, buy_price, qty)
+
+        rows.append({
+            "Ticker": (p.get("ticker") or "").replace(".NS", ""),
+            "Strategy": p.get("strategy_code", ""),
+            "Buy Price": buy_price,
+            "Buy Date": p.get("buy_date", ""),
+            "Quantity": qty,
+            "Invested": round(invested, 2),
+            "Current Price": round(current, 2) if current is not None else "",
+            "P&L": round(pnl, 2) if pnl is not None else "",
+            "P&L %": round(pnl_pct, 2) if pnl_pct is not None else "",
+            "Days Held": days,
+            "Action": str(recommendation).upper() if recommendation else "",
+            "Risk": risk,
+            "Sizing": sizing,
+            "Notes": p.get("notes", "") or "",
+        })
+    return rows
+
+
+def _build_closed_export_rows():
+    """Build rows for Closed Positions export."""
+    positions = get_closed_positions()
+    rows = []
+    for p in positions:
+        buy_price = float(p.get("buy_price") or 0)
+        sell_price = float(p.get("sell_price") or 0)
+        qty = int(p.get("quantity") or 0)
+        pnl = (sell_price - buy_price) * qty if (buy_price and sell_price) else 0
+        pnl_pct = ((sell_price - buy_price) / buy_price * 100.0) if buy_price else 0
+        days = _days_between(p.get("buy_date"), p.get("sell_date"))
+
+        rows.append({
+            "Ticker": (p.get("ticker") or "").replace(".NS", ""),
+            "Strategy": p.get("strategy_code", ""),
+            "Buy Price": buy_price,
+            "Buy Date": p.get("buy_date", ""),
+            "Sell Price": sell_price,
+            "Sell Date": p.get("sell_date", "") or "",
+            "Quantity": qty,
+            "P&L": round(pnl, 2),
+            "P&L %": round(pnl_pct, 2),
+            "Days Held": days,
+            "Reason": p.get("sell_reason", "") or "",
+            "Notes": p.get("notes", "") or "",
+        })
+    return rows
+
+
+@app.route("/api/portfolio/export/xlsx")
+def api_portfolio_export_xlsx():
+    """Export portfolio positions to Excel (.xlsx)."""
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    tab = (request.args.get("tab") or "open").lower()
+
+    if tab == "closed":
+        rows = _build_closed_export_rows()
+        sheet_title = "Closed Positions"
+        filename = f"portfolio_closed_{date.today().isoformat()}.xlsx"
+    else:
+        rows = _build_open_export_rows()
+        sheet_title = "Open Positions"
+        filename = f"portfolio_open_{date.today().isoformat()}.xlsx"
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_title
+
+    # Title row
+    title_text = f"Strategy Portfolio — {sheet_title}"
+    ws.cell(row=1, column=1, value=title_text)
+    ws.cell(row=1, column=1).font = Font(bold=True, size=14, color="FFFFFF")
+    ws.cell(row=1, column=1).fill = PatternFill("solid", fgColor="1F4E78")
+
+    # Generated-on row
+    ws.cell(row=2, column=1, value=f"Generated: {date.today().strftime('%Y-%m-%d')} | Records: {len(rows)}")
+    ws.cell(row=2, column=1).font = Font(italic=True, color="666666")
+
+    if not rows:
+        ws.cell(row=4, column=1, value="No positions to export.")
+        # Merge title row across a few cols
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=6)
+        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=6)
+    else:
+        headers = list(rows[0].keys())
+
+        # Merge title across all columns
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(headers))
+
+        # Header row (row 4)
+        header_fill = PatternFill("solid", fgColor="2E5A8A")
+        header_font = Font(bold=True, color="FFFFFF")
+        thin = Side(border_style="thin", color="888888")
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        for c, h in enumerate(headers, start=1):
+            cell = ws.cell(row=4, column=c, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = border
+
+        # Data rows
+        green_font = Font(color="006100")
+        red_font = Font(color="9C0006")
+        green_fill = PatternFill("solid", fgColor="E6F4EA")
+        red_fill = PatternFill("solid", fgColor="FDE7E9")
+
+        for r_idx, row in enumerate(rows, start=5):
+            for c_idx, h in enumerate(headers, start=1):
+                val = row.get(h, "")
+                cell = ws.cell(row=r_idx, column=c_idx, value=val)
+                cell.border = border
+                # Color P&L columns
+                if h in ("P&L", "P&L %") and isinstance(val, (int, float)):
+                    if val > 0:
+                        cell.font = green_font
+                        cell.fill = green_fill
+                    elif val < 0:
+                        cell.font = red_font
+                        cell.fill = red_fill
+                # Format number columns
+                if h in ("Buy Price", "Sell Price", "Current Price", "Invested", "P&L") and isinstance(val, (int, float)):
+                    cell.number_format = '#,##0.00'
+                elif h == "P&L %" and isinstance(val, (int, float)):
+                    cell.number_format = '0.00"%"'
+
+        # Auto column widths
+        for c_idx, h in enumerate(headers, start=1):
+            col_letter = get_column_letter(c_idx)
+            max_len = len(str(h))
+            for row in rows:
+                v = row.get(h, "")
+                l = len(str(v))
+                if l > max_len:
+                    max_len = l
+            ws.column_dimensions[col_letter].width = min(max_len + 3, 40)
+
+        # Freeze top rows
+        ws.freeze_panes = "A5"
+
+        # Summary row at the bottom (for numeric columns)
+        summary_row_idx = 5 + len(rows) + 1
+        ws.cell(row=summary_row_idx, column=1, value="TOTAL").font = Font(bold=True)
+        for c_idx, h in enumerate(headers, start=1):
+            if h in ("Invested", "P&L", "Quantity"):
+                col_sum = sum((row.get(h) or 0) for row in rows if isinstance(row.get(h), (int, float)))
+                cell = ws.cell(row=summary_row_idx, column=c_idx, value=round(col_sum, 2))
+                cell.font = Font(bold=True)
+                if h in ("Invested", "P&L"):
+                    cell.number_format = '#,##0.00'
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    return Response(
+        buf.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.route("/api/portfolio/export/pdf")
+def api_portfolio_export_pdf():
+    """Export portfolio positions to PDF."""
+    from io import BytesIO
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    )
+
+    tab = (request.args.get("tab") or "open").lower()
+
+    if tab == "closed":
+        rows = _build_closed_export_rows()
+        title = "Strategy Portfolio — Closed Positions"
+        filename = f"portfolio_closed_{date.today().isoformat()}.pdf"
+    else:
+        rows = _build_open_export_rows()
+        title = "Strategy Portfolio — Open Positions"
+        filename = f"portfolio_open_{date.today().isoformat()}.pdf"
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=landscape(A4),
+        leftMargin=10 * mm, rightMargin=10 * mm,
+        topMargin=12 * mm, bottomMargin=12 * mm,
+        title=title,
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "PortfolioTitle",
+        parent=styles["Title"],
+        fontSize=18,
+        textColor=colors.HexColor("#1F4E78"),
+        alignment=0,
+        spaceAfter=4,
+    )
+    sub_style = ParagraphStyle(
+        "PortfolioSub",
+        parent=styles["Normal"],
+        fontSize=9,
+        textColor=colors.HexColor("#666666"),
+        spaceAfter=10,
+    )
+
+    story = []
+    story.append(Paragraph(title, title_style))
+    story.append(Paragraph(
+        f"Generated: {date.today().strftime('%Y-%m-%d')} &nbsp;&nbsp; | &nbsp;&nbsp; "
+        f"Records: {len(rows)}",
+        sub_style
+    ))
+
+    if not rows:
+        story.append(Paragraph("No positions to export.", styles["Normal"]))
+    else:
+        headers = list(rows[0].keys())
+
+        # Build table data
+        data = [headers]
+        for r in rows:
+            row_vals = []
+            for h in headers:
+                v = r.get(h, "")
+                if isinstance(v, float):
+                    if h == "P&L %":
+                        v = f"{v:.2f}%"
+                    elif h in ("Buy Price", "Sell Price", "Current Price", "Invested", "P&L"):
+                        v = f"{v:,.2f}"
+                    else:
+                        v = f"{v:.2f}"
+                row_vals.append(str(v) if v is not None else "")
+            data.append(row_vals)
+
+        # Compute column widths proportionally
+        page_width = landscape(A4)[0] - 20 * mm
+        n_cols = len(headers)
+
+        # Heuristic: longer columns like Ticker/Notes get more width
+        weights = []
+        for h in headers:
+            if h in ("Notes", "Reason"):
+                weights.append(2.0)
+            elif h in ("Ticker", "Buy Date", "Sell Date", "Action"):
+                weights.append(1.2)
+            else:
+                weights.append(1.0)
+        total_w = sum(weights)
+        col_widths = [page_width * (w / total_w) for w in weights]
+
+        tbl = Table(data, colWidths=col_widths, repeatRows=1)
+
+        ts = TableStyle([
+            # Header styling
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2E5A8A")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 9),
+            ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+            ("VALIGN", (0, 0), (-1, 0), "MIDDLE"),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+            ("TOPPADDING", (0, 0), (-1, 0), 6),
+
+            # Body styling
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 1), (-1, -1), 8),
+            ("VALIGN", (0, 1), (-1, -1), "MIDDLE"),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#AAAAAA")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+             [colors.whitesmoke, colors.HexColor("#F3F6FA")]),
+        ])
+
+        # Color P&L cells by sign
+        try:
+            pnl_idx = headers.index("P&L") if "P&L" in headers else None
+        except ValueError:
+            pnl_idx = None
+        try:
+            pnlp_idx = headers.index("P&L %") if "P&L %" in headers else None
+        except ValueError:
+            pnlp_idx = None
+
+        for i, r in enumerate(rows, start=1):
+            if pnl_idx is not None:
+                v = r.get("P&L")
+                if isinstance(v, (int, float)):
+                    if v > 0:
+                        ts.add("TEXTCOLOR", (pnl_idx, i), (pnl_idx, i),
+                               colors.HexColor("#006100"))
+                    elif v < 0:
+                        ts.add("TEXTCOLOR", (pnl_idx, i), (pnl_idx, i),
+                               colors.HexColor("#9C0006"))
+            if pnlp_idx is not None:
+                v = r.get("P&L %")
+                if isinstance(v, (int, float)):
+                    if v > 0:
+                        ts.add("TEXTCOLOR", (pnlp_idx, i), (pnlp_idx, i),
+                               colors.HexColor("#006100"))
+                    elif v < 0:
+                        ts.add("TEXTCOLOR", (pnlp_idx, i), (pnlp_idx, i),
+                               colors.HexColor("#9C0006"))
+
+        tbl.setStyle(ts)
+        story.append(tbl)
+
+        # Totals
+        total_invested = sum((r.get("Invested") or 0) for r in rows if isinstance(r.get("Invested"), (int, float)))
+        total_pnl = sum((r.get("P&L") or 0) for r in rows if isinstance(r.get("P&L"), (int, float)))
+        total_qty = sum((r.get("Quantity") or 0) for r in rows if isinstance(r.get("Quantity"), (int, float)))
+
+        story.append(Spacer(1, 8))
+        totals_style = ParagraphStyle(
+            "Totals", parent=styles["Normal"], fontSize=10,
+            textColor=colors.HexColor("#1F4E78"), leading=14,
+        )
+        totals_html = (
+            f"<b>Total Positions:</b> {len(rows)} &nbsp;&nbsp;|&nbsp;&nbsp; "
+            f"<b>Total Quantity:</b> {int(total_qty)}"
+        )
+        if total_invested:
+            totals_html += f" &nbsp;&nbsp;|&nbsp;&nbsp; <b>Total Invested:</b> ₹{total_invested:,.2f}"
+        color = "#006100" if total_pnl >= 0 else "#9C0006"
+        totals_html += (
+            f" &nbsp;&nbsp;|&nbsp;&nbsp; <b>Total P&amp;L:</b> "
+            f"<font color='{color}'>₹{total_pnl:,.2f}</font>"
+        )
+        story.append(Paragraph(totals_html, totals_style))
+
+    doc.build(story)
+    buf.seek(0)
+
+    return Response(
+        buf.getvalue(),
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ─────────────────────────────────────────────────────────────────

@@ -2668,7 +2668,7 @@
             ['B','%b (Percent B)', v(s.percent_b,3), 'Levels: 0.20 / 0.50 / 0.80', pbSignal, pbColor,
              'Where price sits within the bands. 0 = at lower, 0.5 = middle, 1.0 = at upper band.'],
             ['C','CMF (Chaikin MF)', s.cmf!=null?(s.cmf>=0?'+':'')+s.cmf.toFixed(4):'N/A', 'Zones: −0.10 / 0 / +0.10', cmfSignal, cmfColor,
-             'Institutional money flow. Positive = big players buying (accumulation). Negative = selling (distribution).'],
+             'Chaikin Money Flow (21-day). Positive = net money flowing INTO the stock (volume-flow accumulation). Negative = net money flowing OUT (volume-flow distribution). Note: this is a volume-flow oscillator (Bollinger Ch.18), not a Wyckoff structural phase.'],
             ['C','MFI (Money Flow)', v(s.mfi,1), 'Levels: 20 / 50 / 80', mfiSignal, mfiColor,
              'Volume-weighted RSI. Above 50 = sufficient buying fuel. Above 80 = maximum fuel. Below 20 = oversold.'],
         ];
@@ -2680,21 +2680,23 @@
 
         if(iiPct != null) {
             let iiSig, iiCol;
-            if(iiPct > 0.05) { iiSig = 'Strong intraday buying'; iiCol = 'text-green'; }
-            else if(iiPct > 0) { iiSig = 'Mild intraday buying'; iiCol = 'text-green'; }
-            else if(iiPct < -0.05) { iiSig = 'Strong intraday selling'; iiCol = 'text-red'; }
-            else { iiSig = 'Mild intraday selling'; iiCol = 'text-red'; }
+            if(iiPct > 0.05) { iiSig = 'Strong intraday buying — closes near highs (intraday accumulation)'; iiCol = 'text-green'; }
+            else if(iiPct > 0.01) { iiSig = 'Mild intraday buying (mild accumulation)'; iiCol = 'text-green'; }
+            else if(iiPct < -0.05) { iiSig = 'Strong intraday selling — closes near lows (intraday distribution)'; iiCol = 'text-red'; }
+            else if(iiPct < -0.01) { iiSig = 'Mild intraday selling (mild distribution)'; iiCol = 'text-red'; }
+            else { iiSig = '≈ Neutral — intraday closes balanced (no clear accumulation/distribution)'; iiCol = 'text-muted'; }
             rows.push(['D','II% (Intraday Intensity)', (iiPct>=0?'+':'')+iiPct.toFixed(4), 'Book Ch.18 Table 18.3', iiSig, iiCol,
-                'Intraday Intensity normalised over 21 days. Positive = smart money buying within the bar. Used in systematised Method III buy rule (%b < 0.05 AND II% > 0).']);
+                'Intraday Intensity normalised over 21 days. Positive = closes near highs (net buying within the bar = intraday accumulation). Used in systematised Method III buy rule (%b < 0.05 AND II% > 0).']);
         }
         if(adPct != null) {
             let adSig, adCol;
-            if(adPct > 0.05) { adSig = 'Accumulation (buying pressure)'; adCol = 'text-green'; }
-            else if(adPct > 0) { adSig = 'Mild accumulation'; adCol = 'text-green'; }
-            else if(adPct < -0.05) { adSig = 'Distribution (selling pressure)'; adCol = 'text-red'; }
-            else { adSig = 'Mild distribution'; adCol = 'text-red'; }
+            if(adPct > 0.05) { adSig = 'Strong — open-to-close volume favors buyers (volume-flow accumulation)'; adCol = 'text-green'; }
+            else if(adPct > 0.01) { adSig = 'Mildly positive — slight buyer edge (mild accumulation)'; adCol = 'text-green'; }
+            else if(adPct < -0.05) { adSig = 'Strong — open-to-close volume favors sellers (volume-flow distribution)'; adCol = 'text-red'; }
+            else if(adPct < -0.01) { adSig = 'Mildly negative — slight seller edge (mild distribution)'; adCol = 'text-red'; }
+            else { adSig = '≈ Neutral — buying/selling roughly balanced (no clear accumulation/distribution)'; adCol = 'text-muted'; }
             rows.push(['D','AD% (Accum/Dist)', (adPct>=0?'+':'')+adPct.toFixed(4), 'Book Ch.18 Table 18.3', adSig, adCol,
-                'Accumulation/Distribution normalised over 21 days. Positive = accumulation. Used in systematised Method III sell rule (%b > 0.95 AND AD% < 0).']);
+                'Accumulation/Distribution oscillator (21-day). Positive = open-to-close volume favors buyers (volume-flow accumulation). Used in systematised Method III sell rule (%b > 0.95 AND AD% < 0). NOTE: this is a volume oscillator (Bollinger Ch.18), not the same as a Wyckoff structural phase — see the Wyckoff section for that.']);
         }
         if(vwHist != null) {
             let vwSig, vwCol;

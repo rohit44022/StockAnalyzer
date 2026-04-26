@@ -167,10 +167,16 @@ def find_top_picks(
 
     # ── Stage 5: Strict method-specific checklist filter ────────
     # Only keep stocks where ALL conditions for the method are met.
-    # For M1: check bb_conditions (5 buy conditions)
+    # For M1: check bb_conditions (BUY) or bb_short_conditions (SELL)
     # For M2/M3/M4: check the strategy's buy_checklist or sell_checklist
     def _all_conditions_met(pick):
         if method == "M1":
+            if signal_filter == "SELL":
+                conds = pick.get("bb_short_conditions", {})
+                return all(conds.get(k, False) for k in [
+                    "squeeze", "price_below", "volume_confirm",
+                    "ii_negative", "mfi_low",
+                ])
             conds = pick.get("bb_conditions", {})
             return all(conds.get(k, False) for k in [
                 "squeeze", "price_breakout", "volume_confirm",
@@ -510,7 +516,7 @@ def _deep_analyze_stock(
         # Get the current price from hybrid data
         current_price = _safe(
             bb_data.get("indicators", {}).get("price") or
-            hybrid.get("snapshot", {}).get("close"),
+            triple.get("snapshot", {}).get("close"),
             0
         )
 

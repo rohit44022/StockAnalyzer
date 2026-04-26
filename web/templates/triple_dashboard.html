@@ -501,7 +501,13 @@ function _wkChart(id, cfg){
 function renderWyckoff(d){
   const el = document.getElementById('wyckoffSection');
   const wk = d.wyckoff;
-  if(!wk || !wk.phase || !wk.phase.name || wk.phase.name==='UNKNOWN'){
+  if(!wk || !wk.phase || !wk.phase.name){
+    el.innerHTML = '';
+    return;
+  }
+  // UNKNOWN with no data (e.g. insufficient bars) → hide; otherwise render a
+  // "transitioning" placeholder so the user always sees something.
+  if(wk.phase.name==='UNKNOWN' && (!wk.waves || wk.waves.length===0)){
     el.innerHTML = '';
     return;
   }
@@ -519,7 +525,7 @@ function renderWyckoff(d){
   const v = wk.villahermosa || {};
 
   // Colors
-  const phClrMap = {'ACCUMULATION':'#00c853','MARKUP':'#2196f3','DISTRIBUTION':'#ff1744','MARKDOWN':'#ff6b6b','RANGING':'#ffc107'};
+  const phClrMap = {'ACCUMULATION':'#00c853','MARKUP':'#2196f3','DISTRIBUTION':'#ff1744','MARKDOWN':'#ff6b6b','RANGING':'#ffc107','UNKNOWN':'#888'};
   const phClr = phClrMap[ph.name] || '#ffc107';
   const biasClr = sc.bias==='BULLISH'?'var(--bull)':sc.bias==='BEARISH'?'var(--bear)':'var(--neutral)';
   const volClrMap = {'CLIMAX':'var(--bear)','SPIKE':'orange','ABOVE_AVG':'var(--bull)','NORMAL':'var(--neutral)','DRYUP':'#888'};
@@ -556,6 +562,10 @@ function renderWyckoff(d){
     },
     'RANGING': {
       '_default': 'Sideways movement without clear direction. Watch for Springs (bullish) or Upthrusts (bearish) to reveal which side wins.'
+    },
+    'UNKNOWN': {
+      'TRANSITIONING': 'The stock is between phases — no clear trend, no defined trading range. Wait for price to either trend or settle into a range before acting.',
+      '_default': 'The phase could not be classified yet. Watch for clearer structure to develop.'
     }
   };
   const phGroup = phaseExplains[ph.name] || phaseExplains['RANGING'];
@@ -569,7 +579,8 @@ function renderWyckoff(d){
     'MARKUP_LATE': '<i class="bi bi-exclamation-triangle me-1"></i><strong>Action:</strong> DO NOT add new buys. Tighten stops. Protect your profits.',
     'DISTRIBUTION': '<i class="bi bi-shield-exclamation me-1"></i><strong>Action:</strong> Take profits or tighten stops. Breakouts without volume are likely TRAPS.',
     'MARKDOWN': '<i class="bi bi-x-circle me-1"></i><strong>Action:</strong> Avoid buying. Exit on bounces. Low-volume rallies are selling zones, not buying ones.',
-    'RANGING': '<i class="bi bi-hourglass-split me-1"></i><strong>Action:</strong> Wait for a clear signal. Watch for Springs or Upthrusts.'
+    'RANGING': '<i class="bi bi-hourglass-split me-1"></i><strong>Action:</strong> Wait for a clear signal. Watch for Springs or Upthrusts.',
+    'UNKNOWN': '<i class="bi bi-question-circle me-1"></i><strong>Action:</strong> Phase undetermined — sit on hands until structure develops.'
   };
   const actionKey = ph.name === 'MARKUP' || ph.name === 'MARKDOWN' ? ph.name + '_' + (ph.sub_phase||'') : ph.name;
   const actionText = phaseActions[actionKey] || phaseActions[ph.name] || '';
@@ -1834,8 +1845,9 @@ function renderWyckoff(d){
   Chart.defaults.borderColor = chartDefaults.borderColor;
 
   // ── CHART 1: Phase Lifecycle (Horizontal bar showing phases) ──
-  const phases = ['ACCUMULATION','MARKUP','DISTRIBUTION','MARKDOWN'];
-  const phColors = ['#00c853','#2196f3','#ff1744','#ff6b6b'];
+  // Includes RANGING + UNKNOWN so transitional phases are still highlighted.
+  const phases = ['ACCUMULATION','MARKUP','DISTRIBUTION','MARKDOWN','RANGING','UNKNOWN'];
+  const phColors = ['#00c853','#2196f3','#ff1744','#ff6b6b','#ffc107','#888'];
   const phIdx = phases.indexOf(ph.name);
   _wkChart('wkPhaseChart', {
     type: 'bar',

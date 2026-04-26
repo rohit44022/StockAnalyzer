@@ -12,31 +12,33 @@ Think of it as a judge at a competition. The judge watches every performance
 (BB, TA, Hybrid, Risk, Agreement, Data Quality), scores each one separately,
 then calculates a weighted average to determine the final ranking.
 
-SCORING BREAKDOWN:
-─────────────────
-  Component 1 — BB Strategy Score (0-100):
+SCORING BREAKDOWN (weights from top_picks/config.WEIGHTS):
+──────────────────────────────────────────────────────────
+  Component 1 — BB Strategy Score (20%, 0-100):
     Directly from the Bollinger Band method's confidence.
     If BB says "BUY with 85% confidence", this component = 85.
 
-  Component 2 — TA Score (0-100):
+  Component 2 — TA Score (20%, 0-100):
     Murphy's Technical Analysis returns -100 to +100.
     We normalize: (ta_raw + 100) / 2 = 0 to 100.
     So TA score of +60 → (60+100)/2 = 80 out of 100.
 
-  Component 3 — Triple Score (0-100):
-    The Triple Conviction Engine returns -390 to +390.
-    We normalize: (triple_raw + 390) / 780 × 100 = 0 to 100.
-    So triple score of +120 → (120+390)/780 × 100 = 65.4 out of 100.
+  Component 3 — Triple Score (15%, 0-100):
+    The Triple Conviction Engine returns -425 to +425.
+    We normalize: (triple_raw + 425) / 850 × 100 = 0 to 100.
 
-  Component 4 — Risk/Reward Score (0-100):
+  Component 4 — Price Action Score (15%, 0-100):
+    Al Brooks PA score (-100..+100) blended with PA confidence.
+
+  Component 5 — Risk/Reward Score (15%, 0-100):
     Based on the target price vs stop-loss ratio.
     R:R of 3.0 → 90 (excellent). R:R of 1.0 → 35 (barely break-even).
 
-  Component 5 — Signal Agreement (0-100):
+  Component 6 — Signal Agreement (10%, 0-100):
     How many analysis engines agree on the direction (BUY/SELL)?
     All 3 agree → 100. Two agree → 65. Conflicting → 20.
 
-  Component 6 — Data Quality (0-100):
+  Component 7 — Data Quality (5%, 0-100):
     Based on how fresh the stock data is.
     Today's data → 100. Week-old data → 60. Very old → 10.
 """
@@ -232,7 +234,7 @@ def compute_composite_score(
                 "score": round(triple_score_component, 1),
                 "weight": WEIGHTS["triple_score"],
                 "weighted": round(triple_score_component * WEIGHTS["triple_score"], 1),
-                "detail": f"Triple verdict: {triple_verdict_text}, combined {triple_combined:+.0f}/390",
+                "detail": f"Triple verdict: {triple_verdict_text}, combined {triple_combined:+.0f}/425",
                 "hint": "Cross-validation — do BB, TA, and PA agree? Higher when all three point the same direction",
             },
             "risk_reward": {
@@ -332,15 +334,15 @@ def _score_technical_analysis(ta_signal: dict, is_sell: bool = False) -> float:
 
 def _score_triple(hybrid_result: dict, is_sell: bool = False) -> float:
     """
-    Normalize Triple Engine score from (-390 to +390) → (0 to 100).
+    Normalize Triple Engine score from (-425 to +425) → (0 to 100).
 
     FOR BUY:  normalized = (combined - min) / (max - min) × 100
     FOR SELL: normalized = (max - combined) / (max - min) × 100  (flipped)
     """
     combined = _extract_triple_combined_score(hybrid_result)
-    max_s = TRIPLE_MAX_SCORE   # +390
-    min_s = TRIPLE_MIN_SCORE   # -390
-    total_range = max_s - min_s  # 780
+    max_s = TRIPLE_MAX_SCORE   # +425
+    min_s = TRIPLE_MIN_SCORE   # -425
+    total_range = max_s - min_s  # 850
     if is_sell:
         normalized = (max_s - combined) / total_range * 100.0
     else:
@@ -538,7 +540,7 @@ def _extract_triple_verdict(hybrid_result: dict) -> str:
 def _extract_triple_combined_score(hybrid_result: dict) -> float:
     """
     Extract the combined numerical score from the triple result.
-    This is BB_total + TA_total + PA_total + agreement_bonus (range: -390 to +390).
+    This is BB_total + TA_total + PA_total + agreement_bonus (range: -425 to +425).
     """
     tv = hybrid_result.get("triple_verdict", {})
     if isinstance(tv, dict):

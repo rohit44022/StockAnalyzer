@@ -137,12 +137,13 @@ FRESHNESS_SCORE_MAP = [
 # ═══════════════════════════════════════════════════════════════
 # TRIPLE ENGINE SCORING NORMALIZATION
 # ═══════════════════════════════════════════════════════════════
-# The triple engine returns scores from -390 to +390.
-# Positive max = bb:100 + ta:100 + pa:100 + cross-validation:90 = 390
-# Negative min = bb:-100 + ta:-100 + pa:-100 + cross-validation:-90 = -390
+# The triple engine returns scores from -425 to +425.
+# Positive max = bb:100 + ta:100 + pa:100 + cross-validation:125 = 425
+# Negative min = bb:-100 + ta:-100 + pa:-100 + cross-validation:-125 = -425
+# Cross-validation includes Wyckoff (±30) + Dalton Market Profile (±35).
 
-TRIPLE_MAX_SCORE = 390
-TRIPLE_MIN_SCORE = -390
+TRIPLE_MAX_SCORE = 425
+TRIPLE_MIN_SCORE = -425
 
 # ═══════════════════════════════════════════════════════════════
 # PARALLEL PROCESSING

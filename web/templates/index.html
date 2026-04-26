@@ -2023,18 +2023,21 @@
                      'Measures band spread — lower = tighter squeeze (Ch.15, p.120)'],
                     ['Parabolic SAR', fmt(ind.sar), ind.sar_bull?'#3fb950':'#f85149',
                      ind.sar_bull?'SAR below price — bullish trend support':'SAR above price — bearish, trend may reverse'],
-                    ['CMF (Chaikin)', fmt(ind.cmf,4), ind.cmf>0?'#3fb950':'#f85149',
-                     ind.cmf==null?'—':ind.cmf>0?'Positive — buying pressure (institutional accumulation)':'Negative — selling pressure (distribution)'],
+                    ['CMF (Chaikin)', fmt(ind.cmf,4),
+                     ind.cmf==null?'#8b949e':Math.abs(ind.cmf)<0.05?'#8b949e':ind.cmf>0?'#3fb950':'#f85149',
+                     ind.cmf==null?'—':Math.abs(ind.cmf)<0.05?'Near zero — money flow roughly balanced (no clear accumulation/distribution) (Ch.18)':ind.cmf>0?'Positive — 21-day money flow INTO the stock (net buying / accumulation)':'Negative — 21-day money flow OUT of the stock (net selling / distribution)'],
                     ['MFI (Money Flow)', fmt(ind.mfi), ind.mfi>80?'#3fb950':ind.mfi<20?'#f85149':ind.mfi>50?'#56d364':'#d29922',
                      ind.mfi==null?'—':ind.mfi>80?'> 80 — strong inflow, confirms trend (Ch.19 p.155)':ind.mfi>50?'> 50 — moderate positive flow':ind.mfi<20?'< 20 — weak outflow, bearish (Ch.19 p.155)':'< 50 — weak flow, caution'],
                 ];
 
                 // ── 2. New Book Indicators (Ch.15, 18, 21) ──
                 const bookRows = [
-                    ['II% (Intraday Intensity)', fmtS(ind.ii_pct), ind.ii_pct>0?'#3fb950':ind.ii_pct<0?'#f85149':'#8b949e',
-                     ind.ii_pct==null?'—':ind.ii_pct>0?'Positive — smart money accumulating (closes near high, Ch.18 p.148)':'Negative — smart money distributing (closes near low)'],
-                    ['AD% (Accum/Dist)', fmtS(ind.ad_pct), ind.ad_pct>0?'#3fb950':ind.ad_pct<0?'#f85149':'#8b949e',
-                     ind.ad_pct==null?'—':ind.ad_pct>0?'Positive — accumulation phase, volume supports price rise':'Negative — distribution phase, volume supports decline'],
+                    ['II% (Intraday Intensity)', fmtS(ind.ii_pct),
+                     ind.ii_pct==null?'#8b949e':Math.abs(ind.ii_pct)<0.05?'#8b949e':ind.ii_pct>0?'#3fb950':'#f85149',
+                     ind.ii_pct==null?'—':Math.abs(ind.ii_pct)<0.05?'Near zero — intraday closes balanced (no clear accumulation/distribution) (Ch.18 p.148)':ind.ii_pct>0?'Positive — closes near highs, net intraday buying pressure (intraday accumulation) (Ch.18 p.148)':'Negative — closes near lows, net intraday selling pressure (intraday distribution) (Ch.18 p.148)'],
+                    ['AD% (Accum/Dist)', fmtS(ind.ad_pct),
+                     ind.ad_pct==null?'#8b949e':Math.abs(ind.ad_pct)<0.05?'#8b949e':ind.ad_pct>0?'#3fb950':'#f85149',
+                     ind.ad_pct==null?'—':Math.abs(ind.ad_pct)<0.05?'Near zero — open-to-close volume roughly balanced (no clear accumulation/distribution) (Ch.18 Table 18.4)':ind.ad_pct>0?'Positive — open-to-close volume favors buyers over the last 21 days (volume-flow accumulation, not a Wyckoff phase) (Ch.18)':'Negative — open-to-close volume favors sellers over the last 21 days (volume-flow distribution, not a Wyckoff phase) (Ch.18)'],
                     ['VWMACD Histogram', fmtS(ind.vwmacd_hist), ind.vwmacd_hist>0?'#3fb950':ind.vwmacd_hist<0?'#f85149':'#8b949e',
                      ind.vwmacd_hist==null?'—':ind.vwmacd_hist>0?'Positive — volume-weighted momentum is bullish (Table 19.1 p.157)':'Negative — volume-weighted momentum is bearish'],
                     ['RSI Norm (%b of RSI)', fmt(ind.rsi_norm,3), ind.rsi_norm>0.8?'#f85149':ind.rsi_norm<0.2?'#3fb950':'#d29922',

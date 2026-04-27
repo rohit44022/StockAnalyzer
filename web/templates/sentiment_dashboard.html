@@ -221,11 +221,12 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script type="application/json" id="tickerData">{{ tickers | tojson | safe }}</script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
    TICKER SEARCH (autocomplete)
    ═══════════════════════════════════════════════════════════════ */
-const allTickers = {{ tickers | tojson }};
+const allTickers = JSON.parse(document.getElementById('tickerData').textContent);
 const inp = document.getElementById('tickerInput');
 const autoList = document.getElementById('autoList');
 let acIdx = -1;

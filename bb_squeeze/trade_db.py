@@ -1,16 +1,16 @@
 """
 SQLite storage layer for the Trade P&L Dashboard.
-DB file: <project_root>/trades.db
+DB file: <project_root>/data/app.db (shared, table: trades)
 """
 
 from __future__ import annotations
 import sqlite3, os
 
-_DATA_DIR = os.environ.get(
+_PROJECT_ROOT = os.environ.get(
     "STOCK_APP_DATA",
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 )
-DB_PATH = os.path.join(_DATA_DIR, "trades.db")
+DB_PATH = os.path.join(_PROJECT_ROOT, "data", "app.db")
 
 
 def _conn() -> sqlite3.Connection:

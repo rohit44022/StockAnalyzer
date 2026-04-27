@@ -1,18 +1,17 @@
 """
 SQLite storage layer for the Strategy Portfolio Tracker.
-Completely isolated from the existing trade_db.py / trades.db.
-DB file: <project_root>/portfolio.db
+DB file: <project_root>/data/app.db (shared, table: portfolio_positions)
 """
 
 from __future__ import annotations
 import sqlite3, os
 from datetime import datetime
 
-_DATA_DIR = os.environ.get(
+_PROJECT_ROOT = os.environ.get(
     "STOCK_APP_DATA",
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 )
-DB_PATH = os.path.join(_DATA_DIR, "portfolio.db")
+DB_PATH = os.path.join(_PROJECT_ROOT, "data", "app.db")
 
 
 def _conn() -> sqlite3.Connection:

@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from contextlib import contextmanager
 
 _DB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-_DB_PATH = os.path.join(_DB_DIR, "auth.db")
+_DB_PATH = os.path.join(_DB_DIR, "app.db")
 
 # Session lifetime
 SESSION_LIFETIME_HOURS = 24

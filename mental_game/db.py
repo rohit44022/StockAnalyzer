@@ -5,18 +5,18 @@ Based on "The Mental Game of Trading" by Jared Tendler.
 Stores: daily sessions, per-trade psychology, weekly reports,
 performance map, learning curve snapshots, and pattern alerts.
 
-DB file: <project_root>/mental_game.db
+DB file: <project_root>/data/app.db (shared; mental-game tables)
 """
 
 from __future__ import annotations
 import sqlite3, os, json
 from datetime import datetime, date
 
-_DATA_DIR = os.environ.get(
+_PROJECT_ROOT = os.environ.get(
     "STOCK_APP_DATA",
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 )
-DB_PATH = os.path.join(_DATA_DIR, "mental_game.db")
+DB_PATH = os.path.join(_PROJECT_ROOT, "data", "app.db")
 
 
 def _conn() -> sqlite3.Connection:

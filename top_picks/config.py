@@ -11,22 +11,25 @@ You'd look at: skills, experience, references, culture fit, salary expectations.
 That's exactly what this system does for stocks. Instead of picking a stock
 just because the Bollinger Band said "BUY" (one signal), we check:
 
-  1. BB Strategy Score (25%)  — Does the Bollinger Band pattern look strong?
+  1. BB Strategy Score (20%)  — Does the Bollinger Band pattern look strong?
      Think of this as: "Does this stock have a good resume?"
 
-  2. TA Score (25%)           — Does Murphy's Technical Analysis agree?
+  2. TA Score (20%)           — Does Murphy's Technical Analysis agree?
      Think of this as: "Did the reference check go well?"
 
-  3. Triple Score (20%)       — When we combine BB + TA + PA, is there agreement?
+  3. Triple Score (15%)       — When we combine BB + TA + PA, is there agreement?
      Think of this as: "Do all the interviewers agree on this candidate?"
 
-  4. Risk/Reward (15%)        — Is the potential profit much bigger than the risk?
+  4. Price Action Score (15%) — Does Al Brooks' bar-by-bar analysis agree?
+     Think of this as: "Does the on-site interview confirm the resume?"
+
+  5. Risk/Reward (15%)        — Is the potential profit much bigger than the risk?
      Think of this as: "Is the salary reasonable for the value they bring?"
 
-  5. Signal Agreement (10%)   — Do ALL systems point the same direction?
+  6. Signal Agreement (10%)   — Do ALL systems point the same direction?
      Think of this as: "Does everyone's gut feel align?"
 
-  6. Data Quality (5%)        — Is our information fresh and reliable?
+  7. Data Quality (5%)        — Is our information fresh and reliable?
      Think of this as: "Are we using a recent, verified resume?"
 
 Each component is scored 0-100, then multiplied by its weight.

@@ -303,9 +303,10 @@ def _cross_validate(bb_total: float, ta_total: float, bb_methods: list, ta_signa
     agreement_score = 0
     observations = []
 
-    # Perfect agreement
+    # Perfect agreement (directional — amplifies whichever direction both agree on)
     if bb_direction == ta_direction and bb_direction != "NEUTRAL":
-        agreement_score += 30
+        dir_mult = 1 if bb_direction == "BULLISH" else -1
+        agreement_score += 30 * dir_mult
         observations.append(
             f"✅ STRONG AGREEMENT: Both Bollinger Bands ({bb_direction}) and Technical Analysis ({ta_verdict}) "
             f"point in the SAME direction. This is the highest conviction signal — when two independent "
@@ -332,7 +333,8 @@ def _cross_validate(bb_total: float, ta_total: float, bb_methods: list, ta_signa
     # Partial agreement
     else:
         if bb_direction != "NEUTRAL":
-            agreement_score += 5
+            dir_mult = 1 if bb_direction == "BULLISH" else -1
+            agreement_score += 5 * dir_mult
             observations.append(
                 f"Bollinger Bands show {bb_direction} bias, but Technical Analysis is neutral. "
                 f"The BB system may be picking up an early signal — watch for TA confirmation."
@@ -365,12 +367,18 @@ def _cross_validate(bb_total: float, ta_total: float, bb_methods: list, ta_signa
                 "The squeeze could resolve to the downside. Do NOT assume squeezes always break upward."
             )
 
-    # Volume confirmation across both systems
+    # Volume confirmation across both systems (directional)
     if ta_volume.get("score", 0) > 5 and bb_total > 10:
         agreement_score += 5
         observations.append(
             "✅ VOLUME CONFIRMS: Both strong volume activity AND positive BB signals. "
             "Volume is the lie detector — when it confirms price, the signal is real."
+        )
+    elif ta_volume.get("score", 0) < -5 and bb_total < -10:
+        agreement_score -= 5
+        observations.append(
+            "🔴 VOLUME CONFIRMS BEARISH: Weak volume aligns with negative BB signals. "
+            "Volume confirms distribution — selling pressure is real."
         )
 
     return {

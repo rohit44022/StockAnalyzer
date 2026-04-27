@@ -18,21 +18,25 @@ The ultimate stock analysis system combining three independent frameworks:
 
 Architecture:
   - Each system scores independently (-100 to +100)
-  - Triple cross-validation adds conviction (-60 to +60, clamped)
-  - Combined score: -360 to +360
+  - Triple cross-validation adds DIRECTIONAL conviction (±125, clamped)
+    — includes Wyckoff phase context (±30) and Dalton auction context (±35)
+  - Combined score: -425 to +425
   - Final verdict based on combined score + alignment
 
-Why 3 systems?
+Why 3 systems + 2 context layers?
   - Bollinger measures VOLATILITY (statistical bands around price)
   - TA measures MOMENTUM + TREND (oscillators, MAs, divergences)
   - PA measures PRICE STRUCTURE (what actual bars are doing)
-  - All three agreeing = maximum probability of correct direction
+  - Wyckoff/Villahermosa adds PHASE + VOLUME INTENT context
+  - Dalton/Market Profile adds AUCTION + VALUE context
+  - All systems agreeing = maximum probability of correct direction
   - Any one disagreeing = caution flag reducing position size
 
 Scoring Philosophy:
-  Each system contributes 100 points. The cross-validation bonus rewards
-  agreement and penalizes conflict. A stock scoring +200 with all 3 aligned
-  is far more trustworthy than +200 from 2 systems with the third opposing.
+  Each system contributes 100 points. The cross-validation bonus is DIRECTIONAL
+  — it amplifies conviction in whichever direction the systems agree on.
+  A stock scoring +200 with all 3 aligned is far more trustworthy than +200
+  from 2 systems with the third opposing.
 """
 
 from __future__ import annotations
@@ -249,10 +253,10 @@ def _score_bb_method_4(strat: dict) -> dict:
 
     if sig_type == "BUY":
         score += 12 * (confidence / 100)
-        details.append("✅ M-IV — walking upper bands")
+        details.append("✅ M-IV — lower band walk breaking (recovery)")
     elif sig_type == "SELL":
         score -= 12 * (confidence / 100)
-        details.append("❌ M-IV — walking lower bands")
+        details.append("❌ M-IV — upper band walk breaking / lower band walk active")
 
     return {"score": round(max(-15, min(15, score)), 1), "max": 15,
             "method": "Method IV — Walking the Bands",
@@ -377,13 +381,13 @@ def _triple_cross_validate(
     enhanced by Wyckoff/Villahermosa phase context and Dalton Market Profile
     auction context.
 
-    Scoring matrix:
-      All 3 agree (same direction):     +40 bonus  (very high conviction)
-      2 agree, 1 neutral:               +25 bonus  (high conviction)
-      2 agree, 1 conflicts:             -10 penalty (caution — one system disagrees)
-      All 3 neutral:                      0         (no signal)
-      All 3 disagree / mixed:           -20 penalty (stay out)
-      1 active + 2 neutral:             +5          (wait for confirmation)
+    Scoring matrix (DIRECTIONAL — sign follows majority direction):
+      All 3 agree (same direction):     ±40 directional  (very high conviction)
+      2 agree, 1 neutral:               ±25 directional  (high conviction)
+      2 agree, 1 conflicts:             ±10 directional  (caution — reduced conviction)
+      All 3 neutral:                      0              (no signal)
+      All 3 disagree / mixed:           -20 flat penalty (stay out)
+      1 active + 2 neutral:             ±5 directional   (wait for confirmation)
 
     Additional context bonuses:
       Squeeze + PA trend + TA momentum:  +15        (explosive setup)
@@ -394,7 +398,7 @@ def _triple_cross_validate(
       [VILLAHERMOSA]   Wyckoff phase + volume:   ±30        (phase context)
       [DALTON] Market Profile auction:   ±35        (value/auction context)
 
-    Final result clamped to [-125, +125] for combined context layers.
+    Final result clamped to [-125, +125] for combined directional context layers.
     """
     bb_dir = _direction_from_score(bb_total)
     ta_dir = _direction_from_score(ta_total)
@@ -410,10 +414,11 @@ def _triple_cross_validate(
     observations = []
     alignment = "PARTIAL"
 
-    # ── Case 1: All 3 agree ──
+    # ── Case 1: All 3 agree (directional bonus) ──
     if bullish_count == 3 or bearish_count == 3:
-        agreement_score += 40
         direction = "BULLISH" if bullish_count == 3 else "BEARISH"
+        dir_mult = 1 if direction == "BULLISH" else -1
+        agreement_score += 40 * dir_mult
         alignment = "TRIPLE_ALIGNED"
         observations.append(
             f"🟢 TRIPLE ALIGNMENT: BB ({bb_dir}), TA ({ta_dir}), PA ({pa_dir}) — "
@@ -422,22 +427,24 @@ def _triple_cross_validate(
             f"and Brooks validates in price structure."
         )
 
-    # ── Case 2: 2 agree, 1 neutral ──
+    # ── Case 2: 2 agree, 1 neutral (directional bonus) ──
     elif (bullish_count == 2 and neutral_count == 1) or (bearish_count == 2 and neutral_count == 1):
-        agreement_score += 25
-        alignment = "DOUBLE_ALIGNED"
         active_dir = "BULLISH" if bullish_count == 2 else "BEARISH"
+        dir_mult = 1 if active_dir == "BULLISH" else -1
+        agreement_score += 25 * dir_mult
+        alignment = "DOUBLE_ALIGNED"
         neutral_sys = ["BB", "TA", "PA"][[bb_dir, ta_dir, pa_dir].index("NEUTRAL")]
         observations.append(
             f"✅ DOUBLE ALIGNMENT: 2 of 3 systems agree ({active_dir}), {neutral_sys} is neutral. "
             f"Strong signal — watch for {neutral_sys} to confirm for maximum conviction."
         )
 
-    # ── Case 3: 2 agree, 1 conflicts ──
+    # ── Case 3: 2 agree, 1 conflicts (reduced directional conviction) ──
     elif (bullish_count == 2 and bearish_count == 1) or (bearish_count == 2 and bullish_count == 1):
-        agreement_score -= 10
-        alignment = "CONFLICTING"
         majority_dir = "BULLISH" if bullish_count > bearish_count else "BEARISH"
+        dir_mult = 1 if majority_dir == "BULLISH" else -1
+        agreement_score += 10 * dir_mult
+        alignment = "CONFLICTING"
         minority_sys = ["BB", "TA", "PA"][
             [bb_dir, ta_dir, pa_dir].index("BEARISH" if majority_dir == "BULLISH" else "BULLISH")
         ]
@@ -455,9 +462,10 @@ def _triple_cross_validate(
             "The market is coiling — a big move may be coming but direction is uncertain."
         )
 
-    # ── Case 5: 1 active, 2 neutral ──
+    # ── Case 5: 1 active, 2 neutral (directional) ──
     elif len(active) == 1:
-        agreement_score += 5
+        dir_mult = 1 if active[0] == "BULLISH" else -1
+        agreement_score += 5 * dir_mult
         alignment = "SINGLE"
         observations.append(
             f"One system ({active[0]}) shows a signal while the other two are neutral. "
@@ -587,8 +595,8 @@ def _triple_cross_validate(
                     "despite negative BB signal. A bottom may be forming."
                 )
 
-    # Defensive clamp — ensures agreement stays within documented bounds
-    # Extended from ±60 to ±90 to accommodate Wyckoff bonus (±30)
+    # Defensive clamp — prevents any single context layer from dominating
+    # Accommodates directional alignment (±40) + Wyckoff phase bonus (±30) + confluences
     agreement_score = max(-90, min(90, agreement_score))
 
     # ── [DALTON] Market Profile Auction Context Layer (±35 pts) ──
@@ -637,7 +645,8 @@ def _triple_cross_validate(
             otf_dir = mp_result.one_timeframing
             if (otf_dir == "UP" and pa_always_in == "LONG") or \
                (otf_dir == "DOWN" and pa_always_in == "SHORT"):
-                agreement_score += 5
+                otf_mult = 1 if otf_dir == "UP" else -1
+                agreement_score += 5 * otf_mult
                 observations.append(
                     f"🎯 [CONFLUENCE — DALTON + BROOKS] One-timeframing {otf_dir} + "
                     f"PA Always-In {pa_always_in}! Dalton says \"financially dangerous "

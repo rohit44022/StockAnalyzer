@@ -19,8 +19,8 @@ Architecture:
 
 Scoring Matrix:
   BB  (-100..+100) + TA (-100..+100) + PA (-100..+100)
-  + Cross-Validation (-60..+60)
-  = Combined (-360..+360)
+  + Cross-Validation (±125, directional, incl. Wyckoff ±30 + Dalton ±35)
+  = Combined (-425..+425)
 
 Usage:
   python3 backtest_triple.py                    # full universe, 8 workers

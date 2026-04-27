@@ -77,6 +77,7 @@ from web.vince_routes import vince_bp
 from web.mental_game_routes import mental_game_bp
 from web.rentech_routes import rentech_bp
 from web.auth_routes import auth_bp
+from web.sentiment_routes import sentiment_bp
 from mental_game.db import init_mental_game_db as _init_mental_game_db
 from auth.db import init_auth_db as _init_auth_db
 from auth.middleware import init_auth_middleware
@@ -93,6 +94,7 @@ app.register_blueprint(vince_bp)
 app.register_blueprint(mental_game_bp)
 app.register_blueprint(rentech_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(sentiment_bp)
 
 # Global Macro / Inter-Market Sentiment (separate, isolated module)
 from web.global_sentiment_routes import global_sentiment_bp

@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Social Media Sentiment — Stock Sentiment Analyzer</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--bull:#00c853;--bear:#ff1744;--neutral:#ffc107;--card-bg:#1e1e2f;--bg:#0f0f1a;--accent:#e040fb;--accent2:#7c4dff;--accent3:#f0883e;--sent-bull:#00c853;--sent-bear:#ff1744;--sent-neutral:#ffc107;--sent-strong-bull:#00e676;--sent-strong-bear:#d50000}
+body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif}
+.card{background:var(--card-bg);border:1px solid rgba(255,255,255,.08);border-radius:12px}
+.card-header{background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)}
+.mini-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.45)}
+.ticker-search{max-width:420px}
+.ticker-search input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:10px 16px;font-size:1.05rem}
+.ticker-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(224,64,251,.25)}
+.autocomplete-list{position:absolute;z-index:999;width:100%;max-height:240px;overflow-y:auto;background:#1e1e2f;border:1px solid rgba(255,255,255,.1);border-radius:0 0 8px 8px;display:none}
+.autocomplete-list .item{padding:8px 16px;cursor:pointer;font-size:.95rem}
+.autocomplete-list .item:hover,.autocomplete-list .item.active{background:rgba(224,64,251,.25)}
+.verdict-badge{font-size:1.6rem;padding:10px 28px;border-radius:10px;font-weight:700;letter-spacing:1.5px;display:inline-block}
+.score-bar{height:10px;border-radius:5px;background:#222;overflow:hidden}
+.score-fill{height:100%;border-radius:5px;transition:width .6s ease}
+.edu-box{background:rgba(224,64,251,.08);border:1px solid rgba(224,64,251,.2);border-radius:10px;padding:16px;margin-bottom:16px;font-size:.85rem;line-height:1.7}
+.edu-box strong{color:var(--accent)}
+.post-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px;margin-bottom:10px;transition:background .2s}
+.post-card:hover{background:rgba(255,255,255,.06)}
+.post-badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.7rem;font-weight:600;letter-spacing:.5px}
+.theme-chip{display:inline-block;padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:500;margin:3px;border:1px solid rgba(255,255,255,.1);cursor:default}
+.gauge-wrap{position:relative;width:200px;height:110px;margin:0 auto}
+.confidence-ring{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn .4s ease}
+#loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center}
+#loading.active{display:flex}
+.source-bar{height:8px;border-radius:4px;background:#222;overflow:hidden;flex:1}
+.source-fill{height:100%;border-radius:4px;transition:width .8s ease}
+/* ══ UNIFIED NAV ══ */
+.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
+.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8));transform:scale(1.05)}
+@keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
+.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
+.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+.sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner-border" style="width:3rem;height:3rem;color:var(--accent)"></div></div>
+
+<!-- ═══ UNIFIED NAVBAR ═══ -->
+<nav class="sc-nav">
+  <div class="container-fluid d-flex align-items-center px-3 gap-2">
+    <a class="sc-brand" href="/">हिरण्य</a>
+    <div class="sc-links">
+      <a class="sc-link" href="/">Home</a>
+      <a class="sc-link" href="/ta">TA</a>
+      <a class="sc-link" href="/pa">Price Action</a>
+      <a class="sc-link" href="/triple">Triple</a>
+      <a class="sc-link" href="/global-sentiment">🌍 Global</a>
+      <a class="sc-link active" href="/sentiment" style="color:#e040fb">📡 Sentiment</a>
+      <a class="sc-link" href="/trades">Trades</a>
+      <a class="sc-link" href="/portfolio">Portfolio</a>
+      <a class="sc-link" href="/risk-management">Risk</a>
+      <a class="sc-link" href="/mental-game">Mental</a>
+      <a class="sc-link" href="/rentech">RenTech</a>
+    </div>
+    <div class="sc-right">
+      <span class="sc-clock" id="clockSpan"></span>
+      <a href="/auth/logout" class="btn btn-outline-secondary btn-sm" style="font-size:.72rem;padding:.25rem .6rem;border-radius:6px" title="Logout"><i class="bi bi-box-arrow-right"></i></a>
+    </div>
+  </div>
+</nav>
+
+<!-- SEARCH HEADER -->
+<div class="container py-4" id="mainContent">
+  <div class="text-center mb-4">
+    <h3 class="fw-bold"><i class="bi bi-broadcast" style="color:var(--accent)"></i> Social Media Sentiment</h3>
+    <p class="text-secondary mb-1" style="max-width:800px;margin:0 auto">
+      Real-time sentiment analysis from <strong style="color:#4285f4">Google News</strong>,
+      <strong style="color:#ff4500">Reddit</strong>,
+      <strong style="color:#ff9800">Indian Financial RSS</strong>,
+      <strong style="color:#1da1f2">StockTwits</strong>,
+      <strong style="color:#1d9bf0">X.com</strong>, and
+      <strong style="color:#26a69a">NewsAPI</strong>.
+    </p>
+    <p class="text-secondary mb-3" style="max-width:700px;margin:0 auto;font-size:.82rem">
+      Collects posts &amp; articles about a stock → analyzes with NLP (VADER + financial lexicon) → tells you what social media thinks
+    </p>
+    <div class="ticker-search mx-auto position-relative">
+      <input id="tickerInput" class="form-control" placeholder="Search stock (RELIANCE, TCS, INFY)..." autocomplete="off">
+      <div id="autoList" class="autocomplete-list"></div>
+    </div>
+  </div>
+
+  <!-- EDUCATIONAL BOX -->
+  <div class="edu-box text-center" style="max-width:950px;margin:0 auto 24px auto">
+    <strong>📡 How does this work?</strong><br>
+    This system collects the latest news articles and social media posts about a stock from <strong>4 different sources</strong>.
+    Each post is scored using <strong>VADER sentiment analysis</strong> (a proven NLP model for social media)
+    augmented with a <strong>custom financial lexicon</strong> of 100+ stock-market terms
+    (e.g., "breakout", "multibagger", "upper circuit", "promoter selling").<br>
+    Sources are <strong>weighted by reliability</strong> and aggregated into a single verdict with confidence level.
+    <br><span style="font-size:.78rem;color:rgba(255,255,255,.4)">⚠️ Social sentiment is ONE input — never trade based on sentiment alone. Always combine with technical and fundamental analysis.</span>
+  </div>
+
+  <!-- ERROR MESSAGE -->
+  <div id="errorSection" style="display:none" class="text-center py-5">
+    <div class="card p-4" style="max-width:600px;margin:0 auto">
+      <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--neutral)"></i>
+      <h5 class="mt-3" id="errorTitle">No Data</h5>
+      <p class="text-secondary" id="errorMsg"></p>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none" class="fade-in">
+
+    <!-- ROW 1: Overall Sentiment + Confidence -->
+    <div class="row g-3 mb-3">
+      <div class="col-lg-5">
+        <div class="card p-4 text-center h-100">
+          <div class="mini-label mb-2"><i class="bi bi-speedometer2 me-1"></i>OVERALL SENTIMENT</div>
+          <div id="verdictBadge" class="verdict-badge mb-2"></div>
+          <div id="verdictScore" class="mt-2" style="font-size:1.1rem;font-weight:600"></div>
+          <div id="verdictConfidence" class="mt-1" style="font-size:.85rem"></div>
+          <div class="mt-3">
+            <div class="score-bar" style="height:14px">
+              <div id="sentimentBar" class="score-fill" style="width:50%"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-1" style="font-size:.7rem;color:rgba(255,255,255,.4)">
+              <span>🐻 Strong Bearish</span><span>Neutral</span><span>Strong Bullish 🐂</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="card p-4 h-100">
+          <div class="mini-label mb-2"><i class="bi bi-diagram-3 me-1"></i>SOURCE BREAKDOWN</div>
+          <div id="sourceBreakdown"></div>
+          <div class="mt-3" style="font-size:.78rem;color:rgba(255,255,255,.4)">
+            Each bar shows sentiment from that source. Bar direction = bullish/bearish, bar width = number of posts, weight = influence on overall score.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 2: Distribution Donut + Summary -->
+    <div class="row g-3 mb-3">
+      <div class="col-lg-4">
+        <div class="card p-4 h-100">
+          <div class="mini-label mb-2"><i class="bi bi-pie-chart me-1"></i>SENTIMENT DISTRIBUTION</div>
+          <div style="position:relative;width:100%;height:230px"><canvas id="distChart"></canvas></div>
+          <div id="distStats" class="mt-2" style="font-size:.78rem;color:rgba(255,255,255,.5)"></div>
+        </div>
+      </div>
+      <div class="col-lg-8">
+        <div class="card p-4 h-100">
+          <div class="mini-label mb-2"><i class="bi bi-chat-left-text me-1"></i>ANALYSIS SUMMARY</div>
+          <div id="summaryText" style="font-size:.92rem;line-height:1.8;color:rgba(255,255,255,.8)"></div>
+          <div class="mt-3 d-flex flex-wrap gap-2" id="metaInfo"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 3: Sentiment Timeline Chart -->
+    <div class="card p-4 mb-3">
+      <div class="mini-label mb-2"><i class="bi bi-graph-up me-1"></i>SENTIMENT TIMELINE — HOW IS THE MOOD CHANGING?</div>
+      <div style="height:220px"><canvas id="timelineChart"></canvas></div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.35);margin-top:6px">
+        Each dot = one post. Green = bullish, Red = bearish, Yellow = neutral. Shows the most recent posts over time.
+      </div>
+    </div>
+
+    <!-- ROW 4: Key Themes -->
+    <div class="card p-4 mb-3">
+      <div class="mini-label mb-2"><i class="bi bi-tags me-1"></i>KEY THEMES — WHAT ARE PEOPLE TALKING ABOUT?</div>
+      <div id="themesContainer" class="d-flex flex-wrap gap-1"></div>
+    </div>
+
+    <!-- ROW 5: Top Posts -->
+    <div class="card p-4 mb-3">
+      <div class="mini-label mb-2"><i class="bi bi-newspaper me-1"></i>TOP POSTS — MOST IMPACTFUL NEWS &amp; SOCIAL MEDIA</div>
+      <div id="postsContainer"></div>
+    </div>
+
+    <!-- ROW 6: Methodology -->
+    <div class="card p-4 mb-4">
+      <details>
+        <summary class="mini-label" style="cursor:pointer"><i class="bi bi-book me-1"></i>METHODOLOGY — HOW SENTIMENT IS CALCULATED (click to expand)</summary>
+        <div class="mt-3" style="font-size:.82rem;line-height:1.8;color:rgba(255,255,255,.6)">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <strong style="color:var(--accent)">Data Collection</strong><br>
+              Posts are collected from multiple sources in parallel:<br>
+              <strong style="color:#4285f4">Google News RSS</strong> (25% weight) — free, reliable, excellent Indian stock coverage.<br>
+              <strong style="color:#ff4500">Reddit</strong> (20% weight) — r/IndianStockMarket, r/IndianStreetBets, etc.<br>
+              <strong style="color:#ff9800">Indian Financial RSS</strong> (20% weight) — MoneyControl, ET Markets, LiveMint, Biz Standard.<br>
+              <strong style="color:#1da1f2">StockTwits</strong> (15% weight) — free, stock-specific social platform where traders tag posts as Bullish/Bearish.<br>
+              <strong style="color:#1d9bf0">X / Twitter</strong> (15% weight) — optional, needs Bearer Token in .env ($100+/month API).<br>
+              <strong style="color:#26a69a">NewsAPI</strong> (15% weight) — optional, needs API key in .env file.<br>
+            </div>
+            <div class="col-md-6">
+              <strong style="color:var(--accent)">NLP Scoring</strong><br>
+              Each post is scored using <strong>VADER</strong> (Valence Aware Dictionary and sEntiment Reasoner) — a battle-tested NLP model for social media sentiment. VADER handles capitalization, punctuation, emoji, negation, and degree modifiers.<br><br>
+              We augment VADER with a <strong>custom financial lexicon</strong> of 100+ stock-market terms so it understands phrases like "multibagger", "upper circuit", "death cross", and "promoter pledge".<br><br>
+              <strong>Confidence</strong> = f(post count, source agreement, score variance). More posts + more agreement = higher confidence.
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+
+  </div><!-- /results -->
+</div><!-- /container -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   TICKER SEARCH (autocomplete)
+   ═══════════════════════════════════════════════════════════════ */
+const allTickers = {{ tickers | tojson }};
+const inp = document.getElementById('tickerInput');
+const autoList = document.getElementById('autoList');
+let acIdx = -1;
+
+inp.addEventListener('input', () => {
+  const v = inp.value.trim().toUpperCase();
+  autoList.innerHTML = '';
+  acIdx = -1;
+  if (!v) { autoList.style.display = 'none'; return; }
+  const matches = allTickers.filter(t => t.includes(v)).slice(0, 12);
+  if (!matches.length) { autoList.style.display = 'none'; return; }
+  matches.forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'item';
+    d.textContent = t;
+    d.onclick = () => { inp.value = t; autoList.style.display = 'none'; runAnalysis(t); };
+    autoList.appendChild(d);
+  });
+  autoList.style.display = 'block';
+});
+
+inp.addEventListener('keydown', e => {
+  const items = autoList.querySelectorAll('.item');
+  if (e.key === 'ArrowDown') { e.preventDefault(); acIdx = Math.min(acIdx + 1, items.length - 1); _hlAc(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); acIdx = Math.max(acIdx - 1, 0); _hlAc(items); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (acIdx >= 0 && items[acIdx]) { inp.value = items[acIdx].textContent; autoList.style.display = 'none'; }
+    runAnalysis(inp.value.trim());
+  }
+});
+
+function _hlAc(items) {
+  items.forEach((it, i) => it.classList.toggle('active', i === acIdx));
+}
+
+document.addEventListener('click', e => { if (!e.target.closest('.ticker-search')) autoList.style.display = 'none'; });
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN ANALYSIS
+   ═══════════════════════════════════════════════════════════════ */
+let distChartObj = null, timelineChartObj = null;
+
+async function runAnalysis(ticker) {
+  if (!ticker) return;
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('errorSection').style.display = 'none';
+
+  try {
+    const resp = await fetch(`/api/sentiment/analyze?ticker=${encodeURIComponent(ticker)}`);
+    const data = await resp.json();
+
+    if (!data.ok) {
+      document.getElementById('errorTitle').textContent = `No sentiment data for ${ticker}`;
+      document.getElementById('errorMsg').textContent = data.error || 'Try another stock.';
+      document.getElementById('errorSection').style.display = 'block';
+      return;
+    }
+
+    renderResults(data);
+    document.getElementById('results').style.display = 'block';
+  } catch (err) {
+    document.getElementById('errorTitle').textContent = 'Error';
+    document.getElementById('errorMsg').textContent = err.message;
+    document.getElementById('errorSection').style.display = 'block';
+  } finally {
+    document.getElementById('loading').classList.remove('active');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER ALL SECTIONS
+   ═══════════════════════════════════════════════════════════════ */
+function renderResults(d) {
+  const s = d.overall_sentiment;
+
+  // ── Verdict Badge ──
+  const badge = document.getElementById('verdictBadge');
+  badge.textContent = s.label.replace(/_/g, ' ');
+  badge.style.background = s.color + '22';
+  badge.style.color = s.color;
+  badge.style.border = `2px solid ${s.color}`;
+
+  // ── Score ──
+  document.getElementById('verdictScore').innerHTML =
+    `Score: <span style="color:${s.color};font-size:1.4rem">${s.score >= 0 ? '+' : ''}${s.score.toFixed(3)}</span>`;
+
+  // ── Confidence ──
+  const confColor = s.confidence >= 70 ? 'var(--bull)' : s.confidence >= 40 ? 'var(--neutral)' : 'var(--bear)';
+  document.getElementById('verdictConfidence').innerHTML =
+    `Confidence: <span style="color:${confColor};font-weight:600">${s.confidence}%</span>` +
+    `<span style="font-size:.75rem;color:rgba(255,255,255,.4)"> (${d.total_posts} posts from ${d.source_breakdown.length} sources` +
+    `${d.from_cache ? `, cached ${d.cache_age_seconds}s ago` : `, fetched in ${d.elapsed_seconds}s`})</span>`;
+
+  // ── Sentiment Bar ──
+  const pct = ((s.score + 1) / 2 * 100).toFixed(1);
+  const bar = document.getElementById('sentimentBar');
+  bar.style.width = pct + '%';
+  bar.style.background = `linear-gradient(90deg, var(--sent-bear) 0%, var(--sent-neutral) 50%, var(--sent-bull) 100%)`;
+
+  // ── Source Breakdown ──
+  renderSourceBreakdown(d.source_breakdown);
+
+  // ── Distribution Chart ──
+  renderDistChart(d.distribution);
+
+  // ── Summary (rich multi-paragraph) ──
+  const summaryHtml = (s.summary || '').split('\n\n').map(para => {
+    // Highlight quoted titles
+    let p = _esc(para);
+    p = p.replace(/&quot;(.+?)&quot;/g, '<em style="color:rgba(255,255,255,.9)">"$1"</em>');
+    // Highlight scores like +0.42 or -0.31
+    p = p.replace(/(\+\d+\.\d+)/g, '<span style="color:var(--bull);font-weight:600">$1</span>');
+    p = p.replace(/(-\d+\.\d+)/g, '<span style="color:var(--bear);font-weight:600">$1</span>');
+    // Highlight key terms
+    p = p.replace(/(bullish|optimistic|positive)/gi, '<span style="color:var(--bull)">$1</span>');
+    p = p.replace(/(bearish|concerned|negative)/gi, '<span style="color:var(--bear)">$1</span>');
+    return `<p style="margin-bottom:.6rem">${p}</p>`;
+  }).join('');
+  document.getElementById('summaryText').innerHTML = summaryHtml;
+  const meta = document.getElementById('metaInfo');
+  meta.innerHTML =
+    `<span class="badge bg-secondary">${d.ticker}</span>` +
+    `<span class="badge bg-secondary">${d.company_name}</span>` +
+    `<span class="badge bg-secondary">${d.total_posts} posts analyzed</span>` +
+    `<span class="badge bg-secondary">${d.source_breakdown.length} sources active</span>` +
+    `<span class="badge bg-secondary">${d.elapsed_seconds}s fetch time</span>`;
+
+  // ── Timeline ──
+  renderTimeline(d.timeline);
+
+  // ── Key Themes ──
+  renderThemes(d.themes);
+
+  // ── Top Posts ──
+  renderPosts(d.top_posts);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SOURCE BREAKDOWN
+   ═══════════════════════════════════════════════════════════════ */
+function renderSourceBreakdown(sources) {
+  const container = document.getElementById('sourceBreakdown');
+  if (!sources.length) { container.innerHTML = '<div class="text-secondary">No sources returned data.</div>'; return; }
+
+  const platformIcons = {
+    google_news: '<i class="bi bi-google" style="color:#4285f4"></i>',
+    reddit: '<i class="bi bi-reddit" style="color:#ff4500"></i>',
+    rss_india: '<i class="bi bi-rss" style="color:#ff9800"></i>',
+    bing_news: '<i class="bi bi-search" style="color:#00809d"></i>',
+    stocktwits: '<i class="bi bi-chat-dots" style="color:#1da1f2"></i>',
+    twitter: '<i class="bi bi-twitter-x" style="color:#1d9bf0"></i>',
+    newsapi: '<i class="bi bi-newspaper" style="color:#26a69a"></i>',
+  };
+
+  let html = '';
+  sources.forEach(s => {
+    const icon = platformIcons[s.source] || '<i class="bi bi-globe"></i>';
+    const barPct = Math.min(Math.abs(s.avg_score) * 100, 100);
+    const barDir = s.avg_score >= 0 ? 'right' : 'left';
+    html += `
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <div style="width:160px;font-size:.82rem">${icon} ${s.source_display} <span style="color:rgba(255,255,255,.35)">(${s.count})</span></div>
+      <div class="source-bar">
+        <div class="source-fill" style="width:${Math.max(barPct, 3)}%;background:${s.color};float:${barDir}"></div>
+      </div>
+      <div style="width:100px;text-align:right">
+        <span class="post-badge" style="background:${s.color}22;color:${s.color}">${s.label.replace(/_/g, ' ')}</span>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DISTRIBUTION DONUT
+   ═══════════════════════════════════════════════════════════════ */
+function renderDistChart(dist) {
+  if (distChartObj) distChartObj.destroy();
+  const ctx = document.getElementById('distChart').getContext('2d');
+  const labels = ['Strong Bull', 'Bullish', 'Neutral', 'Bearish', 'Strong Bear'];
+  const values = [
+    dist.STRONG_BULLISH || 0, dist.BULLISH || 0, dist.NEUTRAL || 0,
+    dist.BEARISH || 0, dist.STRONG_BEARISH || 0,
+  ];
+  const colors = ['#00e676', '#66bb6a', '#ffc107', '#ef5350', '#d50000'];
+  const total = values.reduce((a, b) => a + b, 0);
+
+  distChartObj = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: '#aaa', font: { size: 11 }, padding: 8 } },
+        tooltip: {
+          callbacks: {
+            label: function(c) {
+              const pct = total > 0 ? ((c.raw / total) * 100).toFixed(0) : 0;
+              return ` ${c.label}: ${c.raw} posts (${pct}%)`;
+            }
+          }
+        }
+      },
+      cutout: '55%',
+    },
+  });
+
+  // Text stats below chart
+  const statsEl = document.getElementById('distStats');
+  if (total > 0) {
+    const bullPct = ((((dist.STRONG_BULLISH||0)+(dist.BULLISH||0))/total)*100).toFixed(0);
+    const bearPct = ((((dist.STRONG_BEARISH||0)+(dist.BEARISH||0))/total)*100).toFixed(0);
+    const neutPct = (((dist.NEUTRAL||0)/total)*100).toFixed(0);
+    statsEl.innerHTML = `<span style="color:#00e676">${bullPct}% bullish</span> · <span style="color:#ffc107">${neutPct}% neutral</span> · <span style="color:#ef5350">${bearPct}% bearish</span> · ${total} posts total`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TIMELINE SCATTER CHART
+   ═══════════════════════════════════════════════════════════════ */
+function renderTimeline(timeline) {
+  if (timelineChartObj) timelineChartObj.destroy();
+  if (!timeline.length) return;
+
+  const ctx = document.getElementById('timelineChart').getContext('2d');
+  const points = timeline.map((t, i) => ({
+    x: i,
+    y: t.score,
+    label: t.title,
+    time: t.time_display,
+  }));
+  const colors = timeline.map(t => {
+    if (t.score > 0.1) return '#00c853';
+    if (t.score < -0.1) return '#ff1744';
+    return '#ffc107';
+  });
+
+  timelineChartObj = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: timeline.map(t => t.time_display),
+      datasets: [{
+        data: timeline.map(t => t.score),
+        backgroundColor: colors,
+        borderRadius: 3,
+        barPercentage: 0.7,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => timeline[items[0].dataIndex]?.time_display || '',
+            label: (item) => {
+              const t = timeline[item.dataIndex];
+              return [`Score: ${t.score.toFixed(3)}`, t.title.slice(0, 60)];
+            },
+          },
+        },
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          grid: { color: 'rgba(255,255,255,.05)' },
+          ticks: { color: '#666', font: { size: 10 } },
+          min: -1, max: 1,
+        },
+      },
+    },
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KEY THEMES
+   ═══════════════════════════════════════════════════════════════ */
+function renderThemes(themes) {
+  const container = document.getElementById('themesContainer');
+  if (!themes.length) { container.innerHTML = '<span class="text-secondary">No key themes found.</span>'; return; }
+
+  container.innerHTML = themes.map(t => {
+    const size = Math.min(0.7 + t.count * 0.06, 1.3);
+    return `<span class="theme-chip" style="font-size:${size}rem;border-color:${t.color};color:${t.color}">${t.word} <small style="opacity:.5">(${t.count})</small></span>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOP POSTS
+   ═══════════════════════════════════════════════════════════════ */
+function renderPosts(posts) {
+  const container = document.getElementById('postsContainer');
+  if (!posts.length) { container.innerHTML = '<div class="text-secondary">No posts found.</div>'; return; }
+
+  const platformIcons = {
+    google_news: '<i class="bi bi-google" style="color:#4285f4"></i>',
+    reddit: '<i class="bi bi-reddit" style="color:#ff4500"></i>',
+    rss_india: '<i class="bi bi-rss" style="color:#ff9800"></i>',
+    bing_news: '<i class="bi bi-search" style="color:#00809d"></i>',
+    stocktwits: '<i class="bi bi-chat-dots" style="color:#1da1f2"></i>',
+    twitter: '<i class="bi bi-twitter-x" style="color:#1d9bf0"></i>',
+    newsapi: '<i class="bi bi-newspaper" style="color:#26a69a"></i>',
+  };
+
+  container.innerHTML = posts.map(p => {
+    const icon = platformIcons[p.platform] || '<i class="bi bi-globe"></i>';
+    const scoreText = p.compound >= 0 ? `+${p.compound.toFixed(3)}` : p.compound.toFixed(3);
+    const meta = [];
+    if (p.metadata?.upvotes) meta.push(`⬆️ ${p.metadata.upvotes}`);
+    if (p.metadata?.comments) meta.push(`💬 ${p.metadata.comments}`);
+    if (p.metadata?.likes) meta.push(`❤️ ${p.metadata.likes}`);
+    if (p.metadata?.retweets) meta.push(`🔁 ${p.metadata.retweets}`);
+    if (p.metadata?.user_sentiment) meta.push(`👤 ${p.metadata.user_sentiment}`);
+
+    // Format published date
+    let dateStr = '';
+    if (p.published) {
+      try {
+        const dt = new Date(p.published);
+        if (!isNaN(dt)) {
+          dateStr = dt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+        } else {
+          dateStr = p.published.slice(0, 30);
+        }
+      } catch(e) { dateStr = p.published.slice(0, 30); }
+    }
+
+    return `
+    <a href="${p.url || '#'}" target="_blank" rel="noopener" class="post-card d-block" style="border-left:3px solid ${p.color};text-decoration:none;color:inherit;cursor:pointer">
+      <div class="d-flex justify-content-between align-items-start">
+        <div style="flex:1">
+          <div style="font-size:.88rem;font-weight:500;line-height:1.5;color:#e0e0e0">
+            ${_esc(p.title)} <i class="bi bi-box-arrow-up-right" style="font-size:.65rem;opacity:.4"></i>
+          </div>
+          ${p.text ? `<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-top:4px;line-height:1.5">${_esc(p.text)}</div>` : ''}
+        </div>
+        <div class="text-end ms-3" style="min-width:100px">
+          <span class="post-badge" style="background:${p.color}22;color:${p.color}">${p.label.replace(/_/g, ' ')}</span>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:4px">${scoreText}</div>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2 mt-2" style="font-size:.72rem;color:rgba(255,255,255,.35)">
+        ${icon} <span>${p.source_name}</span>
+        ${dateStr ? `<span>· <i class="bi bi-clock"></i> ${dateStr}</span>` : ''}
+        ${meta.length ? `<span>· ${meta.join(' · ')}</span>` : ''}
+      </div>
+    </a>`;
+  }).join('');
+}
+
+function _esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CLOCK
+   ═══════════════════════════════════════════════════════════════ */
+function _tick() {
+  const now = new Date();
+  const s = now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  const el = document.getElementById('clockSpan');
+  if (el) el.textContent = 'IST ' + s;
+}
+_tick(); setInterval(_tick, 1000);
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTO-ANALYZE FROM URL HASH
+   ═══════════════════════════════════════════════════════════════ */
+(function() {
+  const hash = window.location.hash.replace('#', '').trim();
+  if (hash) {
+    inp.value = hash.toUpperCase();
+    setTimeout(() => runAnalysis(hash.toUpperCase()), 200);
+  }
+})();
+</script>
+</body>
+</html>

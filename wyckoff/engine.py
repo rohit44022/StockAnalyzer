@@ -124,9 +124,10 @@ def _compute_wyckoff_bonus(
       Down exhaustion → +5 to +8 (bullish) [CALIBRATION]
 
     [VILLAHERMOSA concept, CALIBRATION magnitude] Recent effort vs result:
-      Absorption in trend direction  → -3 (warns of reversal) [CALIBRATION]
-      No supply/demand confirming    → +3 [CALIBRATION]
-      Climax in opposing direction   → +5 (reversal signal) [CALIBRATION]
+      Absorption (up bar, close>50%) → +3 (bullish: absorbing selling) [CALIBRATION]
+      Absorption (dn bar, close<50%) → -3 (bearish: absorbing buying)  [CALIBRATION]
+      No supply/demand confirming    → ±3 [CALIBRATION]
+      Climax in opposing direction   → ±5 (reversal signal) [CALIBRATION]
 
     [VILLAHERMOSA concept, CALIBRATION magnitude] Spring/Upthrust events:
       Spring detected   → +8 [CALIBRATION]
@@ -186,14 +187,19 @@ def _compute_wyckoff_bonus(
     if effort_results:
         last_er = effort_results[-1]
         er_map = {
-            "ABSORPTION": -3,
+            # ABSORPTION is directional: close_position > 0.5 means up bar
+            # (Composite Man absorbing selling pressure = bullish),
+            # close_position <= 0.5 means down bar (absorbing buying = bearish)
             "NO_DEMAND": -3,
             "NO_SUPPLY": 3,
             "CLIMAX_UP": -5,
             "CLIMAX_DOWN": 5,
             "NORMAL": 0,
         }
-        er_bonus = er_map.get(last_er.effort_result, 0)
+        if last_er.effort_result == "ABSORPTION":
+            er_bonus = 3 if last_er.close_position > 0.5 else -3
+        else:
+            er_bonus = er_map.get(last_er.effort_result, 0)
     score += er_bonus
     breakdown["effort_result"] = er_bonus
 
@@ -707,23 +713,33 @@ def _compute_villahermosa_sections(r: WyckoffResult) -> dict:
         reaccum_dist["signals"] = signals
 
     # ── Failed structure detection ──
+    # Use follow-through data: if a key event (Spring/Upthrust) has WEAK/NO
+    # follow-through, the structure is failing. The old polarity check was
+    # dead code (Spring always bullish=True, Upthrust always bullish=False).
+    ft = r.follow_through
     failed_structure = {"detected": False, "type": "", "description": ""}
     for ev in events:
-        if ev.event_type == "SPRING" and not ev.bullish:
-            failed_structure = {
-                "detected": True,
-                "type": "FAILED_SPRING",
-                "description": ("The Spring FAILED — price broke below the Spring low on expanding "
-                                "volume. The accumulation thesis is WRONG. The Composite Man may "
-                                "have abandoned the campaign. EXIT all longs immediately.")
-            }
-        elif ev.event_type == "UPTHRUST" and ev.bullish:
-            failed_structure = {
-                "detected": True,
-                "type": "FAILED_UTAD",
-                "description": ("The UTAD FAILED — price broke above the UTAD high on expanding "
-                                "volume. The distribution thesis is WRONG. EXIT all shorts immediately.")
-            }
+        if ev.event_type == "SPRING":
+            spring_ft = ft.get("SPRING", {})
+            if spring_ft.get("follow_through") == "NO" and spring_ft.get("quality") == "WEAK":
+                failed_structure = {
+                    "detected": True,
+                    "type": "FAILED_SPRING",
+                    "description": ("The Spring FAILED — price did not follow through to the upside "
+                                    "after the shakeout. The accumulation thesis is weakening. "
+                                    "The Composite Man may have abandoned the campaign. "
+                                    "Reduce longs and tighten stops immediately.")
+                }
+        elif ev.event_type == "UPTHRUST":
+            ut_ft = ft.get("UPTHRUST", {})
+            if ut_ft.get("follow_through") == "NO" and ut_ft.get("quality") == "WEAK":
+                failed_structure = {
+                    "detected": True,
+                    "type": "FAILED_UTAD",
+                    "description": ("The UTAD FAILED — price did not follow through to the downside "
+                                    "after the breakout trap. The distribution thesis is weakening. "
+                                    "Reduce shorts and tighten stops immediately.")
+                }
 
     # ── Phase volume behavior assessment ──
     phase_vol = {"phase": ph.phase, "assessment": "", "expected": "", "actual": ""}

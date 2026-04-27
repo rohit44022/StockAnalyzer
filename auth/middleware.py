@@ -42,6 +42,7 @@ PUBLIC_ROUTES = frozenset({
     "auth.do_signup",
     "auth.check_username",
     "auth.pincode_lookup",
+    "auth.google_callback",
     "static",
 })
 

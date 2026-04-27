@@ -53,7 +53,7 @@ def init_auth_db():
             CREATE TABLE IF NOT EXISTS users (
                 id                  INTEGER PRIMARY KEY AUTOINCREMENT,
                 username            TEXT    UNIQUE NOT NULL,
-                password_hash       TEXT    NOT NULL,
+                password_hash       TEXT    NOT NULL DEFAULT '',
                 first_name          TEXT    NOT NULL DEFAULT '',
                 last_name           TEXT    NOT NULL DEFAULT '',
                 email               TEXT    UNIQUE NOT NULL,
@@ -63,6 +63,9 @@ def init_auth_db():
                 state               TEXT    NOT NULL DEFAULT '',
                 pincode             TEXT    NOT NULL DEFAULT '',
                 trading_experience  TEXT    DEFAULT 'beginner',
+                auth_provider       TEXT    DEFAULT 'local',
+                google_id           TEXT    DEFAULT '',
+                profile_picture     TEXT    DEFAULT '',
                 is_active           INTEGER DEFAULT 1,
                 is_admin            INTEGER DEFAULT 0,
                 created_at          TEXT    DEFAULT (datetime('now')),
@@ -94,6 +97,27 @@ def init_auth_db():
             CREATE INDEX IF NOT EXISTS idx_users_email      ON users(email);
             CREATE INDEX IF NOT EXISTS idx_users_mobile     ON users(mobile);
         """)
+
+        # Migration: add columns if they don't exist (for existing DBs)
+        _migrate_google_columns(conn)
+
+
+def _migrate_google_columns(conn):
+    """Add Google OAuth columns to existing users table if missing."""
+    try:
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+        migrations = [
+            ("auth_provider", "TEXT DEFAULT 'local'"),
+            ("google_id", "TEXT DEFAULT ''"),
+            ("profile_picture", "TEXT DEFAULT ''"),
+        ]
+        for col_name, col_def in migrations:
+            if col_name not in existing:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+        # Index on google_id if not exists
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)")
+    except Exception:
+        pass  # Table doesn't exist yet — init_auth_db will create it
 
 
 # ═══════════════════════════════════════════════════════════
@@ -168,6 +192,75 @@ def mobile_exists(mobile: str) -> bool:
         row = conn.execute("SELECT 1 FROM users WHERE mobile = ?",
                            (mobile,)).fetchone()
         return row is not None
+
+
+# ═══════════════════════════════════════════════════════════
+#  GOOGLE OAUTH — USER FUNCTIONS
+# ═══════════════════════════════════════════════════════════
+
+def get_user_by_google_id(google_id: str) -> dict | None:
+    """Find a user by their Google account ID."""
+    if not google_id:
+        return None
+    with _get_conn() as conn:
+        row = conn.execute("SELECT * FROM users WHERE google_id = ?",
+                           (google_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def create_google_user(
+    google_id: str, email: str,
+    first_name: str = "", last_name: str = "",
+    profile_picture: str = "",
+) -> int | None:
+    """
+    Create a new user via Google Sign-In.
+    Auto-generates a unique username from email prefix.
+    Password hash is empty (Google-only auth).
+    """
+    try:
+        # Generate username from email (e.g., rohit.tripathi@gmail.com → rohit_tripathi)
+        base_username = email.split("@")[0].replace(".", "_").replace("-", "_")[:20]
+        # Ensure valid chars only
+        import re
+        base_username = re.sub(r"[^a-zA-Z0-9_]", "", base_username)
+        if len(base_username) < 3:
+            base_username = "user_" + base_username
+
+        username = base_username
+        suffix = 1
+        while username_exists(username):
+            username = f"{base_username}_{suffix}"
+            suffix += 1
+
+        with _get_conn() as conn:
+            cur = conn.execute(
+                """INSERT INTO users (
+                       username, email, password_hash, first_name, last_name,
+                       auth_provider, google_id, profile_picture
+                   ) VALUES (?, ?, '', ?, ?, 'google', ?, ?)""",
+                (username, email.lower().strip(), first_name, last_name,
+                 google_id, profile_picture),
+            )
+            return cur.lastrowid
+    except Exception as e:
+        import logging
+        logging.getLogger("auth.db").error("Failed to create Google user: %s", e)
+        return None
+
+
+def link_google_account(
+    user_id: int, google_id: str, profile_picture: str = "",
+):
+    """Link a Google account to an existing user (email matched)."""
+    with _get_conn() as conn:
+        conn.execute(
+            """UPDATE users SET google_id = ?, profile_picture = ?,
+                   auth_provider = CASE WHEN auth_provider = 'local' THEN 'both' ELSE auth_provider END,
+                   updated_at = datetime('now')
+               WHERE id = ?""",
+            (google_id, profile_picture, user_id),
+        )
 
 
 # ═══════════════════════════════════════════════════════════

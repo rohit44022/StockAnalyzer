@@ -26,6 +26,7 @@ from auth.middleware import (
     generate_csrf_token, validate_csrf_token,
 )
 from auth.db import check_rate_limit, validate_session, username_exists
+from auth.google_oauth import google_sign_in, get_google_client_id, is_google_auth_enabled
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -53,6 +54,8 @@ def login_page():
         csrf_token=csrf,
         show_signup=False,
         experience_options=TRADING_EXPERIENCE_OPTIONS,
+        google_client_id=get_google_client_id(),
+        google_enabled=is_google_auth_enabled(),
     )
 
 
@@ -73,6 +76,8 @@ def signup_page():
         csrf_token=csrf,
         show_signup=True,
         experience_options=TRADING_EXPERIENCE_OPTIONS,
+        google_client_id=get_google_client_id(),
+        google_enabled=is_google_auth_enabled(),
     )
 
 
@@ -184,6 +189,49 @@ def pincode_lookup(pincode):
         return jsonify({"success": False, "error": "Pincode not found"})
     except Exception:
         return jsonify({"success": False, "error": "Lookup service unavailable"})
+
+
+# ═══════════════════════════════════════════════════════════
+#  GOOGLE SIGN-IN CALLBACK
+# ═══════════════════════════════════════════════════════════
+
+@auth_bp.route("/google/callback", methods=["POST"])
+def google_callback():
+    """
+    Receives Google ID token from frontend GSI library.
+    Verifies token server-side, creates/finds user, creates session.
+    Returns JSON with redirect URL on success.
+    """
+    # Accept both form data and JSON body
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        credential = data.get("credential", "")
+        next_url = data.get("next", "/")
+    else:
+        credential = request.form.get("credential", "")
+        next_url = request.form.get("next", "/")
+
+    if not credential:
+        return jsonify({"success": False, "error": "No credential received from Google."}), 400
+
+    ip = request.remote_addr or "unknown"
+    ua = request.headers.get("User-Agent", "")
+
+    result = google_sign_in(credential, ip_address=ip, user_agent=ua)
+
+    if not result["success"]:
+        return jsonify({"success": False, "error": result["error"]}), 401
+
+    # Build response with session cookie
+    resp_data = {
+        "success": True,
+        "redirect": next_url or "/",
+        "user": result["user"],
+        "is_new_user": result.get("is_new_user", False),
+    }
+    resp = make_response(jsonify(resp_data))
+    set_session_cookie(resp, result["token"], remember=True)
+    return resp
 
 
 # ═══════════════════════════════════════════════════════════

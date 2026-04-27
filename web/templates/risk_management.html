@@ -85,6 +85,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 /* Loading */
 .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--card-border);border-top:2px solid var(--b);border-radius:50%;animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#161b22;border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:#c9d1d9}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:#c9d1d9;text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
 </style>
 </head>
 <body>
@@ -104,11 +105,20 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
       <a class="sc-link" href="/portfolio">Portfolio</a>
       <a class="sc-link active" href="/risk-management">Risk</a>
       <a class="sc-link" href="/mental-game">Mental</a>
-      <a class="sc-link" href="/rentech">RenTech</a>
+      {% if is_admin %}<a class="sc-link" href="/rentech">RenTech</a>{% endif %}
     </div>
     <div class="sc-right">
       <span class="sc-clock" id="clockSpan"></span>
-      <a href="/auth/logout" class="btn btn-outline-secondary btn-sm" style="font-size:.72rem;padding:.25rem .6rem;border-radius:6px" title="Logout"><i class="bi bi-box-arrow-right"></i></a>
+      <div class="sc-avatar-wrap" id="avatarWrap">
+        <div class="sc-avatar" style="background:{{ avatar_color }}" onclick="document.getElementById('avatarWrap').classList.toggle('open')" title="{{ current_user.full_name if current_user else '' }}">{{ user_initials }}</div>
+        <div class="sc-avatar-menu">
+          <div class="am-header">{{ current_user.full_name if current_user else '' }}<small>{{ current_user.email if current_user else '' }}</small></div>
+          <a href="#"><i class="bi bi-person-circle"></i> Profile</a>
+          <a href="#"><i class="bi bi-gear"></i> Settings</a>
+          <div class="am-divider"></div>
+          <a href="/auth/logout" class="am-signout"><i class="bi bi-box-arrow-right"></i> Sign Out</a>
+        </div>
+      </div>
     </div>
   </div>
 </nav>
@@ -991,5 +1001,6 @@ async function loadPortfolioRisk() {
   }
 }
 </script>
+<script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
 </body>
 </html>

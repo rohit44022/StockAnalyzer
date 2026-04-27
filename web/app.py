@@ -27,7 +27,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from flask import Flask, render_template, jsonify, request, Response
+from flask import Flask, render_template, jsonify, request, Response, g
 from flask.json.provider import DefaultJSONProvider
 
 
@@ -60,12 +60,13 @@ from bb_squeeze.quant_strategy import run_quant_analysis
 from bb_squeeze.config import CSV_DIR
 from hybrid_pa_engine import run_triple_analysis
 from price_action.engine import run_price_action_analysis, pa_result_to_dict
-from bb_squeeze.trade_db import init_db as _init_trade_db, add_trade, get_all_trades, get_trade, delete_trade, update_trade
+from bb_squeeze.trade_db import init_db as _init_trade_db, add_trade, get_all_trades, get_trade, delete_trade, update_trade, user_has_trades
 from bb_squeeze.trade_calculator import calculate_trade, calculate_fy_summary
 from bb_squeeze.portfolio_db import (
     init_portfolio_db as _init_portfolio_db,
     add_position, get_all_positions, get_open_positions, get_closed_positions,
     get_position, update_position, close_position, reopen_position, delete_position,
+    user_has_positions,
 )
 from bb_squeeze.portfolio_analyzer import analyze_position, analyze_all_open_positions
 from web.ta_routes import ta_bp
@@ -108,6 +109,42 @@ _init_auth_db()
 
 # ── Auth middleware (must be AFTER all blueprints are registered) ──
 init_auth_middleware(app)
+
+
+# ── Inject user context into all templates ──────────────────────
+@app.context_processor
+def inject_user_context():
+    """Make user info available in every template."""
+    user = getattr(g, "user", None)
+    if not user:
+        return {"current_user": None, "is_admin": False, "user_initials": "", "avatar_color": "#58a6ff"}
+    fn = (user.get("first_name") or "")[:1].upper()
+    ln = (user.get("last_name") or "")[:1].upper()
+    initials = (fn + ln) or (user.get("username") or "U")[:2].upper()
+    # Deterministic color from username hash
+    import hashlib
+    h = int(hashlib.md5((user.get("username") or "").encode()).hexdigest()[:6], 16)
+    colors = ["#f44336","#e91e63","#9c27b0","#673ab7","#3f51b5","#2196f3","#00bcd4","#009688","#4caf50","#ff9800","#ff5722","#795548"]
+    color = colors[h % len(colors)]
+    return {
+        "current_user": user,
+        "is_admin": user.get("is_admin", False),
+        "user_initials": initials,
+        "avatar_color": color,
+    }
+
+
+def _uid():
+    """Get current user_id from request context."""
+    u = getattr(g, "user", None)
+    return u.get("user_id") if u else None
+
+
+def _is_admin():
+    """Check if current user is admin."""
+    u = getattr(g, "user", None)
+    return bool(u and u.get("is_admin"))
+
 
 # ─────────────────────────────────────────────────────────────────
 #  HELPERS
@@ -1056,7 +1093,7 @@ def trades_page():
 @app.route("/api/trades", methods=["GET"])
 def api_get_trades():
     """Return all trades with calculated P&L."""
-    rows = get_all_trades()
+    rows = get_all_trades(user_id=_uid(), is_admin=_is_admin())
     results = []
     for t in rows:
         pnl = calculate_trade(
@@ -1078,7 +1115,7 @@ def api_add_trade():
     missing = [k for k in required if not data.get(k)]
     if missing:
         return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
-    tid = add_trade(data)
+    tid = add_trade(data, user_id=_uid())
     return jsonify({"id": tid, "status": "ok"})
 
 
@@ -1086,21 +1123,21 @@ def api_add_trade():
 def api_update_trade(tid):
     """Update an existing trade."""
     data = request.get_json(force=True)
-    ok = update_trade(tid, data)
+    ok = update_trade(tid, data, user_id=_uid(), is_admin=_is_admin())
     return jsonify({"status": "ok" if ok else "not_found"})
 
 
 @app.route("/api/trades/<int:tid>", methods=["DELETE"])
 def api_delete_trade(tid):
     """Delete a trade."""
-    ok = delete_trade(tid)
+    ok = delete_trade(tid, user_id=_uid(), is_admin=_is_admin())
     return jsonify({"status": "ok" if ok else "not_found"})
 
 
 @app.route("/api/trades/summary")
 def api_trades_summary():
     """FY-wise tax summary with LTCG exemption applied."""
-    rows = get_all_trades()
+    rows = get_all_trades(user_id=_uid(), is_admin=_is_admin())
     items = []
     for t in rows:
         pnl = calculate_trade(
@@ -1127,13 +1164,14 @@ def portfolio_page():
 @app.route("/api/portfolio", methods=["GET"])
 def api_portfolio_list():
     """List all portfolio positions."""
+    uid, adm = _uid(), _is_admin()
     filt = request.args.get("filter", "all")
     if filt == "open":
-        positions = get_open_positions()
+        positions = get_open_positions(user_id=uid, is_admin=adm)
     elif filt == "closed":
-        positions = get_closed_positions()
+        positions = get_closed_positions(user_id=uid, is_admin=adm)
     else:
-        positions = get_all_positions()
+        positions = get_all_positions(user_id=uid, is_admin=adm)
     return jsonify(positions)
 
 
@@ -1147,14 +1185,14 @@ def api_portfolio_add():
             return jsonify({"error": f"Missing required field: {f}"}), 400
     if data["strategy_code"].upper() not in ("M1", "M2", "M3", "M4"):
         return jsonify({"error": "strategy_code must be M1, M2, M3, or M4"}), 400
-    pid = add_position(data)
+    pid = add_position(data, user_id=_uid())
     return jsonify({"status": "ok", "id": pid})
 
 
 @app.route("/api/portfolio/<int:pid>", methods=["GET"])
 def api_portfolio_get(pid):
     """Get a single position."""
-    pos = get_position(pid)
+    pos = get_position(pid, user_id=_uid(), is_admin=_is_admin())
     if not pos:
         return jsonify({"error": "not_found"}), 404
     return jsonify(pos)
@@ -1164,14 +1202,14 @@ def api_portfolio_get(pid):
 def api_portfolio_update(pid):
     """Update a position's details."""
     data = request.get_json(force=True)
-    ok = update_position(pid, data)
+    ok = update_position(pid, data, user_id=_uid(), is_admin=_is_admin())
     return jsonify({"status": "ok" if ok else "not_found"})
 
 
 @app.route("/api/portfolio/<int:pid>", methods=["DELETE"])
 def api_portfolio_delete(pid):
     """Delete a position."""
-    ok = delete_position(pid)
+    ok = delete_position(pid, user_id=_uid(), is_admin=_is_admin())
     return jsonify({"status": "ok" if ok else "not_found"})
 
 
@@ -1183,21 +1221,22 @@ def api_portfolio_close(pid):
     sell_date = data.get("sell_date")
     if not sell_price or not sell_date:
         return jsonify({"error": "sell_price and sell_date required"}), 400
-    ok = close_position(pid, float(sell_price), sell_date, data.get("sell_reason", ""))
+    ok = close_position(pid, float(sell_price), sell_date, data.get("sell_reason", ""),
+                        user_id=_uid(), is_admin=_is_admin())
     return jsonify({"status": "ok" if ok else "not_found_or_already_closed"})
 
 
 @app.route("/api/portfolio/<int:pid>/reopen", methods=["POST"])
 def api_portfolio_reopen(pid):
     """Reopen a closed position."""
-    ok = reopen_position(pid)
+    ok = reopen_position(pid, user_id=_uid(), is_admin=_is_admin())
     return jsonify({"status": "ok" if ok else "not_found_or_already_open"})
 
 
 @app.route("/api/portfolio/<int:pid>/analyze", methods=["GET"])
 def api_portfolio_analyze(pid):
     """Full daily analysis for a single open position."""
-    pos = get_position(pid)
+    pos = get_position(pid, user_id=_uid(), is_admin=_is_admin())
     if not pos:
         return jsonify({"error": "not_found"}), 404
     result = analyze_position(pos)
@@ -1207,7 +1246,7 @@ def api_portfolio_analyze(pid):
 @app.route("/api/portfolio/analyze-all", methods=["GET"])
 def api_portfolio_analyze_all():
     """Analyze all open positions."""
-    positions = get_open_positions()
+    positions = get_open_positions(user_id=_uid(), is_admin=_is_admin())
     results = analyze_all_open_positions(positions)
     return jsonify(results)
 
@@ -1215,7 +1254,7 @@ def api_portfolio_analyze_all():
 @app.route("/api/portfolio/unrealized-daily", methods=["GET"])
 def api_portfolio_unrealized_daily():
     """Return per-day unrealized P&L as total and per-stock series for open positions."""
-    positions = get_open_positions()
+    positions = get_open_positions(user_id=_uid(), is_admin=_is_admin())
     if not positions:
         return jsonify({"dates": [], "pnl": [], "series": [], "meta": {"positions": 0, "stocks": 0}})
 
@@ -1374,7 +1413,7 @@ def _sizing_label(vince_risk, buy_price, quantity):
 
 def _build_open_export_rows():
     """Build rows for Open Positions export (includes live analysis data)."""
-    positions = get_open_positions()
+    positions = get_open_positions(user_id=_uid(), is_admin=_is_admin())
     if not positions:
         return []
 
@@ -1495,7 +1534,7 @@ def _build_open_export_rows():
 
 def _build_closed_export_rows():
     """Build rows for Closed Positions export."""
-    positions = get_closed_positions()
+    positions = get_closed_positions(user_id=_uid(), is_admin=_is_admin())
     rows = []
     for p in positions:
         buy_price = float(p.get("buy_price") or 0)

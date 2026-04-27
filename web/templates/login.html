@@ -152,6 +152,36 @@
 
         .auth-footer { text-align: center; margin-top: 16px; color: var(--text-secondary); font-size: 0.75rem; }
 
+        .google-divider {
+            display: flex; align-items: center; margin: 18px 0 14px;
+            color: var(--text-secondary); font-size: 0.78rem;
+        }
+        .google-divider::before, .google-divider::after {
+            content: ''; flex: 1; height: 1px; background: var(--border-color);
+        }
+        .google-divider span { padding: 0 12px; white-space: nowrap; }
+
+        .google-signin-wrapper {
+            display: flex; justify-content: center; margin-bottom: 4px;
+            min-height: 44px;
+        }
+        .google-signin-wrapper > div { width: 100% !important; }
+        .google-error {
+            display: none; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem;
+            background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3);
+            color: var(--accent-red); margin-bottom: 12px; text-align: center;
+        }
+        .google-loading {
+            display: none; text-align: center; padding: 10px; font-size: 0.8rem;
+            color: var(--accent-blue);
+        }
+        .google-loading .spinner {
+            display: inline-block; width: 14px; height: 14px;
+            border: 2px solid rgba(88,166,255,0.3); border-top-color: var(--accent-blue);
+            border-radius: 50%; animation: spin 0.6s linear infinite;
+            margin-right: 6px; vertical-align: middle;
+        }
+
         .section-title {
             font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
             color: var(--accent-purple); font-weight: 600; margin: 18px 0 10px;
@@ -199,6 +229,31 @@
 
             <!-- ══════════════ LOGIN FORM ══════════════ -->
             <div class="form-section {{ '' if show_signup else 'active' }}" id="loginForm">
+                {% if google_enabled %}
+                <div id="googleError" class="google-error"></div>
+                <div class="google-signin-wrapper" id="googleBtnWrapper">
+                    <div id="g_id_onload"
+                         data-client_id="{{ google_client_id }}"
+                         data-context="signin"
+                         data-ux_mode="popup"
+                         data-callback="handleGoogleCallback"
+                         data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin"
+                         data-type="standard"
+                         data-shape="rectangular"
+                         data-theme="filled_black"
+                         data-text="signin_with"
+                         data-size="large"
+                         data-logo_alignment="left"
+                         data-width="440">
+                    </div>
+                </div>
+                <div id="googleLoading" class="google-loading">
+                    <span class="spinner"></span>Signing in with Google...
+                </div>
+                <div class="google-divider"><span>or sign in with credentials</span></div>
+                {% endif %}
                 <form method="POST" action="/auth/login" onsubmit="return submitBtn(this,'loginBtn')">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" name="next" value="{{ next_url }}">
@@ -230,6 +285,21 @@
 
             <!-- ══════════════ SIGNUP FORM ══════════════ -->
             <div class="form-section {{ 'active' if show_signup else '' }}" id="signupForm">
+                {% if google_enabled %}
+                <div id="googleErrorSignup" class="google-error"></div>
+                <div class="google-signin-wrapper" id="googleBtnSignupWrapper">
+                    <div class="g_id_signin"
+                         data-type="standard"
+                         data-shape="rectangular"
+                         data-theme="filled_black"
+                         data-text="signup_with"
+                         data-size="large"
+                         data-logo_alignment="left"
+                         data-width="440">
+                    </div>
+                </div>
+                <div class="google-divider"><span>or create account manually</span></div>
+                {% endif %}
                 <form method="POST" action="/auth/signup" id="signupFormEl" onsubmit="return submitBtn(this,'signupBtn')">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
@@ -345,10 +415,16 @@
 
             <div class="auth-footer">
                 <p style="margin:0">🔒 Secured with encrypted passwords & server-side sessions</p>
+                {% if google_enabled %}
+                <p style="margin:4px 0 0;font-size:.7rem;color:var(--text-secondary);opacity:.6">Google Sign-In powered by Google Identity Services</p>
+                {% endif %}
             </div>
         </div>
     </div>
 
+    {% if google_enabled %}
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    {% endif %}
     <script>
     function switchTab(tab) {
         document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
@@ -477,6 +553,68 @@
         } catch(e) { /* all failed */ }
 
         loading.style.display = 'none';
+    }
+
+    /* ── Google Sign-In callback ── */
+    function handleGoogleCallback(response) {
+        // response.credential is the JWT ID token from Google
+        const credential = response.credential;
+        if (!credential) {
+            showGoogleError('No credential received from Google.');
+            return;
+        }
+
+        // Show loading state
+        const btnWrapper = document.getElementById('googleBtnWrapper');
+        const loading = document.getElementById('googleLoading');
+        if (btnWrapper) btnWrapper.style.display = 'none';
+        if (loading) loading.style.display = 'block';
+        hideGoogleError();
+
+        // Get next URL from hidden input
+        const nextInput = document.querySelector('input[name="next"]');
+        const nextUrl = nextInput ? nextInput.value : '/';
+
+        // Send credential to server for verification
+        fetch('/auth/google/callback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                credential: credential,
+                next: nextUrl,
+            }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Redirect to the app
+                window.location.href = data.redirect || '/';
+            } else {
+                showGoogleError(data.error || 'Google sign-in failed. Please try again.');
+                if (btnWrapper) btnWrapper.style.display = 'flex';
+                if (loading) loading.style.display = 'none';
+            }
+        })
+        .catch(err => {
+            console.error('Google sign-in error:', err);
+            showGoogleError('Network error. Please check your connection and try again.');
+            if (btnWrapper) btnWrapper.style.display = 'flex';
+            if (loading) loading.style.display = 'none';
+        });
+    }
+
+    function showGoogleError(msg) {
+        const el = document.getElementById('googleError');
+        const el2 = document.getElementById('googleErrorSignup');
+        if (el) { el.textContent = msg; el.style.display = 'block'; }
+        if (el2) { el2.textContent = msg; el2.style.display = 'block'; }
+    }
+
+    function hideGoogleError() {
+        const el = document.getElementById('googleError');
+        const el2 = document.getElementById('googleErrorSignup');
+        if (el) el.style.display = 'none';
+        if (el2) el2.style.display = 'none';
     }
 
     /* ── Auto-focus ── */

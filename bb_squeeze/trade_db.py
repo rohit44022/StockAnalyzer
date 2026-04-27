@@ -26,6 +26,7 @@ def init_db() -> None:
     c.execute("""
         CREATE TABLE IF NOT EXISTS trades (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER DEFAULT NULL,
             stock       TEXT    NOT NULL,
             platform    TEXT    NOT NULL DEFAULT 'zerodha',
             trade_type  TEXT    NOT NULL DEFAULT 'delivery',
@@ -39,19 +40,28 @@ def init_db() -> None:
             created_at  TEXT    DEFAULT (datetime('now'))
         )
     """)
+    # Migration: add user_id column if missing (existing DBs)
+    try:
+        existing = {r[1] for r in c.execute("PRAGMA table_info(trades)").fetchall()}
+        if "user_id" not in existing:
+            c.execute("ALTER TABLE trades ADD COLUMN user_id INTEGER DEFAULT NULL")
+    except Exception:
+        pass
+    c.execute("CREATE INDEX IF NOT EXISTS idx_trades_user_id ON trades(user_id)")
     c.commit()
     c.close()
 
 
 _INSERT = """INSERT INTO trades
-    (stock, platform, trade_type, exchange, quantity,
+    (user_id, stock, platform, trade_type, exchange, quantity,
      buy_price, sell_price, buy_date, sell_date, notes)
-    VALUES (?,?,?,?,?,?,?,?,?,?)"""
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)"""
 
 
-def add_trade(d: dict) -> int:
+def add_trade(d: dict, user_id: int = None) -> int:
     c = _conn()
     cur = c.execute(_INSERT, (
+        user_id,
         d["stock"].upper().strip(),
         d.get("platform", "zerodha"),
         d.get("trade_type", "delivery"),
@@ -69,51 +79,95 @@ def add_trade(d: dict) -> int:
     return tid
 
 
-def get_all_trades() -> list[dict]:
+def get_all_trades(user_id: int = None, is_admin: bool = False) -> list[dict]:
+    """Get trades. Admin sees all; regular user sees only their own."""
     c = _conn()
-    rows = c.execute(
-        "SELECT * FROM trades ORDER BY sell_date DESC, created_at DESC"
-    ).fetchall()
+    if is_admin:
+        rows = c.execute(
+            "SELECT * FROM trades ORDER BY sell_date DESC, created_at DESC"
+        ).fetchall()
+    else:
+        rows = c.execute(
+            "SELECT * FROM trades WHERE user_id = ? ORDER BY sell_date DESC, created_at DESC",
+            (user_id,),
+        ).fetchall()
     c.close()
     return [dict(r) for r in rows]
 
 
-def get_trade(tid: int) -> dict | None:
+def get_trade(tid: int, user_id: int = None, is_admin: bool = False) -> dict | None:
     c = _conn()
-    row = c.execute("SELECT * FROM trades WHERE id=?", (tid,)).fetchone()
+    if is_admin:
+        row = c.execute("SELECT * FROM trades WHERE id=?", (tid,)).fetchone()
+    else:
+        row = c.execute("SELECT * FROM trades WHERE id=? AND user_id=?", (tid, user_id)).fetchone()
     c.close()
     return dict(row) if row else None
 
 
-def delete_trade(tid: int) -> bool:
+def delete_trade(tid: int, user_id: int = None, is_admin: bool = False) -> bool:
     c = _conn()
-    n = c.execute("DELETE FROM trades WHERE id=?", (tid,)).rowcount
+    if is_admin:
+        n = c.execute("DELETE FROM trades WHERE id=?", (tid,)).rowcount
+    else:
+        n = c.execute("DELETE FROM trades WHERE id=? AND user_id=?", (tid, user_id)).rowcount
     c.commit()
     c.close()
     return n > 0
 
 
-def update_trade(tid: int, d: dict) -> bool:
+def update_trade(tid: int, d: dict, user_id: int = None, is_admin: bool = False) -> bool:
     c = _conn()
-    n = c.execute("""
-        UPDATE trades SET
-            stock=?, platform=?, trade_type=?, exchange=?,
-            quantity=?, buy_price=?, sell_price=?,
-            buy_date=?, sell_date=?, notes=?
-        WHERE id=?
-    """, (
-        d["stock"].upper().strip(),
-        d.get("platform", "zerodha"),
-        d.get("trade_type", "delivery"),
-        d.get("exchange", "NSE"),
-        int(d["quantity"]),
-        float(d["buy_price"]),
-        float(d["sell_price"]),
-        d["buy_date"],
-        d["sell_date"],
-        d.get("notes", ""),
-        tid,
-    )).rowcount
+    if is_admin:
+        n = c.execute("""
+            UPDATE trades SET
+                stock=?, platform=?, trade_type=?, exchange=?,
+                quantity=?, buy_price=?, sell_price=?,
+                buy_date=?, sell_date=?, notes=?
+            WHERE id=?
+        """, (
+            d["stock"].upper().strip(),
+            d.get("platform", "zerodha"),
+            d.get("trade_type", "delivery"),
+            d.get("exchange", "NSE"),
+            int(d["quantity"]),
+            float(d["buy_price"]),
+            float(d["sell_price"]),
+            d["buy_date"],
+            d["sell_date"],
+            d.get("notes", ""),
+            tid,
+        )).rowcount
+    else:
+        n = c.execute("""
+            UPDATE trades SET
+                stock=?, platform=?, trade_type=?, exchange=?,
+                quantity=?, buy_price=?, sell_price=?,
+                buy_date=?, sell_date=?, notes=?
+            WHERE id=? AND user_id=?
+        """, (
+            d["stock"].upper().strip(),
+            d.get("platform", "zerodha"),
+            d.get("trade_type", "delivery"),
+            d.get("exchange", "NSE"),
+            int(d["quantity"]),
+            float(d["buy_price"]),
+            float(d["sell_price"]),
+            d["buy_date"],
+            d["sell_date"],
+            d.get("notes", ""),
+            tid, user_id,
+        )).rowcount
     c.commit()
     c.close()
     return n > 0
+
+
+def user_has_trades(user_id: int) -> bool:
+    """Check if a user has any trades (for nav visibility)."""
+    if not user_id:
+        return False
+    c = _conn()
+    row = c.execute("SELECT 1 FROM trades WHERE user_id=? LIMIT 1", (user_id,)).fetchone()
+    c.close()
+    return row is not None

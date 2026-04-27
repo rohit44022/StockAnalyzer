@@ -94,6 +94,10 @@ app.register_blueprint(mental_game_bp)
 app.register_blueprint(rentech_bp)
 app.register_blueprint(auth_bp)
 
+# Global Macro / Inter-Market Sentiment (separate, isolated module)
+from web.global_sentiment_routes import global_sentiment_bp
+app.register_blueprint(global_sentiment_bp)
+
 # Ensure DBs exist
 _init_trade_db()
 _init_portfolio_db()

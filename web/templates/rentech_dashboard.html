@@ -57,21 +57,40 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;color:#c9d
 .intro-card p{font-size:.85rem;line-height:1.7;color:rgba(255,255,255,.65);margin-bottom:6px}
 .grade-legend{display:inline-flex;gap:12px;flex-wrap:wrap;margin-top:6px}
 .grade-legend span{font-size:.78rem;font-weight:600;padding:3px 10px;border-radius:5px;border:1px solid}
+/* Standardized header nav (matches other pages) */
+@keyframes brandShimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7))}}
+.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
+.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
+.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.sc-nav .sc-links::-webkit-scrollbar{display:none}
+.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+.sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
+@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 </style>
 </head>
 <body>
 
-<!-- NAV -->
-<nav class="navbar navbar-dark" style="background:#0d1117;border-bottom:1px solid #21262d">
-  <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="/rentech">
-      <i class="bi bi-graph-up-arrow me-2" style="color:var(--accent)"></i>RenTech Quant Engine
-    </a>
-    <div class="d-flex gap-2">
-      <a href="/" class="btn btn-outline-secondary btn-sm">BB Squeeze</a>
-      <a href="/ta" class="btn btn-outline-secondary btn-sm">TA</a>
-      <a href="/triple" class="btn btn-outline-secondary btn-sm">Triple</a>
-      <a href="/auth/logout" class="btn btn-outline-secondary btn-sm" title="Logout"><i class="bi bi-box-arrow-right"></i></a>
+<!-- NAV — standardized to match other pages -->
+<nav class="sc-nav">
+  <div class="container-fluid d-flex align-items-center px-3 gap-2">
+    <a class="sc-brand" href="/">हिरण्य</a>
+    <div class="sc-links">
+      <a class="sc-link" href="/">Home</a>
+      <a class="sc-link" href="/ta">TA</a>
+      <a class="sc-link" href="/pa">Price Action</a>
+      <a class="sc-link" href="/triple">Triple</a>
+      <a class="sc-link" href="/global-sentiment" style="color:#fbc2eb">🌍 Global</a>
+      <a class="sc-link" href="/trades">Trades</a>
+      <a class="sc-link" href="/portfolio">Portfolio</a>
+      <a class="sc-link" href="/risk-management">Risk</a>
+      <a class="sc-link" href="/mental-game">Mental</a>
+      <a class="sc-link active" href="/rentech">RenTech</a>
+    </div>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <a href="/auth/logout" class="btn btn-outline-secondary btn-sm" style="font-size:.72rem;padding:.25rem .6rem;border-radius:6px" title="Logout"><i class="bi bi-box-arrow-right"></i></a>
     </div>
   </div>
 </nav>

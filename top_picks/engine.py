@@ -498,6 +498,7 @@ def _deep_analyze_stock(
         bb_data = triple.get("bb_data", {})
         risk = triple.get("risk", {})
         target_prices = triple.get("target_prices", {})
+        triple_targets_unified = triple.get("triple_targets", {})
         ta_categories = ta_signal.get("categories", {})
 
         # Step 4: Compute composite score (this calls scorer.py)
@@ -605,6 +606,9 @@ def _deep_analyze_stock(
             "rr_ratio": _safe(
                 target_prices.get("risk_reward_ratio")
             ) if target_prices else None,
+
+            # ── Unified Triple Targets (BB + TA + PA + Wyckoff) ──
+            "triple_targets": triple_targets_unified,
 
             # ── Data Quality ──
             "data_freshness": data_freshness,

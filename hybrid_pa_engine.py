@@ -76,6 +76,9 @@ from wyckoff.engine import run_wyckoff_analysis, wyckoff_to_dict
 # ── Market Profile System (James Dalton — Auction Context Layer) ──
 from market_profile.engine import run_market_profile_analysis, market_profile_to_dict
 
+# ── Unified target/stop calculator across BB + TA + PA + Wyckoff ──
+from triple_targets import compute_triple_targets
+
 # ── Common ──
 from bb_squeeze.data_loader import get_data_freshness
 
@@ -1006,12 +1009,36 @@ def run_triple_analysis(
     }
 
     # ══════════════════════════════════════════════════════════
+    #  STEP 7.5: UNIFIED TRIPLE TARGETS (BUY/SELL/Stop across BB + TA + PA + Wyckoff)
+    # ══════════════════════════════════════════════════════════
+    wyckoff_dict = wyckoff_to_dict(wyckoff) if wyckoff else None
+    try:
+        triple_targets = compute_triple_targets(
+            triple_verdict=verdict,
+            bb_data=bb_data,
+            bb_score={"total": bb_total},
+            ta_signal=ta_signal,
+            ta_score={"total": ta_total},
+            ta_risk=risk,
+            ta_targets=target_prices,
+            pa_data=pa_data,
+            pa_score=pa_scored,
+            wyckoff=wyckoff_dict,
+            cross=cross,
+        )
+    except Exception as ex:
+        triple_targets = {"error": f"compute_triple_targets failed: {ex}"}
+
+    # ══════════════════════════════════════════════════════════
     #  STEP 8: ASSEMBLE FINAL RESPONSE
     # ══════════════════════════════════════════════════════════
     result = _safe_json({
         "triple_verdict": verdict,
         "data_freshness": freshness,
         "cross_validation": cross,
+
+        # ── Unified Triple Targets (BUY/SELL plan across all 3 systems) ──
+        "triple_targets": triple_targets,
 
         # ── System Scores ──
         "bb_score": {
@@ -1027,7 +1054,7 @@ def run_triple_analysis(
         "pa_score": pa_scored,
 
         # ── Wyckoff/Villahermosa Context Layer ──
-        "wyckoff": wyckoff_to_dict(wyckoff) if wyckoff else None,
+        "wyckoff": wyckoff_dict,
 
         # ── Market Profile / Dalton Context Layer ──
         "market_profile": market_profile_to_dict(market_profile) if market_profile else None,

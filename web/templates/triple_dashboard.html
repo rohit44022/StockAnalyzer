@@ -75,10 +75,12 @@ nav a.active{color:var(--accent)!important;font-weight:600}
       <a class="sc-link" href="/ta">TA</a>
       <a class="sc-link" href="/pa">Price Action</a>
       <a class="sc-link active" href="/triple">Triple</a>
+      <a class="sc-link" href="/global-sentiment" style="color:#fbc2eb">🌍 Global</a>
       <a class="sc-link" href="/trades">Trades</a>
       <a class="sc-link" href="/portfolio">Portfolio</a>
       <a class="sc-link" href="/risk-management">Risk</a>
       <a class="sc-link" href="/mental-game">Mental</a>
+      <a class="sc-link" href="/rentech">RenTech</a>
     </div>
     <div class="sc-right">
       <span class="sc-clock" id="clockSpan"></span>
@@ -122,6 +124,7 @@ nav a.active{color:var(--accent)!important;font-weight:600}
   <div id="results" style="display:none" class="fade-in">
     <div id="verdictSection" class="mb-3"></div>
     <div id="actionVerdictSection" class="mb-3"></div>
+    <div id="tripleTargetsSection" class="mb-3"></div>
     <div class="row g-3 mb-3">
       <div class="col-lg-7" id="crossSection"></div>
       <div class="col-lg-5" id="riskSection"></div>
@@ -208,6 +211,7 @@ function renderAll(d){
   renderFreshness(d);
   renderVerdict(d);
   renderActionVerdict(d);
+  renderTripleTargets(d);
   renderCrossValidation(d);
   renderWyckoff(d);
   renderMarketProfile(d);
@@ -219,6 +223,117 @@ function renderAll(d){
   renderTargetPrices(d);
   renderIndicators(d);
   renderRisk(d);
+}
+
+/* ─── Unified Triple Targets (BB + TA + PA + Wyckoff) ─── */
+function renderTripleTargets(d){
+  const el = document.getElementById('tripleTargetsSection');
+  if(!el) return;
+  const tt = d.triple_targets;
+  if(!tt || tt.error){ el.innerHTML = ''; return; }
+
+  const fmt = v => v == null ? '—' : '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits: 2});
+
+  // HOLD: just show range
+  if(tt.direction === 'HOLD'){
+    el.innerHTML = `
+      <div class="card" style="border-color:rgba(210,153,34,.3)">
+        <div class="card-header" style="background:rgba(210,153,34,.08)">
+          <span class="section-title"><i class="bi bi-pause-circle me-2" style="color:#d29922"></i>Unified Triple Plan — HOLD</span>
+        </div>
+        <div class="card-body" style="font-size:.85rem">
+          <div>${tt.summary || ''}</div>
+          ${tt.support || tt.resistance ? `<div class="mt-2" style="font-size:.78rem;color:rgba(255,255,255,.6)">Range: <strong style="color:#3fb950">${fmt(tt.support)}</strong> ↔ <strong style="color:#f85149">${fmt(tt.resistance)}</strong></div>` : ''}
+        </div>
+      </div>`;
+    return;
+  }
+
+  const dirClr = tt.direction === 'BUY' ? '#3fb950' : '#f85149';
+  const dirEmoji = tt.direction === 'BUY' ? '🟢' : '🔴';
+  const sl = tt.stop_loss || {};
+  const tiers = tt.targets || [];
+  const wm = tt.wyckoff_modifier || {};
+  const sys = tt.system_targets || {};
+
+  const tiersHtml = tiers.map((t, i) => {
+    const adj = t.wyckoff_adjusted ? ` <span title="Wyckoff phase adjusted from ₹${t.wyckoff_orig}" style="color:#d29922;font-size:.7rem">⚙️ adj</span>` : '';
+    const c = tt.direction === 'BUY' ? ['#56d364','#3fb950','#2ea043'][i] || '#3fb950' : ['#ff7b72','#f85149','#da3633'][i] || '#f85149';
+    return `
+      <div class="col-md-4">
+        <div class="p-2 rounded h-100" style="border:1px solid ${c}33;background:${c}08">
+          <div style="font-size:.7rem;color:${c};font-weight:700;letter-spacing:.5px;text-transform:uppercase">${t.tier}${adj}</div>
+          <div style="font-size:1.1rem;font-weight:700;color:${c};margin:2px 0">${fmt(t.price)}</div>
+          <div style="font-size:.75rem;color:rgba(255,255,255,.7)">${t.pct >= 0 ? '+' : ''}${t.pct.toFixed(2)}% &middot; <strong style="color:#58a6ff">RR ${t.rr || '?'}:1</strong></div>
+          <div style="font-size:.65rem;color:rgba(255,255,255,.45);margin-top:4px">Sources: ${(t.sources||[]).join(' + ')}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const warnings = (tt.warnings || []).map(w =>
+    `<div style="padding:6px 10px;margin-top:4px;background:rgba(210,153,34,.08);border-left:3px solid #d29922;font-size:.78rem;color:#d29922;border-radius:4px">⚠️ ${w}</div>`
+  ).join('');
+
+  const sysHtml = `
+    <details class="mt-2" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:6px 10px">
+      <summary style="font-size:.75rem;color:rgba(255,255,255,.55);cursor:pointer">📊 System-by-system breakdown (click to expand)</summary>
+      <div class="row g-2 mt-1" style="font-size:.72rem">
+        <div class="col-md-3"><strong style="color:#ffaa00">BB</strong> (score ${sys.bb?.score ?? '?'})<br>
+          Stop: ${fmt(sys.bb?.stop)}<br>
+          Bands: ${fmt(sys.bb?.lower_band)} / ${fmt(sys.bb?.mid_band)} / ${fmt(sys.bb?.upper_band)}
+        </div>
+        <div class="col-md-3"><strong style="color:#58a6ff">TA</strong> (score ${sys.ta?.score ?? '?'})<br>
+          Up: ${fmt(sys.ta?.consensus_upside?.target)} (${sys.ta?.consensus_upside?.num_methods || 0} methods)<br>
+          Down: ${fmt(sys.ta?.consensus_downside?.target)}
+        </div>
+        <div class="col-md-3"><strong style="color:#a371f7">PA</strong> (score ${sys.pa?.score ?? '?'})<br>
+          Signal: ${sys.pa?.signal || '?'}<br>
+          Entry: ${fmt(sys.pa?.entry)} &middot; Stop: ${fmt(sys.pa?.stop)}<br>
+          T1: ${fmt(sys.pa?.t1)} &middot; T2: ${fmt(sys.pa?.t2)}
+        </div>
+        <div class="col-md-3"><strong style="color:#ffa500">Wyckoff</strong><br>
+          Phase: ${sys.wyckoff?.phase || '?'}<br>
+          Support: ${fmt(sys.wyckoff?.support)}<br>
+          Resistance: ${fmt(sys.wyckoff?.resistance)}<br>
+          Bias: ${sys.wyckoff?.bias || '?'}
+        </div>
+      </div>
+    </details>`;
+
+  el.innerHTML = `
+    <div class="card" style="border-color:${dirClr}40">
+      <div class="card-header d-flex justify-content-between align-items-center" style="background:${dirClr}10">
+        <span class="section-title"><i class="bi bi-bullseye me-2" style="color:${dirClr}"></i>Unified Triple Plan ${dirEmoji} <strong style="color:${dirClr};margin-left:6px">${tt.direction}</strong></span>
+        <span class="badge" style="background:${dirClr}22;color:${dirClr};border:1px solid ${dirClr}44;font-size:.72rem">Confidence ${tt.confidence || 0}%</span>
+      </div>
+      <div class="card-body">
+        <div style="font-size:.78rem;color:rgba(255,255,255,.55);margin-bottom:10px;line-height:1.5">
+          A single trade plan combining all 4 systems (Bollinger + Murphy TA + Brooks PA + Wyckoff/Villahermosa). Each tier draws targets from multiple sources, weighted by each system's conviction in this stock.
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <div class="p-2 rounded" style="border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.02)">
+              <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px;font-weight:700">Entry</div>
+              <div style="font-size:1.1rem;font-weight:700">${fmt(tt.entry?.price)}</div>
+              <div style="font-size:.7rem;color:rgba(255,255,255,.5)">Zone: ${fmt(tt.entry?.zone?.[0])} – ${fmt(tt.entry?.zone?.[1])}</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-2 rounded" style="border:1px solid #f8514944;background:#f8514908">
+              <div style="font-size:.7rem;color:#f85149;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Stop Loss</div>
+              <div style="font-size:1.1rem;font-weight:700;color:#f85149">${fmt(sl.price)} <span style="font-size:.78rem;font-weight:400">(${sl.pct >= 0 ? '+' : ''}${(sl.pct||0).toFixed(2)}%)</span></div>
+              <div style="font-size:.65rem;color:rgba(255,255,255,.5)">Method: <strong>${sl.method || '?'}</strong></div>
+            </div>
+          </div>
+        </div>
+        <div class="row g-2">${tiersHtml}</div>
+        <div class="mt-2" style="font-size:.72rem;color:rgba(255,255,255,.5);padding:6px 10px;background:rgba(255,165,0,.05);border-left:3px solid #ffa500;border-radius:4px">
+          <strong style="color:#ffa500">Wyckoff modifier:</strong> ${wm.phase || '?'} (×${wm.multiplier || 1.0}) — ${wm.note || ''}
+        </div>
+        ${warnings}
+        ${sysHtml}
+      </div>
+    </div>`;
 }
 
 /* ─── Freshness Banner ─── */

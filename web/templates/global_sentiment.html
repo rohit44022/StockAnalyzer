@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Global Market Sentiment — हिरण्य</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d1117; --card:#161b22; --border:#30363d;
+    --text:#c9d1d9; --muted:#8b949e; --dim:#6e7681;
+    --bull:#3fb950; --bull-soft:#3fb95018;
+    --bear:#f85149; --bear-soft:#f8514918;
+    --warn:#d29922; --warn-soft:#d2992218;
+    --info:#58a6ff; --info-soft:#58a6ff18;
+    --neutral:#8b949e; --neutral-soft:#8b949e18;
+    --cautious:#ff7b00; --cautious-soft:#ff7b0018;
+  }
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:0.92rem}
+  .sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+  .sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;background:linear-gradient(135deg,#f6d365,#fda085,#fbc2eb,#f6d365);background-size:300% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shim 3s ease infinite}
+  @keyframes shim{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+  .sc-nav .sc-link{color:var(--muted);text-decoration:none;font-size:.82rem;padding:.85rem .75rem;border-bottom:2px solid transparent}
+  .sc-nav .sc-link.active{color:var(--info);border-bottom-color:var(--info)}
+  .sc-nav .sc-link:hover{color:var(--text)}
+  .gs-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px}
+  .gs-tone-bullish{border-left:4px solid var(--bull);background:linear-gradient(90deg,var(--bull-soft) 0%,var(--card) 50%)}
+  .gs-tone-bearish{border-left:4px solid var(--bear);background:linear-gradient(90deg,var(--bear-soft) 0%,var(--card) 50%)}
+  .gs-tone-cautious{border-left:4px solid var(--cautious);background:linear-gradient(90deg,var(--cautious-soft) 0%,var(--card) 50%)}
+  .gs-tone-neutral{border-left:4px solid var(--warn);background:linear-gradient(90deg,var(--warn-soft) 0%,var(--card) 50%)}
+  .gs-headline{font-size:1.4rem;font-weight:700;line-height:1.4;margin:0}
+  .gs-section-title{font-size:.78rem;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .gs-section-body{font-size:.92rem;line-height:1.65;color:var(--text)}
+  .gs-section-body b{color:#fff;font-weight:600}
+  .gs-flow-item{padding:8px 12px;margin:5px 0;border-radius:6px;font-size:.86rem;line-height:1.5}
+  .gs-flow-item.gs-bullish, .gs-flow-item.gs-bullish_for_india{background:var(--bull-soft);border-left:3px solid var(--bull);color:var(--text)}
+  .gs-flow-item.gs-bearish, .gs-flow-item.gs-bearish_for_india{background:var(--bear-soft);border-left:3px solid var(--bear);color:var(--text)}
+  .gs-flow-item.gs-neutral{background:var(--warn-soft);border-left:3px solid var(--warn);color:var(--text)}
+  .gs-meter{position:relative;height:10px;background:rgba(255,255,255,0.08);border-radius:5px;margin:14px 0 4px}
+  .gs-meter-fill{position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,var(--bear) 0%,var(--warn) 50%,var(--bull) 100%);border-radius:5px}
+  .gs-meter-pin{position:absolute;top:-3px;width:3px;height:16px;background:#fff;border-radius:2px;box-shadow:0 0 8px rgba(255,255,255,.6)}
+  .gs-meter-mid{position:absolute;left:50%;top:-2px;width:1px;height:14px;background:rgba(255,255,255,0.3)}
+  .gs-meter-labels{display:flex;justify-content:space-between;font-size:.68rem;color:var(--dim);margin-top:4px}
+  .gs-driver-chip{display:inline-block;padding:4px 11px;border-radius:14px;background:var(--info-soft);border:1px solid rgba(88,166,255,.3);color:var(--text);font-size:.74rem;margin:3px 4px 3px 0}
+  .gs-tile{background:rgba(255,255,255,0.025);border:1px solid var(--border);border-radius:10px;padding:10px 12px;height:100%}
+  .gs-tile:hover{border-color:var(--info)}
+  .gs-tile-title{font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gs-tile-price{font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:4px}
+  .gs-tile-changes{display:flex;justify-content:space-between;font-size:.68rem;gap:4px}
+  .gs-tile-desc{font-size:.66rem;color:var(--dim);line-height:1.3;margin-top:5px;padding-top:5px;border-top:1px dashed rgba(255,255,255,0.05)}
+  .gs-pct-pos{color:var(--bull)} .gs-pct-neg{color:var(--bear)} .gs-pct-zero{color:var(--neutral)}
+  .gs-corr-card{padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02)}
+  .gs-corr-bar{position:relative;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;margin-top:5px}
+  .gs-corr-bar-pos{position:absolute;left:50%;top:0;height:100%;background:var(--bull);border-radius:3px}
+  .gs-corr-bar-neg{position:absolute;right:50%;top:0;height:100%;background:var(--bear);border-radius:3px}
+  .gs-corr-mid{position:absolute;left:50%;top:-1px;width:1px;height:7px;background:rgba(255,255,255,0.25)}
+  .gs-cat-header{font-size:.78rem;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);font-weight:700;margin:18px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+  .gs-loading{padding:60px 20px;text-align:center;color:var(--muted)}
+  .gs-verdict-box{padding:14px 18px;border-radius:10px;margin-top:12px;font-size:.95rem;line-height:1.65}
+  .gs-verdict-action{font-weight:700;font-size:1.15rem;margin-bottom:6px}
+  .gs-headline-emoji{font-size:1.6rem;margin-right:8px}
+  .gs-refresh-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-size:.75rem;padding:5px 12px;border-radius:6px;cursor:pointer}
+  .gs-refresh-btn:hover{color:var(--text);border-color:var(--info)}
+  .gs-quality-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:14px;font-size:.7rem;font-weight:600}
+  .gs-stab-pill{padding:2px 9px;border-radius:10px;font-size:.7rem;font-weight:600}
+  .gs-stab-high{background:var(--bull-soft);color:var(--bull);border:1px solid var(--bull)}
+  .gs-stab-medium{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn)}
+  .gs-stab-low{background:var(--bear-soft);color:var(--bear);border:1px solid var(--bear)}
+  .gs-hist-tile{border:1px solid var(--border);border-radius:8px;padding:8px 12px;background:rgba(255,255,255,.02)}
+  .gs-hist-bar{position:relative;height:6px;background:rgba(255,255,255,.06);border-radius:3px;margin-top:6px}
+  .gs-hist-fill{position:absolute;left:0;top:0;height:100%;border-radius:3px}
+  .gs-hist-pin{position:absolute;top:-3px;width:3px;height:12px;background:#fff;border-radius:2px}
+  .gs-tone-extreme{color:#ff7b72;font-weight:600}
+  .gs-tone-high{color:#d29922}
+  .gs-tone-low{color:#56d364}
+  .gs-tone-neutral{color:var(--muted)}
+  .gs-stale-warn{background:rgba(210,153,34,.08);border-left:3px solid var(--warn);padding:8px 12px;border-radius:4px;font-size:.78rem;color:#d29922;margin-bottom:10px}
+  /* Section verdict pill */
+  .gs-verdict-pill{padding:11px 14px;border-radius:8px;margin-bottom:10px;font-size:.86rem;line-height:1.55;border-left:4px solid}
+  .gs-verdict-pill .gs-vp-headline{font-size:.92rem;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .gs-verdict-pill .gs-vp-tonebadge{font-size:.62rem;text-transform:uppercase;letter-spacing:.6px;padding:2px 8px;border-radius:10px;font-weight:700}
+  .gs-verdict-pill .gs-vp-body{color:var(--text);font-size:.84rem;margin-bottom:6px}
+  .gs-verdict-pill ul{margin:4px 0 0 0;padding-left:18px}
+  .gs-verdict-pill li{font-size:.78rem;color:var(--muted);margin-bottom:2px}
+  .gs-vp-bullish{background:var(--bull-soft);border-color:var(--bull)}
+  .gs-vp-bullish .gs-vp-headline,.gs-vp-bullish .gs-vp-tonebadge{color:var(--bull)}
+  .gs-vp-bullish .gs-vp-tonebadge{background:var(--bull);color:#0d1117}
+  .gs-vp-bearish{background:var(--bear-soft);border-color:var(--bear)}
+  .gs-vp-bearish .gs-vp-headline,.gs-vp-bearish .gs-vp-tonebadge{color:var(--bear)}
+  .gs-vp-bearish .gs-vp-tonebadge{background:var(--bear);color:#0d1117}
+  .gs-vp-cautious{background:var(--cautious-soft);border-color:var(--cautious)}
+  .gs-vp-cautious .gs-vp-headline,.gs-vp-cautious .gs-vp-tonebadge{color:var(--cautious)}
+  .gs-vp-cautious .gs-vp-tonebadge{background:var(--cautious);color:#0d1117}
+  .gs-vp-neutral{background:var(--warn-soft);border-color:var(--warn)}
+  .gs-vp-neutral .gs-vp-headline,.gs-vp-neutral .gs-vp-tonebadge{color:var(--warn)}
+  .gs-vp-neutral .gs-vp-tonebadge{background:var(--warn);color:#0d1117}
+  /* Layman explainer panels */
+  .gs-explainer{background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.18);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:.86rem;line-height:1.6;color:var(--text)}
+  .gs-explainer-title{font-size:.78rem;letter-spacing:.6px;text-transform:uppercase;color:var(--info);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .gs-explainer p{margin:0 0 8px 0}
+  .gs-explainer p:last-child{margin-bottom:0}
+  .gs-explainer b{color:#fff;font-weight:600}
+  .gs-explainer ul{margin:6px 0 8px 0;padding-left:20px}
+  .gs-explainer li{margin-bottom:4px}
+  .gs-color-key{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.08)}
+  .gs-color-key-item{font-size:.72rem;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:12px;border:1px solid}
+  .gs-key-bull{background:var(--bull-soft);border-color:var(--bull);color:var(--bull)}
+  .gs-key-bear{background:var(--bear-soft);border-color:var(--bear);color:var(--bear)}
+  .gs-key-warn{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+  .gs-key-info{background:var(--info-soft);border-color:var(--info);color:var(--info)}
+  .gs-key-cautious{background:var(--cautious-soft);border-color:var(--cautious);color:var(--cautious)}
+</style>
+</head>
+<body>
+
+<nav class="sc-nav">
+  <div class="container-fluid d-flex align-items-center px-3 gap-2">
+    <a class="sc-brand" href="/">हिरण्य</a>
+    <div class="sc-links d-flex" style="overflow-x:auto">
+      <a class="sc-link" href="/">Home</a>
+      <a class="sc-link" href="/ta">TA</a>
+      <a class="sc-link" href="/pa">Price Action</a>
+      <a class="sc-link" href="/triple">Triple</a>
+      <a class="sc-link active" href="/global-sentiment">🌍 Global</a>
+      <a class="sc-link" href="/trades">Trades</a>
+      <a class="sc-link" href="/portfolio">Portfolio</a>
+      <a class="sc-link" href="/risk-management">Risk</a>
+      <a class="sc-link" href="/mental-game">Mental</a>
+      <a class="sc-link" href="/rentech">RenTech</a>
+    </div>
+    <div class="ms-auto">
+      <a href="/auth/logout" class="btn btn-outline-secondary btn-sm" style="font-size:.72rem;padding:.25rem .6rem"><i class="bi bi-box-arrow-right"></i></a>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid py-4 px-md-4 px-2" style="max-width:1400px">
+
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h2 class="mb-1" style="font-weight:700">🌍 Global Market Sentiment</h2>
+      <div style="color:var(--muted);font-size:.85rem">A 40-year macro economist's read of currencies, commodities, bonds, equities, and crypto — translated to plain English for everyday traders.</div>
+    </div>
+    <button class="gs-refresh-btn" id="gsRefreshBtn"><i class="bi bi-arrow-clockwise"></i> Refresh data</button>
+  </div>
+
+  <div id="gsRoot">
+    <div class="gs-loading">
+      <div class="spinner-border text-info mb-3" role="status"></div>
+      <div>Loading global macro data... (first load takes ~2s)</div>
+    </div>
+  </div>
+
+  <div style="font-size:.7rem;color:var(--dim);margin-top:24px;padding-top:14px;border-top:1px dashed var(--border);text-align:center">
+    Data via Yahoo Finance · 15-minute server cache · Educational only — not investment advice
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const fmt = (v, d=2) => v == null ? '—' : (typeof v === 'number' ? v.toFixed(d) : v);
+const sign = v => v == null ? '' : (v >= 0 ? '+' : '');
+const pctClass = v => v == null ? 'gs-pct-zero' : (v > 0.01 ? 'gs-pct-pos' : (v < -0.01 ? 'gs-pct-neg' : 'gs-pct-zero'));
+const toneToColor = {
+  bullish: 'var(--bull)', bullish_for_india: 'var(--bull)',
+  bearish: 'var(--bear)', bearish_for_india: 'var(--bear)',
+  cautious: 'var(--cautious)',
+  neutral: 'var(--warn)',
+};
+
+document.getElementById('gsRefreshBtn').addEventListener('click', () => load(true));
+load(false);
+
+function load(force){
+  $('gsRoot').innerHTML = '<div class="gs-loading"><div class="spinner-border text-info mb-3" role="status"></div><div>'+(force?'Refreshing':'Loading')+' global macro data...</div></div>';
+  fetch('/api/global-sentiment' + (force ? '?refresh=1' : ''))
+    .then(r => r.json())
+    .then(render)
+    .catch(err => {
+      $('gsRoot').innerHTML = '<div class="gs-card gs-tone-bearish"><div class="gs-headline">⚠ Could not load: '+(err.message||err)+'</div></div>';
+    });
+}
+
+function render(data){
+  if (!data || !data.ok) {
+    $('gsRoot').innerHTML = '<div class="gs-card gs-tone-bearish"><div class="gs-headline">⚠ '+((data&&data.error) || 'Macro data unavailable')+'</div></div>';
+    return;
+  }
+
+  const lay = data.layman || {};
+  const reg = data.regime || {};
+  const cmp = data.composite || {};
+  const ind = data.india_impact || {};
+  const verdicts = data.section_verdicts || {};
+  const cacheAgeMin = data.cache_age_seconds == null ? null : Math.floor(data.cache_age_seconds/60);
+
+  // Render a verdict pill for a given section key
+  function verdictPill(key){
+    const v = verdicts[key];
+    if (!v) return '';
+    const tone = ['bullish','bearish','cautious','neutral'].includes(v.tone) ? v.tone : 'neutral';
+    const emoji = tone === 'bullish' ? '🟢' : tone === 'bearish' ? '🔴' : tone === 'cautious' ? '🟠' : '🟡';
+    const obs = (v.observations || []).slice(0, 5).map(o => `<li>${o}</li>`).join('');
+    return `
+      <div class="gs-verdict-pill gs-vp-${tone}">
+        <div class="gs-vp-headline">
+          <span>${emoji}</span>
+          <span>What this section is telling you: ${v.headline}</span>
+          <span class="gs-vp-tonebadge" style="margin-left:auto">${tone}</span>
+        </div>
+        <div class="gs-vp-body">${v.body}</div>
+        ${obs ? `<ul>${obs}</ul>` : ''}
+      </div>`;
+  }
+
+  // ── HEADLINE + COMPOSITE METER ──
+  const meterPos = Math.max(0, Math.min(100, (cmp.score + 100) / 2));
+  const stab = data.regime_stability || {};
+  const dq = data.data_quality || {};
+  const stabClass = stab.confidence === 'high' ? 'gs-stab-high' : (stab.confidence === 'medium' ? 'gs-stab-medium' : 'gs-stab-low');
+  const stabText = stab.days_held != null
+    ? `Regime ${stab.days_held}d old · ${stab.flips_30d || 0} flips/30d · ${stab.confidence} confidence`
+    : 'stability unknown';
+
+  const headlineHtml = `
+    <div class="gs-card gs-tone-${lay.headline_tone||'neutral'}">
+      <p class="gs-headline">${lay.headline || ''}</p>
+      <div class="gs-meter">
+        <div class="gs-meter-fill"></div>
+        <div class="gs-meter-mid"></div>
+        <div class="gs-meter-pin" style="left:${meterPos}%"></div>
+      </div>
+      <div class="gs-meter-labels"><span>🛡️ Strong Risk-Off (-100)</span><span>⚖️ Neutral (0)</span><span>🚀 Strong Risk-On (+100)</span></div>
+      <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:.78rem;color:var(--muted)">
+        <span><b style="color:${reg.color}">${reg.emoji||''} ${reg.label||''}</b> regime · Composite Score: <b style="color:${cmp.color}">${cmp.score>=0?'+':''}${fmt(cmp.score,1)}</b> (${cmp.label||''})</span>
+        <span class="gs-stab-pill ${stabClass}">${stabText}</span>
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:.7rem;color:var(--dim)">
+        <span class="gs-quality-badge" style="background:${dq.color||'#8b949e'}22;color:${dq.color||'#8b949e'};border:1px solid ${dq.color||'#8b949e'}55">
+          📡 Data: <b>${dq.label||'?'}</b> · ${dq.instruments_loaded||0}/${dq.instruments_total||0} instruments · source: ${dq.source||'?'}
+        </span>
+        ${cacheAgeMin != null ? `<span>Cached ${cacheAgeMin}m ago</span>` : ''}
+      </div>
+      ${dq.stale_instruments && dq.stale_instruments.length ? `
+        <div class="gs-stale-warn" style="margin-top:10px">⚠️ <b>Stale data warning:</b> ${dq.stale_instruments.length} instrument(s) not updated in 3+ days: ${dq.stale_instruments.map(s=>s.name+' ('+s.cal_days_stale+'d)').join(', ')}</div>
+      ` : ''}
+      ${(function(){
+        const cal = data.calibration || {};
+        if (!cal.ok) return '';
+        const d = cal.score_distribution || {};
+        const b = cal.buckets || {};
+        return `<div style="margin-top:10px;padding:8px 12px;background:rgba(88,166,255,.05);border-left:3px solid var(--info);border-radius:4px;font-size:.72rem;color:var(--muted)">
+          📊 <b style="color:var(--info)">Score buckets calibrated</b> from ${cal.n_days} historical days · 5th=${b.strong_risk_off} · 25th=${b.risk_off} · 50th=${d.p50} · 75th=${b.risk_on} · 95th=${b.strong_risk_on} · σ=${d.std} · today's ${data.composite.score>0?'+':''}${data.composite.score} maps to <b>${data.composite.label}</b>
+        </div>`;
+      })()}
+    </div>`;
+
+  // ── DRIVER CHIPS ──
+  const drivers = (reg.drivers || []).slice(0, 6);
+  const driversHtml = drivers.length
+    ? `<div style="margin-bottom:14px">${drivers.map(d => `<span class="gs-driver-chip">${d}</span>`).join('')}</div>`
+    : '';
+
+  // ── LAYMAN SECTIONS ──
+  const sectionsHtml = (lay.sections || []).map(s => `
+    <div class="gs-card gs-tone-${s.tone||'neutral'}">
+      <div class="gs-section-title">${s.icon||''} ${s.title}</div>
+      <div class="gs-section-body">${s.body || ''}</div>
+    </div>
+  `).join('');
+
+  // ── VERDICT BOX ──
+  const v = lay.verdict || {};
+  const verdictColor = toneToColor[v.tone] || 'var(--warn)';
+  const verdictHtml = `
+    <div class="gs-card" style="border:2px solid ${verdictColor};background:${verdictColor}10">
+      <div class="gs-section-title" style="color:${verdictColor}">🎯 What you should do</div>
+      <div class="gs-verdict-action" style="color:${verdictColor}">${v.action || ''}</div>
+      <div class="gs-section-body">${v.explanation || ''}</div>
+    </div>
+  `;
+
+  // ── HISTORICAL CONTEXT — where today's values sit in 1Y range ──
+  const histCtx = data.historical_context || [];
+  const histExplainer = `
+    <details class="gs-explainer" style="cursor:pointer">
+      <summary class="gs-explainer-title" style="cursor:pointer;list-style:none">📖 What does "1-year percentile" mean? — click to read</summary>
+      <div style="margin-top:8px">
+        <p>A raw number like <b>"US 10Y yield = 4.31%"</b> tells you nothing on its own. Is that high? Low? Normal? <b>Context is everything.</b></p>
+        <p>The <b>1-year percentile rank</b> answers that. It tells you where today's value sits compared to every value over the last 12 months:</p>
+        <ul>
+          <li><b style="color:#f85149">90th–100th %ile</b> = at or near 1-year HIGH. <b>Extreme zone — prone to mean-reversion.</b></li>
+          <li><b style="color:#d29922">70th–90th %ile</b> = elevated, above normal range.</li>
+          <li><b style="color:#8b949e">30th–70th %ile</b> = normal range, no extreme.</li>
+          <li><b style="color:#56d364">10th–30th %ile</b> = depressed, below normal range.</li>
+          <li><b style="color:#3fb950">0th–10th %ile</b> = at or near 1-year LOW. <b>Extreme zone — could bottom or break further.</b></li>
+        </ul>
+        <p><b>Why this matters:</b> When India VIX is at 90th percentile, fear is near a yearly extreme — historically that's a <b>contrarian signal</b> (markets often bottom near max fear). When USD/INR is at 97th percentile, the rupee is near its weakest in a year — historically pressure builds toward central-bank intervention or trend exhaustion.</p>
+        <div class="gs-color-key">
+          <span class="gs-color-key-item gs-key-bear">🔴 Red bar = at the high end of 1Y range (extreme high)</span>
+          <span class="gs-color-key-item gs-key-warn">🟡 Amber = normal middle range</span>
+          <span class="gs-color-key-item gs-key-bull">🟢 Green = at the low end of 1Y range (extreme low)</span>
+        </div>
+      </div>
+    </details>`;
+  const histHtml = histCtx.length ? `
+    <div class="gs-cat-header">📐 Where today sits in 1-year history <span style="color:var(--dim);font-weight:400;text-transform:none;font-size:.72rem;margin-left:8px">Context for raw numbers — is 4.31% high or low? The percentile tells you.</span></div>
+    ${verdictPill('historical')}
+    ${histExplainer}
+    <div class="row g-2">
+      ${histCtx.map(h => {
+        const pct = h.pct_rank_1y;
+        const pct5 = h.pct_rank_5y;
+        const fillColor = pct >= 70 ? '#f85149' : (pct <= 30 ? '#3fb950' : '#d29922');
+        const fill5Color = pct5 != null ? (pct5 >= 70 ? '#f85149' : (pct5 <= 30 ? '#3fb950' : '#d29922')) : '#8b949e';
+        const lastFmt = typeof h.last === 'number' ? (h.last >= 1000 ? h.last.toLocaleString('en-IN', {maximumFractionDigits: 2}) : h.last.toFixed(2)) : h.last;
+        return `
+          <div class="col-md-6 col-lg-3">
+            <div class="gs-hist-tile">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:.78rem;font-weight:600">${h.name}</span>
+                <strong style="font-size:.95rem">${h.unit||''}${lastFmt}</strong>
+              </div>
+              <div style="font-size:.62rem;color:var(--dim);margin-top:5px">1-YEAR percentile</div>
+              <div class="gs-hist-bar">
+                <div class="gs-hist-fill" style="width:${pct}%;background:${fillColor}"></div>
+                <div class="gs-hist-pin" style="left:${pct}%"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:.62rem;margin-top:2px">
+                <span style="color:var(--dim)">1Y low</span>
+                <span class="gs-tone-${h.tone}"><b>${pct}%</b> ${h.label.replace('1-year ','').replace(' zone','').replace(' vs 1Y range','')}</span>
+                <span style="color:var(--dim)">1Y high</span>
+              </div>
+              ${pct5 != null ? `
+                <div style="font-size:.62rem;color:var(--dim);margin-top:6px">5-YEAR percentile</div>
+                <div class="gs-hist-bar">
+                  <div class="gs-hist-fill" style="width:${pct5}%;background:${fill5Color}"></div>
+                  <div class="gs-hist-pin" style="left:${pct5}%"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:.62rem;margin-top:2px">
+                  <span style="color:var(--dim)">5Y low</span>
+                  <span style="color:${fill5Color}"><b>${pct5}%</b></span>
+                  <span style="color:var(--dim)">5Y high</span>
+                </div>` : ''}
+              ${h.context_note ? `<div style="font-size:.62rem;color:#d29922;margin-top:5px;padding-top:4px;border-top:1px dashed rgba(255,255,255,0.06)">⚠ ${h.context_note}</div>` : ''}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>` : '';
+
+  // ── SECTOR BREAKDOWN — actionable for Indian investor ──
+  const sec = data.sectors || {};
+  const sectorTile = (s, isLeader) => {
+    const c = isLeader ? 'var(--bull)' : 'var(--bear)';
+    return `
+      <div style="border:1px solid ${c}40;border-radius:8px;padding:9px 12px;background:${c}08">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:600">${s.name}</span>
+          <strong style="color:${c}">${s.composite >= 0 ? '+' : ''}${fmt(s.composite,2)}</strong>
+        </div>
+        <div style="font-size:.7rem;color:var(--dim);margin-top:3px">
+          5d <span class="${s.change_5d_pct >= 0 ? 'gs-pct-pos' : 'gs-pct-neg'}">${sign(s.change_5d_pct)}${fmt(s.change_5d_pct,2)}%</span>
+          · 20d <span class="${s.change_20d_pct >= 0 ? 'gs-pct-pos' : 'gs-pct-neg'}">${sign(s.change_20d_pct)}${fmt(s.change_20d_pct,2)}%</span>
+          ${s.pct_rank_1y != null ? `· 1Y rank ${s.pct_rank_1y}%` : ''}
+        </div>
+      </div>`;
+  };
+  const sectorHtml = (sec.leaders && sec.leaders.length) ? `
+    <div class="gs-card" style="border-left:4px solid var(--info)">
+      <div class="gs-section-title">🇮🇳 Indian Sector Rotation</div>
+      ${verdictPill('sector')}
+      <div class="gs-explainer">
+        <div class="gs-explainer-title">📖 What is sector rotation, and why should you care?</div>
+        <p>Imagine the market as a dance floor. <b>Different sectors take turns being the star</b> — when the economy is booming, banks/metal/auto rally hard (people borrow, build, drive). When fear takes over, everyone runs to <b>defensive sectors</b> like FMCG, pharma, IT — companies that sell things people buy regardless of recession (toothpaste, medicine, software).</p>
+        <p><b>Smart money rotates BEFORE the news arrives.</b> So if you see banks suddenly leading after weeks of being quiet — institutional investors are betting on growth/rate cuts. If pharma and FMCG are leading and metal is dying — they're hiding. <b>This panel shows you the rotation in real time.</b></p>
+        <p><b>How to use this:</b> Don't fight the leaders, don't catch falling laggards. If your stock is in a green leader sector, you have <b>tailwinds</b>. If it's in a red laggard sector, you're swimming upstream.</p>
+        <div class="gs-color-key">
+          <span class="gs-color-key-item gs-key-bull">🟢 GREEN — Leaders: money flowing IN, sector strength building</span>
+          <span class="gs-color-key-item gs-key-bear">🔴 RED — Laggards: money flowing OUT, sector under pressure</span>
+          <span class="gs-color-key-item gs-key-info">📊 Composite = blend of 5-day (60%) + 20-day (40%) returns</span>
+        </div>
+      </div>
+      <div style="font-size:.92rem;margin-bottom:12px;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:6px"><b>Today's read:</b> ${sec.rotation || ''}</div>
+      <div class="row g-2">
+        <div class="col-md-6">
+          <div style="font-size:.7rem;color:var(--bull);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:6px">📈 Leaders — buy strength, ride the trend</div>
+          ${sec.leaders.map(s => sectorTile(s, true)).join('')}
+        </div>
+        <div class="col-md-6">
+          <div style="font-size:.7rem;color:var(--bear);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:6px">📉 Laggards — avoid bottom-fishing without confirmation</div>
+          ${sec.laggards.map(s => sectorTile(s, false)).join('')}
+        </div>
+      </div>
+    </div>` : '';
+
+  // ── INSTRUMENTS BY CATEGORY ──
+  const cats = data.instruments || {};
+  const catOrder = [
+    ['fx', 'Currencies', '💱', 'How money moves between countries', `
+      <p><b>Currencies are the FIRST place global capital flow shows up</b> — before stocks move, before commodities move, currencies move. When foreign investors decide to leave India, they sell rupees and buy dollars — and you see USD/INR rise <b>before</b> Nifty falls.</p>
+      <p><b>Key pairs and what they tell you:</b></p>
+      <ul>
+        <li><b>USD/INR</b> — The headline. <b style="color:#f85149">Rising = rupee weakening = foreign investors converting back to dollars (bad for stocks).</b> Falling = foreigners buying rupees (good for stocks).</li>
+        <li><b>DXY (Dollar Index)</b> — USD vs basket of major world currencies. <b style="color:#f85149">Strong DXY pressures all emerging markets — India included.</b> Weak DXY supports EM rally.</li>
+        <li><b>USD/CNY</b> — China stress signal. China devaluing = exporting deflation = bad for global growth.</li>
+        <li><b>JPY/INR</b> — The "fear radar". Yen STRENGTHENS in risk-off because Japanese investors repatriate capital. Watch for sudden JPY rallies.</li>
+        <li><b>EUR/INR, GBP/INR</b> — Europe-India trade & investment context.</li>
+      </ul>
+      <div class="gs-color-key">
+        <span class="gs-color-key-item gs-key-bull">🟢 Green % = currency strengthening over the period</span>
+        <span class="gs-color-key-item gs-key-bear">🔴 Red % = currency weakening</span>
+        <span class="gs-color-key-item gs-key-info">⏱️ 1d / 5d / 20d show short-term, weekly, and monthly trends</span>
+      </div>
+      <p><b>Bottom line:</b> When USD/INR makes a new 1-year high (like today at 97th percentile), foreign capital is leaving India. <b>This is bearish for Nifty until it stabilizes.</b></p>`],
+    ['commodity', 'Commodities', '🛢️', 'Oil, gold, copper — physical goods that drive inflation/growth', `
+      <p>Commodities tell you about <b>real-world demand and inflation</b>. Stock prices can be moved by sentiment, but the price of oil and copper reflect actual industrial activity.</p>
+      <ul>
+        <li><b style="color:#fbb">Gold</b> — The fear gauge. Rises when investors are SCARED, when inflation rises, or when the dollar weakens. <b>Falling gold during stock weakness = panic NOT yet here</b> (good). Rising gold + falling stocks = real risk-off.</li>
+        <li><b style="color:#fbb">Brent Crude (oil)</b> — Global growth proxy + inflation driver. <b style="color:#f85149">India imports ~85% of oil</b> — high oil prices hurt the rupee, raise inflation, squeeze fiscal deficit. Affected sectors: paint (Asian Paints), tyres, aviation, OMCs (HPCL/BPCL).</li>
+        <li><b style="color:#fbb">Copper ("Dr. Copper")</b> — Has a PhD in economics. Rising copper = global economy expanding. <b>Falling copper = recession warning</b>, even if stocks haven't reacted yet.</li>
+        <li><b style="color:#fbb">Silver</b> — Industrial + monetary. Tracks gold but more volatile.</li>
+        <li><b style="color:#fbb">Natural Gas</b> — Highly seasonal. Spikes signal supply shocks/cold winters.</li>
+      </ul>
+      <div class="gs-color-key">
+        <span class="gs-color-key-item gs-key-bull">🟢 Rising copper / falling gold = healthy growth regime</span>
+        <span class="gs-color-key-item gs-key-bear">🔴 Rising gold + rising oil = inflation + fear</span>
+        <span class="gs-color-key-item gs-key-warn">🟡 Falling copper + rising gold = recession warning</span>
+      </div>`],
+    ['bond', 'Bonds & Volatility', '📊', 'Interest rates and the fear gauges (US VIX + India VIX)', `
+      <p>Bond yields are the <b>"price of money"</b> — when yields are high, borrowing is expensive and stocks struggle. When yields fall, money is cheap and stocks rally. <b>The fear indices (VIX) measure how scared traders are right now.</b></p>
+      <ul>
+        <li><b>US 10Y Yield</b> — The most-watched number in the world. <b style="color:#f85149">Above 4.5% = restrictive, capital flees to US bonds.</b> Below 3.5% = accommodative, supportive for stocks globally.</li>
+        <li><b>US 3M T-Bill</b> — Short-end. When 10Y < 3M (inverted curve) → <b style="color:#f85149">recession warning</b> (the NY Fed's preferred indicator).</li>
+        <li><b>US 30Y</b> — Long-bond, term premium = long-run inflation expectations.</li>
+        <li><b>US VIX (S&P fear)</b> — &gt;25 = fear, 15-25 = normal, &lt;15 = complacency (often before sell-offs).</li>
+        <li><b style="color:#fbb">India VIX</b> — The Nifty fear gauge — <b>more relevant for Indian trades than US VIX</b>. &gt;20 = elevated, &gt;25 = real fear, &lt;13 = complacency.</li>
+      </ul>
+      <div class="gs-color-key">
+        <span class="gs-color-key-item gs-key-bull">🟢 Yields falling + VIX low = supportive for stocks</span>
+        <span class="gs-color-key-item gs-key-bear">🔴 Yields rising + VIX rising = stocks pressured</span>
+        <span class="gs-color-key-item gs-key-warn">🟡 Yield curve inversion = recession warning (12-18 months out)</span>
+      </div>`],
+    ['equity', 'Equity Indices', '📈', 'Stock markets across the world', `
+      <p>Each country's stock index is the <b>aggregate sentiment of investors in that economy</b>. When you compare them, you learn whether the world is in a <b>synchronized regime</b> (everyone moving together) or whether <b>local stories</b> are dominating.</p>
+      <p><b>The world's risk benchmarks:</b></p>
+      <ul>
+        <li><b>S&P 500, Nasdaq, Dow (US)</b> — The global risk barometer. When S&P falls hard, every market in the world feels it. Nasdaq is most rate-sensitive (high-growth tech).</li>
+        <li><b>Nikkei (Japan), Hang Seng (Hong Kong)</b> — Asian markets open BEFORE US. Often lead — if Asia sells off overnight, US opens lower.</li>
+        <li><b>FTSE (UK), DAX (Germany)</b> — Europe bridges Asia and US time zones. DAX is heavy in industrials/cyclicals.</li>
+        <li><b>Nifty 50 / Sensex (India)</b> — Your home market. <b>The key question: is Nifty moving WITH or AGAINST global markets?</b></li>
+      </ul>
+      <p><b>The most useful comparison: Nifty vs S&P 500.</b></p>
+      <ul>
+        <li>Nifty <b style="color:#3fb950">OUTPERFORMING</b> S&P → India has its own story (DII flows, domestic earnings, policy). Bullish India-specific.</li>
+        <li>Nifty <b style="color:#f85149">UNDERPERFORMING</b> S&P → India-specific drag (FII selling, election/policy concerns). Bearish for Nifty even if global tape is OK.</li>
+        <li>Nifty <b>tracking</b> S&P → No India-specific story; you're just along for the global ride.</li>
+      </ul>
+      <div class="gs-color-key">
+        <span class="gs-color-key-item gs-key-bull">🟢 Most indices green together = synchronized risk-on</span>
+        <span class="gs-color-key-item gs-key-bear">🔴 Most indices red together = synchronized risk-off</span>
+        <span class="gs-color-key-item gs-key-warn">🟡 Mixed = transition / regional divergence</span>
+      </div>`],
+    ['sector', 'Indian Sectors', '🇮🇳', 'Bank Nifty, IT, Auto, Pharma, Metal — sector rotation in India', `
+      <p>While the Nifty 50 is the <b>average</b> of all sectors, the magic happens <b>underneath</b> — at the sector level. <b>Money rotates between sectors continuously.</b> A flat Nifty can hide huge moves: pharma up 8%, metal down 8%, net = 0.</p>
+      <p><b>Each sector has a personality:</b></p>
+      <ul>
+        <li><b style="color:#56d364">Bank Nifty</b> — Most rate-sensitive. <b>RBI rate cut → banks rally.</b> US 10Y yield rising → banks struggle (FII selling).</li>
+        <li><b style="color:#56d364">Nifty IT</b> — Counterintuitive: <b>weak rupee BENEFITS IT</b> (export earnings worth more in INR). Strong rupee hurts IT.</li>
+        <li><b style="color:#56d364">Nifty Auto</b> — Sensitive to commodity costs (steel, aluminium) and consumer demand. Rising oil = transport cost up = margin pressure.</li>
+        <li><b style="color:#56d364">Nifty Pharma</b> — <b>Defensive sector</b>. Outperforms in risk-off, has USD-export angle. People buy medicine in any economy.</li>
+        <li><b style="color:#56d364">Nifty Metal</b> — Highly cyclical. <b>Loves inflation/growth regimes</b>, suffers in recession. Tracks Chinese demand closely.</li>
+        <li><b style="color:#56d364">Nifty FMCG</b> — Defensive consumer staples. Outperforms in volatility/inflation. Boring but resilient.</li>
+        <li><b style="color:#56d364">Nifty Energy</b> — Mixed: upstream (ONGC) gains from oil up, downstream (HPCL/BPCL) loses.</li>
+        <li><b style="color:#56d364">Nifty Realty</b> — <b>The most rate-sensitive sector</b>. Inversely tied to interest rates. Rate cut talk → realty rallies.</li>
+      </ul>
+      <div class="gs-color-key">
+        <span class="gs-color-key-item gs-key-bull">🟢 Cyclicals leading (Banks/Metal/Auto/Realty) = growth/risk-on</span>
+        <span class="gs-color-key-item gs-key-warn">🟡 Defensives leading (FMCG/Pharma/IT) = caution / risk-off</span>
+        <span class="gs-color-key-item gs-key-info">📐 Use 1Y rank to spot sectors at extremes (overbought/oversold)</span>
+      </div>
+      <p><b>Bottom line:</b> Pick stocks from sectors with green wind. Avoid stocks from red sectors unless you have very high conviction.</p>`],
+    ['crypto', 'Crypto', '₿', 'Bitcoin & Ethereum — modern risk barometer', `
+      <p>Bitcoin used to be its own world. <b>Now it correlates with Nasdaq</b> in risk-on regimes — speculative capital flows to high-growth tech AND crypto together. When BTC and Nasdaq diverge sharply, something unusual is happening in the macro picture.</p>
+      <ul>
+        <li><b style="color:#fbb">Bitcoin</b> — Strong rallies often signal speculative euphoria; sharp drops often <b>precede</b> stock weakness.</li>
+        <li><b style="color:#fbb">Ethereum</b> — Crypto's "high beta" — moves ~1.5× of BTC, both directions. Reads like a leveraged BTC.</li>
+      </ul>
+      <div class="gs-color-key">
+        <span class="gs-color-key-item gs-key-bull">🟢 BTC + Nasdaq up together = risk-on confirmed</span>
+        <span class="gs-color-key-item gs-key-bear">🔴 BTC down sharply while stocks flat = early risk-off warning</span>
+      </div>`],
+  ];
+  const tile = (it) => {
+    const c1 = pctClass(it.change_1d_pct), c5 = pctClass(it.change_5d_pct), c20 = pctClass(it.change_20d_pct);
+    const lastFmt = it.last == null ? '—' : (it.last >= 1000 ? it.last.toLocaleString('en-IN', {maximumFractionDigits: 2}) : fmt(it.last, it.last < 1 ? 4 : 2));
+    const lagDays = it.cal_days_stale || 0;
+    const staleTag = lagDays > 1
+      ? `<span title="Last update: ${it.ts_last||'unknown'}" style="font-size:.6rem;padding:1px 6px;border-radius:8px;background:var(--warn-soft);color:var(--warn);margin-left:6px">⏱ ${lagDays}d</span>`
+      : '';
+    return `
+      <div class="gs-tile">
+        <div class="gs-tile-title">${it.name} ${staleTag}</div>
+        <div class="gs-tile-price">${it.unit||''}${lastFmt}</div>
+        <div class="gs-tile-changes">
+          <span class="${c1}">${sign(it.change_1d_pct)}${fmt(it.change_1d_pct,2)}% <span style="color:var(--dim)">1d</span></span>
+          <span class="${c5}">${sign(it.change_5d_pct)}${fmt(it.change_5d_pct,2)}% <span style="color:var(--dim)">5d</span></span>
+          <span class="${c20}">${sign(it.change_20d_pct)}${fmt(it.change_20d_pct,2)}% <span style="color:var(--dim)">20d</span></span>
+        </div>
+        <div class="gs-tile-desc">${it.description}</div>
+      </div>`;
+  };
+  const catHtml = catOrder.map(([k, label, ico, hint, explainer]) => {
+    const items = cats[k] || [];
+    if (!items.length) return '';
+    const expHtml = explainer ? `
+      <details class="gs-explainer" style="cursor:pointer">
+        <summary class="gs-explainer-title" style="cursor:pointer;list-style:none">📖 What is "${label}"? — click to read (layman-friendly)</summary>
+        <div style="margin-top:8px">${explainer}</div>
+      </details>
+    ` : '';
+    // Skip sector verdict here since it already shows with the Rotation card above
+    const showVerdict = k !== 'sector' ? verdictPill(k) : '';
+    // Staleness summary for this category
+    const stale = items.filter(it => it.is_stale || (it.cal_days_stale != null && it.cal_days_stale > 1));
+    const maxLag = items.reduce((m, it) => Math.max(m, it.cal_days_stale || 0), 0);
+    let staleBadge = '';
+    if (stale.length > 0) {
+      const ratio = `${stale.length}/${items.length}`;
+      const tone = stale.length === items.length ? 'var(--bear)' : 'var(--warn)';
+      const names = stale.slice(0, 3).map(s => `${s.name} (${s.cal_days_stale}d)`).join(', ');
+      const more = stale.length > 3 ? ` +${stale.length-3} more` : '';
+      staleBadge = `<span style="font-size:.66rem;padding:2px 8px;border-radius:10px;background:${tone}22;color:${tone};border:1px solid ${tone}55;margin-left:8px" title="${names}${more}">⏱ ${ratio} delayed (max ${maxLag}d)</span>`;
+    }
+    return `
+      <div class="gs-cat-header">${ico} ${label} ${staleBadge}<span style="color:var(--dim);font-weight:400;text-transform:none;font-size:.72rem;margin-left:8px">${hint}</span></div>
+      ${showVerdict}
+      ${expHtml}
+      <div class="row g-2">
+        ${items.map(it => `<div class="col-md-4 col-lg-3">${tile(it)}</div>`).join('')}
+      </div>
+    `;
+  }).join('');
+
+  // ── CORRELATIONS ──
+  const corrs = data.correlations || [];
+  const corrExplainer = `
+    <div class="gs-explainer">
+      <div class="gs-explainer-title">📖 What is a "correlation" and why does it matter?</div>
+      <p>A correlation tells you <b>how two markets move together</b>. It's a number from <b>−1 to +1</b>:</p>
+      <ul>
+        <li><b style="color:#3fb950">+1</b> → they move <b>identically together</b> (one up, the other up).</li>
+        <li><b style="color:#f85149">−1</b> → they move <b>perfectly opposite</b> (one up, the other down).</li>
+        <li><b style="color:#8b949e">0</b> → no relationship (random).</li>
+      </ul>
+      <p><b>Why care?</b> Markets have textbook relationships that have held for decades — Gold and Dollar move <b>opposite</b>, Stocks and VIX move <b>opposite</b>, Copper and Stocks move <b>together</b>. <b>When these relationships HOLD, the world is behaving normally.</b> When they BREAK, something is changing — a regime shift, a structural problem, or a one-off shock.</p>
+      <p><b>How to read this section:</b></p>
+      <ul>
+        <li><b style="color:#3fb950">✓ "working as expected"</b> = correlation is in the direction history says it should be (markets behaving normally).</li>
+        <li><b style="color:#d29922">⚠ "relationship broken"</b> = correlation has gone wrong direction or vanished. <b>Pay attention</b> — something unusual is brewing.</li>
+        <li>The <b>bar</b> shows magnitude: longer bar = stronger relationship.</li>
+        <li>Rolling 30 days: only the last 30 trading days of returns are used, so this reflects the <b>current</b> regime, not history.</li>
+      </ul>
+      <p><b>Example today:</b> If "Gold vs DXY" is broken (showing 0 instead of −0.5), it may mean both are rising together as a "double safe-haven" play — extreme risk aversion. That's important info you wouldn't see by looking at gold and dollar separately.</p>
+      <div class="gs-color-key">
+        <span class="gs-color-key-item gs-key-bull">🟢 Green correlation value = positive (move together)</span>
+        <span class="gs-color-key-item gs-key-bear">🔴 Red correlation value = negative (move opposite)</span>
+        <span class="gs-color-key-item gs-key-info">✓ Green flag = textbook relationship intact</span>
+        <span class="gs-color-key-item gs-key-warn">⚠ Amber flag = relationship broken — investigate</span>
+      </div>
+    </div>`;
+  const corrHtml = corrs.length ? `
+    <div class="gs-cat-header">🔗 Inter-Market Correlations <span style="color:var(--dim);font-weight:400;text-transform:none;font-size:.72rem;margin-left:8px">Are the textbook relationships still working? (rolling 30 days)</span></div>
+    ${verdictPill('correlations')}
+    ${corrExplainer}
+    <div class="row g-2">
+      ${corrs.map(c => {
+        const ok = c.holding;
+        const flag = ok ? '<span style="color:var(--bull)">✓ working</span>' : '<span style="color:var(--warn)">⚠ broken</span>';
+        const pct = Math.abs(c.correlation) * 50;
+        const barClass = c.correlation >= 0 ? 'gs-corr-bar-pos' : 'gs-corr-bar-neg';
+        const stab = c.stability || 'unknown';
+        const stabColor = stab === 'stable' ? 'var(--bull)' : (stab === 'shifting' ? 'var(--cautious)' : 'var(--dim)');
+        const c30 = c.corr_30d, c60 = c.corr_60d, c90 = c.corr_90d;
+        const colorOf = v => v == null ? 'var(--dim)' : (v >= 0 ? 'var(--bull)' : 'var(--bear)');
+        const fmt2 = v => v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(2);
+        const shiftFlag = c.regime_shift ? '<span style="font-size:.6rem;padding:1px 6px;border-radius:8px;background:#f8514922;color:#f85149;border:1px solid #f8514955;margin-left:4px">⚠ regime shift</span>' : '';
+        return `
+          <div class="col-md-6 col-lg-4">
+            <div class="gs-corr-card">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-weight:600">${c.pair}</span>
+                <strong style="color:${c.correlation>=0?'var(--bull)':'var(--bear)'}">${c.correlation>=0?'+':''}${fmt(c.correlation,2)}</strong>
+              </div>
+              <div class="gs-corr-bar">
+                <div class="${barClass}" style="width:${pct}%"></div>
+                <div class="gs-corr-mid"></div>
+              </div>
+              <div style="display:flex;gap:8px;font-size:.62rem;color:var(--dim);margin-top:5px">
+                <span>30d <b style="color:${colorOf(c30)}">${fmt2(c30)}</b></span>
+                <span>60d <b style="color:${colorOf(c60)}">${fmt2(c60)}</b></span>
+                <span>90d <b style="color:${colorOf(c90)}">${fmt2(c90)}</b></span>
+                <span style="margin-left:auto;color:${stabColor};font-weight:600">${stab}</span>
+              </div>
+              <div style="font-size:.65rem;color:var(--dim);margin-top:4px">${c.expectation} · ${flag} ${shiftFlag}</div>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+  ` : '';
+
+  // ── ASSEMBLE ──
+  $('gsRoot').innerHTML = `
+    ${headlineHtml}
+    ${driversHtml}
+    ${sectionsHtml}
+    ${verdictHtml}
+    ${histHtml}
+    ${sectorHtml}
+    ${catHtml}
+    ${corrHtml}
+  `;
+}
+</script>
+</body>
+</html>

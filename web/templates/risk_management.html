@@ -1,20 +1,19 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>📐 Risk Management — Ralph Vince Money Management</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+{% include "_theme_head.html" %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root {
-    --bs-body-bg:#0d1117; --bs-body-color:#c9d1d9;
-    --card-bg:#161b22; --card-border:#30363d;
-    --g:#3fb950; --r:#f85149; --y:#d29922; --b:#58a6ff; --p:#bc8cff; --o:#f0883e; --c:#39d2c0;
-}
-body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
+     
+    --card-bg:var(--bs-tertiary-bg); --card-border:var(--bs-border-color);
+    --g:#3fb950; --r:#f85149; --y:#d29922; --b:#58a6ff; --p:#bc8cff; --o:#f0883e; --c:#39d2c0; }
+body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .font-mono{font-family:'JetBrains Mono',monospace}
 .card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
 .card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
@@ -27,14 +26,14 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 @keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
 .sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
 .sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
-.sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link:hover{color:var(--bs-body-color);border-bottom-color:rgba(88,166,255,.3)}
 .sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
 .sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
 .sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
 @media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 
 /* Hero */
-.hero{background:linear-gradient(135deg,#0d1117,#161b22 50%,#1a1f2b);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%,var(--bs-tertiary-bg));border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
 .hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#f0883e,#bc8cff,#58a6ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 
 /* Summary cards */
@@ -44,7 +43,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 .sum-label{font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
 
 /* Concept box */
-.concept-box{background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.15);border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem;font-size:.88rem;line-height:1.65;color:#c9d1d9}
+.concept-box{background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.15);border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem;font-size:.88rem;line-height:1.65;color:var(--bs-body-color)}
 .concept-box h6{color:var(--b);font-weight:700;margin-bottom:.5rem;font-size:.95rem}
 .concept-box .formula{font-family:'JetBrains Mono',monospace;color:var(--p);font-weight:500;display:block;margin:.5rem 0;font-size:.82rem}
 
@@ -66,8 +65,8 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 .chart-box canvas{max-height:300px}
 
 /* Form */
-.form-control,.form-select{background:#0d1117;border-color:var(--card-border);color:#c9d1d9}
-.form-control:focus,.form-select:focus{background:#0d1117;border-color:var(--b);color:#c9d1d9;box-shadow:0 0 0 .2rem rgba(88,166,255,.15)}
+.form-control,.form-select{background:var(--bs-body-bg);border-color:var(--card-border);color:var(--bs-body-color)}
+.form-control:focus,.form-select:focus{background:var(--bs-body-bg);border-color:var(--b);color:var(--bs-body-color);box-shadow:0 0 0 .2rem rgba(88,166,255,.15)}
 
 /* Autocomplete */
 .ac-wrap{position:relative}
@@ -85,7 +84,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 /* Loading */
 .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--card-border);border-top:2px solid var(--b);border-radius:50%;animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#161b22;border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:#c9d1d9}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:#c9d1d9;text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
+.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color)}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color);text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
 </style>
 </head>
 <body>
@@ -409,8 +408,7 @@ const C = {g:'#3fb950',r:'#f85149',y:'#d29922',b:'#58a6ff',p:'#bc8cff',o:'#f0883
 // ═══════════════════════════════════════════════════════════════════
 setInterval(()=>{
   const d=new Date();
-  document.getElementById('clockSpan').textContent=d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-},1000);
+  document.getElementById('clockSpan').textContent=d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); },1000);
 
 // ═══════════════════════════════════════════════════════════════════
 //  AUTOCOMPLETE
@@ -426,25 +424,20 @@ setInterval(()=>{
     list.style.display=m.length?'block':'none';
     idx=-1;
     list.querySelectorAll('.ac-item').forEach(el=>el.addEventListener('click',()=>{
-      inp.value=el.textContent;list.style.display='none';
-    }));
-  });
+      inp.value=el.textContent;list.style.display='none'; })); });
   inp.addEventListener('keydown',e=>{
     const items=list.querySelectorAll('.ac-item');
     if(e.key==='ArrowDown'){e.preventDefault();idx=Math.min(idx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('active',i===idx))}
     else if(e.key==='ArrowUp'){e.preventDefault();idx=Math.max(idx-1,0);items.forEach((el,i)=>el.classList.toggle('active',i===idx))}
     else if(e.key==='Enter'&&idx>=0){e.preventDefault();inp.value=items[idx].textContent;list.style.display='none'}
-    else if(e.key==='Escape')list.style.display='none';
-  });
-  document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))list.style.display='none'});
-})();
+    else if(e.key==='Escape')list.style.display='none'; });
+  document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))list.style.display='none'}); })();
 
 // ═══════════════════════════════════════════════════════════════════
 //  FRACTION SLIDER
 // ═══════════════════════════════════════════════════════════════════
 document.getElementById('fractionSlider').addEventListener('input', e => {
-  document.getElementById('fractionVal').textContent = Math.round(e.target.value*100) + '%';
-});
+  document.getElementById('fractionVal').textContent = Math.round(e.target.value*100) + '%'; });
 
 // ═══════════════════════════════════════════════════════════════════
 //  MAIN ANALYSIS
@@ -463,18 +456,13 @@ async function runAnalysis() {
     D = await r.json();
     if (D.error) { alert(D.error); return; }
     renderAll();
-    document.getElementById('resultsArea').classList.remove('d-none');
-  } catch(e) {
-    alert('Analysis failed: ' + e.message);
-  } finally {
-    document.getElementById('loadingBar').classList.add('d-none');
-  }
-}
+    document.getElementById('resultsArea').classList.remove('d-none'); } catch(e) {
+    alert('Analysis failed: ' + e.message); } finally {
+    document.getElementById('loadingBar').classList.add('d-none'); } }
 
 // Allow Enter in ticker input
 document.getElementById('tickerInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.getElementById('acList').style.display === 'none') runAnalysis();
-});
+  if (e.key === 'Enter' && document.getElementById('acList').style.display === 'none') runAnalysis(); });
 
 // ═══════════════════════════════════════════════════════════════════
 //  RENDER ALL SECTIONS
@@ -490,16 +478,14 @@ function renderAll() {
   renderDistChart();
   renderArcSine();
   renderDrawdown();
-  renderVolatility();
-}
+  renderVolatility(); }
 
 // ── Helpers ──
 function fmt(v, d=2) { return v != null ? Number(v).toFixed(d) : '—'; }
 function fmtPct(v, d=2) { return v != null ? Number(v).toFixed(d) + '%' : '—'; }
 function fmtCur(v) { return v != null ? '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits:0}) : '—'; }
 function metricRow(label, val, explain) {
-  return `<div class="metric-row"><span class="metric-label">${label}</span><span class="metric-val">${val}</span>${explain ? `<span class="metric-explain">${explain}</span>` : ''}</div>`;
-}
+  return `<div class="metric-row"><span class="metric-label">${label}</span><span class="metric-val">${val}</span>${explain ? `<span class="metric-explain">${explain}</span>` : ''}</div>`; }
 function badge(text, type) { return `<span class="badge badge-${type} px-2 py-1">${text}</span>`; }
 function destroyChart(key) { if(charts[key]){charts[key].destroy();delete charts[key];} }
 
@@ -526,8 +512,7 @@ function renderSummaryCards() {
       <div class="sum-val" style="color:${c.color}"><i class="bi bi-${c.icon} me-1" style="font-size:.9rem"></i>${c.val}</div>
       <div class="sum-label">${c.label}</div>
     </div></div>`
-  ).join('');
-}
+  ).join(''); }
 
 // ═══════════════════════════════════════════════════════════════════
 //  OPTIMAL F TAB
@@ -539,8 +524,7 @@ function renderOptimalF() {
     metricRow('Biggest Loss', fmtCur(o.biggest_loss), 'Worst trade in the series') +
     metricRow('TWR', fmt(o.twr,4), 'Terminal Wealth at optimal f') +
     metricRow('Geometric Mean', fmt(o.geometric_mean,6), '> 1.0 = profitable system') +
-    metricRow('f₹ (per unit)', fmtCur(o.f_dollar), 'Rupees per trading unit');
-}
+    metricRow('f₹ (per unit)', fmtCur(o.f_dollar), 'Rupees per trading unit'); }
 
 function renderFCurve() {
   destroyChart('fCurve');
@@ -564,22 +548,15 @@ function renderFCurve() {
         pointRadius: fc.f_values.map((v,i) => i===optIdx ? 8 : 0),
         pointBackgroundColor: C.o,
         pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-      }]
-    },
+        pointBorderWidth: 2, }] },
     options: {
       responsive: true,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => 'TWR: ' + fmt(ctx.raw, 4) } }
-      },
+        tooltip: { callbacks: { label: ctx => 'TWR: ' + fmt(ctx.raw, 4) } } },
       scales: {
         x: { title: { display: true, text: 'f (fraction)', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
-        y: { title: { display: true, text: 'TWR', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
-      }
-    }
-  });
-}
+        y: { title: { display: true, text: 'TWR', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } }, } } }); }
 
 function renderByProducts() {
   const bp = D.by_products || {};
@@ -592,8 +569,7 @@ function renderByProducts() {
     metricRow('GAT', fmtCur(bp.gat), 'Geometric Avg Trade (₹)') +
     metricRow('f₹ (per unit)', fmtCur(bp.f_dollar), 'Capital per 1 unit') +
     metricRow('EGM', fmt(fe.estimated_geometric_mean, 6), 'Estimated Geometric Mean') +
-    metricRow('Fundamental TWR', fmt(fe.fundamental_twr, 4), '(AHPR²−SD²)^(N/2)');
-}
+    metricRow('Fundamental TWR', fmt(fe.fundamental_twr, 4), '(AHPR²−SD²)^(N/2)'); }
 
 function renderFracF() {
   destroyChart('fracF');
@@ -614,8 +590,7 @@ function renderFracF() {
           backgroundColor: frac.fractions.map(f => f.fghpr >= 1 ? 'rgba(63,185,80,.5)' : 'rgba(248,81,73,.5)'),
           borderColor: frac.fractions.map(f => f.fghpr >= 1 ? C.g : C.r),
           borderWidth: 1,
-          yAxisID: 'y',
-        },
+          yAxisID: 'y', },
         {
           label: 'Time to Double (trades)',
           data: frac.fractions.map(f => f.time_to_double),
@@ -624,21 +599,15 @@ function renderFracF() {
           borderDash: [4,4],
           pointRadius: 3,
           fill: false,
-          yAxisID: 'y1',
-        }
-      ]
-    },
+          yAxisID: 'y1', }
+      ] },
     options: {
       responsive: true,
       plugins: { legend: { labels: { color: '#8b949e' } } },
       scales: {
         x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
         y: { position: 'left', title: { display: true, text: 'FGHPR', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
-        y1: { position: 'right', title: { display: true, text: 'Trades to Double', color: C.o }, ticks: { color: C.o }, grid: { drawOnChartArea: false } },
-      }
-    }
-  });
-}
+        y1: { position: 'right', title: { display: true, text: 'Trades to Double', color: C.o }, ticks: { color: C.o }, grid: { drawOnChartArea: false } }, } } }); }
 
 // ═══════════════════════════════════════════════════════════════════
 //  POSITION SIZING TAB
@@ -669,8 +638,7 @@ function renderPositionSizing() {
         </ol>
       </div>` +
     (ps.explanation ? `<div class="concept-box mt-2" style="font-size:.82rem">${ps.explanation}</div>` : '') +
-    `</div></div>`;
-}
+    `</div></div>`; }
 
 // ═══════════════════════════════════════════════════════════════════
 //  STATISTICAL TESTS TAB
@@ -717,8 +685,7 @@ function renderStatTests() {
     metricRow('Skewness', fmt(mom.skewness,4), mom.interpretation?.skewness||'') +
     metricRow('Kurtosis', fmt(mom.kurtosis,4), mom.interpretation?.kurtosis||'') +
     metricRow('Excess Kurtosis', fmt(mom.excess_kurtosis,4), '>0 = fat tails') +
-    `</div>`;
-}
+    `</div>`; }
 
 function renderDistChart() {
   destroyChart('dist');
@@ -747,29 +714,21 @@ function renderDistChart() {
         data: [losses, wins],
         backgroundColor: ['rgba(248,81,73,.5)', 'rgba(63,185,80,.5)'],
         borderColor: [C.r, C.g],
-        borderWidth: 1,
-      }]
-    },
+        borderWidth: 1, }] },
     options: {
       responsive: true,
       plugins: {
         legend: { display: false },
-        title: { display: true, text: `Win/Loss Distribution (${n} trades)`, color: '#8b949e' }
-      },
+        title: { display: true, text: `Win/Loss Distribution (${n} trades)`, color: '#8b949e' } },
       scales: {
         x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
-        y: { title: { display: true, text: 'Count', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
-      }
-    }
-  });
-}
+        y: { title: { display: true, text: 'Count', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } }, } } }); }
 
 function renderArcSine() {
   const as = D.arc_sine || {};
   document.getElementById('arcSineResults').innerHTML =
     metricRow('Extreme prob', fmtPct(as.prob_extreme*100,1), '<25% or >75% positive') +
-    `<div class="text-secondary small mt-2">${as.explanation||''}</div>`;
-}
+    `<div class="text-secondary small mt-2">${as.explanation||''}</div>`; }
 
 // ═══════════════════════════════════════════════════════════════════
 //  DRAWDOWN TAB
@@ -802,19 +761,13 @@ function renderDrawdown() {
         backgroundColor: 'rgba(248,81,73,.1)',
         fill: true,
         tension: .1,
-        pointRadius: 0,
-      }]
-    },
+        pointRadius: 0, }] },
     options: {
       responsive: true,
       plugins: { legend: { display: false } },
       scales: {
         x: { title: { display: true, text: 'Trade #', color: '#8b949e' }, ticks: { color: '#8b949e', maxTicksLimit: 15 }, grid: { color: 'rgba(255,255,255,.04)' } },
-        y: { title: { display: true, text: 'Drawdown %', color: C.r }, ticks: { color: C.r }, grid: { color: 'rgba(255,255,255,.04)' } },
-      }
-    }
-  });
-}
+        y: { title: { display: true, text: 'Drawdown %', color: C.r }, ticks: { color: C.r }, grid: { color: 'rgba(255,255,255,.04)' } }, } } }); }
 
 // ═══════════════════════════════════════════════════════════════════
 //  VOLATILITY TAB
@@ -847,28 +800,21 @@ function renderVolatility() {
           backgroundColor: 'rgba(210,153,34,.08)',
           fill: true,
           tension: .2,
-          pointRadius: 0,
-        },
+          pointRadius: 0, },
         {
           label: 'Average',
           data: avgLine,
           borderColor: 'rgba(255,255,255,.3)',
           borderDash: [6,3],
           pointRadius: 0,
-          fill: false,
-        }
-      ]
-    },
+          fill: false, }
+      ] },
     options: {
       responsive: true,
       plugins: { legend: { labels: { color: '#8b949e' } } },
       scales: {
         x: { title: { display: true, text: 'Day', color: '#8b949e' }, ticks: { color: '#8b949e', maxTicksLimit: 15 }, grid: { color: 'rgba(255,255,255,.04)' } },
-        y: { title: { display: true, text: 'Volatility %', color: C.y }, ticks: { color: C.y }, grid: { color: 'rgba(255,255,255,.04)' } },
-      }
-    }
-  });
-}
+        y: { title: { display: true, text: 'Volatility %', color: C.y }, ticks: { color: C.y }, grid: { color: 'rgba(255,255,255,.04)' } }, } } }); }
 
 // ═══════════════════════════════════════════════════════════════════
 //  EFFICIENT FRONTIER
@@ -880,9 +826,7 @@ async function runFrontier() {
     const r = await fetch(`/api/vince/frontier?tickers=${encodeURIComponent(tickers)}&period=${period}`);
     const data = await r.json();
     if (data.error) { alert(data.error); return; }
-    renderFrontier(data);
-  } catch(e) { alert('Frontier failed: ' + e.message); }
-}
+    renderFrontier(data); } catch(e) { alert('Frontier failed: ' + e.message); } }
 
 function renderFrontier(data) {
   // Correlation matrix
@@ -896,20 +840,16 @@ function renderFrontier(data) {
       html += `<tr><td class="text-secondary">${corr.tickers[i].replace('.NS','')}</td>`;
       row.forEach((v,j) => {
         const clr = i===j ? '#8b949e' : v > 0.5 ? C.r : v < -0.2 ? C.g : C.y;
-        html += `<td class="font-mono" style="color:${clr}">${v.toFixed(2)}</td>`;
-      });
-      html += '</tr>';
-    });
+        html += `<td class="font-mono" style="color:${clr}">${v.toFixed(2)}</td>`; });
+      html += '</tr>'; });
     html += '</tbody></table>';
-    document.getElementById('corrMatrixBox').innerHTML = html;
-  }
+    document.getElementById('corrMatrixBox').innerHTML = html; }
 
   // Stats
   const stats = data.stats || {};
   let shtml = '<div class="section-hdr"><i class="bi bi-bar-chart"></i> Per-Ticker Stats</div>';
   for (const [t, s] of Object.entries(stats)) {
-    shtml += metricRow(t.replace('.NS',''), `AHPR=${fmt(s.ahpr,4)} SD=${fmt(s.sd,4)}`);
-  }
+    shtml += metricRow(t.replace('.NS',''), `AHPR=${fmt(s.ahpr,4)} SD=${fmt(s.sd,4)}`); }
   document.getElementById('frontierStatsBox').innerHTML = shtml;
 
   // Frontier chart
@@ -931,41 +871,32 @@ function renderFrontier(data) {
           label: 'Portfolios',
           data: pts.map(p => ({ x: p.std*100, y: p.return*100 })),
           backgroundColor: 'rgba(88,166,255,.3)',
-          pointRadius: 3,
-        },
+          pointRadius: 3, },
         {
           label: 'Max Sharpe',
           data: [{ x: maxS.std*100, y: maxS.return*100 }],
           backgroundColor: C.g,
           pointRadius: 10,
-          pointStyle: 'star',
-        },
+          pointStyle: 'star', },
         {
           label: 'Min Variance',
           data: [{ x: minV.std*100, y: minV.return*100 }],
           backgroundColor: C.y,
           pointRadius: 10,
-          pointStyle: 'triangle',
-        },
+          pointStyle: 'triangle', },
         {
           label: 'Geo Optimal',
           data: [{ x: geoOpt.std*100, y: geoOpt.return*100 }],
           backgroundColor: C.p,
           pointRadius: 10,
-          pointStyle: 'rectRot',
-        },
-      ]
-    },
+          pointStyle: 'rectRot', },
+      ] },
     options: {
       responsive: true,
       plugins: { legend: { labels: { color: '#8b949e' } } },
       scales: {
         x: { title: { display: true, text: 'Risk (Std Dev %)', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
-        y: { title: { display: true, text: 'Return %', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } },
-      }
-    }
-  });
-}
+        y: { title: { display: true, text: 'Return %', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,.04)' } }, } } }); }
 
 // ═══════════════════════════════════════════════════════════════════
 //  PORTFOLIO RISK TABLE
@@ -994,13 +925,10 @@ async function loadPortfolioRisk() {
         <td class="font-mono">${p.volatility_pct ? fmtPct(p.volatility_pct) : '—'}</td>
         <td class="font-mono" style="color:${(p.geometric_mean||0)>1?C.g:C.r}">${fmt(p.geometric_mean,4)}</td>
         <td class="font-mono">${fmt(p.twr,2)}</td>
-      </tr>`;
-    }).join('');
-  } catch(e) {
-    body.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-3">${e.message}</td></tr>`;
-  }
-}
+      </tr>`; }).join(''); } catch(e) {
+    body.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-3">${e.message}</td></tr>`; } }
 </script>
 <script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
+{% include "_theme_picker.html" %}
 </body>
 </html>

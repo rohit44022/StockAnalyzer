@@ -1,0 +1,4 @@
+{# Bootstrap CSS link (theme-aware) + app theme delegation layer.
+   Order matters: theme.css must come AFTER bootstrap so it can override. #}
+<link id="bootstrapCss" rel="stylesheet" href="{{ bootstrap_css_url }}">
+<link id="appThemeCss"  rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v={{ theme_assets_version }}">

@@ -1,20 +1,19 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🧠 Mental Game Dashboard — Tendler System</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+{% include "_theme_head.html" %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root{
-  --bs-body-bg:#0d1117;--bs-body-color:#c9d1d9;
-  --card-bg:#161b22;--card-border:#30363d;
-  --g:#3fb950;--r:#f85149;--y:#d29922;--b:#58a6ff;--p:#bc8cff;--o:#f0883e;--c:#39d2c0;
-}
-body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
+  
+  --card-bg:var(--bs-tertiary-bg);--card-border:var(--bs-border-color);
+  --g:#3fb950;--r:#f85149;--y:#d29922;--b:#58a6ff;--p:#bc8cff;--o:#f0883e;--c:#39d2c0; }
+body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .font-mono{font-family:'JetBrains Mono',monospace}
 .card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
 .card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
@@ -27,14 +26,14 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 @keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
 .sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
 .sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
-.sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link:hover{color:var(--bs-body-color);border-bottom-color:rgba(88,166,255,.3)}
 .sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
 .sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
 .sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
 @media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 
 /* Hero */
-.hero{background:linear-gradient(135deg,#0d1117,#161b22 50%,#1a1f2b);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%,var(--bs-tertiary-bg));border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
 .hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#bc8cff,#58a6ff,#39d2c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 
 /* Tabs */
@@ -42,8 +41,8 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 .nav-pills .nav-link.active{background:rgba(188,140,255,.15);color:var(--p)}
 
 /* Form */
-.form-control,.form-select{background:#0d1117;border-color:var(--card-border);color:#c9d1d9}
-.form-control:focus,.form-select:focus{background:#0d1117;border-color:var(--p);color:#c9d1d9;box-shadow:0 0 0 .2rem rgba(188,140,255,.15)}
+.form-control,.form-select{background:var(--bs-body-bg);border-color:var(--card-border);color:var(--bs-body-color)}
+.form-control:focus,.form-select:focus{background:var(--bs-body-bg);border-color:var(--p);color:var(--bs-body-color);box-shadow:0 0 0 .2rem rgba(188,140,255,.15)}
 
 /* Score gauge */
 .score-display{font-size:3rem;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1}
@@ -64,7 +63,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 
 /* Emergency card */
 .emg-card{border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px;margin-bottom:10px}
-.emg-card .emg-step{padding:4px 0;font-size:.85rem;color:#c9d1d9}
+.emg-card .emg-step{padding:4px 0;font-size:.85rem;color:var(--bs-body-color)}
 .emg-card .emg-trigger{font-size:.8rem;color:var(--y);margin-bottom:8px}
 
 /* Workflow step */
@@ -76,7 +75,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 /* In-trade rule */
 .itr-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:12px;margin-bottom:8px}
 .itr-sit{font-weight:600;color:var(--y);font-size:.88rem;margin-bottom:6px}
-.itr-rule{font-size:.85rem;color:#c9d1d9}
+.itr-rule{font-size:.85rem;color:var(--bs-body-color)}
 .itr-src{font-size:.65rem;color:#6e7681;margin-top:4px}
 
 /* Summary metric */
@@ -113,7 +112,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 .scroll-section{max-height:500px;overflow-y:auto}
 .scroll-section::-webkit-scrollbar{width:6px}
 .scroll-section::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:3px}
-.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#161b22;border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:#c9d1d9}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:#c9d1d9;text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
+.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color)}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color);text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
 </style>
 </head>
 <body>
@@ -157,7 +156,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
     <h1><i class="bi bi-brain me-2"></i>Mental Game of Trading</h1>
     <p class="text-secondary mb-2">Based on Jared Tendler's book &bull; "Am I trading my system — or my emotions?"</p>
     <div class="p-3 mt-2" style="background:rgba(188,140,255,.06);border:1px solid rgba(188,140,255,.15);border-radius:10px;max-width:900px">
-      <div class="small" style="color:#c9d1d9;line-height:1.7">
+      <div class="small" style="color:var(--bs-body-color);line-height:1.7">
         <strong style="color:var(--p)"><i class="bi bi-info-circle me-1"></i>What is this system?</strong><br>
         This is your <strong>Personal Trading Psychology Tracker</strong>. Most traders lose money not because of bad strategies, but because <strong>emotions</strong> (fear, greed, revenge, overconfidence) hijack their decision-making. This system helps you:<br>
         <span style="color:var(--g)">✓</span> <strong>Rate your mental state</strong> before each trading day (score 1-10)<br>
@@ -418,7 +417,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-session" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--p)"><i class="bi bi-clipboard-check me-1"></i>What is a Pre-Session Checklist?</strong><br>
       Before you even open a chart, you need to check: <em>"Am I mentally fit to trade today?"</em> Just like a pilot runs through a pre-flight checklist before takeoff, you run through these 10 questions before every trading session. They check things like: Did you sleep well? Are you under financial stress? Are you trying to recover yesterday’s losses? Are you feeling overconfident from a winning streak?<br><br>
       <strong style="color:var(--y)">How does the verdict work?</strong><br>
@@ -507,7 +506,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-pretrade" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--b)"><i class="bi bi-shield-lock me-1"></i>What is the Pre-Trade Psychological Gate?</strong><br>
       The Pre-Session checklist was for the <em>whole day</em>. This gate is for <strong>each individual trade</strong>. Before you click "Buy" or "Sell," you must pass all 5 checks. Think of it as a bouncer at a nightclub — if you can't pass every check, you don't get in.<br><br>
       <strong style="color:var(--y)">The 5 checks are:</strong> (1) My system shows a valid signal, (2) I have enough technical confluence (multiple indicators agree), (3) My mental score is high enough, (4) I’m not emotionally compromised, (5) This trade fits my risk management rules.<br><br>
@@ -638,7 +637,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-intrade" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(210,153,34,.05);border:1px solid rgba(210,153,34,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--y)"><i class="bi bi-shield-exclamation me-1"></i>What are In-Trade Psychological Rules?</strong><br>
       You've entered a trade. Now what? This is where most traders lose control. Your stock starts dropping and panic sets in. Or it spikes up and greed tells you to add more. These rules tell you <strong>exactly what to do when specific emotions hit while you’re in a live trade</strong>.<br><br>
       Each rule card below shows a <strong style="color:var(--y)">Situation</strong> (e.g., "Trade moves against you and you feel panic") and a <strong>Rule</strong> (e.g., "Check your stop-loss. If it's not hit, do nothing. The system handles exits, not your emotions."). These are your guardrails while the trade is live.<br><br>
@@ -694,7 +693,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-perfmap" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(57,210,192,.05);border:1px solid rgba(57,210,192,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--c)"><i class="bi bi-map me-1"></i>What is a Performance Map?</strong><br>
       Think of this as your <strong>personal mistake encyclopedia</strong>. Every trader makes recurring mistakes — the same 3-5 errors over and over. The Performance Map forces you to write down each mistake, figure out <em>why</em> you make it (the real emotional root cause), and prepare a <strong>correction statement</strong> to use when you catch yourself doing it again.<br><br>
       <strong style="color:var(--y)">The 5 fields explained:</strong><br>
@@ -761,7 +760,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-scoring" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--p)"><i class="bi bi-thermometer-half me-1"></i>What is the Mental Score System?</strong><br>
       Every trading day, you rate yourself from 1 to 10. This isn't random — each number has a specific meaning and <strong>directly controls what you're allowed to do</strong>. It’s like a traffic light for your trading:<br><br>
       <span style="color:var(--g)">• Score 8-10 (Green Light)</span> — You’re clear-headed. Trade at full position size, normal rules apply.<br>
@@ -787,7 +786,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-patterns" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--r)"><i class="bi bi-exclamation-triangle me-1"></i>What are Patterns & Alerts?</strong><br>
       A <strong>pattern</strong> is a recurring psychological mistake. Most traders don't just make random errors — they repeat the same 2-3 mistakes over and over. This section has two parts:<br><br>
       <strong style="color:var(--y)">Live Pattern Alerts (Left)</strong> — The system automatically scans your recent trade logs and detects if you’re repeating any of the 8 key patterns. For example, if you tagged 3 trades as "FOMO" in the last 7 days, it raises a <span style="color:var(--y)">MODERATE</span> alert. If you broke rules in 3+ consecutive trades, it raises a <span style="color:var(--r)">HIGH</span> alert.<br><br>
@@ -827,7 +826,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-emergency" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--r)"><i class="bi bi-exclamation-octagon me-1"></i>What are Emergency Protocols?</strong><br>
       These are your <strong>"break glass in case of emergency"</strong> procedures. Trading has extreme moments — big losses, streak losses, euphoric wins — and in those moments, your brain is NOT capable of rational decision-making. These 6 protocols tell you <strong>exactly what to do</strong> in each crisis situation:<br><br>
       <span style="color:var(--r)">• Protocol A — After a Large Loss</span>: You just lost big money. You’re angry, scared, or desperate. The protocol says: STOP. Walk away. Don’t trade for at least 1 hour. Review what happened only after emotions settle.<br>
@@ -905,7 +904,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-weekly" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--g)"><i class="bi bi-calendar-week me-1"></i>What is the Weekly Psychological Report?</strong><br>
       Every weekend, take 15 minutes to review your week — not just profits and losses, but your <strong>mental performance</strong>. This has two parts:<br><br>
       <strong style="color:var(--b)">Auto-Computed Summary (Left Top)</strong>: The system automatically calculates your weekly stats from the trades you logged: total trades, what % followed rules, average mental score, most common emotion, most common rule break, and active pattern alerts. You don’t need to calculate anything — it’s done for you.<br><br>
@@ -982,7 +981,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-learning" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--g)"><i class="bi bi-graph-up me-1"></i>What is the Learning Curve Tracker?</strong><br>
       This tracks your <strong>psychological growth over months</strong>. Jared Tendler uses the concept of an <strong>"Inchworm"</strong> — imagine your performance as a range, like a worm. The front end is your best trading day (A-game). The back end is your worst (C-game). You improve NOT by making your best days better, but by <strong>making your worst days less bad</strong>. The worm "inches" forward from the back.<br><br>
       <strong style="color:var(--y)">The 4 Competence Levels:</strong><br>
@@ -1069,7 +1068,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-workflow" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(57,210,192,.05);border:1px solid rgba(57,210,192,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--c)"><i class="bi bi-calendar-day me-1"></i>What is the Daily Workflow?</strong><br>
       This is your <strong>complete daily routine</strong> that combines both technical analysis AND psychological preparation in the right order. Think of it as your trading day recipe — follow these steps in order, every day, and you’ll build the habits that separate professional traders from amateurs.<br><br>
       <strong style="color:var(--y)">Morning → Before Trade → During Trade → After Trade → End of Session → Weekly → Monthly</strong><br><br>
@@ -1098,7 +1097,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-integration" style="display:none">
   <div class="p-3 mb-3" style="background:rgba(240,136,62,.05);border:1px solid rgba(240,136,62,.12);border-radius:10px">
-    <div class="small" style="color:#c9d1d9;line-height:1.7">
+    <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--o)"><i class="bi bi-link-45deg me-1"></i>How Does Psychology Connect to Your Technical Trading System?</strong><br>
       This is where the Mental Game system <strong>directly integrates with your Portfolio Tracker and technical analysis</strong>. Most psychology systems are separate from trading — just a journal that sits in a corner. This system is different: your mental score <strong>actually changes what you’re allowed to do</strong> in real-time.<br><br>
       <strong style="color:var(--b)">Connection 1 — Confluence Scoring:</strong> Your technical analysis uses confluence (how many indicators agree on a trade). When your mental score is low, the system <strong>raises the bar</strong> — you need MORE technical evidence to justify a trade. Score 8+ = need 4/5 confluence. Score 7 = need 5/5 (perfect setup only). Score 1-4 = no trading.<br><br>
@@ -1187,8 +1186,7 @@ let scoreTrendChartObj = null, emotionPieChartObj = null, inchwormChartObj = nul
 // ═══════════════════════════════════════════════════════════════
 function updateClock(){
   const d=new Date();
-  document.getElementById('clockSpan').textContent=d.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
-}
+  document.getElementById('clockSpan').textContent=d.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); }
 setInterval(updateClock,1000);updateClock();
 
 // ═══════════════════════════════════════════════════════════════
@@ -1205,9 +1203,7 @@ document.querySelectorAll('#mgTabs a').forEach(a=>{
     // Lazy-load certain tabs
     if(tab==='patterns')loadPatternAlerts();
     if(tab==='weekly')loadWeeklyAuto();
-    if(tab==='learning')loadLearningCurve();
-  });
-});
+    if(tab==='learning')loadLearningCurve(); }); });
 
 // ═══════════════════════════════════════════════════════════════
 //  INIT — Load reference data once
@@ -1244,8 +1240,7 @@ async function init(){
   const wStart=new Date(d.setDate(diff));
   const wEnd=new Date(wStart);wEnd.setDate(wStart.getDate()+6);
   if(document.getElementById('wkStart'))document.getElementById('wkStart').value=wStart.toISOString().slice(0,10);
-  if(document.getElementById('wkEnd'))document.getElementById('wkEnd').value=wEnd.toISOString().slice(0,10);
-}
+  if(document.getElementById('wkEnd'))document.getElementById('wkEnd').value=wEnd.toISOString().slice(0,10); }
 init();
 
 // ═══════════════════════════════════════════════════════════════
@@ -1260,8 +1255,7 @@ async function runMasterQuestion(){
   const el=document.getElementById('mqResult');el.style.display='';
   document.getElementById('mqVerdict').className='master-verdict '+d.color;
   document.getElementById('mqVerdict').textContent=d.verdict;
-  document.getElementById('mqAction').innerHTML=`<span style="color:${d.color==='green'?'var(--g)':d.color==='yellow'?'var(--y)':'var(--r)'}">${d.action}</span>`;
-}
+  document.getElementById('mqAction').innerHTML=`<span style="color:${d.color==='green'?'var(--g)':d.color==='yellow'?'var(--y)':'var(--r)'}">${d.action}</span>`; }
 
 // ═══════════════════════════════════════════════════════════════
 //  DASHBOARD
@@ -1274,8 +1268,7 @@ async function loadDashboard(){
   if(sess&&sess.mental_score){
     document.getElementById('dshScore').textContent=sess.mental_score;
     document.getElementById('dshScore').className='sum-val sc-'+sess.mental_score;
-    updateDashLimits(sess.mental_score);
-  }
+    updateDashLimits(sess.mental_score); }
 
   // Analytics
   const anaRes=await fetch('/api/mental-game/analytics?days=7');
@@ -1294,8 +1287,7 @@ async function loadDashboard(){
   loadEmotionPieChart(ana.emotion_distribution||{});
 
   // Sync unlinked portfolio trades
-  loadUnlinkedTrades();
-}
+  loadUnlinkedTrades(); }
 
 function updateDashLimits(score){
   const s=parseInt(score)||7;
@@ -1310,14 +1302,12 @@ function updateDashLimits(score){
 
   if(s>=8){document.getElementById('limStatus').textContent='GO';document.getElementById('limStatus').style.color='var(--g)';}
   else if(s>=5){document.getElementById('limStatus').textContent='REDUCED';document.getElementById('limStatus').style.color='var(--y)';}
-  else{document.getElementById('limStatus').textContent='NO-GO';document.getElementById('limStatus').style.color='var(--r)';}
-}
+  else{document.getElementById('limStatus').textContent='NO-GO';document.getElementById('limStatus').style.color='var(--r)';} }
 
 function renderDashAlerts(alerts){
   const el=document.getElementById('dshAlerts');
   if(!alerts.length){el.innerHTML='<div class="text-center py-3"><i class="bi bi-check-circle fs-3" style="color:var(--g)"></i><div class="small text-secondary mt-1">No active pattern alerts. Keep following the system.</div></div>';return;}
-  el.innerHTML=alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()}"><div class="d-flex justify-content-between"><strong>${a.name}</strong><span class="badge" style="background:${a.severity==='HIGH'?'rgba(248,81,73,.15)':'rgba(210,153,34,.15)'};color:${a.severity==='HIGH'?'var(--r)':'var(--y)'}">${a.severity} — ${a.count}x</span></div><div class="small mt-1">${a.action}</div><div style="font-size:.65rem;color:#6e7681" class="mt-1">${a.source}</div></div>`).join('');
-}
+  el.innerHTML=alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()}"><div class="d-flex justify-content-between"><strong>${a.name}</strong><span class="badge" style="background:${a.severity==='HIGH'?'rgba(248,81,73,.15)':'rgba(210,153,34,.15)'};color:${a.severity==='HIGH'?'var(--r)':'var(--y)'}">${a.severity} — ${a.count}x</span></div><div class="small mt-1">${a.action}</div><div style="font-size:.65rem;color:#6e7681" class="mt-1">${a.source}</div></div>`).join(''); }
 
 // ═══════════════════════════════════════════════════════════════
 //  CHARTS
@@ -1332,8 +1322,7 @@ async function loadScoreTrendChart(){
   const colors=data.map(v=>v>=8?'rgba(63,185,80,.8)':v>=6?'rgba(210,153,34,.8)':'rgba(248,81,73,.8)');
   const ctx=document.getElementById('scoreTrendChart').getContext('2d');
   if(scoreTrendChartObj)scoreTrendChartObj.destroy();
-  scoreTrendChartObj=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Mental Score',data,backgroundColor:colors,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:10,grid:{color:'rgba(255,255,255,.05)'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}}});
-}
+  scoreTrendChartObj=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Mental Score',data,backgroundColor:colors,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:10,grid:{color:'rgba(255,255,255,.05)'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}}}); }
 
 function loadEmotionPieChart(dist){
   const labels=Object.keys(dist);
@@ -1342,8 +1331,7 @@ function loadEmotionPieChart(dist){
   const palette=['#bc8cff','#58a6ff','#f85149','#d29922','#3fb950','#f0883e','#39d2c0','#ff6b6b','#a5d8ff','#ffd43b'];
   const ctx=document.getElementById('emotionPieChart').getContext('2d');
   if(emotionPieChartObj)emotionPieChartObj.destroy();
-  emotionPieChartObj=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:palette.slice(0,labels.length)}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#c9d1d9',font:{size:11}}}}}});
-}
+  emotionPieChartObj=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:palette.slice(0,labels.length)}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#c9d1d9',font:{size:11}}}}}}); }
 
 // ═══════════════════════════════════════════════════════════════
 //  PRE-SESSION CHECKLIST
@@ -1352,8 +1340,7 @@ function renderPreSessionChecklist(){
   if(!REF)return;
   const items=REF.pre_session_checklist;
   const el=document.getElementById('preSessionChecklist');
-  el.innerHTML=items.map((it,i)=>`<div class="chk-item" id="chk-${it.id}"><input type="checkbox" id="chkbox-${it.id}" onchange="updateChecklistCount()"><label for="chkbox-${it.id}" class="mb-0" style="cursor:pointer">${it.question}</label><span class="chk-src">${it.source}</span></div>`).join('');
-}
+  el.innerHTML=items.map((it,i)=>`<div class="chk-item" id="chk-${it.id}"><input type="checkbox" id="chkbox-${it.id}" onchange="updateChecklistCount()"><label for="chkbox-${it.id}" class="mb-0" style="cursor:pointer">${it.question}</label><span class="chk-src">${it.source}</span></div>`).join(''); }
 
 function updateChecklistCount(){
   if(!REF)return;
@@ -1363,15 +1350,13 @@ function updateChecklistCount(){
     const cb=document.getElementById('chkbox-'+it.id);
     const row=document.getElementById('chk-'+it.id);
     if(cb&&cb.checked){pass++;row.classList.add('pass');row.classList.remove('fail');}
-    else{row.classList.remove('pass');row.classList.add('fail');}
-  });
+    else{row.classList.remove('pass');row.classList.add('fail');} });
   document.getElementById('chkPassCount').textContent=pass;
   const total=items.length;
   const el=document.getElementById('chkVerdict');
   if(pass>=8){el.textContent='GO — Trade normally';el.style.color='var(--g)';}
   else if(pass>=5){el.textContent='REDUCED — Trade at 50-75%';el.style.color='var(--y)';}
-  else{el.textContent='NO-GO — Do not trade';el.style.color='var(--r)';}
-}
+  else{el.textContent='NO-GO — Do not trade';el.style.color='var(--r)';} }
 
 // ═══════════════════════════════════════════════════════════════
 //  PRE-TRADE GATE
@@ -1380,8 +1365,7 @@ function renderPreTradeGate(){
   if(!REF)return;
   const items=REF.pre_trade_gate;
   const el=document.getElementById('preTradeGate');
-  el.innerHTML=items.map(it=>`<div class="chk-item" id="gate-${it.id}"><input type="checkbox" id="gatebox-${it.id}" onchange="updateGateStatus()"><label for="gatebox-${it.id}" class="mb-0" style="cursor:pointer">${it.question}</label><span class="chk-src">${it.source}</span></div>`).join('');
-}
+  el.innerHTML=items.map(it=>`<div class="chk-item" id="gate-${it.id}"><input type="checkbox" id="gatebox-${it.id}" onchange="updateGateStatus()"><label for="gatebox-${it.id}" class="mb-0" style="cursor:pointer">${it.question}</label><span class="chk-src">${it.source}</span></div>`).join(''); }
 
 function updateGateStatus(){
   if(!REF)return;
@@ -1391,12 +1375,10 @@ function updateGateStatus(){
     const cb=document.getElementById('gatebox-'+it.id);
     const row=document.getElementById('gate-'+it.id);
     if(cb&&cb.checked){pass++;row.classList.add('pass');row.classList.remove('fail');}
-    else{row.classList.remove('pass');row.classList.add('fail');}
-  });
+    else{row.classList.remove('pass');row.classList.add('fail');} });
   const el=document.getElementById('gateVerdict');
   if(pass===items.length){el.textContent='✅ GATE PASSED — Clear to enter';el.style.color='var(--g)';}
-  else{el.textContent='❌ GATE BLOCKED — Do NOT enter ('+pass+'/'+items.length+')';el.style.color='var(--r)';}
-}
+  else{el.textContent='❌ GATE BLOCKED — Do NOT enter ('+pass+'/'+items.length+')';el.style.color='var(--r)';} }
 
 // ═══════════════════════════════════════════════════════════════
 //  IN-TRADE RULES
@@ -1405,8 +1387,7 @@ function renderInTradeRules(){
   if(!REF)return;
   const rules=REF.in_trade_rules;
   const el=document.getElementById('inTradeRules');
-  el.innerHTML=rules.map(r=>`<div class="itr-card"><div class="itr-sit"><i class="bi bi-exclamation-circle me-1"></i>${r.situation}</div><div class="itr-rule">${r.rule}</div><div class="itr-src">${r.source}</div></div>`).join('');
-}
+  el.innerHTML=rules.map(r=>`<div class="itr-card"><div class="itr-sit"><i class="bi bi-exclamation-circle me-1"></i>${r.situation}</div><div class="itr-rule">${r.rule}</div><div class="itr-src">${r.source}</div></div>`).join(''); }
 
 // ═══════════════════════════════════════════════════════════════
 //  SCORING REFERENCE
@@ -1427,10 +1408,8 @@ function renderScoringReference(){
       <div class="small text-secondary">${b.desc}</div>
       <div class="small mt-1" style="color:${clr}"><strong>Action:</strong> ${b.action}</div>
       <div class="mt-1" style="font-size:.65rem;color:#6e7681">${b.source}</div>
-    </div>`;
-  }
-  el.innerHTML=html;
-}
+    </div>`; }
+  el.innerHTML=html; }
 
 // ═══════════════════════════════════════════════════════════════
 //  SCORE DISPLAY (Session Tab)
@@ -1446,8 +1425,7 @@ function updateScoreDisplay(){
   document.getElementById('bandLabel').style.color=s>=8?'var(--g)':s>=6?'var(--y)':'var(--r)';
   document.getElementById('bandDesc').textContent=band.desc;
   document.getElementById('bandAction').textContent='Action: '+band.action;
-  document.getElementById('bandSource').textContent=band.source;
-}
+  document.getElementById('bandSource').textContent=band.source; }
 
 // ═══════════════════════════════════════════════════════════════
 //  SAVE SESSION
@@ -1461,16 +1439,14 @@ async function saveSession(){
   let chkAnswers={};
   if(REF)REF.pre_session_checklist.forEach(it=>{
     const cb=document.getElementById('chkbox-'+it.id);
-    chkAnswers[it.id]=cb?cb.checked:false;
-  });
+    chkAnswers[it.id]=cb?cb.checked:false; });
   const res=await fetch('/api/mental-game/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_date:today,mental_score:score,primary_emotion:emotion,warmup_notes:notes,checklist_answers:JSON.stringify(chkAnswers)})});
   const d=await res.json();
   if(d.error){alert(d.error);return;}
   document.getElementById('sessSaveStatus').textContent='✅ Saved! Score: '+score+' | Size: '+d.position_size_pct+'% | Min Conf: '+d.min_confluence+'/5 | Max Trades: '+d.max_trades;
   document.getElementById('sessSaveStatus').style.color='var(--g)';
   loadSessions();
-  loadDashboard();
-}
+  loadDashboard(); }
 
 // ═══════════════════════════════════════════════════════════════
 //  SESSION HISTORY
@@ -1487,9 +1463,7 @@ async function loadSessions(){
       <span class="font-mono fw-bold fs-5" style="color:${clr}">${sc}</span>
       <div><div class="small font-mono">${s.session_date||''}</div><div style="font-size:.75rem;color:#8b949e">${s.primary_emotion||''}</div></div>
       <div class="ms-auto small text-secondary">${s.warmup_notes?s.warmup_notes.slice(0,40)+'...':''}</div>
-    </div>`;
-  }).join('');
-}
+    </div>`; }).join(''); }
 
 // ═══════════════════════════════════════════════════════════════
 //  SAVE TRADE PSYCHOLOGY
@@ -1505,8 +1479,7 @@ async function saveTradePhych(){
     rule_broken:document.getElementById('tpRuleBroken').value.trim(),
     root_cause:document.getElementById('tpRootCause').value,
     in_trade_emotion:document.getElementById('tpInTradeEmotion').value,
-    post_reflection:document.getElementById('tpReflection').value.trim(),
-  };
+    post_reflection:document.getElementById('tpReflection').value.trim(), };
   if(!data.ticker)return alert('Please enter a ticker');
   if(!data.trade_date)return alert('Please select a trade date');
   const res=await fetch('/api/mental-game/trade-psych',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
@@ -1517,8 +1490,7 @@ async function saveTradePhych(){
   document.getElementById('tpTicker').value='';
   document.getElementById('tpRuleBroken').value='';
   document.getElementById('tpReflection').value='';
-  loadTradePsychHistory();
-}
+  loadTradePsychHistory(); }
 
 // ═══════════════════════════════════════════════════════════════
 //  TRADE PSYCH HISTORY
@@ -1541,9 +1513,7 @@ async function loadTradePsychHistory(){
         ${t.pre_emotion?`<span class="badge" style="background:rgba(255,255,255,.08)">${t.pre_emotion}</span>`:''}
       </div>
       ${t.post_reflection?`<div class="small text-secondary mt-1">${t.post_reflection.slice(0,80)}${t.post_reflection.length>80?'...':''}</div>`:''}
-    </div>`;
-  }).join('');
-}
+    </div>`; }).join(''); }
 
 // ═══════════════════════════════════════════════════════════════
 //  PERFORMANCE MAP
@@ -1555,11 +1525,9 @@ async function loadPerfMap(){
   if(!Array.isArray(entries)||!entries.length){el.innerHTML='<div class="text-center text-secondary py-3">No performance map entries yet. Add your first mistake pattern above.</div>';return;}
   let html='<table class="table table-sm table-dark pm-table"><thead><tr><th>Mistake</th><th>Emotion</th><th>Root Cause</th><th>Correction</th><th>Early Warning</th><th>Sev</th><th></th></tr></thead><tbody>';
   entries.forEach(e=>{
-    html+=`<tr><td>${e.mistake||''}</td><td>${e.emotion_behind||''}</td><td class="small">${(e.root_cause||'').slice(0,60)}</td><td class="small" style="color:var(--g)">${(e.correction||'').slice(0,60)}</td><td class="small" style="color:var(--y)">${(e.early_warning||'').slice(0,60)}</td><td class="font-mono">${e.severity||''}</td><td><button class="btn btn-sm btn-outline-danger" onclick="deletePerfMap(${e.id})"><i class="bi bi-trash"></i></button></td></tr>`;
-  });
+    html+=`<tr><td>${e.mistake||''}</td><td>${e.emotion_behind||''}</td><td class="small">${(e.root_cause||'').slice(0,60)}</td><td class="small" style="color:var(--g)">${(e.correction||'').slice(0,60)}</td><td class="small" style="color:var(--y)">${(e.early_warning||'').slice(0,60)}</td><td class="font-mono">${e.severity||''}</td><td><button class="btn btn-sm btn-outline-danger" onclick="deletePerfMap(${e.id})"><i class="bi bi-trash"></i></button></td></tr>`; });
   html+='</tbody></table>';
-  el.innerHTML=html;
-}
+  el.innerHTML=html; }
 
 async function savePerfMap(){
   const data={
@@ -1568,22 +1536,19 @@ async function savePerfMap(){
     root_cause:document.getElementById('pmRootCause').value.trim(),
     correction:document.getElementById('pmCorrection').value.trim(),
     early_warning:document.getElementById('pmEarlyWarning').value.trim(),
-    severity:parseInt(document.getElementById('pmSeverity').value)||5,
-  };
+    severity:parseInt(document.getElementById('pmSeverity').value)||5, };
   if(!data.mistake||!data.emotion_behind||!data.root_cause||!data.correction||!data.early_warning){return alert('All fields are required for the Performance Map.');}
   const res=await fetch('/api/mental-game/perf-map',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   const d=await res.json();
   if(d.error){alert(d.error);return;}
   document.getElementById('pmSaveStatus').textContent='✅ Saved';document.getElementById('pmSaveStatus').style.color='var(--g)';
   ['pmMistake','pmEmotion','pmRootCause','pmCorrection','pmEarlyWarning'].forEach(id=>document.getElementById(id).value='');
-  loadPerfMap();
-}
+  loadPerfMap(); }
 
 async function deletePerfMap(mid){
   if(!confirm('Delete this performance map entry?'))return;
   await fetch('/api/mental-game/perf-map/'+mid,{method:'DELETE'});
-  loadPerfMap();
-}
+  loadPerfMap(); }
 
 // ═══════════════════════════════════════════════════════════════
 //  PATTERN LIBRARY + ALERTS
@@ -1602,10 +1567,8 @@ function renderPatternLibrary(){
       <div class="small mt-1" style="color:var(--g)"><strong>Recovery:</strong> ${p.recovery}</div>
       <div class="small mt-1" style="color:var(--b)"><strong>Prevention:</strong> ${p.prevention}</div>
       <div style="font-size:.65rem;color:#6e7681" class="mt-1">${p.source}</div>
-    </div>`;
-  }
-  el.innerHTML=html;
-}
+    </div>`; }
+  el.innerHTML=html; }
 
 async function loadPatternAlerts(){
   const res=await fetch('/api/mental-game/patterns?days=7');
@@ -1613,8 +1576,7 @@ async function loadPatternAlerts(){
   const el=document.getElementById('livePatternAlerts');
   const alerts=d.alerts||[];
   if(!alerts.length){el.innerHTML=`<div class="text-center py-4"><i class="bi bi-check-circle fs-2" style="color:var(--g)"></i><div class="mt-2 fw-bold" style="color:var(--g)">No Active Alerts</div><div class="small text-secondary">${d.trade_count||0} trades analyzed in last 7 days. No recurring patterns detected.</div></div>`;return;}
-  el.innerHTML=alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()}"><div class="d-flex justify-content-between"><strong>${a.name}</strong><span class="badge" style="background:${a.severity==='HIGH'?'rgba(248,81,73,.15)':'rgba(210,153,34,.15)'};color:${a.severity==='HIGH'?'var(--r)':'var(--y)'}">${a.severity} — ${a.count}x</span></div><div class="small mt-1">${a.action}</div><div style="font-size:.65rem;color:#6e7681" class="mt-1">${a.source}</div></div>`).join('');
-}
+  el.innerHTML=alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()}"><div class="d-flex justify-content-between"><strong>${a.name}</strong><span class="badge" style="background:${a.severity==='HIGH'?'rgba(248,81,73,.15)':'rgba(210,153,34,.15)'};color:${a.severity==='HIGH'?'var(--r)':'var(--y)'}">${a.severity} — ${a.count}x</span></div><div class="small mt-1">${a.action}</div><div style="font-size:.65rem;color:#6e7681" class="mt-1">${a.source}</div></div>`).join(''); }
 
 // ═══════════════════════════════════════════════════════════════
 //  EMERGENCY PROTOCOLS
@@ -1631,11 +1593,9 @@ function renderEmergencyProtocols(){
       <div class="emg-trigger"><i class="bi bi-lightning me-1"></i>Trigger: ${p.trigger}</div>
       ${p.steps.map(s=>`<div class="emg-step">${s}</div>`).join('')}
       <div style="font-size:.65rem;color:#6e7681" class="mt-2">${p.source}</div>
-    </div></div>`;
-  }
+    </div></div>`; }
   html+='</div>';
-  el.innerHTML=html;
-}
+  el.innerHTML=html; }
 
 async function saveEmergency(){
   const data={
@@ -1643,16 +1603,14 @@ async function saveEmergency(){
     protocol_type:document.getElementById('emgType').value,
     outcome:document.getElementById('emgOutcome').value,
     score_after:parseInt(document.getElementById('emgScoreAfter').value)||5,
-    notes:document.getElementById('emgNotes').value.trim(),
-  };
+    notes:document.getElementById('emgNotes').value.trim(), };
   if(!data.log_date)return alert('Select a date');
   const res=await fetch('/api/mental-game/emergency',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   const d=await res.json();
   if(d.error){alert(d.error);return;}
   document.getElementById('emgSaveStatus').textContent='✅ Logged';document.getElementById('emgSaveStatus').style.color='var(--g)';
   document.getElementById('emgNotes').value='';
-  loadEmergencyHistory();
-}
+  loadEmergencyHistory(); }
 
 async function loadEmergencyHistory(){
   const res=await fetch('/api/mental-game/emergency');
@@ -1666,9 +1624,7 @@ async function loadEmergencyHistory(){
       <span class="font-mono small text-secondary">${l.log_date||''}</span>
       <span class="badge" style="background:rgba(255,255,255,.08)">${l.outcome||''}</span>
       <span class="ms-auto font-mono">Score After: ${l.score_after||'—'}</span>
-    </div>`;
-  }).join('');
-}
+    </div>`; }).join(''); }
 
 // ═══════════════════════════════════════════════════════════════
 //  WEEKLY REPORT
@@ -1692,8 +1648,7 @@ async function loadWeeklyAuto(){
       <div class="col-md-4"><div class="small text-secondary">Most Common Pattern</div><div class="fw-bold" style="color:var(--y)">${d.common_pattern}</div></div>
     </div>
     ${d.alerts&&d.alerts.length?'<div class="mt-3"><div class="small text-secondary mb-1">Active Alerts:</div>'+d.alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()} mb-1"><strong>${a.name}</strong> — ${a.count}x — ${a.action}</div>`).join('')+'</div>':''}
-  `;
-}
+  `; }
 
 async function saveWeekly(){
   const data={
@@ -1702,15 +1657,13 @@ async function saveWeekly(){
     top_pattern:document.getElementById('wkPattern').value.trim(),
     improvement_goal:document.getElementById('wkGoal').value.trim(),
     progress:document.getElementById('wkProgress').value,
-    reflection:document.getElementById('wkReflection').value.trim(),
-  };
+    reflection:document.getElementById('wkReflection').value.trim(), };
   if(!data.week_start||!data.week_end)return alert('Week start and end dates required');
   const res=await fetch('/api/mental-game/weekly',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   const d=await res.json();
   if(d.error){alert(d.error);return;}
   document.getElementById('wkSaveStatus').textContent='✅ Saved';document.getElementById('wkSaveStatus').style.color='var(--g)';
-  loadWeeklyHistory();
-}
+  loadWeeklyHistory(); }
 
 async function loadWeeklyHistory(){
   const res=await fetch('/api/mental-game/weekly');
@@ -1724,9 +1677,7 @@ async function loadWeeklyHistory(){
       ${r.top_pattern?'<div class="small">Pattern: <strong style="color:var(--y)">'+r.top_pattern+'</strong></div>':''}
       ${r.improvement_goal?'<div class="small">Goal: '+r.improvement_goal.slice(0,60)+'</div>':''}
       ${r.reflection?'<div class="small text-secondary mt-1">'+r.reflection.slice(0,80)+'...</div>':''}
-    </div>`;
-  }).join('');
-}
+    </div>`; }).join(''); }
 
 // ═══════════════════════════════════════════════════════════════
 //  LEARNING CURVE
@@ -1737,10 +1688,8 @@ function renderCompetenceLegend(){
   const el=document.getElementById('lcLegend');
   let html='';
   for(const[key,lv]of Object.entries(levels)){
-    html+=`<div class="d-flex gap-2 align-items-start mb-2"><span class="lc-level lc-${lv.short}">${lv.short}</span><div><div class="small fw-bold">${lv.label}</div><div style="font-size:.78rem;color:#8b949e">${lv.desc}</div><div style="font-size:.65rem;color:#6e7681">${lv.source}</div></div></div>`;
-  }
-  el.innerHTML=html;
-}
+    html+=`<div class="d-flex gap-2 align-items-start mb-2"><span class="lc-level lc-${lv.short}">${lv.short}</span><div><div class="small fw-bold">${lv.label}</div><div style="font-size:.78rem;color:#8b949e">${lv.desc}</div><div style="font-size:.65rem;color:#6e7681">${lv.source}</div></div></div>`; }
+  el.innerHTML=html; }
 
 async function loadLearningCurve(){
   const res=await fetch('/api/mental-game/learning-curve');
@@ -1756,14 +1705,12 @@ async function loadLearningCurve(){
       <td><span class="lc-level lc-${e.anger||'CI'}">${e.anger||'CI'}</span></td>
       <td><span class="lc-level lc-${e.confidence||'CI'}">${e.confidence||'CI'}</span></td>
       <td><span class="lc-level lc-${e.discipline||'CI'}">${e.discipline||'CI'}</span></td>
-      <td class="small text-secondary">${(e.notes||'').slice(0,50)}</td></tr>`;
-  });
+      <td class="small text-secondary">${(e.notes||'').slice(0,50)}</td></tr>`; });
   html+='</tbody></table>';
   el.innerHTML=html;
 
   // Inchworm chart
-  renderInchwormChart(entries);
-}
+  renderInchwormChart(entries); }
 
 function renderInchwormChart(entries){
   if(!entries.length)return;
@@ -1779,8 +1726,7 @@ function renderInchwormChart(entries){
   ];
   const ctx=document.getElementById('inchwormChart').getContext('2d');
   if(inchwormChartObj)inchwormChartObj.destroy();
-  inchwormChartObj=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:5,ticks:{callback:v=>({1:'UI',2:'CI',3:'CC',4:'UC'}[v]||''),color:'#8b949e'},grid:{color:'rgba(255,255,255,.05)'}},x:{grid:{display:false}}},plugins:{legend:{labels:{color:'#c9d1d9',font:{size:11}}}}}});
-}
+  inchwormChartObj=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:5,ticks:{callback:v=>({1:'UI',2:'CI',3:'CC',4:'UC'}[v]||''),color:'#8b949e'},grid:{color:'rgba(255,255,255,.05)'}},x:{grid:{display:false}}},plugins:{legend:{labels:{color:'#c9d1d9',font:{size:11}}}}}}); }
 
 async function saveLearningCurve(){
   const data={
@@ -1790,15 +1736,13 @@ async function saveLearningCurve(){
     anger:document.getElementById('lcAnger').value,
     confidence:document.getElementById('lcConfidence').value,
     discipline:document.getElementById('lcDiscipline').value,
-    notes:document.getElementById('lcNotes').value.trim(),
-  };
+    notes:document.getElementById('lcNotes').value.trim(), };
   if(!data.month)return alert('Select a month');
   const res=await fetch('/api/mental-game/learning-curve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   const d=await res.json();
   if(d.error){alert(d.error);return;}
   document.getElementById('lcSaveStatus').textContent='✅ Saved';document.getElementById('lcSaveStatus').style.color='var(--g)';
-  loadLearningCurve();
-}
+  loadLearningCurve(); }
 
 // ═══════════════════════════════════════════════════════════════
 //  DAILY WORKFLOW
@@ -1814,11 +1758,9 @@ function renderWorkflow(){
     html+=`<div class="col-md-6"><div class="p-3" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;border-top:3px solid ${colors[key]||'var(--b)'}">
       <div class="fw-bold mb-2" style="color:${colors[key]||'var(--b)'}"><i class="bi ${icons[key]||'bi-calendar'} me-1"></i>${phase.title}</div>
       ${phase.steps.map(s=>`<div class="wf-step"><span class="wf-num">${s.step}</span><span>${s.action}</span><span class="wf-src">${s.source}</span></div>`).join('')}
-    </div></div>`;
-  }
+    </div></div>`; }
   html+='</div>';
-  el.innerHTML=html;
-}
+  el.innerHTML=html; }
 
 // ═══════════════════════════════════════════════════════════════
 //  PORTFOLIO SYNC — bring existing trades into Mental Game
@@ -1835,9 +1777,8 @@ async function loadUnlinkedTrades(){
     document.getElementById('btnSyncAll').disabled=!_unlinkData.length;
     if(!_unlinkData.length){
       el.innerHTML='<div class="text-center py-3" style="color:var(--g)"><i class="bi bi-check-circle fs-4 me-2"></i>All trades are synced! Every portfolio trade has psychology data.</div>';
-      return;
-    }
-    let html='<table class="table table-sm" style="color:#c9d1d9"><thead><tr><th>Ticker</th><th>Date</th><th>Source</th><th>Status</th><th>Buy</th><th>Sell</th><th></th></tr></thead><tbody>';
+      return; }
+    let html='<table class="table table-sm" style="color:var(--bs-body-color)"><thead><tr><th>Ticker</th><th>Date</th><th>Source</th><th>Status</th><th>Buy</th><th>Sell</th><th></th></tr></thead><tbody>';
     _unlinkData.forEach((t,i)=>{
       const pnl=t.sell_price?((t.sell_price-t.buy_price)/t.buy_price*100).toFixed(1)+'%':'';
       const pnlClr=parseFloat(pnl)>=0?'var(--g)':'var(--r)';
@@ -1849,14 +1790,10 @@ async function loadUnlinkedTrades(){
         <td class="font-mono small">₹${t.buy_price?t.buy_price.toFixed(2):'-'}</td>
         <td class="font-mono small">${t.sell_price?'<span style="color:'+pnlClr+'">₹'+t.sell_price.toFixed(2)+' ('+pnl+')</span>':'-'}</td>
         <td><button class="btn btn-sm btn-outline-primary" onclick="openSyncModal(${i})"><i class="bi bi-pencil me-1"></i>Tag</button></td>
-      </tr>`;
-    });
+      </tr>`; });
     html+='</tbody></table>';
-    el.innerHTML=html;
-  }catch(e){
-    el.innerHTML='<div class="text-danger">Error: '+e.message+'</div>';
-  }
-}
+    el.innerHTML=html; }catch(e){
+    el.innerHTML='<div class="text-danger">Error: '+e.message+'</div>'; } }
 
 function openSyncModal(idx){
   const t=_unlinkData[idx];
@@ -1878,8 +1815,7 @@ function openSyncModal(idx){
   document.getElementById('syncPattern').value='';
   document.getElementById('syncInTradeEmotion').value='';
   document.getElementById('syncReflection').value='';
-  new bootstrap.Modal(document.getElementById('syncModal')).show();
-}
+  new bootstrap.Modal(document.getElementById('syncModal')).show(); }
 
 async function saveSyncTrade(){
   const ticker=document.getElementById('syncTicker').textContent;
@@ -1895,16 +1831,13 @@ async function saveSyncTrade(){
       system_followed:document.getElementById('syncSystem').value,
       pattern_tag:document.getElementById('syncPattern').value,
       in_trade_emotion:document.getElementById('syncInTradeEmotion').value,
-      post_reflection:document.getElementById('syncReflection').value.trim(),
-    }]
-  };
+      post_reflection:document.getElementById('syncReflection').value.trim(), }] };
   const res=await fetch('/api/mental-game/bulk-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   const d=await res.json();
   if(d.error){alert(d.error);return;}
   bootstrap.Modal.getInstance(document.getElementById('syncModal')).hide();
   loadUnlinkedTrades();
-  loadTradePsychHistory();
-}
+  loadTradePsychHistory(); }
 
 async function bulkSyncAll(){
   if(!_unlinkData.length)return;
@@ -1915,8 +1848,7 @@ async function bulkSyncAll(){
     position_id:t.position_id||null,
     pre_emotion:'NEUTRAL',
     pre_mental_score:7,
-    system_followed:'YES',
-  }));
+    system_followed:'YES', }));
   document.getElementById('btnSyncAll').disabled=true;
   document.getElementById('btnSyncAll').innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Syncing...';
   const res=await fetch('/api/mental-game/bulk-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:items})});
@@ -1924,10 +1856,10 @@ async function bulkSyncAll(){
   if(d.error){alert(d.error);document.getElementById('btnSyncAll').disabled=false;document.getElementById('btnSyncAll').innerHTML='<i class="bi bi-check2-all me-1"></i>Quick Sync All';return;}
   document.getElementById('btnSyncAll').innerHTML='<i class="bi bi-check-circle me-1"></i>'+d.created+' trades synced!';
   setTimeout(()=>loadUnlinkedTrades(),1000);
-  loadTradePsychHistory();
-}
+  loadTradePsychHistory(); }
 
 </script>
 <script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
+{% include "_theme_picker.html" %}
 </body>
 </html>

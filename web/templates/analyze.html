@@ -1,28 +1,27 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ ticker }} — Bollinger Squeeze Analysis</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    {% include "_theme_head.html" %}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         :root {
-            --bs-body-bg: #0d1117; --bs-body-color: #c9d1d9;
-            --card-bg: #161b22; --card-border: #30363d;
-            --g: #3fb950; --r: #f85149; --y: #d29922; --b: #58a6ff; --p: #bc8cff;
-        }
-        body { font-family: 'Inter', sans-serif; background: var(--bs-body-bg); }
+             
+            --card-bg:var(--bs-tertiary-bg); --card-border:var(--bs-border-color);
+            --g: #3fb950; --r: #f85149; --y: #d29922; --b: #58a6ff; --p: #bc8cff; }
+        body { font-family: var(--bs-body-font-family); background: var(--bs-body-bg); }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; }
         .card-header { background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--card-border); font-weight: 600; }
         .text-green { color: var(--g) !important; } .text-red { color: var(--r) !important; }
         .text-yellow { color: var(--y) !important; } .text-blue { color: var(--b) !important; }
         .text-purple { color: var(--p) !important; }
-        .score-bar { height: 8px; border-radius: 4px; background: #21262d; overflow: hidden; }
+        .score-bar { height: 8px; border-radius: 4px; background: var(--bs-border-color); overflow: hidden; }
         .score-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
         .ratio-row td { padding: 6px 10px !important; }
         .ratio-desc { font-size: 0.75rem; color: #8b949e; font-style: italic; }
@@ -33,15 +32,14 @@
         .action-hold { background: linear-gradient(135deg, #1a3a5c, #1f6feb); border: 1px solid #58a6ff; }
         .action-wait { background: linear-gradient(135deg, #6e4b00, #9a6700); border: 1px solid #d29922; }
         .action-fake { background: linear-gradient(135deg, #6e3a00, #d47616); border: 1px solid #f0883e; }
-        .action-monitor { background: linear-gradient(135deg, #21262d, #30363d); border: 1px solid #484f58; }
+        .action-monitor { background: linear-gradient(135deg, var(--bs-border-color), var(--bs-border-color)); border: 1px solid #484f58; }
         .nav-pills .nav-link { color: #8b949e; border-radius: 8px; }
         .nav-pills .nav-link.active { background: rgba(88,166,255,0.15); color: var(--b); }
         .table-dark { --bs-table-bg: transparent; }
         .table-dark th { color: #8b949e; font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
         #loadingOverlay {
             position: fixed; inset: 0; background: var(--bs-body-bg);
-            display: flex; align-items: center; justify-content: center; z-index: 9999;
-        }
+            display: flex; align-items: center; justify-content: center; z-index: 9999; }
         .conviction-text { white-space: pre-wrap; line-height: 1.7; font-size: 0.92rem; }
         .analysis-text { line-height: 1.8; font-size: 0.9rem; }
         .analysis-text li { margin-bottom: 0.3rem; }
@@ -55,7 +53,7 @@
         @keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
         .sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
         .sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
-        .sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+        .sc-nav .sc-link:hover{color:var(--bs-body-color);border-bottom-color:rgba(88,166,255,.3)}
         .sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
         .sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
         .sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
@@ -66,8 +64,7 @@
         .strategy-header {
             background: linear-gradient(135deg, rgba(210,153,34,0.08), rgba(88,166,255,0.06));
             border: 1px solid rgba(210,153,34,0.25);
-            border-radius: 12px; padding: 1.2rem 1.5rem; margin-bottom: 1rem;
-        }
+            border-radius: 12px; padding: 1.2rem 1.5rem; margin-bottom: 1rem; }
         .strategy-header h5 { color: var(--y); }
 
         /* ── Phase panel ── */
@@ -82,8 +79,7 @@
         .headfake-alert {
             background: rgba(248,81,73,0.1);
             border: 1px solid var(--r); border-radius: 12px;
-            padding: 1rem 1.3rem;
-        }
+            padding: 1rem 1.3rem; }
 
         /* ── Condition detail ── */
         .cond-explain { font-size: 0.78rem; color: #8b949e; line-height: 1.4; margin-top: 2px; }
@@ -102,7 +98,7 @@
         .accordion-body { padding: 0.7rem 1rem; font-size: 0.88rem; color: #8b949e; line-height: 1.6; }
 
         /* ── Summary text ── */
-        .summary-text { font-size: 0.9rem; line-height: 1.7; color: #c9d1d9; }
+        .summary-text { font-size: 0.9rem; line-height: 1.7; color: var(--bs-body-color); }
 
         /* ── Strategies Section (Methods II, III, IV) ── */
         .strat-card { border-radius: 12px; padding: 1.2rem 1.4rem; margin-bottom: 1rem; }
@@ -111,8 +107,7 @@
         .strat-m4 { background: rgba(210,153,34,0.06); border: 1px solid rgba(210,153,34,0.2); }
         .strat-signal-badge {
             display: inline-block; padding: 4px 12px; border-radius: 8px;
-            font-weight: 700; font-size: 0.85rem; letter-spacing: 0.03em;
-        }
+            font-weight: 700; font-size: 0.85rem; letter-spacing: 0.03em; }
         .strat-signal-BUY  { background: rgba(63,185,80,0.2); color: var(--g); }
         .strat-signal-SELL { background: rgba(248,81,73,0.2); color: var(--r); }
         .strat-signal-HOLD { background: rgba(88,166,255,0.2); color: var(--b); }
@@ -128,7 +123,7 @@
         .strat-pattern { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.7rem 1rem; margin-top: 0.5rem; }
         .strat-pattern-name { font-weight: 700; font-size: 0.85rem; }
         .strat-book-ref { font-size: 0.75rem; color: #6e7681; font-style: italic; margin-top: 0.3rem; }
-        .strat-confidence-bar { height: 6px; border-radius: 3px; background: #21262d; overflow: hidden; margin-top: 4px; }
+        .strat-confidence-bar { height: 6px; border-radius: 3px; background: var(--bs-border-color); overflow: hidden; margin-top: 4px; }
         .strat-confidence-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
 
         /* ── Rich Metric Tooltips ── */
@@ -137,17 +132,15 @@
             visibility: hidden; opacity: 0;
             position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
             width: 260px; padding: 10px 12px; border-radius: 10px;
-            background: #161b22; border: 1px solid #30363d;
+            background: var(--bs-tertiary-bg); border: 1px solid var(--bs-border-color);
             box-shadow: 0 8px 24px rgba(0,0,0,0.45);
-            color: #c9d1d9; font-size: 0.78rem; line-height: 1.45;
+            color: var(--bs-body-color); font-size: 0.78rem; line-height: 1.45;
             z-index: 999; pointer-events: none;
             transition: opacity 0.2s, visibility 0.2s;
-            text-align: left;
-        }
+            text-align: left; }
         .metric-wrap .metric-tip::after {
             content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-            border: 6px solid transparent; border-top-color: #30363d;
-        }
+            border: 6px solid transparent; border-top-color: var(--bs-border-color); }
         .metric-wrap:hover .metric-tip, .metric-wrap:focus .metric-tip { visibility: visible; opacity: 1; }
         .metric-tip .tip-title { font-weight: 700; color: #e6edf3; font-size: 0.82rem; margin-bottom: 4px; }
         .metric-tip .tip-val { display: inline-block; padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; margin-bottom: 4px; }
@@ -159,14 +152,12 @@
             padding: 10px 16px; margin-bottom: 0;
             background: rgba(255,255,255,0.025); border: 1px solid var(--card-border);
             border-radius: 10px; cursor: pointer; user-select: none;
-            transition: background 0.2s, border-color 0.2s;
-        }
+            transition: background 0.2s, border-color 0.2s; }
         .section-toggle:hover { background: rgba(88,166,255,0.05); border-color: rgba(88,166,255,0.25); }
         .section-toggle .sec-title { font-weight: 600; font-size: 0.9rem; color: #e6edf3; }
         .section-toggle .sec-title i { margin-right: 6px; }
         .section-toggle .sec-chevron {
-            transition: transform 0.3s ease; color: #8b949e; font-size: 1.1rem;
-        }
+            transition: transform 0.3s ease; color: #8b949e; font-size: 1.1rem; }
         .section-toggle[aria-expanded="true"] .sec-chevron { transform: rotate(180deg); }
         .section-toggle[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
         .section-body { border: 1px solid var(--card-border); border-top: none; border-radius: 0 0 10px 10px; padding: 0; }
@@ -180,10 +171,9 @@
         .expand-collapse-bar button {
             font-size: 0.75rem; padding: 3px 10px; border-radius: 6px;
             background: rgba(255,255,255,0.04); border: 1px solid var(--card-border);
-            color: #8b949e; cursor: pointer; transition: all 0.2s;
-        }
+            color: #8b949e; cursor: pointer; transition: all 0.2s; }
         .expand-collapse-bar button:hover { background: rgba(88,166,255,0.08); color: var(--b); border-color: rgba(88,166,255,0.3); }
-    .sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#161b22;border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:#c9d1d9}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:#c9d1d9;text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
+    .sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color)}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color);text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
 </style>
 </head>
 <body>
@@ -813,8 +803,7 @@
     const vt = (x, thresh, above, d=2, sfx='') => {
         if(x==null) return '<span class="text-secondary">N/A</span>';
         const good = above ? x>=thresh : x<thresh;
-        return `<span class="${good?'text-green':'text-red'}">${x.toFixed(d)}${sfx}</span>`;
-    };
+        return `<span class="${good?'text-green':'text-red'}">${x.toFixed(d)}${sfx}</span>`; };
 
     // ── Fetch data ──
     fetch(`/api/analyze/${encodeURIComponent(TICKER)}`)
@@ -823,8 +812,7 @@
         .catch(e => {
             document.getElementById('loadingOverlay').innerHTML =
                 `<div class="text-center"><h4 class="text-red"><i class="bi bi-exclamation-triangle"></i> Error</h4>
-                 <p class="text-secondary">${e.message}. <a href="/" class="text-blue">Go back</a></p></div>`;
-        });
+                 <p class="text-secondary">${e.message}. <a href="/" class="text-blue">Go back</a></p></div>`; });
 
     function render() {
         const s = DATA.signal, f = DATA.fundamentals, c = DATA.chart;
@@ -845,14 +833,12 @@
                     </button>
                 </div>
             </div>`;
-            document.getElementById('mainContent').insertAdjacentHTML('afterbegin', bannerHTML);
-        } else if (fresh) {
+            document.getElementById('mainContent').insertAdjacentHTML('afterbegin', bannerHTML); } else if (fresh) {
             const freshHTML = `<div class="alert alert-success d-flex align-items-center mb-3 py-2" role="alert">
                 <i class="bi bi-check-circle-fill me-2"></i>
                 <small><strong>Live Data</strong> — Last: ${fresh.last_date} (${fresh.trading_days_stale} trading day${fresh.trading_days_stale!==1?'s':''} ago)</small>
             </div>`;
-            document.getElementById('mainContent').insertAdjacentHTML('afterbegin', freshHTML);
-        }
+            document.getElementById('mainContent').insertAdjacentHTML('afterbegin', freshHTML); }
 
         // ── Company header ──
         const name = f.company_name || s.ticker;
@@ -896,17 +882,14 @@
         if (urlMethod && methodLabels[urlMethod]) {
             bannerBadge.innerHTML = `<span class="badge bg-info ms-2" style="font-size:.7rem;vertical-align:middle;">${methodLabels[urlMethod]}</span>`;
             bannerDesc.innerHTML = `Analysing using <strong>${methodLabels[urlMethod]}</strong> from <em>Bollinger on Bollinger Bands</em>. ` +
-                `<a href="${window.location.pathname}" class="text-info">View all 4 methods →</a>`;
-        } else {
-            bannerBadge.innerHTML = '<span class="badge bg-secondary ms-2" style="font-size:.7rem;vertical-align:middle;">4 Methods</span>';
-        }
+                `<a href="${window.location.pathname}" class="text-info">View all 4 methods →</a>`; } else {
+            bannerBadge.innerHTML = '<span class="badge bg-secondary ms-2" style="font-size:.7rem;vertical-align:middle;">4 Methods</span>'; }
 
         // Show/hide sections based on scanned method
         if (urlMethod === 'M1') {
             // Scanned via Method I — hide M2/M3/M4 strategies card entirely
             document.getElementById('strategiesCard').style.display = 'none';
-            document.getElementById('secStrategiesToggle').style.display = 'none';
-        } else if (urlMethod && ['M2','M3','M4'].includes(urlMethod)) {
+            document.getElementById('secStrategiesToggle').style.display = 'none'; } else if (urlMethod && ['M2','M3','M4'].includes(urlMethod)) {
             // Scanned via a specific strategy — show only that method
             const filtered = (DATA.strategies || []).filter(st => st.code === urlMethod);
             try { renderStrategies(filtered, urlMethod); } catch(e) { console.error('renderStrategies error:', e); }
@@ -915,13 +898,9 @@
                 const card = document.querySelector(`.strat-card[data-method="${urlMethod}"]`);
                 if (card) {
                     card.style.boxShadow = '0 0 0 2px var(--accent), 0 0 20px rgba(88,166,255,0.3)';
-                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 300);
-        } else {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, 300); } else {
             // No specific method (direct search) — show all strategies
-            try { renderStrategies(DATA.strategies, null); } catch(e) { console.error('renderStrategies error:', e); }
-        }
+            try { renderStrategies(DATA.strategies, null); } catch(e) { console.error('renderStrategies error:', e); } }
 
         if(!f.error) {
             document.getElementById('fundamentalsCard').style.display = 'block';
@@ -936,13 +915,11 @@
                 document.getElementById('fundSignalBadge').innerHTML =
                     `<span class="badge rounded-pill px-3 py-2" style="background:${badgeBg};color:${badgeColor};border:1px solid ${badgeColor};font-size:0.85rem">
                         <i class="bi ${icon} me-1"></i>${sig} (${f.fundamental_score}/100)
-                    </span>`;
-            }
+                    </span>`; }
             if(f.description) {
                 const descEl = document.getElementById('companyDesc');
                 descEl.style.display = 'block';
-                descEl.innerHTML = `<i class="bi bi-building me-1"></i> ${f.description.substring(0,400)}${f.description.length>400?'…':''}`;
-            }
+                descEl.innerHTML = `<i class="bi bi-building me-1"></i> ${f.description.substring(0,400)}${f.description.length>400?'…':''}`; }
             renderKeyMetricsDash(f);
             renderValuationTab(f);
             renderProfitabilityTab(f);
@@ -951,18 +928,15 @@
             renderQuarterlyTab(f);
             renderFinancialsTab(f);
             renderShareholdingTab(f);
-            renderConvictionTab(f);
-        }
+            renderConvictionTab(f); }
 
         /* ─── Quantitative Trading Strategy (separate system) ─── */
         if(DATA.quant) {
             document.getElementById('quantSection').style.display = 'block';
-            renderQuantStrategy(DATA.quant);
-        }
+            renderQuantStrategy(DATA.quant); }
 
         /* ─── Cross-System Scores (TA + Triple + PA) ─── */
-        try { renderCrossSystemScores(); } catch(e) { console.error('renderCrossSystemScores error:', e); }
-    }
+        try { renderCrossSystemScores(); } catch(e) { console.error('renderCrossSystemScores error:', e); } }
 
     // ═══════════ INDICATOR BADGES — Live values on sub-chart headers ═══════════
     function renderIndicatorBadges(s, c) {
@@ -973,41 +947,35 @@
             const volColor = volRatio >= 1.0 ? '#3fb950' : '#f85149';
             volBadge.style.background = volColor.replace(')', ',0.15)').replace('rgb','rgba').replace('#3fb950','rgba(63,185,80,0.15)').replace('#f85149','rgba(248,81,73,0.15)');
             volBadge.style.color = volColor;
-            volBadge.textContent = `${(s.volume/1000).toFixed(0)}K (${volRatio.toFixed(1)}x SMA)`;
-        }
+            volBadge.textContent = `${(s.volume/1000).toFixed(0)}K (${volRatio.toFixed(1)}x SMA)`; }
         // CMF badge
         const cmfBadge = document.getElementById('badgeCmf');
         if(s.cmf != null) {
             const cmfColor = s.cmf > 0 ? '#3fb950' : '#f85149';
             cmfBadge.style.background = s.cmf > 0 ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)';
             cmfBadge.style.color = cmfColor;
-            cmfBadge.textContent = `${s.cmf >= 0 ? '+' : ''}${s.cmf.toFixed(4)} ${s.cmf > 0.1 ? '(Strong Buy)' : s.cmf > 0 ? '(Accumulation)' : s.cmf < -0.1 ? '(Strong Sell)' : '(Distribution)'}`;
-        }
+            cmfBadge.textContent = `${s.cmf >= 0 ? '+' : ''}${s.cmf.toFixed(4)} ${s.cmf > 0.1 ? '(Strong Buy)' : s.cmf > 0 ? '(Accumulation)' : s.cmf < -0.1 ? '(Strong Sell)' : '(Distribution)'}`; }
         // %B badge
         const pctbBadge = document.getElementById('badgePctb');
         if(s.percent_b != null) {
             const pbColor = s.percent_b > 0.8 ? '#3fb950' : s.percent_b < 0.2 ? '#f85149' : '#d29922';
             pctbBadge.style.background = s.percent_b > 0.8 ? 'rgba(63,185,80,0.15)' : s.percent_b < 0.2 ? 'rgba(248,81,73,0.15)' : 'rgba(210,153,34,0.15)';
             pctbBadge.style.color = pbColor;
-            pctbBadge.textContent = `${s.percent_b.toFixed(3)} ${s.percent_b > 1.0 ? '(Breakout!)' : s.percent_b > 0.8 ? '(Bullish)' : s.percent_b < 0.2 ? '(Bearish)' : s.percent_b > 0.5 ? '(Lean Bull)' : '(Lean Bear)'}`;
-        }
+            pctbBadge.textContent = `${s.percent_b.toFixed(3)} ${s.percent_b > 1.0 ? '(Breakout!)' : s.percent_b > 0.8 ? '(Bullish)' : s.percent_b < 0.2 ? '(Bearish)' : s.percent_b > 0.5 ? '(Lean Bull)' : '(Lean Bear)'}`; }
         // MFI badge
         const mfiBadge = document.getElementById('badgeMfi');
         if(s.mfi != null) {
             const mfiColor = s.mfi > 50 ? '#3fb950' : '#f85149';
             mfiBadge.style.background = s.mfi > 50 ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)';
             mfiBadge.style.color = mfiColor;
-            mfiBadge.textContent = `${s.mfi.toFixed(1)} ${s.mfi > 80 ? '(Max Fuel)' : s.mfi > 50 ? '(Sufficient)' : s.mfi < 20 ? '(Oversold)' : '(Weak)'}`;
-        }
+            mfiBadge.textContent = `${s.mfi.toFixed(1)} ${s.mfi > 80 ? '(Max Fuel)' : s.mfi > 50 ? '(Sufficient)' : s.mfi < 20 ? '(Oversold)' : '(Weak)'}`; }
         // BBW badge
         const bbwBadge = document.getElementById('badgeBbw');
         if(s.bbw != null) {
             const bbwColor = s.cond1 ? '#f85149' : s.bbw < 0.096 ? '#d29922' : '#8b949e';
             bbwBadge.style.background = s.cond1 ? 'rgba(248,81,73,0.15)' : s.bbw < 0.096 ? 'rgba(210,153,34,0.15)' : 'rgba(139,148,158,0.15)';
             bbwBadge.style.color = bbwColor;
-            bbwBadge.textContent = `${s.bbw.toFixed(6)} ${s.cond1 ? '(SQUEEZE!)' : s.bbw < 0.096 ? '(Near Squeeze)' : '(Normal)'}`;
-        }
-    }
+            bbwBadge.textContent = `${s.bbw.toFixed(6)} ${s.cond1 ? '(SQUEEZE!)' : s.bbw < 0.096 ? '(Near Squeeze)' : '(Normal)'}`; } }
 
     // ═══════════ KEY METRICS DASHBOARD — Quick visual snapshot ═══════════
     function renderKeyMetricsDash(f) {
@@ -1024,8 +992,7 @@
             const verdictWord = color === 'g' ? 'Good' : color === 'r' ? 'Weak' : 'Fair';
             let rangeHtml = '';
             if(ranges) {
-                rangeHtml = `<div class="tip-range">${ranges.map(r=>`<span style="background:${r[1]};color:#0d1117;">${r[0]}</span>`).join('')}</div>`;
-            }
+                rangeHtml = `<div class="tip-range">${ranges.map(r=>`<span style="background:${r[1]};color:var(--bs-body-bg);">${r[0]}</span>`).join('')}</div>`; }
             return `<div class="col-6 col-md-3 col-lg-2">
                 <div class="metric-wrap p-2 rounded-3 text-center h-100" style="background:${bg};border:1px solid ${border}" tabindex="0">
                     <div class="metric-tip">
@@ -1036,8 +1003,7 @@
                     </div>
                     <div class="small text-secondary mb-1"><i class="bi ${icon} me-1"></i>${label}</div>
                     <div class="fw-bold font-mono" style="color:${textColor};font-size:1.05rem">${val}${unit}</div>
-                </div></div>`;
-        }
+                </div></div>`; }
 
         let html = '';
 
@@ -1048,8 +1014,7 @@
                 'Price-to-Earnings (P/E) Ratio',
                 'How many years of current profit you\'re paying for. A P/E of 20 means you pay ₹20 for every ₹1 the company earns per year. <b>Lower P/E = cheaper stock</b>, but very low may signal trouble.',
                 [['< 22 Good','rgba(63,185,80,0.5)'],['22-35 Fair','rgba(210,153,34,0.5)'],['> 35 Pricey','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
         // ROE
         if(f.roe != null) {
             const c = f.roe > 15 ? 'g' : f.roe > 8 ? 'y' : 'r';
@@ -1057,8 +1022,7 @@
                 'Return on Equity (ROE)',
                 'Shows how much profit the company generates from shareholders\' money. If ROE is 20%, the company makes ₹20 profit for every ₹100 invested. <b>Higher = better management.</b>',
                 [['> 15% Great','rgba(63,185,80,0.5)'],['8-15% OK','rgba(210,153,34,0.5)'],['< 8% Weak','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
         // D/E
         if(f.debt_to_equity != null) {
             const c = f.debt_to_equity < 0.5 ? 'g' : f.debt_to_equity < 1.5 ? 'y' : 'r';
@@ -1066,8 +1030,7 @@
                 'Debt-to-Equity (D/E) Ratio',
                 'How much the company has borrowed vs its own capital. A D/E of 1.0 means equal debt and equity. <b>Lower = safer</b> — the company is not drowning in debt.',
                 [['< 0.5 Safe','rgba(63,185,80,0.5)'],['0.5-1.5 OK','rgba(210,153,34,0.5)'],['> 1.5 Risky','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
         // Net Margin
         if(f.profit_margin != null) {
             const c = f.profit_margin > 10 ? 'g' : f.profit_margin > 5 ? 'y' : 'r';
@@ -1075,8 +1038,7 @@
                 'Net Profit Margin',
                 'Out of every ₹100 of revenue, how much is actual profit after all expenses. A margin of 15% means ₹15 profit per ₹100 revenue. <b>Higher = more efficient business.</b>',
                 [['> 10% Strong','rgba(63,185,80,0.5)'],['5-10% Average','rgba(210,153,34,0.5)'],['< 5% Thin','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
         // Revenue Growth
         if(f.revenue_growth != null) {
             const c = f.revenue_growth > 10 ? 'g' : f.revenue_growth > 0 ? 'y' : 'r';
@@ -1084,8 +1046,7 @@
                 'Revenue Growth (Year-over-Year)',
                 'How fast the company\'s sales are growing compared to last year. Positive growth means the business is expanding. <b>Higher = faster growing company.</b>',
                 [['> 10% Fast','rgba(63,185,80,0.5)'],['0-10% Slow','rgba(210,153,34,0.5)'],['Negative Shrinking','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
         // Altman Z
         if(f.altman_z_score != null) {
             const c = f.altman_z_score > 2.6 ? 'g' : f.altman_z_score > 1.8 ? 'y' : 'r';
@@ -1093,8 +1054,7 @@
                 'Altman Z-Score (Bankruptcy Risk)',
                 'A formula that predicts whether a company could go bankrupt in 2 years. Think of it as a \'financial health check\'. <b>Higher = safer from bankruptcy.</b>',
                 [['>2.6 Safe Zone','rgba(63,185,80,0.5)'],['1.8-2.6 Grey Zone','rgba(210,153,34,0.5)'],['<1.8 Danger','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
         // EV/EBITDA
         if(f.ev_ebitda != null) {
             const c = f.ev_ebitda < 12 ? 'g' : f.ev_ebitda < 20 ? 'y' : 'r';
@@ -1102,8 +1062,7 @@
                 'Enterprise Value / EBITDA',
                 'How expensive the entire company is relative to its operating profit. Like P/E, but also includes debt. <b>Lower = better value</b> — you\'re paying less for each rupee of profit.',
                 [['< 12 Cheap','rgba(63,185,80,0.5)'],['12-20 Fair','rgba(210,153,34,0.5)'],['> 20 Expensive','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
         // Graham verdict
         if(f.price_to_intrinsic != null) {
             const c = f.price_to_intrinsic < 1 ? 'g' : f.price_to_intrinsic < 2 ? 'y' : 'r';
@@ -1112,8 +1071,7 @@
                 'Graham Number (Intrinsic Value)',
                 `Compares the stock price to its \'true value\' based on Benjamin Graham\'s formula (using earnings + book value). Current price is <b>${v(f.price_to_intrinsic,2)}x</b> the Graham value. <b>Below 1x means it\'s undervalued</b> — you\'re getting a bargain.`,
                 [['< 1x Bargain','rgba(63,185,80,0.5)'],['1-2x Fair','rgba(210,153,34,0.5)'],['> 2x Overpriced','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
         // FCF
         if(f.free_cash_flow != null) {
             const c = f.free_cash_flow > 0 ? 'g' : 'r';
@@ -1121,8 +1079,7 @@
                 'Free Cash Flow (FCF)',
                 'Cash left after the company pays for its operations and investments. Think of it as \'money in the pocket\'. <b>Positive = company generates real cash</b>. Negative means it\'s spending more than it earns.',
                 [['+ve Healthy','rgba(63,185,80,0.5)'],['-ve Burning Cash','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
         // Dividend Yield
         if(f.dividend_yield != null && f.dividend_yield > 0) {
             const c = f.dividend_yield > 2 ? 'g' : 'y';
@@ -1130,8 +1087,7 @@
                 'Dividend Yield',
                 'Annual dividend as a % of the stock price. If you invest ₹10,000 in a stock with 3% yield, you get ₹300/year in dividends. <b>Higher = more passive income.</b>',
                 [['> 2% Good Income','rgba(63,185,80,0.5)'],['0-2% Low','rgba(210,153,34,0.5)']]
-            );
-        }
+            ); }
         // Current Ratio
         if(f.current_ratio != null) {
             const c = f.current_ratio > 1.5 ? 'g' : f.current_ratio > 1 ? 'y' : 'r';
@@ -1139,8 +1095,7 @@
                 'Current Ratio (Liquidity)',
                 'Can the company pay its short-term bills? A ratio of 2.0 means it has ₹2 in assets for every ₹1 it owes. <b>> 1.5 is comfortable</b>. Below 1 means it may struggle to pay bills.',
                 [['>1.5 Comfortable','rgba(63,185,80,0.5)'],['1-1.5 Tight','rgba(210,153,34,0.5)'],['<1 Risky','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
         // Interest Coverage
         if(f.interest_coverage != null) {
             const c = f.interest_coverage > 3 ? 'g' : f.interest_coverage > 1.5 ? 'y' : 'r';
@@ -1148,11 +1103,9 @@
                 'Interest Coverage Ratio',
                 'How easily the company can pay interest on its loans. A value of 5x means it earns 5 times more than its interest payments. <b>Higher = easily handles debt.</b> Below 1.5x is a red flag.',
                 [['>3x Comfortable','rgba(63,185,80,0.5)'],['1.5-3x Tight','rgba(210,153,34,0.5)'],['<1.5x Danger','rgba(248,81,73,0.5)']]
-            );
-        }
+            ); }
 
-        grid.innerHTML = html;
-    }
+        grid.innerHTML = html; }
 
     // ═══════════ ACTION BANNER ═══════════
     function renderAction(s) {
@@ -1162,23 +1115,17 @@
 
         if(s.buy_signal) {
             cls='action-buy'; icon='🚀'; label='BUY — ALL 5 CONDITIONS MET';
-            sub = `Enter at next market open. Set Stop Loss at ₹${v(s.stop_loss)} (Parabolic SAR).`;
-        } else if(s.short_signal) {
+            sub = `Enter at next market open. Set Stop Loss at ₹${v(s.stop_loss)} (Parabolic SAR).`; } else if(s.short_signal) {
             cls='action-sell'; icon='🔻'; label='SHORT-SIDE BREAKOUT — BEARISH';
-            sub = 'Squeeze broke downward with volume + negative II% + weak MFI. Avoid longs or consider hedging.';
-        } else if(s.sell_signal) {
+            sub = 'Squeeze broke downward with volume + negative II% + weak MFI. Avoid longs or consider hedging.'; } else if(s.sell_signal) {
             cls='action-sell'; icon='🔴'; label='SELL / EXIT';
-            sub = detail || 'Exit signal triggered. Close your position.';
-        } else if(s.hold_signal) {
+            sub = detail || 'Exit signal triggered. Close your position.'; } else if(s.hold_signal) {
             cls='action-hold'; icon='🟢'; label='HOLD — TREND INTACT';
-            sub = `SAR dots are green (below candles). Trail your Stop Loss to ₹${v(s.stop_loss)}.`;
-        } else if(s.wait_signal) {
+            sub = `SAR dots are green (below candles). Trail your Stop Loss to ₹${v(s.stop_loss)}.`; } else if(s.wait_signal) {
             cls='action-wait'; icon='⏳'; label='WAIT — SQUEEZE BUILDING';
-            sub = `Stock has been in squeeze for ${s.squeeze_days} day(s). Spring is being coiled — watch for breakout!`;
-        } else if(s.head_fake) {
+            sub = `Stock has been in squeeze for ${s.squeeze_days} day(s). Spring is being coiled — watch for breakout!`; } else if(s.head_fake) {
             cls='action-fake'; icon='⚠️'; label='HEAD FAKE — DO NOT ENTER';
-            sub = 'Breakout looks fake. Volume/CMF/MFI not confirming. Wait 2-3 days.';
-        }
+            sub = 'Breakout looks fake. Volume/CMF/MFI not confirming. Wait 2-3 days.'; }
         ab.className = `action-banner h-100 d-flex flex-column justify-content-center ${cls}`;
         ab.innerHTML = `
             <div class="d-flex align-items-center gap-2 mb-2">
@@ -1192,8 +1139,7 @@
             <div class="mt-2 small d-flex gap-3" style="opacity:0.7;">
                 <span>Phase: <strong>${s.phase}</strong></span>
                 <span>Lean: <strong>${s.direction_lean}</strong></span>
-            </div>`;
-    }
+            </div>`; }
 
     // ═══════════ CONFIDENCE METER ═══════════
     function renderConfidence(s) {
@@ -1209,8 +1155,7 @@
                 ${c>=80?'All indicators align strongly. High probability trade.' :
                   c>=50?'Mixed signals. Some indicators confirm, others don\'t.' :
                         'Weak setup. Most indicators not confirming. Avoid.'}
-            </p>`;
-    }
+            </p>`; }
 
     // ═══════════ PHASE ANALYSIS ═══════════
     function renderPhase(s) {
@@ -1227,8 +1172,7 @@
             'POST-BREAKOUT': { cls:'phase-postbreakout', icon:'🟢', title:'Post-Breakout — Trend Running',
                 desc:'The breakout has already happened and the <strong>trend is in progress</strong>. If you\'re in the trade, hold and trail your stop-loss with the Parabolic SAR. If you missed the entry, wait for the next squeeze cycle.' },
             'INSUFFICIENT_DATA': { cls:'phase-normal', icon:'⚪', title:'Insufficient Data',
-                desc:'Not enough historical data to determine the squeeze phase.' },
-        };
+                desc:'Not enough historical data to determine the squeeze phase.' }, };
         const p = phaseMap[s.phase] || phaseMap['NORMAL'];
 
         const leanIcon = s.direction_lean === 'BULLISH' ? '🟢 BULLISH' :
@@ -1250,9 +1194,7 @@
 
         // If no head fake, let phase panel take full width
         if(!s.head_fake) {
-            document.getElementById('phaseCol').className = 'col-md-12';
-        }
-    }
+            document.getElementById('phaseCol').className = 'col-md-12'; } }
 
     // ═══════════ HEAD FAKE WARNING ═══════════
     function renderHeadFake(s) {
@@ -1268,8 +1210,7 @@
                 <div class="small p-2 rounded" style="background:rgba(248,81,73,0.1);">
                     <strong>Golden Rule:</strong> Never buy a breakout without volume above the yellow line (50-day SMA).
                 </div>
-            </div>`;
-    }
+            </div>`; }
 
     // ═══════════ 5 CONDITIONS ═══════════
     function renderConditions(s) {
@@ -1278,28 +1219,23 @@
             {
                 ok: s.cond1, name: 'Condition 1: BBW Squeeze Active',
                 detail: `BBW: ${v(s.bbw,6)} · Trigger: ≤ 0.0800 · 6M Min: ${v(s.bbw_6m_min,6)}`,
-                explain: 'BandWidth (BBW) must be at or below the squeeze trigger (0.08) or near its 6-month minimum. This means volatility has compressed — the spring is coiled and ready to release.',
-            },
+                explain: 'BandWidth (BBW) must be at or below the squeeze trigger (0.08) or near its 6-month minimum. This means volatility has compressed — the spring is coiled and ready to release.', },
             {
                 ok: s.cond2, name: 'Condition 2: Price Above Upper Bollinger Band',
                 detail: `Close: ₹${v(s.current_price)} · Upper Band: ₹${v(s.bb_upper)}`,
-                explain: 'Price must close ABOVE the upper Bollinger Band. This confirms the breakout direction is upward. Without this, there is no breakout signal.',
-            },
+                explain: 'Price must close ABOVE the upper Bollinger Band. This confirms the breakout direction is upward. Without this, there is no breakout signal.', },
             {
                 ok: s.cond3, name: 'Condition 3: Volume Confirms (Above 50-SMA)',
                 detail: `Volume: ${s.volume?.toLocaleString()||'N/A'} · SMA-50: ${s.vol_sma50?.toLocaleString()||'N/A'}`,
-                explain: 'Volume must be above the 50-day simple moving average (the yellow line on the chart). This proves the breakout has strong participation — not just a few traders pushing the price.',
-            },
+                explain: 'Volume must be above the 50-day simple moving average (the yellow line on the chart). This proves the breakout has strong participation — not just a few traders pushing the price.', },
             {
                 ok: s.cond4, name: 'Condition 4: CMF Above Zero (Money Flowing In)',
                 detail: `CMF: ${v(s.cmf,4)} · Need: > 0.00 (ideally > +0.10)`,
-                explain: 'Chaikin Money Flow must be positive, meaning institutional investors (big players) are buying, not selling. Above +0.10 is strong accumulation.',
-            },
+                explain: 'Chaikin Money Flow must be positive, meaning institutional investors (big players) are buying, not selling. Above +0.10 is strong accumulation.', },
             {
                 ok: s.cond5, name: 'Condition 5: MFI Above 50 & Rising',
                 detail: `MFI: ${v(s.mfi,1)} · Need: > 50 and trending up`,
-                explain: 'Money Flow Index must be above 50 (the fuel gauge). This means there is enough buying pressure to sustain the breakout. Below 50 means weak fuel — the breakout may fizzle out.',
-            },
+                explain: 'Money Flow Index must be above 50 (the fuel gauge). This means there is enough buying pressure to sustain the breakout. Below 50 means weak fuel — the breakout may fizzle out.', },
         ];
 
         const met = conds.filter(c=>c.ok).length;
@@ -1355,9 +1291,7 @@
                           : shortMet>=3 ? `⚠️ ${shortMet}/5 bearish conditions — watch for downside breakout.`
                           : `${shortMet}/5 bearish conditions — no short signal.`}
                     </div>
-                </div>`;
-        }
-    }
+                </div>`; } }
 
     // ═══════════ EXIT SIGNALS ═══════════
     function renderExitSignals(s) {
@@ -1378,8 +1312,7 @@
                         <p class="small text-secondary mb-0 mt-1">${e.desc}</p>
                     </div>
                 </div>`).join('') ||
-            `<p class="small text-secondary mb-0">Exit signal active. Close your position.</p>`;
-    }
+            `<p class="small text-secondary mb-0">Exit signal active. Close your position.</p>`; }
 
     // ═══════════ STRATEGY SUMMARY ═══════════
     function renderSummary(s) {
@@ -1387,8 +1320,7 @@
         if(!text) return;
         const el = document.getElementById('summaryCard');
         el.style.display = 'block';
-        document.getElementById('summaryText').innerHTML = text.replace(/\n/g, '<br>');
-    }
+        document.getElementById('summaryText').innerHTML = text.replace(/\n/g, '<br>'); }
 
     // ═══════════ ADDITIONAL STRATEGIES (Methods II, III, IV) ═══════════
     function renderStrategies(strategies, activeMethod) {
@@ -1404,16 +1336,14 @@
             const badge = card.querySelector('.badge');
             if(badge) badge.textContent = methodNames[activeMethod] || activeMethod;
             const desc = card.querySelector('.card-body > p.small');
-            if(desc) desc.innerHTML = '<i class="bi bi-info-circle"></i> Showing the strategy used during scan. <a href="' + window.location.pathname + '" class="text-info">View all methods →</a>';
-        }
+            if(desc) desc.innerHTML = '<i class="bi bi-info-circle"></i> Showing the strategy used during scan. <a href="' + window.location.pathname + '" class="text-info">View all methods →</a>'; }
 
         const icons = { M2: '📈', M3: '🔄', M4: '🚶' };
         const cssClass = { M2: 'strat-m2', M3: 'strat-m3', M4: 'strat-m4' };
         const methodIcons = {
             M2: 'bi-graph-up-arrow',
             M3: 'bi-arrow-repeat',
-            M4: 'bi-signpost-split',
-        };
+            M4: 'bi-signpost-split', };
 
         let html = '';
         strategies.forEach(st => {
@@ -1439,8 +1369,7 @@
 
             // ── Details ──
             if(sig.details) {
-                html += `<div class="strat-details">${sig.details.replace(/\n/g, '<br>')}</div>`;
-            }
+                html += `<div class="strat-details">${sig.details.replace(/\n/g, '<br>')}</div>`; }
 
             // ── Strategy Checklists (Buy & Sell) ──
             const ind = st.indicators || {};
@@ -1466,16 +1395,14 @@
                         html += `    <div class="small font-mono text-secondary">${c.detail}</div>`;
                         html += `    <div class="small mt-1" style="color:#8b949e;line-height:1.5;">${c.explain}</div>`;
                         html += `  </div>`;
-                        html += `</div>`;
-                    });
+                        html += `</div>`; });
                     html += `  <div class="text-center mt-2 py-2 rounded fw-bold small ${buyMet === buyTotal ? 'text-green' : 'text-yellow'}" `;
                     html += `       style="background:${buyMet === buyTotal ? 'rgba(63,185,80,0.1)' : 'rgba(210,153,34,0.1)'};">`;
                     html += buyMet === buyTotal ? `🚀 ALL ${buyTotal} BUY CONDITIONS MET!`
                           : buyMet >= Math.ceil(buyTotal * 0.6) ? `⏳ ${buyMet}/${buyTotal} conditions met — Getting close. Watch for remaining.`
                           : `❌ Only ${buyMet}/${buyTotal} conditions met — No buy signal.`;
                     html += `  </div>`;
-                    html += `</div>`;
-                }
+                    html += `</div>`; }
 
                 // Sell Checklist
                 if(ind.sell_checklist && ind.sell_checklist.length) {
@@ -1496,19 +1423,16 @@
                         html += `    <div class="small font-mono text-secondary">${c.detail}</div>`;
                         html += `    <div class="small mt-1" style="color:#8b949e;line-height:1.5;">${c.explain}</div>`;
                         html += `  </div>`;
-                        html += `</div>`;
-                    });
+                        html += `</div>`; });
                     html += `  <div class="text-center mt-2 py-2 rounded fw-bold small ${sellMet === sellTotal ? 'text-red' : 'text-yellow'}" `;
                     html += `       style="background:${sellMet === sellTotal ? 'rgba(248,81,73,0.1)' : 'rgba(210,153,34,0.1)'};">`;
                     html += sellMet === sellTotal ? `🔴 ALL ${sellTotal} SELL CONDITIONS MET — EXIT SIGNAL!`
                           : sellMet >= Math.ceil(sellTotal * 0.6) ? `⚠️ ${sellMet}/${sellTotal} sell conditions met — Watch closely.`
                           : `✅ Only ${sellMet}/${sellTotal} sell conditions — No sell signal.`;
                     html += `  </div>`;
-                    html += `</div>`;
-                }
+                    html += `</div>`; }
 
-                html += `</div>`;
-            }
+                html += `</div>`; }
 
             // ── Key indicators ──
             if(st.indicators && Object.keys(st.indicators).length) {
@@ -1516,16 +1440,13 @@
                 const ind = st.indicators;
                 if(ind.pct_b != null) {
                     const pbColor = ind.pct_b > 0.8 ? 'text-green' : ind.pct_b < 0.2 ? 'text-red' : 'text-yellow';
-                    html += `<span>%b: <strong class="${pbColor}">${ind.pct_b.toFixed(3)}</strong></span>`;
-                }
+                    html += `<span>%b: <strong class="${pbColor}">${ind.pct_b.toFixed(3)}</strong></span>`; }
                 if(ind.mfi != null) {
                     const mfiColor = ind.mfi > 60 ? 'text-green' : ind.mfi < 40 ? 'text-red' : 'text-yellow';
-                    html += `<span>MFI: <strong class="${mfiColor}">${ind.mfi.toFixed(1)}</strong></span>`;
-                }
+                    html += `<span>MFI: <strong class="${mfiColor}">${ind.mfi.toFixed(1)}</strong></span>`; }
                 if(ind.cmf != null) {
                     const cmfColor = ind.cmf > 0 ? 'text-green' : 'text-red';
-                    html += `<span>CMF: <strong class="${cmfColor}">${ind.cmf >= 0 ? '+' : ''}${ind.cmf.toFixed(4)}</strong></span>`;
-                }
+                    html += `<span>CMF: <strong class="${cmfColor}">${ind.cmf >= 0 ? '+' : ''}${ind.cmf.toFixed(4)}</strong></span>`; }
                 if(ind.pct_b_trend) html += `<span>%b trend: <strong>${ind.pct_b_trend}</strong></span>`;
                 if(ind.mfi_trend) html += `<span>MFI trend: <strong>${ind.mfi_trend}</strong></span>`;
                 if(ind.bullish_divergence) html += `<span class="text-green">✅ Bullish Divergence</span>`;
@@ -1546,8 +1467,7 @@
                 if(ind.upper_walk_active != null) html += `<span>Upper Walk: <strong class="${ind.upper_walk_active ? 'text-green' : 'text-secondary'}">${ind.upper_walk_active ? 'ACTIVE' : 'No'}</strong></span>`;
                 if(ind.lower_walk_active != null) html += `<span>Lower Walk: <strong class="${ind.lower_walk_active ? 'text-red' : 'text-secondary'}">${ind.lower_walk_active ? 'ACTIVE' : 'No'}</strong></span>`;
                 if(ind.sar_bull != null) html += `<span>SAR: <strong class="${ind.sar_bull ? 'text-green' : 'text-red'}">${ind.sar_bull ? '↑ Bullish' : '↓ Bearish'}</strong></span>`;
-                html += `</div>`;
-            }
+                html += `</div>`; }
 
             // ── Patterns ──
             if(st.patterns && st.patterns.length) {
@@ -1559,20 +1479,15 @@
                     html += `  <span class="strat-pattern-name ${pColor}"><i class="bi ${pIcon} me-1"></i>${p.name}</span>`;
                     html += `  <span class="small text-secondary ms-2">${p.start_date} → ${p.end_date}</span>`;
                     html += `  <div class="small mt-1" style="color:#8b949e;line-height:1.6;">${p.description}</div>`;
-                    html += `</div>`;
-                });
-            }
+                    html += `</div>`; }); }
 
             // ── Book reference ──
             if(st.book_reference) {
-                html += `<div class="strat-book-ref"><i class="bi bi-bookmark me-1"></i> ${st.book_reference}</div>`;
-            }
+                html += `<div class="strat-book-ref"><i class="bi bi-bookmark me-1"></i> ${st.book_reference}</div>`; }
 
-            html += `</div>`; // close strat-card
-        });
+            html += `</div>`; // close strat-card });
 
-        container.innerHTML = html;
-    }
+        container.innerHTML = html; }
 
     // ═══════════ CROSS-SYSTEM SCORES (TA + Triple + PA) ═══════════
     function renderCrossSystemScores() {
@@ -1611,10 +1526,8 @@
                 catHtml += `<div class="d-flex justify-content-between align-items-center mb-1" style="font-size:.78rem;">
                     <span style="text-transform:capitalize;">${name}</span>
                     <span class="font-mono" style="color:${cc}">${v.toFixed ? v.toFixed(1) : v}/${m}</span>
-                </div>`;
-            }
-            document.getElementById('taCategories').innerHTML = catHtml || '<span class="text-secondary">No category data</span>';
-        }
+                </div>`; }
+            document.getElementById('taCategories').innerHTML = catHtml || '<span class="text-secondary">No category data</span>'; }
 
         // ── Triple Verdict Card ──
         if (hyb && (hyb.triple_verdict || hyb.hybrid_verdict)) {
@@ -1639,8 +1552,7 @@
             const agree = cv.agreement_score != null ? cv.agreement_score : '—';
             document.getElementById('hybridDetails').innerHTML =
                 `<div style="font-size:.78rem;">BB: ${bbT}/100 &nbsp;|&nbsp; TA: ${taT}/100 &nbsp;|&nbsp; PA: ${paT}/100 &nbsp;|&nbsp; Agree: ${agree >= 0 ? '+' : ''}${agree}</div>
-                 <div style="font-size:.78rem;">Confidence: <strong>${conf}%</strong> &nbsp;|&nbsp; Direction: <strong>${cv.direction || '—'}</strong></div>`;
-        }
+                 <div style="font-size:.78rem;">Confidence: <strong>${conf}%</strong> &nbsp;|&nbsp; Direction: <strong>${cv.direction || '—'}</strong></div>`; }
 
         // ── PA Score Card ──
         if (pa && pa.success) {
@@ -1664,9 +1576,7 @@
 
             document.getElementById('paDetails').innerHTML =
                 `<div style="font-size:.78rem;">Setup: <strong>${paSetup || 'N/A'}</strong> &nbsp;|&nbsp; Confidence: <strong>${paConf}%</strong></div>
-                 <div style="font-size:.78rem;">Raw: ${paRaw >= 0 ? '+' : ''}${paRaw.toFixed(1)} &nbsp;|&nbsp; Top 5 Normalized: <strong>${blended.toFixed(0)}/100</strong></div>`;
-        }
-    }
+                 <div style="font-size:.78rem;">Raw: ${paRaw >= 0 ? '+' : ''}${paRaw.toFixed(1)} &nbsp;|&nbsp; Top 5 Normalized: <strong>${blended.toFixed(0)}/100</strong></div>`; } }
 
     // ═══════════ QUANTITATIVE TRADING STRATEGY RENDER ═══════════
     function renderQuantStrategy(q) {
@@ -1684,40 +1594,33 @@
                 'BULLISH':     ['#3fb950','▲ BULLISH'],
                 'BEARISH':     ['#f85149','▼ BEARISH'],
                 'STRONG_BULLISH': ['#3fb950','▲▲ STRONG BULLISH'],
-                'STRONG_BEARISH': ['#f85149','▼▼ STRONG BEARISH'],
-            };
+                'STRONG_BEARISH': ['#f85149','▼▼ STRONG BEARISH'], };
             const [c, t] = m[sig] || ['#8b949e', sig];
-            return `<span class="badge" style="background:${c}22;color:${c};font-size:.85rem;padding:.35em .7em;">${t}</span>`;
-        };
+            return `<span class="badge" style="background:${c}22;color:${c};font-size:.85rem;padding:.35em .7em;">${t}</span>`; };
 
         const regimeBadge = (r) => {
             const m = {
                 'TRENDING_UP':    ['#3fb950','↗ Trending Up'],
                 'TRENDING_DOWN':  ['#f85149','↘ Trending Down'],
                 'MEAN_REVERTING': ['#58a6ff','↔ Mean-Reverting'],
-                'VOLATILE_CHOPPY':['#d29922','⚡ Volatile / Choppy'],
-            };
+                'VOLATILE_CHOPPY':['#d29922','⚡ Volatile / Choppy'], };
             const [c, t] = m[r] || ['#8b949e', r];
-            return `<span class="badge" style="background:${c}22;color:${c};font-size:.82rem;padding:.35em .7em;">${t}</span>`;
-        };
+            return `<span class="badge" style="background:${c}22;color:${c};font-size:.82rem;padding:.35em .7em;">${t}</span>`; };
 
         const riskBadge = (r) => {
             const m = {'LOW':['#3fb950','Low Risk'],'MEDIUM':['#d29922','Medium Risk'],'HIGH':['#f85149','High Risk'],'VERY_HIGH':['#f85149','Very High Risk']};
             const [c,t] = m[r] || ['#8b949e', r];
-            return `<span class="badge" style="background:${c}22;color:${c}">${t}</span>`;
-        };
+            return `<span class="badge" style="background:${c}22;color:${c}">${t}</span>`; };
 
         const stratBadge = (s) => {
             const m = {'MEAN_REVERSION':['#58a6ff','Mean-Reversion'],'MOMENTUM':['#bc8cff','Momentum'],'WAIT':['#d29922','Wait'],'AVOID':['#f85149','Avoid']};
             const [c,t] = m[s] || ['#8b949e', s];
-            return `<span class="badge" style="background:${c}22;color:${c}">${t}</span>`;
-        };
+            return `<span class="badge" style="background:${c}22;color:${c}">${t}</span>`; };
 
         const volBadge = (v) => {
             const m = {'LOW':['#3fb950','Low'],'MEDIUM':['#d29922','Medium'],'HIGH':['#f85149','High'],'EXTREME':['#f85149','Extreme']};
             const [c,t] = m[v] || ['#8b949e', v];
-            return `<span class="badge" style="background:${c}22;color:${c}">${t}</span>`;
-        };
+            return `<span class="badge" style="background:${c}22;color:${c}">${t}</span>`; };
 
         const fmt = (v, d=2) => v != null ? Number(v).toFixed(d) : '—';
         /* NOTE: backend values are already in % form (e.g. 2.37 = 2.37%), so do NOT multiply ×100 */
@@ -1764,7 +1667,7 @@
             </div>`;
 
         const explainBox = (text) => text ? `
-            <div style="background:rgba(188,140,255,0.04);border-left:3px solid rgba(188,140,255,0.3);padding:.7rem .9rem;margin-top:.5rem;border-radius:4px;font-size:.82rem;line-height:1.6;color:#c9d1d9;">
+            <div style="background:rgba(188,140,255,0.04);border-left:3px solid rgba(188,140,255,0.3);padding:.7rem .9rem;margin-top:.5rem;border-radius:4px;font-size:.82rem;line-height:1.6;color:var(--bs-body-color);">
                 <i class="bi bi-lightbulb me-1" style="color:#d29922;"></i> ${nl2br(text)}
             </div>` : '';
 
@@ -1782,7 +1685,7 @@
                 <i class="bi bi-book" style="color:#58a6ff;font-size:1.1rem;"></i>
                 <strong style="color:#58a6ff;font-size:.95rem;">What is Quantitative Trading Strategy?</strong>
             </div>
-            <div style="font-size:.82rem;color:#c9d1d9;line-height:1.7;">
+            <div style="font-size:.82rem;color:var(--bs-body-color);line-height:1.7;">
                 <strong>Quantitative Trading</strong> (or "Quant Trading") is a method of making buy/sell decisions using
                 <em>mathematics, statistics, and data</em> — instead of gut feelings, tips, or emotions.
                 Think of it as replacing guesswork with a calculator.<br><br>
@@ -1840,15 +1743,14 @@
                         ${riskBadge(v.risk_level||'MEDIUM')}
                     </div>
                     <div style="font-size:.82rem;color:#8b949e;line-height:1.5;">
-                        <strong style="color:#c9d1d9;">Recommended Strategy:</strong> ${v.strategy||'—'} &nbsp;|&nbsp;
-                        <strong style="color:#c9d1d9;">Confidence:</strong> ${v.confidence||'—'}%
+                        <strong style="color:var(--bs-body-color);">Recommended Strategy:</strong> ${v.strategy||'—'} &nbsp;|&nbsp;
+                        <strong style="color:var(--bs-body-color);">Confidence:</strong> ${v.confidence||'—'}%
                     </div>`;
         if(v.factors && v.factors.length) {
             h += `<div class="mt-2" style="font-size:.8rem;color:#8b949e;">
-                <strong style="color:#c9d1d9;">Key Factors:</strong><ul class="mb-0 mt-1" style="padding-left:1.2rem;">`;
+                <strong style="color:var(--bs-body-color);">Key Factors:</strong><ul class="mb-0 mt-1" style="padding-left:1.2rem;">`;
             v.factors.forEach(f => { h += `<li>${f}</li>`; });
-            h += `</ul></div>`;
-        }
+            h += `</ul></div>`; }
         h += `${explainBox(v.explanation)}</div></div></div>`;
 
         h += eduBox(`
@@ -2186,8 +2088,7 @@
             Past performance does not guarantee future results. Markets can remain irrational longer than you can remain solvent.
         </div>`;
 
-        el.innerHTML = h;
-    }
+        el.innerHTML = h; }
 
     // ═══════════ PRICE CHART (Lightweight Charts) ═══════════
     let mainChart = null;
@@ -2204,8 +2105,7 @@
             grid: { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: '#30363d' },
-            timeScale: { borderColor: '#30363d', timeVisible: isIntraday },
-        });
+            timeScale: { borderColor: '#30363d', timeVisible: isIntraday }, });
         mainChart = chart;
 
         const slice = Math.max(0, c.dates.length - days);
@@ -2215,50 +2115,41 @@
         const candle = chart.addCandlestickSeries({
             upColor: '#3fb950', downColor: '#f85149',
             borderUpColor: '#3fb950', borderDownColor: '#f85149',
-            wickUpColor: '#3fb950', wickDownColor: '#f85149',
-        });
+            wickUpColor: '#3fb950', wickDownColor: '#f85149', });
         candle.setData(dates.map((d,i) => ({
             time: d,
             open: c.open[slice+i], high: c.high[slice+i],
-            low: c.low[slice+i], close: c.close[slice+i]
-        })));
+            low: c.low[slice+i], close: c.close[slice+i] })));
 
         // BB overlays (if available)
         if (c.bb_upper) {
             const bbUp = chart.addLineSeries({ color: 'rgba(88,166,255,0.5)', lineWidth: 1 });
-            bbUp.setData(dates.map((d,i)=>({time:d, value:c.bb_upper[slice+i]})).filter(p=>p.value!=null));
-        }
+            bbUp.setData(dates.map((d,i)=>({time:d, value:c.bb_upper[slice+i]})).filter(p=>p.value!=null)); }
         if (c.bb_mid) {
             const bbMid = chart.addLineSeries({ color: 'rgba(139,148,158,0.4)', lineWidth: 1, lineStyle: 2 });
-            bbMid.setData(dates.map((d,i)=>({time:d, value:c.bb_mid[slice+i]})).filter(p=>p.value!=null));
-        }
+            bbMid.setData(dates.map((d,i)=>({time:d, value:c.bb_mid[slice+i]})).filter(p=>p.value!=null)); }
         if (c.bb_lower) {
             const bbLow = chart.addLineSeries({ color: 'rgba(88,166,255,0.5)', lineWidth: 1 });
-            bbLow.setData(dates.map((d,i)=>({time:d, value:c.bb_lower[slice+i]})).filter(p=>p.value!=null));
-        }
+            bbLow.setData(dates.map((d,i)=>({time:d, value:c.bb_lower[slice+i]})).filter(p=>p.value!=null)); }
 
         // SAR dots (if available)
         if (c.sar) {
             const sarUp = chart.addLineSeries({
                 color: '#3fb950', lineWidth: 0,
                 lastValueVisible: false, priceLineVisible: false,
-                pointMarkersVisible: true, pointMarkersRadius: 2,
-            });
+                pointMarkersVisible: true, pointMarkersRadius: 2, });
             const sarDown = chart.addLineSeries({
                 color: '#f85149', lineWidth: 0,
                 lastValueVisible: false, priceLineVisible: false,
-                pointMarkersVisible: true, pointMarkersRadius: 2,
-            });
+                pointMarkersVisible: true, pointMarkersRadius: 2, });
             const sarUpData = [], sarDownData = [];
             dates.forEach((d,i) => {
                 const idx = slice+i;
                 if(c.sar[idx]==null) return;
                 if(c.sar_bull[idx]) sarUpData.push({time:d, value:c.sar[idx]});
-                else sarDownData.push({time:d, value:c.sar[idx]});
-            });
+                else sarDownData.push({time:d, value:c.sar[idx]}); });
             if(sarUpData.length) sarUp.setData(sarUpData);
-            if(sarDownData.length) sarDown.setData(sarDownData);
-        }
+            if(sarDownData.length) sarDown.setData(sarDownData); }
 
         chart.timeScale().fitContent();
 
@@ -2267,10 +2158,7 @@
             btn.onclick = () => {
                 document.querySelectorAll('#chartRange button').forEach(b=>b.classList.remove('active'));
                 btn.classList.add('active');
-                renderPriceChart(c, parseInt(btn.dataset.days));
-            };
-        });
-    }
+                renderPriceChart(c, parseInt(btn.dataset.days)); }; }); }
 
     // ── Interval switching ──
     function updateRangeButtons(interval) {
@@ -2279,19 +2167,15 @@
             rangeDiv.innerHTML = `
                 <button class="btn btn-outline-secondary" data-days="50">1D</button>
                 <button class="btn btn-outline-secondary" data-days="150">3D</button>
-                <button class="btn btn-outline-secondary active" data-days="99999">5D</button>`;
-        } else if (interval === 'weekly') {
+                <button class="btn btn-outline-secondary active" data-days="99999">5D</button>`; } else if (interval === 'weekly') {
             rangeDiv.innerHTML = `
                 <button class="btn btn-outline-secondary" data-days="26">6M</button>
                 <button class="btn btn-outline-secondary active" data-days="52">1Y</button>
-                <button class="btn btn-outline-secondary" data-days="104">2Y</button>`;
-        } else {
+                <button class="btn btn-outline-secondary" data-days="104">2Y</button>`; } else {
             rangeDiv.innerHTML = `
                 <button class="btn btn-outline-secondary active" data-days="60">3M</button>
                 <button class="btn btn-outline-secondary" data-days="126">6M</button>
-                <button class="btn btn-outline-secondary" data-days="250">1Y</button>`;
-        }
-    }
+                <button class="btn btn-outline-secondary" data-days="250">1Y</button>`; } }
 
     async function switchChartInterval(interval) {
         currentInterval = interval;
@@ -2302,8 +2186,7 @@
 
         if (interval === 'daily') {
             renderPriceChart(DATA.chart, 60);
-            return;
-        }
+            return; }
 
         // Show loading
         const container = document.getElementById('priceChart');
@@ -2314,21 +2197,15 @@
             const data = await resp.json();
             if (data.error) {
                 container.innerHTML = `<div class="text-center text-red py-5"><i class="bi bi-exclamation-triangle me-1"></i> ${data.error}</div>`;
-                return;
-            }
+                return; }
             const defaultDays = interval === 'weekly' ? 52 : data.dates.length;
-            renderPriceChart(data, defaultDays);
-        } catch(e) {
-            container.innerHTML = `<div class="text-center text-red py-5"><i class="bi bi-exclamation-triangle me-1"></i> Failed to load ${interval} data</div>`;
-        }
-    }
+            renderPriceChart(data, defaultDays); } catch(e) {
+            container.innerHTML = `<div class="text-center text-red py-5"><i class="bi bi-exclamation-triangle me-1"></i> Failed to load ${interval} data</div>`; } }
 
     // Wire up interval buttons
     document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#chartInterval button').forEach(btn => {
-            btn.addEventListener('click', () => switchChartInterval(btn.dataset.interval));
-        });
-    });
+            btn.addEventListener('click', () => switchChartInterval(btn.dataset.interval)); }); });
 
     // ═══════════ VOLUME CHART (standalone) ═══════════
     let volChartInstance = null;
@@ -2350,8 +2227,7 @@
                             i===0 ? 'rgba(88,166,255,0.4)' :
                             cl >= c.close[sl+i-1] ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)'),
                         yAxisID: 'y',
-                        order: 2,
-                    },
+                        order: 2, },
                     {
                         label: 'SMA-50',
                         data: c.vol_sma.slice(sl),
@@ -2360,21 +2236,15 @@
                         borderWidth: 1.5,
                         pointRadius: 0,
                         yAxisID: 'y',
-                        order: 1,
-                    }
-                ]
-            },
+                        order: 1, }
+                ] },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 } } } },
                 scales: {
                     x: { display: false },
-                    y: { position: 'left', grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 9 } } },
-                }
-            }
-        });
-    }
+                    y: { position: 'left', grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 9 } } }, } } }); }
 
     // ═══════════ CMF CHART (standalone — Zerodha style) ═══════════
     let cmfChartInstance = null;
@@ -2398,26 +2268,18 @@
                     segment: {
                         borderColor: ctx2 => {
                             const v = ctx2.p1.parsed.y;
-                            return v >= 0 ? '#3fb950' : '#f85149';
-                        }
-                    }
-                }]
-            },
+                            return v >= 0 ? '#3fb950' : '#f85149'; } } }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: false },
-                    annotation: undefined,
-                },
+                    annotation: undefined, },
                 scales: {
                     x: { display: false },
                     y: {
                         grid: { color: '#21262d' },
-                        ticks: { color: '#58a6ff', font: { size: 9 } },
-                    },
-                }
-            },
+                        ticks: { color: '#58a6ff', font: { size: 9 } }, }, } },
             plugins: [{
                 id: 'cmfZeroLine',
                 afterDraw(chart) {
@@ -2430,12 +2292,7 @@
                         ctx.lineWidth = 1;
                         ctx.setLineDash([4,4]);
                         ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
-                        ctx.restore();
-                    }
-                }
-            }]
-        });
-    }
+                        ctx.restore(); } } }] }); }
 
     // ═══════════ %B CHART (Zerodha style) ═══════════
     let pctbChartInstance = null;
@@ -2454,9 +2311,7 @@
                     data: c.pctb.slice(sl),
                     borderColor: '#bc8cff',
                     borderWidth: 2, pointRadius: 0,
-                    fill: false,
-                }]
-            },
+                    fill: false, }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
@@ -2466,10 +2321,7 @@
                     y: {
                         grid: { color: '#21262d' },
                         ticks: { color: '#bc8cff', font: { size: 9 } },
-                        suggestedMin: -0.1, suggestedMax: 1.2,
-                    },
-                }
-            },
+                        suggestedMin: -0.1, suggestedMax: 1.2, }, } },
             plugins: [{
                 id: 'pctbRefLines',
                 afterDraw(chart) {
@@ -2491,14 +2343,8 @@
                             ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
                             ctx.fillStyle = l.color;
                             ctx.font = '9px JetBrains Mono, monospace';
-                            ctx.fillText(l.label, chart.chartArea.right + 4, y + 3);
-                        }
-                    });
-                    ctx.restore();
-                }
-            }]
-        });
-    }
+                            ctx.fillText(l.label, chart.chartArea.right + 4, y + 3); } });
+                    ctx.restore(); } }] }); }
 
     // ═══════════ MFI CHART (Zerodha style) ═══════════
     let mfiChartInstance = null;
@@ -2517,9 +2363,7 @@
                     data: c.mfi.slice(sl),
                     borderColor: '#f0883e',
                     borderWidth: 2, pointRadius: 0,
-                    fill: false,
-                }]
-            },
+                    fill: false, }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
@@ -2529,10 +2373,7 @@
                     y: {
                         grid: { color: '#21262d' },
                         ticks: { color: '#f0883e', font: { size: 9 } },
-                        min: 0, max: 100,
-                    },
-                }
-            },
+                        min: 0, max: 100, }, } },
             plugins: [{
                 id: 'mfiRefLines',
                 afterDraw(chart) {
@@ -2553,14 +2394,8 @@
                             ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
                             ctx.fillStyle = l.color;
                             ctx.font = '9px JetBrains Mono, monospace';
-                            ctx.fillText(l.label, chart.chartArea.right + 4, y + 3);
-                        }
-                    });
-                    ctx.restore();
-                }
-            }]
-        });
-    }
+                            ctx.fillText(l.label, chart.chartArea.right + 4, y + 3); } });
+                    ctx.restore(); } }] }); }
 
     // ═══════════ BBW CHART (Zerodha style) ═══════════
     let bbwChartInstance = null;
@@ -2580,9 +2415,7 @@
                     borderColor: '#bc8cff',
                     backgroundColor: 'rgba(188,140,255,0.08)',
                     fill: true,
-                    borderWidth: 2, pointRadius: 0,
-                }]
-            },
+                    borderWidth: 2, pointRadius: 0, }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
@@ -2591,10 +2424,7 @@
                     x: { display: false },
                     y: {
                         grid: { color: '#21262d' },
-                        ticks: { color: '#bc8cff', font: { size: 9 } },
-                    },
-                }
-            },
+                        ticks: { color: '#bc8cff', font: { size: 9 } }, }, } },
             plugins: [{
                 id: 'bbwSqueezeLine',
                 afterDraw(chart) {
@@ -2610,12 +2440,7 @@
                         ctx.fillStyle = 'rgba(248,81,73,0.7)';
                         ctx.font = '9px JetBrains Mono, monospace';
                         ctx.fillText('0.08 squeeze', chart.chartArea.right + 4, y + 3);
-                        ctx.restore();
-                    }
-                }
-            }]
-        });
-    }
+                        ctx.restore(); } } }] }); }
 
     // ═══════════ INDICATOR TABLE ═══════════
     function renderIndicatorTable(s) {
@@ -2699,8 +2524,7 @@
             else if(iiPct < -0.01) { iiSig = 'Mild intraday selling (mild distribution)'; iiCol = 'text-red'; }
             else { iiSig = '≈ Neutral — intraday closes balanced (no clear accumulation/distribution)'; iiCol = 'text-muted'; }
             rows.push(['D','II% (Intraday Intensity)', (iiPct>=0?'+':'')+iiPct.toFixed(4), 'Book Ch.18 Table 18.3', iiSig, iiCol,
-                'Intraday Intensity normalised over 21 days. Positive = closes near highs (net buying within the bar = intraday accumulation). Used in systematised Method III buy rule (%b < 0.05 AND II% > 0).']);
-        }
+                'Intraday Intensity normalised over 21 days. Positive = closes near highs (net buying within the bar = intraday accumulation). Used in systematised Method III buy rule (%b < 0.05 AND II% > 0).']); }
         if(adPct != null) {
             let adSig, adCol;
             if(adPct > 0.05) { adSig = 'Strong — open-to-close volume favors buyers (volume-flow accumulation)'; adCol = 'text-green'; }
@@ -2709,15 +2533,13 @@
             else if(adPct < -0.01) { adSig = 'Mildly negative — slight seller edge (mild distribution)'; adCol = 'text-red'; }
             else { adSig = '≈ Neutral — buying/selling roughly balanced (no clear accumulation/distribution)'; adCol = 'text-muted'; }
             rows.push(['D','AD% (Accum/Dist)', (adPct>=0?'+':'')+adPct.toFixed(4), 'Book Ch.18 Table 18.3', adSig, adCol,
-                'Accumulation/Distribution oscillator (21-day). Positive = open-to-close volume favors buyers (volume-flow accumulation). Used in systematised Method III sell rule (%b > 0.95 AND AD% < 0). NOTE: this is a volume oscillator (Bollinger Ch.18), not the same as a Wyckoff structural phase — see the Wyckoff section for that.']);
-        }
+                'Accumulation/Distribution oscillator (21-day). Positive = open-to-close volume favors buyers (volume-flow accumulation). Used in systematised Method III sell rule (%b > 0.95 AND AD% < 0). NOTE: this is a volume oscillator (Bollinger Ch.18), not the same as a Wyckoff structural phase — see the Wyckoff section for that.']); }
         if(vwHist != null) {
             let vwSig, vwCol;
             if(vwHist > 0) { vwSig = 'VWMACD bullish — volume-weighted momentum up'; vwCol = 'text-green'; }
             else { vwSig = 'VWMACD bearish — volume-weighted momentum down'; vwCol = 'text-red'; }
             rows.push(['D','VWMACD Histogram', (vwHist>=0?'+':'')+vwHist.toFixed(4), 'Book Ch.18', vwSig, vwCol,
-                'Volume-Weighted MACD (12/26/9). Weights price by volume — gives truer momentum signal than standard MACD. Positive = bullish volume-momentum.']);
-        }
+                'Volume-Weighted MACD (12/26/9). Weights price by volume — gives truer momentum signal than standard MACD. Positive = bullish volume-momentum.']); }
 
         // Normalised indicators (Book Ch.21)
         if(s.rsi_norm != null) {
@@ -2726,16 +2548,14 @@
             else if(s.rsi_norm < 0.2) { rnSig = 'RSI oversold (adaptive)'; rnCol = 'text-green'; }
             else { rnSig = 'RSI neutral (adaptive)'; rnCol = 'text-yellow'; }
             rows.push(['E','RSI %b (Normalised)', v(s.rsi_norm,3), 'Adaptive OB/OS via BB on RSI', rnSig, rnCol,
-                'Book Ch.21: Bollinger Bands applied to RSI create adaptive overbought/oversold levels. Above 0.8 = overbought in current regime. Below 0.2 = oversold.']);
-        }
+                'Book Ch.21: Bollinger Bands applied to RSI create adaptive overbought/oversold levels. Above 0.8 = overbought in current regime. Below 0.2 = oversold.']); }
         if(s.mfi_norm != null) {
             let mnSig, mnCol;
             if(s.mfi_norm > 0.8) { mnSig = 'MFI overbought (adaptive)'; mnCol = 'text-red'; }
             else if(s.mfi_norm < 0.2) { mnSig = 'MFI oversold (adaptive)'; mnCol = 'text-green'; }
             else { mnSig = 'MFI neutral (adaptive)'; mnCol = 'text-yellow'; }
             rows.push(['E','MFI %b (Normalised)', v(s.mfi_norm,3), 'Adaptive OB/OS via BB on MFI', mnSig, mnCol,
-                'Book Ch.21: Bollinger Bands on MFI. Adapts to volatility regime rather than using fixed 20/80 levels. More reliable OB/OS in trending markets.']);
-        }
+                'Book Ch.21: Bollinger Bands on MFI. Adapts to volatility regime rather than using fixed 20/80 levels. More reliable OB/OS in trending markets.']); }
 
         // Expansion (Book Ch.15)
         if(s.expansion_up || s.expansion_down || s.expansion_end) {
@@ -2744,12 +2564,10 @@
             else if(s.expansion_up) { expSig = 'Uptrend Expansion — lower band falling'; expCol = 'text-green'; }
             else { expSig = 'Downtrend Expansion — upper band rising'; expCol = 'text-red'; }
             rows.push(['E','Band Expansion', s.expansion_end ? 'ENDING' : 'ACTIVE', 'Book Ch.15', expSig, expCol,
-                'Book Ch.15: During a strong trend, the opposite band moves away (Expansion). When it reverses direction, the trend is ending. This is an early exit warning.']);
-        }
+                'Book Ch.15: During a strong trend, the opposite band moves away (Expansion). When it reverses direction, the trend is ending. This is an early exit warning.']); }
         tbody.innerHTML = rows.map(([g,name,val,details,signal,sigColor,explain]) => `
             <tr><td class="text-secondary">${g}</td><td>${name}</td><td class="font-mono">${val}</td><td class="small text-secondary font-mono">${details}</td><td class="${sigColor} small fw-500">${signal}</td></tr>
-            <tr><td colspan="5" class="ind-explain border-0 pt-0 pb-1 ps-5">${explain}</td></tr>`).join('');
-    }
+            <tr><td colspan="5" class="ind-explain border-0 pt-0 pb-1 ps-5">${explain}</td></tr>`).join(''); }
 
     // ═══════════ FUNDAMENTAL TAB BUILDERS ═══════════
     function makeRatioTable(rows) {
@@ -2757,15 +2575,13 @@
             ${rows.map(([name,val,bench,desc]) => `
                 <tr class="ratio-row"><td style="width:35%">${name}</td><td class="font-mono" style="width:25%">${val}</td><td class="text-secondary small">${bench}</td></tr>
                 ${desc?`<tr><td colspan="3" class="ratio-desc border-0 pt-0">${desc}</td></tr>`:''}`).join('')}
-        </tbody></table></div>`;
-    }
+        </tbody></table></div>`; }
 
     function scoreBar(score, label) {
         if(score==null) return '';
         const color = score>=65?'var(--g)':score>=40?'var(--y)':'var(--r)';
         return `<div class="mb-2"><div class="d-flex justify-content-between small mb-1"><span>${label}</span><span class="fw-bold" style="color:${color}">${score}/100</span></div>
-            <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${color}"></div></div></div>`;
-    }
+            <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${color}"></div></div></div>`; }
 
     function analysisToHtml(text) {
         if(!text) return '';
@@ -2817,13 +2633,10 @@
                     .replace(/Significantly Above Intrinsic Value/g,'<span class="text-red fw-bold">Significantly Above Intrinsic Value</span>')
                     .replace(/DECLINED/g,'<span class="text-red fw-bold">DECLINED</span>')
                     .replace(/destroying/g,'<span class="text-red fw-bold">destroying</span>');
-                return `<li>${h}</li>`;
-            }).join('') + '</ul></div>';
-    }
+                return `<li>${h}</li>`; }).join('') + '</ul></div>'; }
 
     function sectionIntro(title, desc) {
-        return `<div class="mb-2"><small class="text-secondary"><i class="bi bi-info-circle"></i> ${desc}</small></div>`;
-    }
+        return `<div class="mb-2"><small class="text-secondary"><i class="bi bi-info-circle"></i> ${desc}</small></div>`; }
 
     function keyTakeaway(icon, color, text) {
         const bg = color === 'green' ? 'rgba(63,185,80,0.08)' : color === 'red' ? 'rgba(248,81,73,0.08)' : 'rgba(210,153,34,0.08)';
@@ -2832,23 +2645,19 @@
         return `<div class="mb-3 p-3 rounded-3" style="background:${bg};border:1px solid ${border}">
             <div class="d-flex align-items-start gap-2">
                 <span style="font-size:1.3rem">${icon}</span>
-                <div><span class="fw-bold" style="color:${tc}">Key Takeaway:</span> <span style="color:#c9d1d9">${text}</span></div>
-            </div></div>`;
-    }
+                <div><span class="fw-bold" style="color:${tc}">Key Takeaway:</span> <span style="color:var(--bs-body-color)">${text}</span></div>
+            </div></div>`; }
 
     function renderValuationTab(f) {
         // Determine takeaway
         let takeawayIcon, takeawayColor, takeawayText;
         if(f.valuation_score >= 65) {
             takeawayIcon='💰'; takeawayColor='green';
-            takeawayText=`This stock appears <strong>UNDERVALUED</strong> (score ${f.valuation_score}/100). Multiple metrics suggest you're getting it below fair value. ${f.price_to_intrinsic!=null&&f.price_to_intrinsic<1 ? `Trading at ₹${v(f.current_price)} vs Graham intrinsic value ₹${v(f.graham_number)} — ${((1-f.price_to_intrinsic)*100).toFixed(0)}% discount.` : f.pe_ratio!=null&&f.pe_ratio>0&&f.pe_ratio<18 ? `P/E of ${v(f.pe_ratio)}x means you pay just ₹${v(f.pe_ratio)} for every ₹1 of profit.` : 'Good value at current levels.'}`;
-        } else if(f.valuation_score >= 40) {
+            takeawayText=`This stock appears <strong>UNDERVALUED</strong> (score ${f.valuation_score}/100). Multiple metrics suggest you're getting it below fair value. ${f.price_to_intrinsic!=null&&f.price_to_intrinsic<1 ? `Trading at ₹${v(f.current_price)} vs Graham intrinsic value ₹${v(f.graham_number)} — ${((1-f.price_to_intrinsic)*100).toFixed(0)}% discount.` : f.pe_ratio!=null&&f.pe_ratio>0&&f.pe_ratio<18 ? `P/E of ${v(f.pe_ratio)}x means you pay just ₹${v(f.pe_ratio)} for every ₹1 of profit.` : 'Good value at current levels.'}`; } else if(f.valuation_score >= 40) {
             takeawayIcon='⚖️'; takeawayColor='yellow';
-            takeawayText=`Stock is <strong>FAIRLY VALUED</strong> (score ${f.valuation_score}/100). Not expensive, not cheap. ${f.pe_ratio!=null&&f.pe_ratio>0 ? `P/E is ${v(f.pe_ratio)}x — you pay ₹${v(f.pe_ratio)} for every ₹1 of annual profit.` : ''} Best to buy on dips or during market corrections.`;
-        } else {
+            takeawayText=`Stock is <strong>FAIRLY VALUED</strong> (score ${f.valuation_score}/100). Not expensive, not cheap. ${f.pe_ratio!=null&&f.pe_ratio>0 ? `P/E is ${v(f.pe_ratio)}x — you pay ₹${v(f.pe_ratio)} for every ₹1 of annual profit.` : ''} Best to buy on dips or during market corrections.`; } else {
             takeawayIcon='🔴'; takeawayColor='red';
-            takeawayText=`Stock looks <strong>EXPENSIVE</strong> (score ${f.valuation_score}/100). ${f.pe_ratio!=null&&f.pe_ratio>0 ? `P/E of ${v(f.pe_ratio)}x is high — you're paying ₹${v(f.pe_ratio)} for every ₹1 of profit.` : ''} ${f.price_to_intrinsic!=null&&f.price_to_intrinsic>2 ? `Trading at ${v(f.price_to_intrinsic,1)}x above Graham Number — heavy premium.` : ''} Wait for a correction or strong growth catalyst.`;
-        }
+            takeawayText=`Stock looks <strong>EXPENSIVE</strong> (score ${f.valuation_score}/100). ${f.pe_ratio!=null&&f.pe_ratio>0 ? `P/E of ${v(f.pe_ratio)}x is high — you're paying ₹${v(f.pe_ratio)} for every ₹1 of profit.` : ''} ${f.price_to_intrinsic!=null&&f.price_to_intrinsic>2 ? `Trading at ${v(f.price_to_intrinsic,1)}x above Graham Number — heavy premium.` : ''} Wait for a correction or strong growth catalyst.`; }
 
         document.getElementById('tabValuation').innerHTML =
             scoreBar(f.valuation_score, 'Valuation Score') +
@@ -2866,21 +2675,17 @@
                 ['Price / Graham', vt(f.price_to_intrinsic,1,false,3), '< 1 = undervalued', 'Current price ÷ Graham Number. Below 1.0 = stock trades below its calculated intrinsic value = potentially cheap.'],
                 ['Earning Yield %', vt(f.earning_yield,4,true,2,'%'), '> 4% = good', 'Inverse of P/E (EPS ÷ Price × 100). Compare with bank FD rates — if earning yield > FD rate, stock may offer better value.'],
                 ['Price / FCF', vt(f.price_to_fcf,20,false), '< 20 = good', 'Price ÷ Free Cash Flow per share — how market values the company\'s actual cash generation ability.'],
-            ]);
-    }
+            ]); }
 
     function renderProfitabilityTab(f) {
         let takeawayIcon, takeawayColor, takeawayText;
         if(f.profitability_score >= 65) {
             takeawayIcon='🏆'; takeawayColor='green';
-            takeawayText=`This is a <strong>HIGHLY PROFITABLE</strong> company (score ${f.profitability_score}/100). ${f.roe!=null ? `ROE of ${v(f.roe)}% means every ₹100 invested generates ₹${v(f.roe,0)} in profit.` : ''} ${f.profit_margin!=null&&f.profit_margin>10 ? `Net margin of ${v(f.profit_margin)}% — retains ₹${v(f.profit_margin,0)} from every ₹100 of sales.` : ''} Strong pricing power and competitive moat.`;
-        } else if(f.profitability_score >= 40) {
+            takeawayText=`This is a <strong>HIGHLY PROFITABLE</strong> company (score ${f.profitability_score}/100). ${f.roe!=null ? `ROE of ${v(f.roe)}% means every ₹100 invested generates ₹${v(f.roe,0)} in profit.` : ''} ${f.profit_margin!=null&&f.profit_margin>10 ? `Net margin of ${v(f.profit_margin)}% — retains ₹${v(f.profit_margin,0)} from every ₹100 of sales.` : ''} Strong pricing power and competitive moat.`; } else if(f.profitability_score >= 40) {
             takeawayIcon='📊'; takeawayColor='yellow';
-            takeawayText=`<strong>MODERATELY PROFITABLE</strong> (score ${f.profitability_score}/100). Company makes money but faces competitive or cost pressures. ${f.roe!=null ? `ROE: ${v(f.roe)}%.` : ''} ${f.profit_margin!=null ? `Net margin: ${v(f.profit_margin)}%.` : ''} Room for improvement.`;
-        } else {
+            takeawayText=`<strong>MODERATELY PROFITABLE</strong> (score ${f.profitability_score}/100). Company makes money but faces competitive or cost pressures. ${f.roe!=null ? `ROE: ${v(f.roe)}%.` : ''} ${f.profit_margin!=null ? `Net margin: ${v(f.profit_margin)}%.` : ''} Room for improvement.`; } else {
             takeawayIcon='⚠️'; takeawayColor='red';
-            takeawayText=`<strong>WEAK PROFITABILITY</strong> (score ${f.profitability_score}/100). ${f.profit_margin!=null&&f.profit_margin<0 ? 'Company is LOSS-MAKING — spending more than it earns.' : 'Thin margins indicate low pricing power.'} ${f.roe!=null&&f.roe<5 ? `ROE of only ${v(f.roe)}% — poor return on shareholder capital.` : ''} Watch for margin improvement before investing.`;
-        }
+            takeawayText=`<strong>WEAK PROFITABILITY</strong> (score ${f.profitability_score}/100). ${f.profit_margin!=null&&f.profit_margin<0 ? 'Company is LOSS-MAKING — spending more than it earns.' : 'Thin margins indicate low pricing power.'} ${f.roe!=null&&f.roe<5 ? `ROE of only ${v(f.roe)}% — poor return on shareholder capital.` : ''} Watch for margin improvement before investing.`; }
 
         document.getElementById('tabProfitability').innerHTML =
             scoreBar(f.profitability_score, 'Profitability Score') +
@@ -2899,8 +2704,7 @@
                 ['EPS (TTM)', f.eps_ttm?`₹${v(f.eps_ttm)}`:'N/A', 'Higher = better', 'Earnings Per Share — trailing 12 months. How much profit each share earned. Growing EPS = growing business.'],
                 ['EPS (Forward)', f.eps_forward?`₹${v(f.eps_forward)}`:'N/A', 'Estimate', 'Analyst consensus for next year\'s EPS. If higher than TTM, analysts expect earnings growth.'],
                 ['EBITDA', f.ebitda_str||'N/A', 'Higher = better', 'Earnings Before Interest, Tax, Depreciation &amp; Amortisation — the "cash profit" before accounting adjustments.'],
-            ]);
-    }
+            ]); }
 
     function renderGrowthTab(f) {
         const gs = (pct) => pct==null?'—':pct>20?'<span class="text-green">▲ Strong</span>':pct>10?'<span class="text-green">▲ Good</span>':pct>0?'<span class="text-yellow">➡ Moderate</span>':'<span class="text-red">▼ Declining</span>';
@@ -2908,14 +2712,11 @@
         let takeawayIcon, takeawayColor, takeawayText;
         if(f.growth_score >= 65) {
             takeawayIcon='🚀'; takeawayColor='green';
-            takeawayText=`Company is in <strong>STRONG GROWTH</strong> mode (score ${f.growth_score}/100). ${f.revenue_growth!=null ? `Revenue growing ${v(f.revenue_growth)}% YoY.` : ''} ${f.earnings_growth!=null&&f.earnings_growth>0 ? `Earnings up ${v(f.earnings_growth)}% YoY.` : ''} Stock prices follow earnings growth over time — this is a good sign.`;
-        } else if(f.growth_score >= 40) {
+            takeawayText=`Company is in <strong>STRONG GROWTH</strong> mode (score ${f.growth_score}/100). ${f.revenue_growth!=null ? `Revenue growing ${v(f.revenue_growth)}% YoY.` : ''} ${f.earnings_growth!=null&&f.earnings_growth>0 ? `Earnings up ${v(f.earnings_growth)}% YoY.` : ''} Stock prices follow earnings growth over time — this is a good sign.`; } else if(f.growth_score >= 40) {
             takeawayIcon='📈'; takeawayColor='yellow';
-            takeawayText=`<strong>MODERATE GROWTH</strong> (score ${f.growth_score}/100). ${f.revenue_growth!=null ? `Revenue growth: ${v(f.revenue_growth)}%.` : ''} ${f.earnings_growth!=null ? `Earnings growth: ${v(f.earnings_growth)}%.` : ''} Steady but not spectacular — look for catalysts.`;
-        } else {
+            takeawayText=`<strong>MODERATE GROWTH</strong> (score ${f.growth_score}/100). ${f.revenue_growth!=null ? `Revenue growth: ${v(f.revenue_growth)}%.` : ''} ${f.earnings_growth!=null ? `Earnings growth: ${v(f.earnings_growth)}%.` : ''} Steady but not spectacular — look for catalysts.`; } else {
             takeawayIcon='📉'; takeawayColor='red';
-            takeawayText=`<strong>SLOW/DECLINING GROWTH</strong> (score ${f.growth_score}/100). ${f.revenue_growth!=null&&f.revenue_growth<0 ? `Revenue SHRINKING ${v(Math.abs(f.revenue_growth))}%.` : ''} ${f.earnings_growth!=null&&f.earnings_growth<0 ? `Earnings FALLING ${v(Math.abs(f.earnings_growth))}%.` : ''} Declining businesses can be value traps — cheap for a reason.`;
-        }
+            takeawayText=`<strong>SLOW/DECLINING GROWTH</strong> (score ${f.growth_score}/100). ${f.revenue_growth!=null&&f.revenue_growth<0 ? `Revenue SHRINKING ${v(Math.abs(f.revenue_growth))}%.` : ''} ${f.earnings_growth!=null&&f.earnings_growth<0 ? `Earnings FALLING ${v(Math.abs(f.earnings_growth))}%.` : ''} Declining businesses can be value traps — cheap for a reason.`; }
 
         document.getElementById('tabGrowth').innerHTML =
             scoreBar(f.growth_score, 'Growth Score') +
@@ -2931,21 +2732,17 @@
                 <tr><td>EPS (TTM)</td><td class="font-mono">${f.eps_ttm?`₹${v(f.eps_ttm)}`:'N/A'}</td><td class="text-secondary">${f.eps_ttm&&f.eps_forward?((f.eps_forward>f.eps_ttm?'<span class="text-green">↑':'<span class="text-red">↓')+` Est: ₹${v(f.eps_forward)}</span>`):'—'}</td><td>${f.eps_forward&&f.eps_ttm?(f.eps_forward>f.eps_ttm?'<span class="text-green">▲ Growth</span>':'<span class="text-red">▼ Decline</span>'):'—'}</td><td class="small text-secondary">Profit per share. Growing EPS = more wealth per share you own.</td></tr>
                 <tr><td>Free Cash Flow</td><td class="font-mono">${f.fcf_str}</td><td class="text-secondary">—</td><td>${f.free_cash_flow>0?'<span class="text-green">▲ Positive</span>':'<span class="text-red">▼ Negative</span>'}</td><td class="small text-secondary">Cash left after all expenses & investments. Positive FCF = healthy.</td></tr>
                 <tr><td>Total Assets</td><td class="font-mono">${f.total_assets_str}</td><td class="text-secondary">—</td><td>—</td><td class="small text-secondary">Everything the company owns. Growing assets = expanding scale.</td></tr>
-            </tbody></table></div>`;
-    }
+            </tbody></table></div>`; }
 
     function renderStabilityTab(f) {
         let takeawayIcon, takeawayColor, takeawayText;
         if(f.stability_score >= 65) {
             takeawayIcon='🏰'; takeawayColor='green';
-            takeawayText=`Financially <strong>ROCK-SOLID</strong> (score ${f.stability_score}/100). ${f.debt_to_equity!=null&&f.debt_to_equity<0.5 ? `Very low debt (D/E: ${v(f.debt_to_equity)}).` : ''} ${f.altman_z_score!=null&&f.altman_z_score>2.6 ? `Altman Z-Score ${v(f.altman_z_score)} = safe zone.` : ''} This company can weather economic storms. Low risk of financial distress.`;
-        } else if(f.stability_score >= 40) {
+            takeawayText=`Financially <strong>ROCK-SOLID</strong> (score ${f.stability_score}/100). ${f.debt_to_equity!=null&&f.debt_to_equity<0.5 ? `Very low debt (D/E: ${v(f.debt_to_equity)}).` : ''} ${f.altman_z_score!=null&&f.altman_z_score>2.6 ? `Altman Z-Score ${v(f.altman_z_score)} = safe zone.` : ''} This company can weather economic storms. Low risk of financial distress.`; } else if(f.stability_score >= 40) {
             takeawayIcon='⚠️'; takeawayColor='yellow';
-            takeawayText=`<strong>MODERATE STABILITY</strong> (score ${f.stability_score}/100). ${f.debt_to_equity!=null ? `D/E: ${v(f.debt_to_equity)}.` : ''} ${f.altman_z_score!=null ? `Z-Score: ${v(f.altman_z_score)}.` : ''} Some debt or liquidity concerns but not critical. Monitor quarterly.`;
-        } else {
+            takeawayText=`<strong>MODERATE STABILITY</strong> (score ${f.stability_score}/100). ${f.debt_to_equity!=null ? `D/E: ${v(f.debt_to_equity)}.` : ''} ${f.altman_z_score!=null ? `Z-Score: ${v(f.altman_z_score)}.` : ''} Some debt or liquidity concerns but not critical. Monitor quarterly.`; } else {
             takeawayIcon='🚨'; takeawayColor='red';
-            takeawayText=`<strong>FINANCIAL STRESS</strong> detected (score ${f.stability_score}/100). ${f.debt_to_equity!=null&&f.debt_to_equity>1.5 ? `High debt (D/E: ${v(f.debt_to_equity)}).` : ''} ${f.altman_z_score!=null&&f.altman_z_score<1.8 ? `Altman Z-Score ${v(f.altman_z_score)} — distress warning.` : ''} Company could face trouble if business slows or rates rise. Approach with extreme caution.`;
-        }
+            takeawayText=`<strong>FINANCIAL STRESS</strong> detected (score ${f.stability_score}/100). ${f.debt_to_equity!=null&&f.debt_to_equity>1.5 ? `High debt (D/E: ${v(f.debt_to_equity)}).` : ''} ${f.altman_z_score!=null&&f.altman_z_score<1.8 ? `Altman Z-Score ${v(f.altman_z_score)} — distress warning.` : ''} Company could face trouble if business slows or rates rise. Approach with extreme caution.`; }
 
         document.getElementById('tabStability').innerHTML =
             scoreBar(f.stability_score, 'Stability Score') +
@@ -2965,8 +2762,7 @@
                 ['Shareholders Equity', f.equity_str, 'Higher = better', 'Net worth of the company (Assets − Liabilities). This is what belongs to shareholders. Growing equity = wealth creation.'],
                 ['Total Cash', f.total_cash_str, 'Higher = better', 'Cash and short-term investments on hand. War chest for tough times or growth opportunities.'],
                 ['Payout Ratio %', vt(f.payout_ratio,60,false,2,'%'), '< 60% = ok', 'Dividends ÷ Net Profit — what % of earnings is paid out as dividends. Below 60% = enough reinvested for growth.'],
-            ]);
-    }
+            ]); }
 
     function renderQuarterlyTab(f) {
         const qrs = f.quarterly_results||[];
@@ -2978,26 +2774,23 @@
         const pctChg = (c,p) => {
             if(c==null||p==null||p===0) return '<span class="text-secondary">—</span>';
             const pct=(c-p)/Math.abs(p)*100;
-            return `<span class="${pct>=0?'text-green':'text-red'}">${pct>=0?'+':''}${pct.toFixed(1)}%</span>`;
-        };
+            return `<span class="${pct>=0?'text-green':'text-red'}">${pct>=0?'+':''}${pct.toFixed(1)}%</span>`; };
         const fmtCr = v => {
             if(v==null) return '<span class="text-secondary">—</span>';
             let cr=v/1e7; let neg=cr<0; cr=Math.abs(cr);
             let s; if(cr>=100000) s=(cr/100000).toFixed(2)+'L Cr'; else if(cr>=1000) s=(cr/1000).toFixed(1)+'K Cr'; else s=cr.toFixed(1)+' Cr';
-            return (neg?'-':'')+'₹'+s;
-        };
+            return (neg?'-':'')+'₹'+s; };
         const marginBadge = (v, label) => {
             if(v==null) return '';
             const col = v >= 20 ? '#3fb950' : v >= 10 ? '#d29922' : '#f85149';
-            return `<span class="badge me-2" style="background:${col}22;color:${col};border:1px solid ${col}44">${label}: ${v.toFixed(1)}%</span>`;
-        };
+            return `<span class="badge me-2" style="background:${col}22;color:${col};border:1px solid ${col}44">${label}: ${v.toFixed(1)}%</span>`; };
 
         let html = '';
 
         // ── What are Quarterly Results? (Layman intro)
         html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.12);">
             <h6 class="mb-2" style="color:#58a6ff"><i class="bi bi-info-circle-fill me-1"></i> What are Quarterly Results?</h6>
-            <p class="small mb-1" style="color:#c9d1d9">Companies report their financial performance <strong>every 3 months</strong> (called a "quarter"). This is like a report card showing how much money the company earned and spent. In India, the fiscal year runs <strong>April to March</strong>, split into 4 quarters:</p>
+            <p class="small mb-1" style="color:var(--bs-body-color)">Companies report their financial performance <strong>every 3 months</strong> (called a "quarter"). This is like a report card showing how much money the company earned and spent. In India, the fiscal year runs <strong>April to March</strong>, split into 4 quarters:</p>
             <div class="d-flex flex-wrap gap-2 small mt-2">
                 <span class="badge bg-dark border border-secondary px-2 py-1"><strong>Q1</strong> Apr–Jun</span>
                 <span class="badge bg-dark border border-secondary px-2 py-1"><strong>Q2</strong> Jul–Sep</span>
@@ -3014,22 +2807,22 @@
                 <div>${marginBadge(latest.gross_margin,'Gross')}${marginBadge(latest.operating_margin,'Operating')}${marginBadge(latest.net_margin,'Net')}</div>
             </div>
             <div class="row g-2">
-                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:#0d1117">
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Revenue</small>
                     <strong class="font-mono">${latest.revenue_str||'N/A'}</strong>
                     <small class="d-block text-secondary">Total money earned from sales</small>
                 </div></div>
-                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:#0d1117">
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Net Profit</small>
                     <strong class="font-mono" style="color:${latest.net_income!=null&&latest.net_income>=0?'#3fb950':'#f85149'}">${latest.net_income_str||'N/A'}</strong>
                     <small class="d-block text-secondary">Actual profit after all costs & taxes</small>
                 </div></div>
-                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:#0d1117">
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">EPS</small>
                     <strong class="font-mono" style="color:${latest.eps!=null&&latest.eps>=0?'#3fb950':'#f85149'}">${latest.eps!=null?'₹'+latest.eps.toFixed(2):'N/A'}</strong>
                     <small class="d-block text-secondary">Profit per share you own</small>
                 </div></div>
-                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:#0d1117">
+                <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">EBITDA</small>
                     <strong class="font-mono">${latest.ebitda_str||'N/A'}</strong>
                     <small class="d-block text-secondary">Operating profit before interest & tax</small>
@@ -3047,8 +2840,7 @@
             if(qrs.length>=5){
                 const yoyQ = qrs[4];
                 if(latest.revenue&&yoyQ.revenue&&yoyQ.revenue>0){ const c=(latest.revenue-yoyQ.revenue)/Math.abs(yoyQ.revenue)*100; insights.push({metric:'Revenue',chg:c,dir:c>0?'grew':'declined',type:'YoY'}); }
-                if(latest.net_income&&yoyQ.net_income&&yoyQ.net_income>0){ const c=(latest.net_income-yoyQ.net_income)/Math.abs(yoyQ.net_income)*100; insights.push({metric:'Net Profit',chg:c,dir:c>0?'rose':'fell',type:'YoY'}); }
-            }
+                if(latest.net_income&&yoyQ.net_income&&yoyQ.net_income>0){ const c=(latest.net_income-yoyQ.net_income)/Math.abs(yoyQ.net_income)*100; insights.push({metric:'Net Profit',chg:c,dir:c>0?'rose':'fell',type:'YoY'}); } }
             if(insights.length){
                 html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(210,153,34,0.06);border:1px solid rgba(210,153,34,0.15);">
                     <h6 class="mb-2"><i class="bi bi-graph-up-arrow me-1" style="color:#d29922"></i> Key Changes This Quarter</h6>
@@ -3058,16 +2850,13 @@
                     const icon = i.chg>=0?'bi-arrow-up-right':'bi-arrow-down-right';
                     const absChg = Math.abs(i.chg).toFixed(1);
                     html += `<div class="col-6 col-md-4">
-                        <div class="p-2 rounded d-flex align-items-center gap-2" style="background:#0d1117">
+                        <div class="p-2 rounded d-flex align-items-center gap-2" style="background:var(--bs-body-bg)">
                             <i class="bi ${icon}" style="color:${col};font-size:1.2rem"></i>
                             <div><strong class="small">${i.metric}</strong> <span class="badge bg-dark border border-secondary" style="font-size:.65rem">${i.type}</span>
                             <div style="color:${col};font-weight:600">${i.chg>=0?'+':''}${absChg}%</div></div>
                         </div>
-                    </div>`;
-                });
-                html += `</div></div>`;
-            }
-        }
+                    </div>`; });
+                html += `</div></div>`; } }
 
         // ── Charts: Revenue + Net Profit trend, Margin trend
         html += `<div class="row g-3 mb-3">
@@ -3107,14 +2896,13 @@
                 <td class="text-end font-mono">${q.ebitda_str||'—'}</td>
                 <td class="text-end fw-bold" style="color:${nmCol}">${q.net_margin!=null?q.net_margin.toFixed(1)+'%':'—'}</td>
             </tr>`;
-            pRev=q.revenue; pNI=q.net_income; pEps=q.eps;
-        });
+            pRev=q.revenue; pNI=q.net_income; pEps=q.eps; });
         html += '</tbody></table></div>';
 
         // ── How to Read This Table (layman box)
         html += `<div class="p-3 rounded-3 mb-3" style="background:rgba(188,140,255,0.04);border:1px solid rgba(188,140,255,0.12);">
             <h6 class="mb-2"><i class="bi bi-book me-1" style="color:#bc8cff"></i> How to Read This Table (Simple Guide)</h6>
-            <div class="row g-2 small" style="color:#c9d1d9">
+            <div class="row g-2 small" style="color:var(--bs-body-color)">
                 <div class="col-md-6">
                     <p class="mb-1"><strong style="color:#58a6ff">Revenue</strong> — Total money the company earned from selling products/services. Think of it as the "top line" — the bigger, the better.</p>
                     <p class="mb-1"><strong style="color:#3fb950">Gross Profit</strong> — Revenue minus the direct cost of making products. Shows how much the company keeps before paying rent, salaries, etc.</p>
@@ -3133,9 +2921,8 @@
         if(f.quarterly_analysis){
             html += `<div class="p-3 rounded-3" style="background:rgba(63,185,80,0.04);border:1px solid rgba(63,185,80,0.1);">
                 <h6 class="mb-1"><i class="bi bi-robot me-1 text-success"></i> AI Analysis</h6>
-                <p class="small mb-0" style="color:#c9d1d9">${f.quarterly_analysis}</p>
-            </div>`;
-        }
+                <p class="small mb-0" style="color:var(--bs-body-color)">${f.quarterly_analysis}</p>
+            </div>`; }
 
         document.getElementById('tabQuarterly').innerHTML = html;
 
@@ -3153,14 +2940,10 @@
                         datasets:[
                             {label:'Revenue',data:reversed.map(q=>q.revenue),backgroundColor:'rgba(88,166,255,0.5)',borderColor:'#58a6ff',borderWidth:1,borderRadius:4},
                             {label:'Net Profit',data:reversed.map(q=>q.net_income),backgroundColor:'rgba(63,185,80,0.5)',borderColor:'#3fb950',borderWidth:1,borderRadius:4},
-                        ]
-                    },
+                        ] },
                     options:{responsive:true,maintainAspectRatio:false,
                         plugins:{legend:{labels:{color:'#8b949e',font:{size:10},usePointStyle:true}},title:{display:true,text:'Revenue & Net Profit by Quarter',color:'#e6edf3',font:{size:12}}},
-                        scales:{x:{grid:{display:false},ticks:chartFont},y:{grid:{color:'#21262d'},ticks:{...chartFont,callback:v=>{let cr=v/1e7;if(Math.abs(cr)>=1e5)return'₹'+(cr/1e5).toFixed(0)+'L Cr';if(Math.abs(cr)>=1e3)return'₹'+(cr/1e3).toFixed(0)+'K Cr';return'₹'+cr.toFixed(0)+' Cr';}}}}
-                    }
-                });
-            }
+                        scales:{x:{grid:{display:false},ticks:chartFont},y:{grid:{color:'#21262d'},ticks:{...chartFont,callback:v=>{let cr=v/1e7;if(Math.abs(cr)>=1e5)return'₹'+(cr/1e5).toFixed(0)+'L Cr';if(Math.abs(cr)>=1e3)return'₹'+(cr/1e3).toFixed(0)+'K Cr';return'₹'+cr.toFixed(0)+' Cr';}}}} } }); }
 
             // Margin trend line chart
             const margCtx = document.getElementById('qMarginChart');
@@ -3172,16 +2955,10 @@
                             {label:'Gross %',data:reversed.map(q=>q.gross_margin),borderColor:'#58a6ff',fill:false,tension:0.3,pointRadius:5,borderWidth:2.5,pointBackgroundColor:'#58a6ff'},
                             {label:'Operating %',data:reversed.map(q=>q.operating_margin),borderColor:'#d29922',fill:false,tension:0.3,pointRadius:5,borderWidth:2,pointBackgroundColor:'#d29922'},
                             {label:'Net %',data:reversed.map(q=>q.net_margin),borderColor:'#3fb950',fill:false,tension:0.3,pointRadius:5,borderWidth:2,pointBackgroundColor:'#3fb950'},
-                        ]
-                    },
+                        ] },
                     options:{responsive:true,maintainAspectRatio:false,
                         plugins:{legend:{labels:{color:'#8b949e',font:{size:10},usePointStyle:true}},title:{display:true,text:'Profit Margins Trend (%)',color:'#e6edf3',font:{size:12}}},
-                        scales:{x:{grid:{display:false},ticks:chartFont},y:{grid:{color:'#21262d'},ticks:{...chartFont,callback:v=>v+'%'}}}
-                    }
-                });
-            }
-        }, 100);
-    }
+                        scales:{x:{grid:{display:false},ticks:chartFont},y:{grid:{color:'#21262d'},ticks:{...chartFont,callback:v=>v+'%'}}} } }); } }, 100); }
 
     function renderShareholdingTab(f) {
         const el = document.getElementById('tabShareholding');
@@ -3200,8 +2977,7 @@
                     ${f.market_cap_str ? `<span><i class="bi bi-currency-rupee text-secondary me-1"></i><strong>Market Cap:</strong> ${f.market_cap_str}</span>` : ''}
                     ${f.beta ? `<span><i class="bi bi-activity text-secondary me-1"></i><strong>Beta:</strong> ${f.beta}</span>` : ''}
                 </div>
-            </div>`;
-        }
+            </div>`; }
 
         /* ─── UPCOMING RESULTS DATE ─── */
         if(f.upcoming_results_date) {
@@ -3220,8 +2996,7 @@
                     </div>
                     ${f.earnings_estimate_eps ? `<div class="text-end"><small class="text-secondary d-block">Consensus EPS Est.</small><span class="fw-bold text-info fs-5">\u20b9${f.earnings_estimate_eps}</span></div>` : ''}
                 </div>
-            </div>`;
-        }
+            </div>`; }
 
         /* ─── SHAREHOLDING PATTERN ─── */
         html += sectionIntro('Shareholding Pattern', 'Who owns this company? <strong>Promoters</strong> = founders/family, <strong>Institutions</strong> = mutual funds/FIIs, <strong>Public</strong> = retail investors like you.');
@@ -3251,7 +3026,7 @@
 
             // Metric cards
             html += `<div class="row g-2 mb-3">`;
-            html += `<div class="col-sm-4"><div class="p-3 rounded text-center" style="background:${dpBg};border:1px solid ${dpBorder};"><div class="fw-bold fs-4" style="color:${dpColor};">${dp}%</div><div class="small text-secondary">Delivery %</div><span class="badge mt-1" style="background:${dpColor};color:#0d1117;">${dpLabel}</span></div></div>`;
+            html += `<div class="col-sm-4"><div class="p-3 rounded text-center" style="background:${dpBg};border:1px solid ${dpBorder};"><div class="fw-bold fs-4" style="color:${dpColor};">${dp}%</div><div class="small text-secondary">Delivery %</div><span class="badge mt-1" style="background:${dpColor};color:var(--bs-body-bg);">${dpLabel}</span></div></div>`;
             html += `<div class="col-sm-4"><div class="p-3 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-5 text-info">${fmtNum(f.delivery_quantity)}</div><div class="small text-secondary">Delivered Qty</div></div></div>`;
             html += `<div class="col-sm-4"><div class="p-3 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-5">${fmtNum(f.traded_quantity)}</div><div class="small text-secondary">Traded Qty</div></div></div>`;
             html += `</div>`;
@@ -3263,7 +3038,7 @@
                     <span style="color:${dpColor};"><i class="bi bi-check-circle-fill me-1"></i>Delivered (${dp}%)</span>
                     <span class="text-secondary"><i class="bi bi-arrow-repeat me-1"></i>Intraday/Speculative (${specPct.toFixed(2)}%)</span>
                 </div>
-                <div class="progress" style="height:14px;background:#21262d;border-radius:8px;">
+                <div class="progress" style="height:14px;background:var(--bs-border-color);border-radius:8px;">
                     <div class="progress-bar" style="width:${dp}%;background:${dpColor};border-radius:8px 0 0 8px;"></div>
                     <div class="progress-bar" style="width:${specPct}%;background:rgba(139,148,158,0.3);border-radius:0 8px 8px 0;"></div>
                 </div>
@@ -3274,9 +3049,7 @@
                 html += `<div class="alert" style="background:${dpBg};border:1px solid ${dpBorder};border-radius:10px;">
                     <h6 class="mb-1"><i class="bi bi-info-circle me-1" style="color:${dpColor};"></i> Delivery Analysis</h6>
                     <p class="mb-0 small">${f.delivery_analysis}</p>
-                </div>`;
-            }
-        }
+                </div>`; } }
 
         /* ─── HISTORICAL DELIVERY DATA (Chart + Analysis) ─── */
         const dHist = f.delivery_history || [];
@@ -3286,7 +3059,7 @@
 
             // ── Explainer box
             html += `<div class="alert mb-3" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.15);border-radius:10px;">
-                <div class="small" style="color:#c9d1d9;"><i class="bi bi-lightbulb me-1" style="color:#d29922;"></i><b>What is Delivery %?</b> — When someone buys shares on the stock exchange, they can either <b>take delivery</b> (keep the shares long-term) or <b>trade intraday</b> (buy and sell the same day). Delivery % tells you what fraction of total trades were genuine long-term purchases.</div>
+                <div class="small" style="color:var(--bs-body-color);"><i class="bi bi-lightbulb me-1" style="color:#d29922;"></i><b>What is Delivery %?</b> — When someone buys shares on the stock exchange, they can either <b>take delivery</b> (keep the shares long-term) or <b>trade intraday</b> (buy and sell the same day). Delivery % tells you what fraction of total trades were genuine long-term purchases.</div>
                 <div class="d-flex flex-wrap gap-3 mt-2 small">
                     <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3fb950;margin-right:4px;"></span><b style="color:#3fb950;">≥ 50%</b> — Strong: Investors are buying to hold. Bullish sign.</span>
                     <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#d29922;margin-right:4px;"></span><b style="color:#d29922;">35-50%</b> — Mixed: Some investors, some traders.</span>
@@ -3321,8 +3094,7 @@
                 html += `<div class="alert mb-3" style="background:rgba(56,139,253,0.06);border:1px solid rgba(56,139,253,0.2);border-radius:10px;">
                     <h6 class="mb-1"><i class="bi bi-clipboard-data me-1 text-info"></i> Delivery Trend Analysis</h6>
                     <p class="mb-0 small">${f.delivery_history_analysis}</p>
-                </div>`;
-            }
+                </div>`; }
 
             // ── Summary stats row
             const dhPcts = dHist.map(d=>d.delivery_pct).filter(p=>p>0);
@@ -3334,8 +3106,7 @@
             const trend = dhPcts.length >= 6 ? (() => {
                 const recent = dhPcts.slice(-5).reduce((a,b)=>a+b,0)/5;
                 const earlier = dhPcts.slice(0, Math.min(5, dhPcts.length-5)).reduce((a,b)=>a+b,0)/Math.min(5, dhPcts.length-5);
-                return recent > earlier + 3 ? '📈 Trending UP — delivery is improving' : recent < earlier - 3 ? '📉 Trending DOWN — delivery is weakening' : '➡️ Stable — no major shift';
-            })() : '';
+                return recent > earlier + 3 ? '📈 Trending UP — delivery is improving' : recent < earlier - 3 ? '📉 Trending DOWN — delivery is weakening' : '➡️ Stable — no major shift'; })() : '';
             html += `<div class="row g-2 mb-3">
                 <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-6" style="color:${avgCol};">${dhAvg.toFixed(1)}%</div><div class="small text-secondary">Avg Delivery %</div><div class="small" style="color:${avgCol};font-size:0.7rem;">${avgLabel}</div></div></div>
                 <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--card-bg);border:1px solid var(--card-border);"><div class="fw-bold fs-6 text-success">${dhMax.toFixed(1)}%</div><div class="small text-secondary">Best Day</div><div class="small text-secondary" style="font-size:0.7rem;">Highest delivery</div></div></div>
@@ -3357,10 +3128,8 @@
             for(let i=dHist.length-1; i>=0; i--) {
                 const r = dHist[i];
                 const pc = r.delivery_pct >= 50 ? 'text-success' : r.delivery_pct >= 35 ? 'text-warning' : 'text-danger';
-                html += `<tr><td>${r.date}</td><td class="text-end">${r.close_price?.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td class="text-end">${r.volume?.toLocaleString('en-IN')}</td><td class="text-end">${r.delivery_qty?.toLocaleString('en-IN')}</td><td class="text-end ${pc} fw-bold">${r.delivery_pct?.toFixed(2)}%</td></tr>`;
-            }
-            html += `</tbody></table></div></div></div>`;
-        }
+                html += `<tr><td>${r.date}</td><td class="text-end">${r.close_price?.toLocaleString('en-IN',{minimumFractionDigits:2})}</td><td class="text-end">${r.volume?.toLocaleString('en-IN')}</td><td class="text-end">${r.delivery_qty?.toLocaleString('en-IN')}</td><td class="text-end ${pc} fw-bold">${r.delivery_pct?.toFixed(2)}%</td></tr>`; }
+            html += `</tbody></table></div></div></div>`; }
 
         /* ─── BULK / BLOCK DEALS ─── */
         const bbDeals = f.bulk_block_deals || [];
@@ -3374,8 +3143,7 @@
                 html += `<div class="alert mb-3" style="background:rgba(210,153,34,0.06);border:1px solid rgba(210,153,34,0.2);border-radius:10px;">
                     <h6 class="mb-1"><i class="bi bi-info-circle me-1 text-yellow"></i> Activity Analysis</h6>
                     <p class="mb-0 small">${f.deals_analysis}</p>
-                </div>`;
-            }
+                </div>`; }
 
             // Bulk/Block deals table
             if(bbDeals.length > 0) {
@@ -3397,10 +3165,8 @@
                         <td>${actionBadge}</td>
                         <td class="font-mono">${qty}</td>
                         <td class="font-mono">${price}</td>
-                    </tr>`;
-                });
-                html += '</tbody></table></div>';
-            }
+                    </tr>`; });
+                html += '</tbody></table></div>'; }
 
             // Insider trading table
             if(insiders.length > 0) {
@@ -3429,8 +3195,7 @@
                         <td class="font-mono">${val}</td>
                         <td class="small">${dateRange}</td>
                         <td class="small text-secondary">${t.mode || '-'}</td>
-                    </tr>`;
-                });
+                    </tr>`; });
                 html += '</tbody></table></div>';
 
                 // Summary cards: total insider buy vs sell
@@ -3452,17 +3217,14 @@
                         <div class="fw-bold ${totalBuyVal > totalSellVal ? 'text-green' : totalSellVal > totalBuyVal ? 'text-red' : ''}">${totalBuyVal >= totalSellVal ? 'Net Buyer' : 'Net Seller'}</div>
                         <div class="small text-secondary">Insider Sentiment</div>
                     </div></div>
-                </div>`;
-            }
-        }
+                </div>`; } }
 
         /* ─── SHAREHOLDING VERDICT (Textual Analysis) ─── */
         if(f.shareholding_verdict) {
             html += `<div class="alert mb-3" style="background:rgba(210,153,34,0.06);border:1px solid rgba(210,153,34,0.2);border-radius:10px;">
                 <h6 class="mb-1"><i class="bi bi-clipboard-data me-1 text-yellow"></i> Shareholding Analysis</h6>
                 <p class="mb-0 small">${f.shareholding_verdict}</p>
-            </div>`;
-        }
+            </div>`; }
 
         // Stacked bar chart for shareholding trend
         const sh = f.shareholding_history||[];
@@ -3479,10 +3241,8 @@
                 let delta = '\u2014';
                 if(prevP!=null){ const d=p-prevP; delta=d>0?`<span class="text-green">+${d.toFixed(1)}</span>`:d<0?`<span class="text-red">${d.toFixed(1)}</span>`:'0.0'; }
                 html += `<tr><td class="fw-bold">${s.period}</td><td class="font-mono">${p.toFixed(1)}%</td><td class="font-mono">${fi.toFixed(1)}%</td><td class="font-mono">${pu.toFixed(1)}%</td><td class="font-mono">${delta}</td></tr>`;
-                prevP = p;
-            });
-            html += '</tbody></table></div>';
-        }
+                prevP = p; });
+            html += '</tbody></table></div>'; }
 
         /* ─── DIVIDEND SECTION ─── */
         html += `<hr class="my-4 border-secondary">`;
@@ -3491,8 +3251,7 @@
         if(f.dividend_summary) {
             html += `<div class="alert mb-3" style="background:rgba(63,185,80,0.06);border:1px solid rgba(63,185,80,0.2);border-radius:10px;">
                 <p class="mb-0 small">${f.dividend_summary}</p>
-            </div>`;
-        }
+            </div>`; }
 
         // Dividend key metrics row
         html += `<div class="row g-2 mb-3">`;
@@ -3511,12 +3270,9 @@
                     <div class="table-responsive"><table class="table table-dark table-sm"><thead>
                     <tr><th>Date</th><th>Amount (\u20b9)</th></tr></thead><tbody>`;
             [...divHist].reverse().forEach(d => {
-                html += `<tr><td>${d.date}</td><td class="fw-bold text-green">\u20b9${d.amount}</td></tr>`;
-            });
-            html += `</tbody></table></div></div></div>`;
-        } else {
-            html += `<p class="text-secondary small">No dividend history available for this stock.</p>`;
-        }
+                html += `<tr><td>${d.date}</td><td class="fw-bold text-green">\u20b9${d.amount}</td></tr>`; });
+            html += `</tbody></table></div></div></div>`; } else {
+            html += `<p class="text-secondary small">No dividend history available for this stock.</p>`; }
 
         /* ─── EARNINGS HISTORY (EPS Estimate vs Reported) ─── */
         const edHist = (f.earnings_dates_history||[]).filter(e => e.eps_reported != null);
@@ -3532,12 +3288,9 @@
                 let surp = '\u2014';
                 if(e.surprise_pct != null) {
                     const col = e.surprise_pct >= 0 ? 'text-green' : 'text-red';
-                    surp = `<span class="${col}">${e.surprise_pct > 0 ? '+' : ''}${e.surprise_pct}%</span>`;
-                }
-                html += `<tr><td>${e.date}</td><td class="font-mono">${est}</td><td class="font-mono fw-bold">${rep}</td><td class="font-mono">${surp}</td></tr>`;
-            });
-            html += `</tbody></table></div>`;
-        }
+                    surp = `<span class="${col}">${e.surprise_pct > 0 ? '+' : ''}${e.surprise_pct}%</span>`; }
+                html += `<tr><td>${e.date}</td><td class="font-mono">${est}</td><td class="font-mono fw-bold">${rep}</td><td class="font-mono">${surp}</td></tr>`; });
+            html += `</tbody></table></div>`; }
 
         /* ─── QUARTERLY RESULTS ANALYSIS ─── */
         if(f.quarterly_analysis) {
@@ -3545,8 +3298,7 @@
             html += `<h5 class="mb-3"><i class="bi bi-journal-text me-2 text-yellow"></i> Quarterly Results Analysis</h5>`;
             html += `<div class="alert" style="background:rgba(210,153,34,0.06);border:1px solid rgba(210,153,34,0.2);border-radius:10px;">
                 <p class="mb-0 small">${f.quarterly_analysis}</p>
-            </div>`;
-        }
+            </div>`; }
 
         el.innerHTML = html;
 
@@ -3559,15 +3311,11 @@
                     type: 'doughnut',
                     data: {
                         labels: ['Promoter','Institutional (FII+DII)','Public'],
-                        datasets: [{ data: [prom, inst, pub], backgroundColor: ['#d29922','#58a6ff','#8b949e'], borderWidth: 0 }]
-                    },
+                        datasets: [{ data: [prom, inst, pub], backgroundColor: ['#d29922','#58a6ff','#8b949e'], borderWidth: 0 }] },
                     options: {
                         responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { position: 'bottom', labels: { color: '#8b949e', padding: 12 } } },
-                        cutout: '55%',
-                    }
-                });
-            }
+                        cutout: '55%', } }); }
 
             // Stacked bar chart for trend
             if(sh.length>1) {
@@ -3582,20 +3330,14 @@
                                 { label: 'Promoter', data: rev.map(s => s.promoter||0), backgroundColor: '#d29922', borderRadius: 2 },
                                 { label: 'Institutional', data: rev.map(s => s.fii||0), backgroundColor: '#58a6ff', borderRadius: 2 },
                                 { label: 'Public', data: rev.map(s => s.public||0), backgroundColor: '#8b949e', borderRadius: 2 },
-                            ]
-                        },
+                            ] },
                         options: {
                             responsive: true, maintainAspectRatio: false,
                             interaction: { mode: 'index', intersect: false },
                             plugins: { legend: { labels: { color: '#8b949e', font: { size: 11 } } }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } } },
                             scales: {
                                 x: { stacked: true, grid: { display: false }, ticks: { color: '#8b949e', font: { size: 10 } } },
-                                y: { stacked: true, max: 100, grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 10 }, callback: v => v+'%' } },
-                            }
-                        }
-                    });
-                }
-            }
+                                y: { stacked: true, max: 100, grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 10 }, callback: v => v+'%' } }, } } }); } }
 
             // Dividend history bar chart
             if(divHist.length > 0) {
@@ -3606,19 +3348,13 @@
                         type: 'bar',
                         data: {
                             labels: revDiv.map(d => d.date),
-                            datasets: [{ label: 'Dividend (\u20b9)', data: revDiv.map(d => d.amount), backgroundColor: 'rgba(63,185,80,0.6)', borderRadius: 3 }]
-                        },
+                            datasets: [{ label: 'Dividend (\u20b9)', data: revDiv.map(d => d.amount), backgroundColor: 'rgba(63,185,80,0.6)', borderRadius: 3 }] },
                         options: {
                             responsive: true, maintainAspectRatio: false,
                             plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `\u20b9${ctx.parsed.y}` } } },
                             scales: {
                                 x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 45 } },
-                                y: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 10 }, callback: v => '\u20b9'+v } }
-                            }
-                        }
-                    });
-                }
-            }
+                                y: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 10 }, callback: v => '\u20b9'+v } } } } }); } }
 
             // EPS Estimate vs Reported chart
             if(edHist.length > 0) {
@@ -3632,19 +3368,13 @@
                             datasets: [
                                 { label: 'EPS Estimate', data: revEd.map(e => e.eps_estimate), backgroundColor: 'rgba(88,166,255,0.4)', borderRadius: 3 },
                                 { label: 'EPS Reported', data: revEd.map(e => e.eps_reported), backgroundColor: 'rgba(63,185,80,0.6)', borderRadius: 3 },
-                            ]
-                        },
+                            ] },
                         options: {
                             responsive: true, maintainAspectRatio: false,
                             plugins: { legend: { labels: { color: '#8b949e', font: { size: 11 } } }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: \u20b9${ctx.parsed.y}` } } },
                             scales: {
                                 x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 45 } },
-                                y: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 10 }, callback: v => '\u20b9'+v } }
-                            }
-                        }
-                    });
-                }
-            }
+                                y: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 10 }, callback: v => '\u20b9'+v } } } } }); } }
 
             // ── Delivery % Bar Chart (clear color-coded bars)
             const delivPctCtx = document.getElementById('delivPctChart');
@@ -3652,8 +3382,7 @@
             if(delivPctCtx && dHistData.length >= 3) {
                 const labels = dHistData.map(d => {
                     const parts = d.date.split('-');
-                    return parts.length === 3 ? `${parts[0]}-${parts[1]}` : d.date;
-                });
+                    return parts.length === 3 ? `${parts[0]}-${parts[1]}` : d.date; });
                 const delivPcts = dHistData.map(d => d.delivery_pct);
                 const volumes = dHistData.map(d => d.volume);
                 const prices = dHistData.map(d => d.close_price);
@@ -3681,8 +3410,7 @@
                                 borderRadius: 6,
                                 borderSkipped: false,
                                 barPercentage: 0.7,
-                                categoryPercentage: 0.8,
-                            },
+                                categoryPercentage: 0.8, },
                             {
                                 label: `Average (${dhAvgVal.toFixed(1)}%)`,
                                 data: avgLine,
@@ -3691,10 +3419,8 @@
                                 borderDash: [6, 4],
                                 borderWidth: 2,
                                 pointRadius: 0,
-                                fill: false,
-                            }
-                        ]
-                    },
+                                fill: false, }
+                        ] },
                     options: {
                         responsive: true, maintainAspectRatio: false,
                         interaction: { mode: 'index', intersect: false },
@@ -3707,10 +3433,7 @@
                                             { text: 'Mixed (35-50%)', fillStyle: 'rgba(210,153,34,0.55)', strokeStyle: '#d29922', lineWidth: 1, pointStyle: 'rect', fontColor: '#c9d1d9' },
                                             { text: 'Speculative (<35%)', fillStyle: 'rgba(248,81,73,0.50)', strokeStyle: '#f85149', lineWidth: 1, pointStyle: 'rect', fontColor: '#c9d1d9' },
                                             { text: `Avg ${dhAvgVal.toFixed(1)}%`, fillStyle: 'transparent', strokeStyle: 'rgba(88,166,255,0.8)', lineWidth: 2, lineDash: [6,4], pointStyle: 'line', fontColor: '#8b949e' }
-                                        ];
-                                    }
-                                }
-                            },
+                                        ]; } } },
                             tooltip: {
                                 backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#c9d1d9',
                                 callbacks: {
@@ -3720,23 +3443,15 @@
                                         const idx = ctx.dataIndex;
                                         const pct = delivPcts[idx];
                                         const qual = pct >= 50 ? '✅ Strong' : pct >= 35 ? '⚠️ Mixed' : '🔴 Speculative';
-                                        return [`Delivery: ${pct.toFixed(1)}%  (${qual})`, `Delivered: ${delivQtys[idx]?.toLocaleString('en-IN')} shares`, `Total Vol: ${volumes[idx]?.toLocaleString('en-IN')}`];
-                                    }
-                                }
-                            }
-                        },
+                                        return [`Delivery: ${pct.toFixed(1)}%  (${qual})`, `Delivered: ${delivQtys[idx]?.toLocaleString('en-IN')} shares`, `Total Vol: ${volumes[idx]?.toLocaleString('en-IN')}`]; } } } },
                         scales: {
                             x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 45 } },
                             y: {
                                 title: { display: true, text: 'Delivery %', color: '#58a6ff', font: { size: 11 } },
                                 grid: { color: 'rgba(88,166,255,0.06)' },
                                 ticks: { color: '#8b949e', font: { size: 10 }, callback: v => v + '%', stepSize: 10 },
-                                min: 0, max: 100,
-                            }
-                        },
-                        animation: { duration: 800, easing: 'easeOutQuart' }
-                    }
-                });
+                                min: 0, max: 100, } },
+                        animation: { duration: 800, easing: 'easeOutQuart' } } });
 
                 // ── Price + Volume chart (separate, clean)
                 const pvCtx = document.getElementById('delivPriceVolChart');
@@ -3744,12 +3459,10 @@
                     // Color volume bars by price change direction
                     const volColors = prices.map((p, i) => {
                         if(i === 0) return 'rgba(88,166,255,0.3)';
-                        return p >= prices[i-1] ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.30)';
-                    });
+                        return p >= prices[i-1] ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.30)'; });
                     const volBorders = prices.map((p, i) => {
                         if(i === 0) return 'rgba(88,166,255,0.6)';
-                        return p >= prices[i-1] ? 'rgba(63,185,80,0.7)' : 'rgba(248,81,73,0.6)';
-                    });
+                        return p >= prices[i-1] ? 'rgba(63,185,80,0.7)' : 'rgba(248,81,73,0.6)'; });
                     new Chart(pvCtx, {
                         type: 'bar',
                         data: {
@@ -3770,8 +3483,7 @@
                                     pointHoverRadius: 6,
                                     borderWidth: 2.5,
                                     yAxisID: 'yPrice',
-                                    order: 1,
-                                },
+                                    order: 1, },
                                 {
                                     label: 'Volume',
                                     data: volumes,
@@ -3782,10 +3494,8 @@
                                     barPercentage: 0.7,
                                     categoryPercentage: 0.8,
                                     yAxisID: 'yVol',
-                                    order: 2,
-                                }
-                            ]
-                        },
+                                    order: 2, }
+                            ] },
                         options: {
                             responsive: true, maintainAspectRatio: false,
                             interaction: { mode: 'index', intersect: false },
@@ -3797,34 +3507,21 @@
                                         title: (items) => dHistData[items[0].dataIndex]?.date || '',
                                         label: function(ctx) {
                                             if(ctx.dataset.label === 'Close Price ₹') return `Close: \u20b9${ctx.parsed.y.toLocaleString('en-IN')}`;
-                                            return `Volume: ${ctx.parsed.y.toLocaleString('en-IN')}`;
-                                        }
-                                    }
-                                }
-                            },
+                                            return `Volume: ${ctx.parsed.y.toLocaleString('en-IN')}`; } } } },
                             scales: {
                                 x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 45 } },
                                 yPrice: {
                                     type: 'linear', position: 'left',
                                     title: { display: true, text: 'Close Price ₹', color: '#d29922', font: { size: 11 } },
                                     grid: { color: 'rgba(210,153,34,0.06)' },
-                                    ticks: { color: '#d29922', font: { size: 10 }, callback: v => '\u20b9'+v },
-                                },
+                                    ticks: { color: '#d29922', font: { size: 10 }, callback: v => '\u20b9'+v }, },
                                 yVol: {
                                     type: 'linear', position: 'right',
                                     title: { display: true, text: 'Volume', color: '#58a6ff', font: { size: 11 } },
                                     grid: { display: false },
                                     ticks: { color: '#58a6ff', font: { size: 10 }, callback: v => v >= 1e7 ? (v/1e7).toFixed(1)+'Cr' : v >= 1e5 ? (v/1e5).toFixed(1)+'L' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v },
-                                    beginAtZero: true,
-                                }
-                            },
-                            animation: { duration: 800, easing: 'easeOutQuart' }
-                        }
-                    });
-                }
-            }
-        }, 100);
-    }
+                                    beginAtZero: true, } },
+                            animation: { duration: 800, easing: 'easeOutQuart' } } }); } } }, 100); }
 
     // ═══════════ FINANCIALS TAB ═══════════
     function renderFinancialsTab(f) {
@@ -3832,8 +3529,7 @@
         const fins = f.annual_financials || [];
         if(!fins.length) {
             el.innerHTML = '<div class="text-secondary text-center py-4">No annual financial data available.</div>';
-            return;
-        }
+            return; }
 
         const fmtCr = (v) => {
             if(v == null) return '<span class="text-secondary">—</span>';
@@ -3842,8 +3538,7 @@
             if(cr >= 100000) s = (cr/100000).toFixed(2) + 'L Cr';
             else if(cr >= 1000) s = (cr/1000).toFixed(1) + 'K Cr';
             else s = cr.toFixed(1) + ' Cr';
-            return (neg ? '-' : '') + '₹' + s;
-        };
+            return (neg ? '-' : '') + '₹' + s; };
         const fmtPct = (v) => v != null ? v.toFixed(1) + '%' : '<span class="text-secondary">—</span>';
         const fmtNum = (v, d=2) => v != null ? v.toFixed(d) : '<span class="text-secondary">—</span>';
         const yoy = (curr, prev) => {
@@ -3851,8 +3546,7 @@
             const chg = ((curr - prev) / Math.abs(prev) * 100);
             const col = chg >= 0 ? '#3fb950' : '#f85149';
             const arrow = chg >= 0 ? '↑' : '↓';
-            return ` <span style="color:${col};font-size:.75rem;">${arrow}${Math.abs(chg).toFixed(1)}%</span>`;
-        };
+            return ` <span style="color:${col};font-size:.75rem;">${arrow}${Math.abs(chg).toFixed(1)}%</span>`; };
 
         const rev = [...fins].reverse();  // oldest→newest for charts
         const years = rev.map(a => a.year.replace(/\s*\(.*\)/, ''));
@@ -3864,22 +3558,22 @@
         // ══ WHAT ARE FINANCIAL STATEMENTS? (Layman intro)
         html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.12);">
             <h6 class="mb-2" style="color:#58a6ff"><i class="bi bi-info-circle-fill me-1"></i> What are Annual Financial Statements?</h6>
-            <p class="small mb-2" style="color:#c9d1d9">Every year, companies publish 3 key financial reports that tell the complete story of their business health. Think of them like a full medical checkup — but for a company:</p>
+            <p class="small mb-2" style="color:var(--bs-body-color)">Every year, companies publish 3 key financial reports that tell the complete story of their business health. Think of them like a full medical checkup — but for a company:</p>
             <div class="row g-2 small">
                 <div class="col-md-4">
-                    <div class="p-2 rounded" style="background:#0d1117;border-left:3px solid #58a6ff">
+                    <div class="p-2 rounded" style="background:var(--bs-body-bg);border-left:3px solid #58a6ff">
                         <strong style="color:#58a6ff"><i class="bi bi-receipt me-1"></i>Income Statement</strong>
                         <p class="mb-0 mt-1" style="color:#8b949e">The "report card" — how much did the company earn (revenue) and how much did it keep as profit? Like your salary vs. expenses.</p>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="p-2 rounded" style="background:#0d1117;border-left:3px solid #d29922">
+                    <div class="p-2 rounded" style="background:var(--bs-body-bg);border-left:3px solid #d29922">
                         <strong style="color:#d29922"><i class="bi bi-bank me-1"></i>Balance Sheet</strong>
                         <p class="mb-0 mt-1" style="color:#8b949e">The "net worth statement" — what does the company own (assets) vs. what it owes (liabilities)? Like your house value minus your loans.</p>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="p-2 rounded" style="background:#0d1117;border-left:3px solid #3fb950">
+                    <div class="p-2 rounded" style="background:var(--bs-body-bg);border-left:3px solid #3fb950">
                         <strong style="color:#3fb950"><i class="bi bi-cash-stack me-1"></i>Cash Flow</strong>
                         <p class="mb-0 mt-1" style="color:#8b949e">The "bank statement" — actual cash coming in and going out. A profitable company can still fail if it runs out of cash!</p>
                     </div>
@@ -3892,40 +3586,39 @@
         if(f.financial_statements_analysis) {
             html += `<div class="mb-3" style="background:rgba(63,185,80,0.04);border:1px solid rgba(63,185,80,0.12);border-radius:12px;padding:16px 18px;">
                 <h6 class="mb-2" style="font-size:.95rem;"><i class="bi bi-robot me-1 text-success"></i> AI Financial Health Summary</h6>
-                <div class="small" style="color:#c9d1d9">${f.financial_statements_analysis}</div>
-            </div>`;
-        }
+                <div class="small" style="color:var(--bs-body-color)">${f.financial_statements_analysis}</div>
+            </div>`; }
 
         // ── Latest Year Snapshot
         html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(210,153,34,0.04);border:1px solid rgba(210,153,34,0.12);">
             <h6 class="mb-2"><i class="bi bi-lightning-charge-fill me-1" style="color:#d29922"></i> Latest Year Snapshot: <strong style="color:#58a6ff">${latest.year.replace(/\s*\(.*\)/,'')}</strong></h6>
             <div class="row g-2">
-                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Revenue</small>
                     <strong class="font-mono">${fmtCr(latest.total_revenue)}</strong>${prev?yoy(latest.total_revenue,prev.total_revenue):''}
                     <small class="d-block text-secondary mt-1">Total Sales</small>
                 </div></div>
-                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Net Profit</small>
                     <strong class="font-mono" style="color:${latest.net_income>=0?'#3fb950':'#f85149'}">${fmtCr(latest.net_income)}</strong>${prev?yoy(latest.net_income,prev.net_income):''}
                     <small class="d-block text-secondary mt-1">Bottom Line</small>
                 </div></div>
-                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Net Margin</small>
                     <strong class="font-mono" style="color:${latest.net_margin>=15?'#3fb950':latest.net_margin>=5?'#d29922':'#f85149'}">${fmtPct(latest.net_margin)}</strong>
                     <small class="d-block text-secondary mt-1">Profit per ₹100</small>
                 </div></div>
-                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">ROE</small>
                     <strong class="font-mono" style="color:${latest.roe>=15?'#3fb950':latest.roe>=10?'#d29922':'#f85149'}">${fmtPct(latest.roe)}</strong>
                     <small class="d-block text-secondary mt-1">Return on Equity</small>
                 </div></div>
-                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">D/E Ratio</small>
                     <strong class="font-mono" style="color:${latest.debt_to_equity!=null&&latest.debt_to_equity<=1?'#3fb950':'#f85149'}">${fmtNum(latest.debt_to_equity,2)}</strong>
                     <small class="d-block text-secondary mt-1">Debt vs Equity</small>
                 </div></div>
-                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:#0d1117">
+                <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Free Cash Flow</small>
                     <strong class="font-mono" style="color:${latest.free_cashflow>=0?'#3fb950':'#f85149'}">${fmtCr(latest.free_cashflow)}</strong>
                     <small class="d-block text-secondary mt-1">Available Cash</small>
@@ -3979,12 +3672,10 @@
             fins.forEach((a, i) => {
                 const v = a[key];
                 const p = i < fins.length - 1 ? fins[i+1][key] : null;
-                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`;
-            });
-            html += `</tr>`;
-        });
+                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`; });
+            html += `</tr>`; });
         // Margin rows (highlighted)
-        html += `<tr style="border-top:2px solid #30363d"><td class="fw-semibold" colspan="${2+fins.length}" style="color:#58a6ff;font-size:.75rem;padding-top:8px"><i class="bi bi-percent me-1"></i> PROFITABILITY MARGINS (higher = more profitable)</td></tr>`;
+        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td class="fw-semibold" colspan="${2+fins.length}" style="color:#58a6ff;font-size:.75rem;padding-top:8px"><i class="bi bi-percent me-1"></i> PROFITABILITY MARGINS (higher = more profitable)</td></tr>`;
         [
             ['Gross Margin', 'gross_margin', 'How much of each ₹100 revenue is kept after direct costs'],
             ['Operating Margin', 'operating_margin', 'How much is kept after ALL operating costs'],
@@ -3994,10 +3685,8 @@
             fins.forEach(a => {
                 const v = a[key];
                 const col = v!=null ? (v>=20?'#3fb950':v>=10?'#d29922':'#f85149') : '#8b949e';
-                html += `<td class="text-end"><span style="color:${col}">${fmtPct(v)}</span></td>`;
-            });
-            html += `</tr>`;
-        });
+                html += `<td class="text-end"><span style="color:${col}">${fmtPct(v)}</span></td>`; });
+            html += `</tr>`; });
         html += `</tbody></table></div>`;
 
         // ════════════════════════════════════════════════════════
@@ -4013,7 +3702,7 @@
         html += `</tr></thead><tbody>`;
 
         // Assets section
-        html += `<tr style="border-top:2px solid #30363d"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#3fb950;padding-top:8px"><i class="bi bi-box-seam me-1"></i> ASSETS (What the company OWNS)</td></tr>`;
+        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#3fb950;padding-top:8px"><i class="bi bi-box-seam me-1"></i> ASSETS (What the company OWNS)</td></tr>`;
         const assetRows = [
             ['Total Assets', 'total_assets', fmtCr, 'Everything the company owns — total value of all resources'],
             ['Current Assets', 'total_current_assets', fmtCr, 'Can be turned into cash within 1 year (cash, inventory, receivables)'],
@@ -4028,13 +3717,11 @@
             html += `<tr${isKey?' style="background:rgba(63,185,80,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach((a, i) => {
                 const v = a[key]; const p = i < fins.length - 1 ? fins[i+1][key] : null;
-                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`;
-            });
-            html += `</tr>`;
-        });
+                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`; });
+            html += `</tr>`; });
 
         // Liabilities section
-        html += `<tr style="border-top:2px solid #30363d"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#f85149;padding-top:8px"><i class="bi bi-exclamation-triangle me-1"></i> LIABILITIES (What the company OWES)</td></tr>`;
+        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#f85149;padding-top:8px"><i class="bi bi-exclamation-triangle me-1"></i> LIABILITIES (What the company OWES)</td></tr>`;
         const liabRows = [
             ['Total Liabilities', 'total_liabilities', fmtCr, 'Total money owed to others — loans, bills, obligations'],
             ['Current Liabilities', 'total_current_liab', fmtCr, 'Bills due within 1 year (short-term debts)'],
@@ -4046,13 +3733,11 @@
             html += `<tr${isKey?' style="background:rgba(248,81,73,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach((a, i) => {
                 const v = a[key]; const p = i < fins.length - 1 ? fins[i+1][key] : null;
-                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`;
-            });
-            html += `</tr>`;
-        });
+                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`; });
+            html += `</tr>`; });
 
         // Equity & Ratios section
-        html += `<tr style="border-top:2px solid #30363d"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#58a6ff;padding-top:8px"><i class="bi bi-shield-check me-1"></i> EQUITY & KEY RATIOS</td></tr>`;
+        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#58a6ff;padding-top:8px"><i class="bi bi-shield-check me-1"></i> EQUITY & KEY RATIOS</td></tr>`;
         const equityRows = [
             ['Stockholders\' Equity', 'stockholders_equity', fmtCr, 'Assets − Liabilities = what truly belongs to shareholders'],
             ['Retained Earnings', 'retained_earnings', fmtCr, 'Accumulated profits kept in the company (not paid as dividends)'],
@@ -4062,27 +3747,22 @@
             html += `<tr><td class="fw-semibold">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach((a, i) => {
                 const v = a[key]; const p = i < fins.length - 1 ? fins[i+1][key] : null;
-                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`;
-            });
-            html += `</tr>`;
-        });
+                html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`; });
+            html += `</tr>`; });
         // Ratio rows
         [
             ['D/E Ratio', 'debt_to_equity', v => {
                 if(v==null) return '<span class="text-secondary">—</span>';
                 const col = v<=0.5?'#3fb950':v<=1?'#d29922':'#f85149';
-                return `<span style="color:${col}">${v.toFixed(2)}</span>`;
-            }, 'Total Debt ÷ Equity. Below 1 = company owns more than it owes (safe)'],
+                return `<span style="color:${col}">${v.toFixed(2)}</span>`; }, 'Total Debt ÷ Equity. Below 1 = company owns more than it owes (safe)'],
             ['Current Ratio', 'current_ratio', v => {
                 if(v==null) return '<span class="text-secondary">—</span>';
                 const col = v>=1.5?'#3fb950':v>=1?'#d29922':'#f85149';
-                return `<span style="color:${col}">${v.toFixed(2)}</span>`;
-            }, 'Current Assets ÷ Current Liabilities. Above 1.5 = can easily pay short-term bills'],
+                return `<span style="color:${col}">${v.toFixed(2)}</span>`; }, 'Current Assets ÷ Current Liabilities. Above 1.5 = can easily pay short-term bills'],
         ].forEach(([label, key, fmt, desc]) => {
             html += `<tr><td class="fw-semibold">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach(a => { html += `<td class="text-end">${fmt(a[key])}</td>`; });
-            html += `</tr>`;
-        });
+            html += `</tr>`; });
         html += `</tbody></table></div>`;
 
         // ════════════════════════════════════════════════════════
@@ -4100,13 +3780,11 @@
         const fmtCF = (v) => {
             if(v == null) return '<span class="text-secondary">—</span>';
             const col = v >= 0 ? '#3fb950' : '#f85149';
-            return `<span style="color:${col}">${fmtCr(v)}</span>`;
-        };
+            return `<span style="color:${col}">${fmtCr(v)}</span>`; };
         const fmtCFAbs = (v) => {
             if(v == null) return '<span class="text-secondary">—</span>';
             const col = v <= 0 ? '#d29922' : '#3fb950';
-            return `<span style="color:${col}">${fmtCr(v)}</span>`;
-        };
+            return `<span style="color:${col}">${fmtCr(v)}</span>`; };
 
         const cfRows = [
             ['Operating Cash Flow', 'operating_cashflow', fmtCF, true, 'Cash from day-to-day business. MUST be positive — this is the lifeblood!'],
@@ -4124,34 +3802,29 @@
             html += `<tr${isKey?' style="background:rgba(63,185,80,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach((a, i) => {
                 const v = a[key]; const p = (showYoY && i < fins.length - 1) ? fins[i+1][key] : null;
-                html += `<td class="text-end">${fmt(v)}${showYoY ? yoy(v, p) : ''}</td>`;
-            });
-            html += `</tr>`;
-        });
+                html += `<td class="text-end">${fmt(v)}${showYoY ? yoy(v, p) : ''}</td>`; });
+            html += `</tr>`; });
         // FCF Margin & Interest Coverage
-        html += `<tr style="border-top:2px solid #30363d"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#3fb950;padding-top:8px"><i class="bi bi-shield-check me-1"></i> CASH FLOW HEALTH RATIOS</td></tr>`;
+        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#3fb950;padding-top:8px"><i class="bi bi-shield-check me-1"></i> CASH FLOW HEALTH RATIOS</td></tr>`;
         [
             ['FCF Margin', 'fcf_margin', v => {
                 if(v==null) return '<span class="text-secondary">—</span>';
                 const col = v>=10?'#3fb950':v>=0?'#d29922':'#f85149';
-                return `<span style="color:${col}">${v.toFixed(1)}%</span>`;
-            }, 'Free Cash Flow ÷ Revenue. Above 10% = excellent cash generation'],
+                return `<span style="color:${col}">${v.toFixed(1)}%</span>`; }, 'Free Cash Flow ÷ Revenue. Above 10% = excellent cash generation'],
             ['Interest Coverage', 'interest_coverage', v => {
                 if(v==null) return '<span class="text-secondary">—</span>';
                 const col = v>=3?'#3fb950':v>=1.5?'#d29922':'#f85149';
-                return `<span style="color:${col}">${v.toFixed(1)}x</span>`;
-            }, 'EBIT ÷ Interest. Above 3x = easily covers interest payments (safe)'],
+                return `<span style="color:${col}">${v.toFixed(1)}x</span>`; }, 'EBIT ÷ Interest. Above 3x = easily covers interest payments (safe)'],
         ].forEach(([label, key, fmt, desc]) => {
             html += `<tr><td class="fw-semibold">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach(a => { html += `<td class="text-end">${fmt(a[key])}</td>`; });
-            html += `</tr>`;
-        });
+            html += `</tr>`; });
         html += `</tbody></table></div>`;
 
         // ── How to Read Financial Statements (Layman Guide)
         html += `<div class="p-3 rounded-3 mb-3" style="background:rgba(188,140,255,0.04);border:1px solid rgba(188,140,255,0.12);">
             <h6 class="mb-2"><i class="bi bi-book me-1" style="color:#bc8cff"></i> Quick Guide: What to Look For</h6>
-            <div class="row g-3 small" style="color:#c9d1d9">
+            <div class="row g-3 small" style="color:var(--bs-body-color)">
                 <div class="col-md-4">
                     <p class="mb-1"><strong style="color:#3fb950">✅ Good Signs</strong></p>
                     <ul class="mb-0" style="padding-left:1.2rem;color:#8b949e">
@@ -4197,8 +3870,7 @@
             const chartOpts = {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' } } },
-                scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: crCallback } } }
-            };
+                scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: crCallback } } } };
 
             // 1. Revenue + Net Income bar chart
             const revCtx = document.getElementById('finRevChart');
@@ -4208,9 +3880,7 @@
                         { label: 'Revenue', data: rev.map(a => a.total_revenue), backgroundColor: 'rgba(88,166,255,0.5)', borderColor: '#58a6ff', borderWidth: 1, borderRadius: 4 },
                         { label: 'Net Income', data: rev.map(a => a.net_income), backgroundColor: 'rgba(63,185,80,0.5)', borderColor: '#3fb950', borderWidth: 1, borderRadius: 4 },
                     ]},
-                    options: { ...chartOpts, plugins: { ...chartOpts.plugins, title: { display: true, text: 'Revenue & Net Income (Annual)', color: '#e6edf3', font: { size: 12 } } } }
-                });
-            }
+                    options: { ...chartOpts, plugins: { ...chartOpts.plugins, title: { display: true, text: 'Revenue & Net Income (Annual)', color: '#e6edf3', font: { size: 12 } } } } }); }
 
             // 2. Margins line chart
             const margCtx = document.getElementById('finMarginChart');
@@ -4224,10 +3894,7 @@
                     ]},
                     options: { responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true } }, title: { display: true, text: 'Profit Margins Trend', color: '#e6edf3', font: { size: 12 } } },
-                        scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: v => v+'%' } } }
-                    }
-                });
-            }
+                        scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: v => v+'%' } } } } }); }
 
             // 3. Cash Flow bar chart (OCF, FCF, Capex)
             const cfCtx = document.getElementById('finCFChart');
@@ -4238,9 +3905,7 @@
                         { label: 'FCF', data: rev.map(a => a.free_cashflow), backgroundColor: 'rgba(88,166,255,0.5)', borderColor: '#58a6ff', borderWidth: 1, borderRadius: 4 },
                         { label: 'Capex', data: rev.map(a => a.capex != null ? Math.abs(a.capex) : null), backgroundColor: 'rgba(248,81,73,0.4)', borderColor: '#f85149', borderWidth: 1, borderRadius: 4 },
                     ]},
-                    options: { ...chartOpts, plugins: { ...chartOpts.plugins, title: { display: true, text: 'Cash Flow Breakdown', color: '#e6edf3', font: { size: 12 } } } }
-                });
-            }
+                    options: { ...chartOpts, plugins: { ...chartOpts.plugins, title: { display: true, text: 'Cash Flow Breakdown', color: '#e6edf3', font: { size: 12 } } } } }); }
 
             // 4. ROE / ROA line chart
             const retCtx = document.getElementById('finReturnChart');
@@ -4252,10 +3917,7 @@
                     ]},
                     options: { responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true } }, title: { display: true, text: 'Return Ratios (ROE & ROA)', color: '#e6edf3', font: { size: 12 } } },
-                        scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: v => v+'%' } } }
-                    }
-                });
-            }
+                        scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: v => v+'%' } } } } }); }
 
             // 5. Leverage: D/E bar + Current Ratio line
             const levCtx = document.getElementById('finLevChart');
@@ -4270,11 +3932,7 @@
                         scales: {
                             x: { grid: { display: false }, ticks: chartFont },
                             yDE: { type: 'linear', position: 'left', title: { display: true, text: 'D/E', color: '#f85149', font: { size: 10 } }, grid: { color: '#21262d' }, ticks: { color: '#f85149', font: { size: 9 } }, beginAtZero: true },
-                            yCR: { type: 'linear', position: 'right', title: { display: true, text: 'Current Ratio', color: '#3fb950', font: { size: 10 } }, grid: { display: false }, ticks: { color: '#3fb950', font: { size: 9 } }, beginAtZero: true },
-                        }
-                    }
-                });
-            }
+                            yCR: { type: 'linear', position: 'right', title: { display: true, text: 'Current Ratio', color: '#3fb950', font: { size: 10 } }, grid: { display: false }, ticks: { color: '#3fb950', font: { size: 9 } }, beginAtZero: true }, } } }); }
 
             // 6. EPS bar chart
             const epsCtx = document.getElementById('finEPSChart');
@@ -4285,12 +3943,7 @@
                     data: { labels: years, datasets: [{ label: 'Diluted EPS ₹', data: epsData, backgroundColor: epsColors, borderRadius: 4 }] },
                     options: { responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { display: false }, title: { display: true, text: 'Diluted EPS Trend (₹ per share)', color: '#e6edf3', font: { size: 12 } } },
-                        scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: v => '₹'+v } } }
-                    }
-                });
-            }
-        }, 100);
-    }
+                        scales: { x: { grid: { display: false }, ticks: chartFont }, y: { grid: { color: '#21262d' }, ticks: { ...chartFont, callback: v => '₹'+v } } } } }); } }, 100); }
 
     function renderConvictionTab(f) {
         const el = document.getElementById('tabConviction');
@@ -4319,7 +3972,7 @@
                 <div class="col-md-3">${scoreBar(f.growth_score,'Growth (25%)')}</div>
                 <div class="col-md-3">${scoreBar(f.stability_score,'Stability (20%)')}</div>
             </div>
-            <div class="card mb-3" style="background:#0d1117;border-color:var(--card-border)">
+            <div class="card mb-3" style="background:var(--bs-body-bg);border-color:var(--card-border)">
                 <div class="card-header"><i class="bi bi-trophy"></i> Detailed Analysis &amp; Recommendation</div>
                 <div class="card-body conviction-text">${(f.conviction_message||'No data available.')
                     .replace(/✅/g,'<span class="text-green">✅</span>')
@@ -4339,8 +3992,7 @@
                 <span class="text-yellow fw-bold">🟡 HOLD</span> — Mixed fundamentals. Hold if owned, wait for better entry if not. Let technical signals guide timing.<br>
                 <span class="text-red fw-bold">🔴 AVOID</span> — Weak fundamentals. Capital at risk. Only trade with strict stop-loss using technical signals.<br>
                 Score <strong class="text-green">≥65</strong> = Strong &nbsp; <strong class="text-yellow">45-64</strong> = Average &nbsp; <strong class="text-red">&lt;45</strong> = Weak</small>
-            </div>`;
-    }
+            </div>`; }
 
     // ── Refresh Live Data ──
     function refreshLiveData() {
@@ -4351,18 +4003,14 @@
             .then(r => r.json())
             .then(d => {
                 if(d.success) {
-                    location.reload();
-                } else {
+                    location.reload(); } else {
                     btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Failed';
-                    setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Refresh Live Data'; }, 3000);
-                }
-            })
+                    setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Refresh Live Data'; }, 3000); } })
             .catch(() => {
                 btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Failed';
-                setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Refresh Live Data'; }, 3000);
-            });
-    }
+                setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Refresh Live Data'; }, 3000); }); }
     </script>
 <script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
+{% include "_theme_picker.html" %}
 </body>
 </html>

@@ -101,6 +101,11 @@ app.register_blueprint(sentiment_bp)
 from web.global_sentiment_routes import global_sentiment_bp
 app.register_blueprint(global_sentiment_bp)
 
+# Bootswatch theming
+from web.theme import theme_bp, inject_theme
+app.register_blueprint(theme_bp)
+app.context_processor(inject_theme)
+
 # Ensure DBs exist
 _init_trade_db()
 _init_portfolio_db()
@@ -1152,6 +1157,71 @@ def api_trades_summary():
     return jsonify(summary)
 
 
+def _build_trades_with_pnl():
+    """Shared helper: pull trades for the current user with full P&L attached."""
+    rows = get_all_trades(user_id=_uid(), is_admin=_is_admin())
+    enriched = []
+    for t in rows:
+        pnl = calculate_trade(
+            stock=t["stock"], platform=t["platform"],
+            trade_type=t["trade_type"], exchange=t["exchange"],
+            quantity=t["quantity"], buy_price=t["buy_price"],
+            sell_price=t["sell_price"], buy_date=t["buy_date"],
+            sell_date=t["sell_date"],
+        )
+        enriched.append({**t, "pnl": pnl.to_dict()})
+    return enriched
+
+
+def _current_user_display_name():
+    """Best-effort display name for PDF cover line."""
+    u = getattr(g, "user", None)
+    if not u:
+        return None
+    full = " ".join(filter(None, [u.get("first_name"), u.get("last_name")])).strip()
+    return full or u.get("username") or u.get("email")
+
+
+@app.route("/api/trades/export/pdf")
+def api_trades_export_pdf():
+    """Download a comprehensive Trade History PDF report."""
+    from web.pdf_trades import build_trade_history_pdf
+
+    trades = _build_trades_with_pnl()
+    pdf_bytes = build_trade_history_pdf(trades, user_name=_current_user_display_name())
+    filename = f"Hiranya_Trade_History_{date.today().isoformat()}.pdf"
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.route("/api/trades/summary/export/pdf")
+def api_trades_summary_export_pdf():
+    """Download an ITR-ready Financial Year Tax Summary PDF."""
+    from web.pdf_trades import build_fy_tax_summary_pdf
+
+    trades = _build_trades_with_pnl()
+    items = [{"sell_date": t["sell_date"], "pnl": t["pnl"]} for t in trades]
+    fy_summary = calculate_fy_summary(items)
+    pdf_bytes = build_fy_tax_summary_pdf(
+        fy_summary, trades=trades, user_name=_current_user_display_name(),
+    )
+    filename = f"Hiranya_FY_Tax_Summary_{date.today().isoformat()}.pdf"
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 # ─────────────────────────────────────────────────────────────────
 #  PORTFOLIO TRACKER (completely isolated)
 # ─────────────────────────────────────────────────────────────────
@@ -1241,6 +1311,31 @@ def api_portfolio_analyze(pid):
         return jsonify({"error": "not_found"}), 404
     result = analyze_position(pos)
     return jsonify(result)
+
+
+@app.route("/api/portfolio/<int:pid>/analyze/pdf", methods=["GET"])
+def api_portfolio_analyze_pdf(pid):
+    """Render the single-position analysis as a clean A4 PDF."""
+    from web.pdf_position import build_position_analysis_pdf
+
+    pos = get_position(pid, user_id=_uid(), is_admin=_is_admin())
+    if not pos:
+        return jsonify({"error": "not_found"}), 404
+
+    analysis = analyze_position(pos)
+    pdf_bytes = build_position_analysis_pdf(analysis)
+    ticker = (pos.get("ticker") or "position").upper().replace(" ", "_")
+    filename = f"Position_Analysis_{ticker}_{date.today().isoformat()}.pdf"
+
+    from flask import Response
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @app.route("/api/portfolio/analyze-all", methods=["GET"])

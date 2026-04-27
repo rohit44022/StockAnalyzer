@@ -47,7 +47,7 @@ PUBLIC_ROUTES = frozenset({
 })
 
 # Route prefixes that are always public
-PUBLIC_PREFIXES = ("/auth/", "/static/")
+PUBLIC_PREFIXES = ("/auth/", "/static/", "/theme/")
 
 
 def init_auth_middleware(app):

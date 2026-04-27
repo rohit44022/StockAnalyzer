@@ -1,26 +1,25 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>💰 Trade P&L & Tax Calculator — Indian Equity</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+{% include "_theme_head.html" %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root {
-    --bs-body-bg:#0d1117; --bs-body-color:#c9d1d9;
-    --card-bg:#161b22; --card-border:#30363d;
-    --g:#3fb950; --r:#f85149; --y:#d29922; --b:#58a6ff; --p:#bc8cff; --o:#f0883e; --c:#39d2c0;
-}
-body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
+     
+    --card-bg:var(--bs-tertiary-bg); --card-border:var(--bs-border-color);
+    --g:#3fb950; --r:#f85149; --y:#d29922; --b:#58a6ff; --p:#bc8cff; --o:#f0883e; --c:#39d2c0; }
+body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .font-mono{font-family:'JetBrains Mono',monospace}
 .card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
 .card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
 
 /* Hero */
-.hero{background:linear-gradient(135deg,#0d1117,#161b22 50%,#1a1f2b);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%,var(--bs-tertiary-bg));border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
 .hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#3fb950,#58a6ff,#bc8cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 
 /* Summary cards */
@@ -45,8 +44,8 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 .trade-tbl tbody tr:hover{background:rgba(88,166,255,.06)}
 
 /* Form */
-.form-control,.form-select{background:#0d1117;border-color:var(--card-border);color:#c9d1d9}
-.form-control:focus,.form-select:focus{background:#0d1117;border-color:var(--b);color:#c9d1d9;box-shadow:0 0 0 .2rem rgba(88,166,255,.15)}
+.form-control,.form-select{background:var(--bs-body-bg);border-color:var(--card-border);color:var(--bs-body-color)}
+.form-control:focus,.form-select:focus{background:var(--bs-body-bg);border-color:var(--b);color:var(--bs-body-color);box-shadow:0 0 0 .2rem rgba(88,166,255,.15)}
 
 /* Modal */
 .charge-row{display:flex;justify-content:space-between;padding:.45rem 0;border-bottom:1px solid rgba(48,54,61,.5)}
@@ -66,20 +65,20 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 @keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
 .sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
 .sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
-.sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link:hover{color:var(--bs-body-color);border-bottom-color:rgba(88,166,255,.3)}
 .sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
 .sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
 .sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
 @media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 
 /* Autocomplete */
-.ac-list{position:absolute;z-index:1050;background:#161b22;border:1px solid var(--card-border);border-radius:8px;max-height:200px;overflow-y:auto;width:100%;display:none}
+.ac-list{position:absolute;z-index:1050;background:var(--bs-tertiary-bg);border:1px solid var(--card-border);border-radius:8px;max-height:200px;overflow-y:auto;width:100%;display:none}
 .ac-list .ac-item{padding:.4rem .8rem;cursor:pointer;font-size:.85rem}
 .ac-list .ac-item:hover,.ac-list .ac-item.active{background:rgba(88,166,255,.12);color:#fff}
 
 /* Responsive tweaks */
 @media(max-width:768px){.sum-val{font-size:1.2rem}.hero h1{font-size:1.6rem}}
-.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#161b22;border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:#c9d1d9}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:#c9d1d9;text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
+.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color)}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color);text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
 </style>
 </head>
 <body>
@@ -118,7 +117,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 </nav>
 
 <!-- ═══ HERO ═══ -->
-<section class="hero" style="background:linear-gradient(135deg,#0d1117,#161b22 50%,#1a1f2b);border-bottom:1px solid var(--card-border);padding:1.5rem 0">
+<section class="hero" style="background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%,var(--bs-tertiary-bg));border-bottom:1px solid var(--card-border);padding:1.5rem 0">
   <div class="container">
     <h1><i class="bi bi-calculator-fill"></i> Trade P&L &amp; Tax Calculator</h1>
     <p class="text-secondary mb-0">All charges (STT, Brokerage, Exchange, SEBI, Stamp, GST, DP) + Capital Gains Tax for Zerodha &amp; Dhan</p>
@@ -130,32 +129,32 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 <!-- ═══════ SUMMARY CARDS ═══════ -->
 <div class="row g-3 mb-4" id="summaryRow">
   <div class="col-6 col-md-4 col-xl-2">
-    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+    <div class="sum-card" style="background:linear-gradient(135deg,var(--bs-tertiary-bg),var(--bs-secondary-bg));border:1px solid var(--card-border)">
       <div class="sum-val text-blue" id="sTrades">0</div><div class="sum-label">Total Trades</div>
     </div>
   </div>
   <div class="col-6 col-md-4 col-xl-2">
-    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+    <div class="sum-card" style="background:linear-gradient(135deg,var(--bs-tertiary-bg),var(--bs-secondary-bg));border:1px solid var(--card-border)">
       <div class="sum-val" id="sInvested">₹0</div><div class="sum-label">Total Invested</div>
     </div>
   </div>
   <div class="col-6 col-md-4 col-xl-2">
-    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+    <div class="sum-card" style="background:linear-gradient(135deg,var(--bs-tertiary-bg),var(--bs-secondary-bg));border:1px solid var(--card-border)">
       <div class="sum-val" id="sGrossPnl">₹0</div><div class="sum-label">Gross P&L</div>
     </div>
   </div>
   <div class="col-6 col-md-4 col-xl-2">
-    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+    <div class="sum-card" style="background:linear-gradient(135deg,var(--bs-tertiary-bg),var(--bs-secondary-bg));border:1px solid var(--card-border)">
       <div class="sum-val text-yellow" id="sCharges">₹0</div><div class="sum-label">Total Charges</div>
     </div>
   </div>
   <div class="col-6 col-md-4 col-xl-2">
-    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+    <div class="sum-card" style="background:linear-gradient(135deg,var(--bs-tertiary-bg),var(--bs-secondary-bg));border:1px solid var(--card-border)">
       <div class="sum-val text-purple" id="sTax">₹0</div><div class="sum-label">Est. Tax</div>
     </div>
   </div>
   <div class="col-6 col-md-4 col-xl-2">
-    <div class="sum-card" style="background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--card-border)">
+    <div class="sum-card" style="background:linear-gradient(135deg,var(--bs-tertiary-bg),var(--bs-secondary-bg));border:1px solid var(--card-border)">
       <div class="sum-val" id="sNetPnl">₹0</div><div class="sum-label">Net Profit</div>
     </div>
   </div>
@@ -239,7 +238,7 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
           </div>
         </div>
         <!-- Live preview -->
-        <div class="mt-3 p-3 rounded d-none" id="livePreview" style="background:#0d1117;border:1px solid var(--card-border)">
+        <div class="mt-3 p-3 rounded d-none" id="livePreview" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
           <div class="row g-2 font-mono small">
             <div class="col-auto">Buy Value: <strong id="pvBuy">-</strong></div>
             <div class="col-auto">Sell Value: <strong id="pvSell">-</strong></div>
@@ -255,12 +254,18 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 
 <!-- ═══════ TRADE HISTORY ═══════ -->
 <div class="card mb-4">
-  <div class="card-header d-flex align-items-center">
+  <div class="card-header d-flex align-items-center flex-wrap gap-2">
     <i class="bi bi-clock-history me-2"></i>Trade History
     <span class="badge bg-secondary ms-2 font-mono" id="tradeCountBadge">0</span>
-    <button class="btn btn-outline-danger btn-sm ms-auto d-none" id="deleteAllBtn">
-      <i class="bi bi-trash3"></i> Delete All
-    </button>
+    <div class="ms-auto d-flex gap-2">
+      <button class="btn btn-outline-primary btn-sm d-none" id="exportTradesPdfBtn"
+              onclick="exportTradesPdf(this)" title="Download full trade history as PDF">
+        <i class="bi bi-file-earmark-pdf"></i> Export PDF
+      </button>
+      <button class="btn btn-outline-danger btn-sm d-none" id="deleteAllBtn">
+        <i class="bi bi-trash3"></i> Delete All
+      </button>
+    </div>
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -285,7 +290,13 @@ body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
 
 <!-- ═══════ FY TAX SUMMARY ═══════ -->
 <div class="card mb-4">
-  <div class="card-header"><i class="bi bi-receipt-cutoff me-2"></i>Financial Year Tax Summary</div>
+  <div class="card-header d-flex align-items-center flex-wrap gap-2">
+    <i class="bi bi-receipt-cutoff me-2"></i>Financial Year Tax Summary
+    <button class="btn btn-outline-primary btn-sm ms-auto d-none" id="exportFyPdfBtn"
+            onclick="exportFyPdf(this)" title="Download ITR-ready FY tax summary as PDF">
+      <i class="bi bi-file-earmark-pdf"></i> Export PDF
+    </button>
+  </div>
   <div class="card-body p-0" id="fyBody">
     <p class="text-center text-secondary py-4 mb-0" id="fyEmpty">Add trades to see your FY-wise tax summary</p>
   </div>
@@ -346,8 +357,7 @@ const fmtR = (v) => {
     const a = Math.abs(v);
     if(a>=1e7) return (v<0?'-':'')+'₹'+( a/1e7).toFixed(2)+' Cr';
     if(a>=1e5) return (v<0?'-':'')+'₹'+(a/1e5).toFixed(2)+' L';
-    return '₹'+v.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
-};
+    return '₹'+v.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); };
 const pnlCls = v => v>=0?'text-green':'text-red';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -357,8 +367,7 @@ document.addEventListener('DOMContentLoaded', async()=>{
     // clock
     setInterval(()=>{
         const d=new Date();
-        document.getElementById('clockSpan').textContent=d.toLocaleString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+' IST';
-    },1000);
+        document.getElementById('clockSpan').textContent=d.toLocaleString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+' IST'; },1000);
 
     // set default dates
     const today = new Date().toISOString().split('T')[0];
@@ -377,8 +386,7 @@ document.addEventListener('DOMContentLoaded', async()=>{
     // live preview on input change
     ['fQty','fBuy','fSell','fTradeType','fPlatform'].forEach(id=>{
         document.getElementById(id).addEventListener('input', updatePreview);
-        document.getElementById(id).addEventListener('change', updatePreview);
-    });
+        document.getElementById(id).addEventListener('change', updatePreview); });
 
     // stock autocomplete
     setupAutocomplete();
@@ -386,14 +394,10 @@ document.addEventListener('DOMContentLoaded', async()=>{
     // trade type change → auto match dates for intraday
     document.getElementById('fTradeType').addEventListener('change', ()=>{
         if(document.getElementById('fTradeType').value==='intraday'){
-            document.getElementById('fSellDate').value = document.getElementById('fBuyDate').value;
-        }
-    });
+            document.getElementById('fSellDate').value = document.getElementById('fBuyDate').value; } });
     document.getElementById('fBuyDate').addEventListener('change', ()=>{
         if(document.getElementById('fTradeType').value==='intraday'){
-            document.getElementById('fSellDate').value = document.getElementById('fBuyDate').value;
-        }
-    });
+            document.getElementById('fSellDate').value = document.getElementById('fBuyDate').value; } });
 
     // confirm delete handler
     document.getElementById('confirmDelBtn').addEventListener('click', async()=>{
@@ -401,9 +405,7 @@ document.addEventListener('DOMContentLoaded', async()=>{
         await fetch('/api/trades/'+pendingDeleteId,{method:'DELETE'});
         bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal')).hide();
         pendingDeleteId = null;
-        await loadTrades();
-    });
-});
+        await loadTrades(); }); });
 
 /* ═══════════════════════════════════════════════════════════════
    AUTOCOMPLETE
@@ -425,10 +427,7 @@ function setupAutocomplete(){
             el.addEventListener('mousedown', e=>{
                 e.preventDefault();
                 inp.value = el.textContent;
-                list.style.display='none';
-            });
-        });
-    });
+                list.style.display='none'; }); }); });
     inp.addEventListener('keydown', e=>{
         const items = list.querySelectorAll('.ac-item');
         if(!items.length) return;
@@ -436,10 +435,8 @@ function setupAutocomplete(){
         else if(e.key==='ArrowUp'){e.preventDefault();selIdx=Math.max(selIdx-1,0);}
         else if(e.key==='Enter'&&selIdx>=0){e.preventDefault();inp.value=items[selIdx].textContent;list.style.display='none';return;}
         else return;
-        items.forEach((el,i)=>el.classList.toggle('active',i===selIdx));
-    });
-    inp.addEventListener('blur', ()=>setTimeout(()=>list.style.display='none',150));
-}
+        items.forEach((el,i)=>el.classList.toggle('active',i===selIdx)); });
+    inp.addEventListener('blur', ()=>setTimeout(()=>list.style.display='none',150)); }
 
 /* ═══════════════════════════════════════════════════════════════
    LIVE PREVIEW
@@ -470,21 +467,18 @@ function updatePreview(){
     document.getElementById('pvSell').textContent = fmtR(sv);
     document.getElementById('pvGross').innerHTML = `<span class="${pnlCls(gp)}">${fmtR(gp)}</span>`;
     document.getElementById('pvCharges').textContent = '~'+fmtR(totalCh);
-    document.getElementById('pvNet').innerHTML = `<span class="${pnlCls(net)}">${fmtR(net)}</span>`;
-}
+    document.getElementById('pvNet').innerHTML = `<span class="${pnlCls(net)}">${fmtR(net)}</span>`; }
 
 /* ═══════════════════════════════════════════════════════════════
    LOAD TRADES
    ═══════════════════════════════════════════════════════════════ */
 async function loadTrades(){
     try{
-        TRADES = await(await fetch('/api/trades')).json();
-    }catch(e){TRADES=[];}
+        TRADES = await(await fetch('/api/trades')).json(); }catch(e){TRADES=[];}
     renderTable();
     renderSummary();
     await renderFYSummary();
-    renderMonthlyChart();
-}
+    renderMonthlyChart(); }
 
 /* ═══════════════════════════════════════════════════════════════
    ADD TRADE
@@ -503,8 +497,7 @@ async function addTrade(e){
         sell_price: parseFloat(document.getElementById('fSell').value),
         buy_date:   document.getElementById('fBuyDate').value,
         sell_date:  document.getElementById('fSellDate').value,
-        notes:      document.getElementById('fNotes').value,
-    };
+        notes:      document.getElementById('fNotes').value, };
     try{
         const r = await fetch('/api/trades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
         const j = await r.json();
@@ -512,10 +505,8 @@ async function addTrade(e){
         // reset form partially
         ['fStock','fQty','fBuy','fSell','fNotes'].forEach(id=>document.getElementById(id).value='');
         document.getElementById('livePreview').classList.add('d-none');
-        await loadTrades();
-    }catch(ex){alert('Error adding trade');}
-    finally{btn.disabled=false; btn.innerHTML='<i class="bi bi-plus-lg"></i> Add Trade';}
-}
+        await loadTrades(); }catch(ex){alert('Error adding trade');}
+    finally{btn.disabled=false; btn.innerHTML='<i class="bi bi-plus-lg"></i> Add Trade';} }
 
 /* ═══════════════════════════════════════════════════════════════
    RENDER TABLE
@@ -524,15 +515,17 @@ function renderTable(){
     const tb = document.getElementById('tradeBody');
     const badge = document.getElementById('tradeCountBadge');
     const delAll = document.getElementById('deleteAllBtn');
+    const expPdf = document.getElementById('exportTradesPdfBtn');
     badge.textContent = TRADES.length;
 
     if(!TRADES.length){
         tb.innerHTML = `<tr id="emptyRow"><td colspan="11" class="text-center text-secondary py-4">
             <i class="bi bi-inbox" style="font-size:2rem"></i><br>No trades yet — add your first trade above</td></tr>`;
         delAll.classList.add('d-none');
-        return;
-    }
+        if(expPdf) expPdf.classList.add('d-none');
+        return; }
     delAll.classList.remove('d-none');
+    if(expPdf) expPdf.classList.remove('d-none');
 
     tb.innerHTML = TRADES.map(t=>{
         const p = t.pnl;
@@ -556,9 +549,7 @@ function renderTable(){
                     <i class="bi bi-trash3"></i>
                 </button>
             </td>
-        </tr>`;
-    }).join('');
-}
+        </tr>`; }).join(''); }
 
 /* ═══════════════════════════════════════════════════════════════
    SUMMARY CARDS
@@ -567,8 +558,7 @@ function renderSummary(){
     if(!TRADES.length){
         ['sTrades','sInvested','sGrossPnl','sCharges','sTax','sNetPnl'].forEach(id=>
             document.getElementById(id).textContent = id==='sTrades'?'0':'₹0');
-        return;
-    }
+        return; }
     let invested=0, gross=0, charges=0, tax=0, net=0;
     TRADES.forEach(t=>{
         const p=t.pnl;
@@ -576,8 +566,7 @@ function renderSummary(){
         gross    += p.gross_pnl;
         charges  += p.charges.total;
         tax      += p.total_tax;
-        net      += p.post_tax_pnl;
-    });
+        net      += p.post_tax_pnl; });
     document.getElementById('sTrades').textContent = TRADES.length;
     document.getElementById('sInvested').textContent = fmtR(invested);
     const gpEl = document.getElementById('sGrossPnl');
@@ -585,8 +574,7 @@ function renderSummary(){
     document.getElementById('sCharges').textContent = fmtR(charges);
     document.getElementById('sTax').textContent = fmtR(tax);
     const npEl = document.getElementById('sNetPnl');
-    npEl.textContent = fmtR(net); npEl.className = 'sum-val '+pnlCls(net);
-}
+    npEl.textContent = fmtR(net); npEl.className = 'sum-val '+pnlCls(net); }
 
 /* ═══════════════════════════════════════════════════════════════
    DETAIL MODAL
@@ -624,7 +612,7 @@ function showDetail(id){
 
     <!-- Charges Breakdown -->
     <h6 class="text-secondary mt-3 mb-2"><i class="bi bi-receipt me-1"></i>Charges Breakdown</h6>
-    <div class="p-3 rounded" style="background:#0d1117;border:1px solid var(--card-border)">
+    <div class="p-3 rounded" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
         ${row('Brokerage (Buy)', '₹'+c.brokerage_buy.toFixed(2))}
         ${row('Brokerage (Sell)', '₹'+c.brokerage_sell.toFixed(2))}
         ${row('<strong>Total Brokerage</strong>', '<strong>₹'+c.total_brokerage.toFixed(2)+'</strong>')}
@@ -647,7 +635,7 @@ function showDetail(id){
 
     <!-- P&L & Tax -->
     <h6 class="text-secondary mt-3 mb-2"><i class="bi bi-calculator me-1"></i>P&L & Tax</h6>
-    <div class="p-3 rounded" style="background:#0d1117;border:1px solid var(--card-border)">
+    <div class="p-3 rounded" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
         ${row('Gross P&L', fmtR(p.gross_pnl), pnlCls(p.gross_pnl))}
         ${row('Total Charges', '- '+fmtR(c.total), 'text-yellow')}
         ${row('<strong>Net P&L</strong>', '<strong class="'+pnlCls(p.net_pnl)+'">'+fmtR(p.net_pnl)+'</strong>')}
@@ -667,16 +655,14 @@ function showDetail(id){
     ${p.tax_category==='Speculative'?'<div class="alert alert-warning mt-3 small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Intraday profits are treated as Speculative Business Income and taxed at your income tax slab rate. The 30% rate shown is indicative (highest slab).</div>':''}
     `;
 
-    new bootstrap.Modal(document.getElementById('detailModal')).show();
-}
+    new bootstrap.Modal(document.getElementById('detailModal')).show(); }
 
 /* ═══════════════════════════════════════════════════════════════
    DELETE
    ═══════════════════════════════════════════════════════════════ */
 function confirmDelete(id){
     pendingDeleteId = id;
-    new bootstrap.Modal(document.getElementById('confirmDeleteModal')).show();
-}
+    new bootstrap.Modal(document.getElementById('confirmDeleteModal')).show(); }
 
 /* ═══════════════════════════════════════════════════════════════
    FY TAX SUMMARY
@@ -684,11 +670,19 @@ function confirmDelete(id){
 async function renderFYSummary(){
     const body = document.getElementById('fyBody');
     const empty = document.getElementById('fyEmpty');
-    if(!TRADES.length){body.innerHTML='<p class="text-center text-secondary py-4 mb-0">Add trades to see your FY-wise tax summary</p>';return;}
+    const fyPdf = document.getElementById('exportFyPdfBtn');
+    if(!TRADES.length){
+        body.innerHTML='<p class="text-center text-secondary py-4 mb-0">Add trades to see your FY-wise tax summary</p>';
+        if(fyPdf) fyPdf.classList.add('d-none');
+        return; }
 
     try{
         const data = await(await fetch('/api/trades/summary')).json();
-        if(!data.length){body.innerHTML='<p class="text-center text-secondary py-4 mb-0">No FY data</p>';return;}
+        if(!data.length){
+            body.innerHTML='<p class="text-center text-secondary py-4 mb-0">No FY data</p>';
+            if(fyPdf) fyPdf.classList.add('d-none');
+            return; }
+        if(fyPdf) fyPdf.classList.remove('d-none');
 
         let html = `<div class="table-responsive"><table class="table table-dark fy-tbl mb-0">
         <thead><tr>
@@ -715,12 +709,56 @@ async function renderFYSummary(){
                 <td class="text-end">${fmtR(f.cess)}</td>
                 <td class="text-end text-yellow">${fmtR(f.total_charges)}</td>
                 <td class="text-end"><strong class="text-purple">${fmtR(f.total_tax)}</strong></td>
-            </tr>`;
-        });
+            </tr>`; });
         html += '</tbody></table></div>';
-        body.innerHTML = html;
-    }catch(e){body.innerHTML='<p class="text-center text-danger py-4 mb-0">Error loading summary</p>';}
+        body.innerHTML = html; }catch(e){body.innerHTML='<p class="text-center text-danger py-4 mb-0">Error loading summary</p>';if(fyPdf) fyPdf.classList.add('d-none');} }
+
+/* ═══════════════════════════════════════════════════════════════
+   PDF EXPORT
+   ═══════════════════════════════════════════════════════════════ */
+async function exportTradesPdf(btn){
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generating…';
+    try{
+        const r = await fetch('/api/trades/export/pdf');
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const blob = await r.blob();
+        triggerDownload(blob, 'Hiranya_Trade_History_'+todayISO()+'.pdf');
+    }catch(e){
+        alert('Could not generate Trade History PDF: '+e.message);
+    }finally{
+        btn.disabled = false;
+        btn.innerHTML = original;
+    }
 }
+
+async function exportFyPdf(btn){
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generating…';
+    try{
+        const r = await fetch('/api/trades/summary/export/pdf');
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const blob = await r.blob();
+        triggerDownload(blob, 'Hiranya_FY_Tax_Summary_'+todayISO()+'.pdf');
+    }catch(e){
+        alert('Could not generate FY Tax Summary PDF: '+e.message);
+    }finally{
+        btn.disabled = false;
+        btn.innerHTML = original;
+    }
+}
+
+function triggerDownload(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+}
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
 
 /* ═══════════════════════════════════════════════════════════════
    MONTHLY CHART
@@ -732,8 +770,7 @@ function renderMonthlyChart(){
 
     if(!TRADES.length){
         monthlyChartInstance = new Chart(ctx,{type:'bar',data:{labels:[],datasets:[]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
-        return;
-    }
+        return; }
 
     // bucket by month
     const buckets = {};
@@ -742,8 +779,7 @@ function renderMonthlyChart(){
         if(!buckets[m]) buckets[m]={profit:0,loss:0};
         const net = t.pnl.net_pnl;
         if(net>=0) buckets[m].profit += net;
-        else buckets[m].loss += net;
-    });
+        else buckets[m].loss += net; });
     const months = Object.keys(buckets).sort();
     const profits = months.map(m=>Math.round(buckets[m].profit));
     const losses  = months.map(m=>Math.round(buckets[m].loss));
@@ -755,19 +791,15 @@ function renderMonthlyChart(){
             datasets:[
                 {label:'Profit',data:profits,backgroundColor:'rgba(63,185,80,0.7)',borderRadius:4},
                 {label:'Loss',data:losses,backgroundColor:'rgba(248,81,73,0.7)',borderRadius:4},
-            ]
-        },
+            ] },
         options:{
             responsive:true, maintainAspectRatio:false,
             plugins:{legend:{labels:{color:'#8b949e'}}},
             scales:{
                 x:{ticks:{color:'#8b949e'},grid:{color:'rgba(48,54,61,0.4)'}},
-                y:{ticks:{color:'#8b949e',callback:v=>v>=1e5?'₹'+(v/1e5).toFixed(1)+'L':v>=1e3?'₹'+(v/1e3).toFixed(0)+'K':'₹'+v},grid:{color:'rgba(48,54,61,0.4)'}},
-            }
-        }
-    });
-}
+                y:{ticks:{color:'#8b949e',callback:v=>v>=1e5?'₹'+(v/1e5).toFixed(1)+'L':v>=1e3?'₹'+(v/1e3).toFixed(0)+'K':'₹'+v},grid:{color:'rgba(48,54,61,0.4)'}}, } } }); }
 </script>
 <script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
+{% include "_theme_picker.html" %}
 </body>
 </html>

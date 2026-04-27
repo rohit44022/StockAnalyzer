@@ -1,28 +1,28 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hiranya — Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    {% include "_theme_head.html" %}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #0d1117;
-            --bg-secondary: #161b22;
-            --border-color: #30363d;
+            --bg-primary: var(--bs-body-bg);
+            --bg-secondary: var(--bs-tertiary-bg);
+            --border-color: var(--bs-border-color);
             --accent-blue: #58a6ff;
             --accent-green: #3fb950;
             --accent-red: #f85149;
             --accent-yellow: #d29922;
             --accent-purple: #bc8cff;
-            --text-primary: #c9d1d9;
+            --text-primary: var(--bs-body-color);
             --text-secondary: #8b949e;
         }
         * { box-sizing: border-box; }
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--bs-body-font-family);
             background: var(--bg-primary);
             color: var(--text-primary);
             min-height: 100vh;
@@ -623,5 +623,6 @@
         if (af) { const i = af.querySelector('input[type="text"],input[type="email"]'); if (i) i.focus(); }
     });
     </script>
+{% include "_theme_picker.html" %}
 </body>
 </html>

@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📈 Hiranya — Advanced Trading Intelligence Platform</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    {% include "_theme_head.html" %}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bs-body-bg: #0d1117;
-            --bs-body-color: #c9d1d9;
-            --card-bg: #161b22;
-            --card-border: #30363d;
+            
+            
+            --card-bg:var(--bs-tertiary-bg);
+            --card-border:var(--bs-border-color);
             --accent-green: #3fb950;
             --accent-red: #f85149;
             --accent-yellow: #d29922;
@@ -27,9 +27,8 @@
             --m3-color: #bc8cff;
             --m3-glow: rgba(188,140,255,0.15);
             --m4-color: #f0883e;
-            --m4-glow: rgba(240,136,62,0.15);
-        }
-        body { font-family: 'Inter', sans-serif; background: var(--bs-body-bg); }
+            --m4-glow: rgba(240,136,62,0.15); }
+        body { font-family: var(--bs-body-font-family); background: var(--bs-body-bg); }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
 
         /* ── Cards ── */
@@ -38,58 +37,51 @@
 
         /* ── Hero ── */
         .hero-section {
-            background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1f2b 100%);
-            border-bottom: 1px solid var(--card-border);
-            padding: 2.5rem 0 2rem;
-        }
+            background: var(--bs-body-bg);
+            background-image: linear-gradient(135deg,
+              color-mix(in srgb, var(--bs-body-bg) 100%, transparent) 0%,
+              color-mix(in srgb, var(--bs-tertiary-bg) 60%, var(--bs-body-bg)) 50%,
+              color-mix(in srgb, var(--bs-secondary-bg) 60%, var(--bs-body-bg)) 100%);
+            border-bottom: 1px solid var(--bs-border-color);
+            padding: 2.5rem 0 2rem; }
         .hero-title {
             font-size: 2.5rem; font-weight: 800;
             background: linear-gradient(135deg, #58a6ff, #bc8cff, #f0883e);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .search-box { max-width: 600px; margin: 1.5rem auto 0; }
         .search-box .form-control {
-            background: var(--card-bg); border: 2px solid var(--card-border);
-            color: #fff; font-size: 1.1rem; padding: 0.7rem 1.2rem;
-            border-radius: 12px 0 0 12px;
-        }
+            background: var(--bs-body-bg); border: 2px solid var(--bs-border-color);
+            color: var(--bs-body-color); font-size: 1.1rem; padding: 0.7rem 1.2rem;
+            border-radius: 12px 0 0 12px; }
         .search-box .form-control:focus {
-            border-color: var(--accent-blue); box-shadow: 0 0 0 0.2rem rgba(88,166,255,0.15);
-        }
+            border-color: var(--accent-blue); box-shadow: 0 0 0 0.2rem rgba(88,166,255,0.15); }
         .search-box .btn {
-            border-radius: 0 12px 12px 0; font-weight: 600; padding: 0.7rem 1.5rem;
-        }
+            border-radius: 0 12px 12px 0; font-weight: 600; padding: 0.7rem 1.5rem; }
 
         /* ── Autocomplete ── */
         .autocomplete-list {
             position: absolute; z-index: 1000; background: var(--card-bg);
             border: 1px solid var(--card-border); border-radius: 0 0 12px 12px;
-            max-height: 250px; overflow-y: auto; width: 100%; left: 0;
-        }
+            max-height: 250px; overflow-y: auto; width: 100%; left: 0; }
         .autocomplete-item {
             padding: 8px 16px; cursor: pointer; color: var(--bs-body-color);
-            font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
-        }
+            font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }
         .autocomplete-item:hover, .autocomplete-item.active {
-            background: rgba(88,166,255,0.1); color: var(--accent-blue);
-        }
+            background: rgba(88,166,255,0.1); color: var(--accent-blue); }
 
         /* ── Strategy Cards ── */
         .strat-hero {
             border-radius: 16px; padding: 1.8rem;
             transition: all 0.3s ease; position: relative; overflow: hidden;
-            border: 2px solid transparent;
-        }
+            border: 2px solid transparent; }
         .strat-hero:hover {
             transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-        }
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
         .strat-hero > * { position: relative; z-index: 1; }
         .strat-hero::before {
             content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             border-radius: 14px; opacity: 0.06;
-            pointer-events: none;
-        }
+            pointer-events: none; }
         .strat-m1 { background: var(--card-bg); border-color: var(--m1-color); }
         .strat-m1::before { background: var(--m1-color); }
         .strat-m1:hover { box-shadow: 0 8px 32px var(--m1-glow); border-color: var(--m1-color); }
@@ -106,8 +98,7 @@
         .strat-icon {
             width: 56px; height: 56px; border-radius: 14px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.6rem; margin-bottom: 0.8rem;
-        }
+            font-size: 1.6rem; margin-bottom: 0.8rem; }
         .strat-m1 .strat-icon { background: var(--m1-glow); color: var(--m1-color); }
         .strat-m2 .strat-icon { background: var(--m2-glow); color: var(--m2-color); }
         .strat-m3 .strat-icon { background: var(--m3-glow); color: var(--m3-color); }
@@ -116,8 +107,7 @@
         .strat-method-tag {
             font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
             letter-spacing: 1.5px; padding: 3px 10px; border-radius: 20px;
-            display: inline-block; margin-bottom: 0.5rem;
-        }
+            display: inline-block; margin-bottom: 0.5rem; }
         .strat-m1 .strat-method-tag { background: var(--m1-glow); color: var(--m1-color); }
         .strat-m2 .strat-method-tag { background: var(--m2-glow); color: var(--m2-color); }
         .strat-m3 .strat-method-tag { background: var(--m3-glow); color: var(--m3-color); }
@@ -127,8 +117,7 @@
         .strat-rating {
             display: inline-flex; align-items: center; gap: 8px;
             padding: 5px 14px; border-radius: 8px; font-size: 0.72rem;
-            font-weight: 600; margin-bottom: 0.6rem; line-height: 1.3;
-        }
+            font-weight: 600; margin-bottom: 0.6rem; line-height: 1.3; }
         .strat-rating-stars { font-size: 0.8rem; letter-spacing: 1px; }
         .strat-rating-rank { font-weight: 800; font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; margin-right: 4px; }
         .strat-rating-1 { background: rgba(63,185,80,0.12); color: #3fb950; border: 1px solid rgba(63,185,80,0.25); }
@@ -148,24 +137,21 @@
 
         .strat-desc {
             font-size: 0.85rem; color: #8b949e; line-height: 1.6;
-            margin-bottom: 1rem;
-        }
+            margin-bottom: 1rem; }
 
         /* ── Book quotes ── */
         .book-quote {
             font-size: 0.8rem; padding: 0.7rem 1rem; border-radius: 10px;
             background: rgba(188,140,255,0.06); border-left: 3px solid var(--accent-purple);
             color: #b392d6; font-style: italic; margin: 0.8rem 0;
-            line-height: 1.55;
-        }
+            line-height: 1.55; }
         .book-quote .quote-src { font-style: normal; font-size: 0.68rem; color: #6e5494; display: block; margin-top: 4px; }
 
         /* ── Key Concept callout ── */
         .key-concept {
             font-size: 0.78rem; padding: 0.7rem 0.9rem; border-radius: 10px;
             background: rgba(57,210,192,0.06); border: 1px solid rgba(57,210,192,0.15);
-            margin: 0.7rem 0; line-height: 1.5;
-        }
+            margin: 0.7rem 0; line-height: 1.5; }
         .key-concept .kc-label { font-weight: 700; font-size: 0.7rem; text-transform: uppercase;
             letter-spacing: 1px; color: var(--accent-cyan); margin-bottom: 2px; }
 
@@ -173,14 +159,12 @@
         .steps-list { list-style: none; padding: 0; margin: 0.5rem 0; }
         .steps-list li {
             position: relative; padding-left: 26px; font-size: 0.76rem;
-            color: #8b949e; margin: 5px 0; line-height: 1.5;
-        }
+            color: #8b949e; margin: 5px 0; line-height: 1.5; }
         .steps-list li::before {
             content: attr(data-step); position: absolute; left: 0; top: 0;
             width: 18px; height: 18px; border-radius: 50%; font-size: 0.6rem;
             display: flex; align-items: center; justify-content: center;
-            font-weight: 700;
-        }
+            font-weight: 700; }
         .steps-buy li::before { background: rgba(63,185,80,0.15); color: var(--accent-green); }
         .steps-sell li::before { background: rgba(248,81,73,0.15); color: var(--accent-red); }
 
@@ -197,8 +181,7 @@
         .mistake-box {
             font-size: 0.76rem; padding: 0.6rem 0.9rem; border-radius: 10px;
             background: rgba(248,81,73,0.05); border: 1px solid rgba(248,81,73,0.12);
-            margin: 0.7rem 0; line-height: 1.5; color: #b3524c;
-        }
+            margin: 0.7rem 0; line-height: 1.5; color: #b3524c; }
         .mistake-box .mb-label { font-weight: 700; font-size: 0.68rem; text-transform: uppercase;
             letter-spacing: 1px; color: var(--accent-red); margin-bottom: 2px; }
 
@@ -206,8 +189,7 @@
         .pro-tip {
             font-size: 0.76rem; padding: 0.6rem 0.9rem; border-radius: 10px;
             background: rgba(63,185,80,0.05); border: 1px solid rgba(63,185,80,0.12);
-            margin: 0.7rem 0; line-height: 1.5;
-        }
+            margin: 0.7rem 0; line-height: 1.5; }
         .pro-tip .pt-label { font-weight: 700; font-size: 0.68rem; text-transform: uppercase;
             letter-spacing: 1px; color: var(--accent-green); margin-bottom: 2px; }
 
@@ -224,16 +206,14 @@
             font-size: 0.72rem; font-weight: 600; padding: 4px 10px;
             border-radius: 20px; background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.08);
-            color: #8b949e; margin: 2px;
-        }
+            color: #8b949e; margin: 2px; }
         .indicator-pill i { font-size: 0.7rem; }
 
         /* ── How it works ── */
         .how-works {
             font-size: 0.78rem; padding: 0.8rem; border-radius: 10px;
             background: rgba(255,255,255,0.025); border-left: 3px solid;
-            margin-top: 0.8rem;
-        }
+            margin-top: 0.8rem; }
         .strat-m1 .how-works { border-left-color: var(--m1-color); }
         .strat-m2 .how-works { border-left-color: var(--m2-color); }
         .strat-m3 .how-works { border-left-color: var(--m3-color); }
@@ -246,8 +226,7 @@
 
         .signal-rule {
             display: flex; align-items: flex-start; gap: 6px;
-            font-size: 0.75rem; color: #8b949e; margin: 3px 0;
-        }
+            font-size: 0.75rem; color: #8b949e; margin: 3px 0; }
         .signal-rule .arrow-buy  { color: var(--accent-green); font-weight: 700; }
         .signal-rule .arrow-sell { color: var(--accent-red); font-weight: 700; }
 
@@ -257,9 +236,8 @@
             flex: 1; min-width: 80px; padding: 6px 12px; border-radius: 8px;
             font-size: 0.78rem; font-weight: 600; cursor: pointer;
             border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
-            color: #c9d1d9; transition: all 0.2s; text-align: center;
-            user-select: none;
-        }
+            color: var(--bs-body-color); transition: all 0.2s; text-align: center;
+            user-select: none; }
         .strat-scan-btn:hover { background: rgba(255,255,255,0.08); transform: translateY(-1px); }
         .strat-scan-btn.btn-buy { border-color: rgba(63,185,80,0.3); color: var(--accent-green); }
         .strat-scan-btn.btn-buy:hover { background: rgba(63,185,80,0.1); }
@@ -270,8 +248,7 @@
 
         /* ── Book reference ── */
         .book-ref {
-            font-size: 0.7rem; color: #484f58; font-style: italic; margin-top: 0.6rem;
-        }
+            font-size: 0.7rem; color: #484f58; font-style: italic; margin-top: 0.6rem; }
         .book-ref i { color: var(--accent-purple); }
 
         /* ── Legacy scan cards (M1 sub-buttons) ── */
@@ -298,10 +275,10 @@
         /* ── Sort / Filter for scan modal ── */
         #scanFilterBar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
         #scanFilterBar input { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
-            color:#c9d1d9; border-radius:6px; padding:5px 10px; font-size:0.8rem; width:220px; }
+            color:var(--bs-body-color); border-radius:6px; padding:5px 10px; font-size:0.8rem; width:220px; }
         #scanFilterBar input::placeholder { color:#6e7681; }
         #scanFilterBar select { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
-            color:#c9d1d9; border-radius:6px; padding:5px 8px; font-size:0.78rem; }
+            color:var(--bs-body-color); border-radius:6px; padding:5px 8px; font-size:0.78rem; }
         #scanHead th { cursor:pointer; user-select:none; white-space:nowrap; position:relative; padding-right:18px !important; }
         #scanHead th:hover { color:var(--accent-blue); }
         #scanHead th .sort-arrow { font-size:0.65rem; position:absolute; right:4px; top:50%; transform:translateY(-50%); opacity:0.3; }
@@ -322,7 +299,7 @@
         .tp-progress-bar { width:100%; height:8px; border-radius:4px; background:rgba(255,255,255,0.08); margin:12px 0; overflow:hidden; }
         .tp-progress-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,#a371f7,#58a6ff); transition:width 0.3s; }
         .tp-progress-text { font-size:0.82rem; color:#8b949e; }
-        .tp-phase-text { font-size:0.9rem; color:#c9d1d9; font-weight:600; margin-bottom:4px; }
+        .tp-phase-text { font-size:0.9rem; color:var(--bs-body-color); font-weight:600; margin-bottom:4px; }
 
         /* Top pick cards */
         .tp-picks-container { display:flex; flex-direction:column; gap:16px; }
@@ -334,7 +311,7 @@
         .tp-rank-1 { background:linear-gradient(135deg,#ffd700,#ffaa00); color:#000; }
         .tp-rank-2 { background:linear-gradient(135deg,#c0c0c0,#a0a0a0); color:#000; }
         .tp-rank-3 { background:linear-gradient(135deg,#cd7f32,#a0522d); color:#fff; }
-        .tp-rank-4,.tp-rank-5 { background:rgba(255,255,255,0.1); color:#c9d1d9; }
+        .tp-rank-4,.tp-rank-5 { background:rgba(255,255,255,0.1); color:var(--bs-body-color); }
         .tp-ticker { font-family:'JetBrains Mono',monospace; font-size:1.1rem; font-weight:700; color:#e6edf3; }
         .tp-price { font-size:0.85rem; color:#8b949e; }
         .tp-score-badge { margin-left:auto; display:flex; align-items:center; gap:6px; }
@@ -384,7 +361,7 @@
         /* Summary stats bar */
         .tp-summary { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px; font-size:0.82rem; }
         .tp-summary-item { color:#8b949e; }
-        .tp-summary-item strong { color:#c9d1d9; }
+        .tp-summary-item strong { color:var(--bs-body-color); }
 
         /* No picks message */
         .tp-no-picks { text-align:center; padding:3rem 1rem; color:#8b949e; }
@@ -395,16 +372,14 @@
         /* ── Section dividers ── */
         .section-title {
             font-size: 1rem; font-weight: 700; display: flex;
-            align-items: center; gap: 8px; margin-bottom: 1rem;
-        }
+            align-items: center; gap: 8px; margin-bottom: 1rem; }
         .section-title .line { flex: 1; height: 1px; background: var(--card-border); }
 
         /* ── Learn callout ── */
         .learn-callout {
             background: linear-gradient(135deg, rgba(88,166,255,0.05), rgba(188,140,255,0.05));
             border: 1px solid rgba(88,166,255,0.15); border-radius: 12px;
-            padding: 1.2rem 1.5rem; margin-bottom: 2rem;
-        }
+            padding: 1.2rem 1.5rem; margin-bottom: 2rem; }
         .learn-callout h6 { color: var(--accent-blue); font-weight: 700; }
         .learn-callout h6:hover { color: var(--accent-purple); }
         .chevron-icon { transition: transform 0.3s ease; }
@@ -417,7 +392,7 @@
         .dl-progress-ring { width: 100%; height: 8px; background: var(--card-border); border-radius: 4px; overflow: hidden; }
         .dl-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-green)); border-radius: 4px; transition: width 0.3s ease; }
         .dl-log { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #8b949e;
-                  max-height: 140px; overflow-y: auto; background: #0d1117; border-radius: 8px;
+                  max-height: 140px; overflow-y: auto; background: var(--bs-body-bg); border-radius: 8px;
                   padding: 0.5rem 0.75rem; border: 1px solid var(--card-border); }
         /* ══ UNIFIED NAV ══ */
         .sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
@@ -427,13 +402,13 @@
         @keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
         .sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
         .sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
-        .sc-nav .sc-link:hover{color:#c9d1d9;border-bottom-color:rgba(88,166,255,.3)}
+        .sc-nav .sc-link:hover{color:var(--bs-body-color);border-bottom-color:rgba(88,166,255,.3)}
         .sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
         .sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
         .sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
         .sc-nav .sc-dl-btn{font-size:.72rem;padding:.25rem .6rem;white-space:nowrap;border-radius:6px}
         @media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
-    .sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#161b22;border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:#c9d1d9}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:#c9d1d9;text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
+    .sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color)}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color);text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
 </style>
 </head>
 <body>
@@ -635,7 +610,7 @@
                 Backtested on 2,262 stocks: BUY signals = 42% WR (profitable), SELL = 30% WR (losing).
                 SELL scan buttons are hidden. Core indicators &amp; book rules remain strict and unchanged.
             </span>
-            <span id="buyOnlyBadge" class="badge" style="background:#3fb950; color:#0d1117; font-size:0.72rem;">LONGS ONLY</span>
+            <span id="buyOnlyBadge" class="badge" style="background:#3fb950; color:var(--bs-body-bg); font-size:0.72rem;">LONGS ONLY</span>
         </div>
 
         <div style="font-size:0.78rem; color:#8b949e; margin:-0.5rem 0 1rem 0; padding-left:2px; line-height:1.5;">
@@ -1160,12 +1135,9 @@
     const learnCalloutChevron = document.getElementById('learnCalloutChevron');
     if (learnCalloutContent && learnCalloutChevron) {
         learnCalloutContent.addEventListener('show.bs.collapse', () => {
-            learnCalloutChevron.classList.remove('rotated');
-        });
+            learnCalloutChevron.classList.remove('rotated'); });
         learnCalloutContent.addEventListener('hide.bs.collapse', () => {
-            learnCalloutChevron.classList.add('rotated');
-        });
-    }
+            learnCalloutChevron.classList.add('rotated'); }); }
 
     // ── Load ticker list for autocomplete ──
     fetch('/api/tickers').then(r=>r.json()).then(data => { allTickers = data; });
@@ -1184,26 +1156,22 @@
             d.className = 'autocomplete-item';
             d.textContent = t;
             d.onclick = () => { input.value = t; acList.style.display='none'; goAnalyze(t); };
-            acList.appendChild(d);
-        });
-        acList.style.display = 'block';
-    });
+            acList.appendChild(d); });
+        acList.style.display = 'block'; });
     document.addEventListener('click', e => { if (!e.target.closest('.search-box')) acList.style.display='none'; });
 
     // ── Search form submit ──
     document.getElementById('searchForm').addEventListener('submit', e => {
         e.preventDefault();
         const t = input.value.trim();
-        if (t) goAnalyze(t);
-    });
+        if (t) goAnalyze(t); });
 
     function goAnalyze(ticker, method) {
         ticker = ticker.trim().toUpperCase();
         if (!ticker.includes('.')) ticker += '.NS';
         let url = '/analyze/' + encodeURIComponent(ticker);
         if (method) url += '?method=' + method;
-        window.location.href = url;
-    }
+        window.location.href = url; }
 
     /* ═══════════════════════════════════════════════════════════════
        BUY-ONLY MODE — Trade decision filter (does NOT change core logic)
@@ -1220,33 +1188,27 @@
         const on = isBuyOnly();
         // Show/hide SELL scan buttons and Top 5 SELL buttons across all strategy cards
         document.querySelectorAll('.strat-scan-btn.btn-sell, .strat-scan-btn.btn-top5-sell').forEach(btn => {
-            btn.style.display = on ? 'none' : '';
-        });
+            btn.style.display = on ? 'none' : ''; });
         // Update visual indicators
         if (buyOnlyBadge) {
             buyOnlyBadge.textContent = on ? 'LONGS ONLY' : 'ALL DIRECTIONS';
-            buyOnlyBadge.style.background = on ? '#3fb950' : '#8b949e';
-        }
+            buyOnlyBadge.style.background = on ? '#3fb950' : '#8b949e'; }
         if (buyOnlyDesc) {
             buyOnlyDesc.textContent = on
                 ? 'Backtested on 2,262 stocks: BUY signals = 42% WR (profitable), SELL = 30% WR (losing). SELL scan buttons are hidden. Core indicators & book rules remain strict and unchanged.'
-                : 'All scan modes available. Note: SELL direction has 30% WR in backtesting — use with caution.';
-        }
+                : 'All scan modes available. Note: SELL direction has 30% WR in backtesting — use with caution.'; }
         // Update the scan modal filter dropdown when BUY-only is active
         const sigFilter = document.getElementById('scanSignalFilter');
         if (sigFilter) {
             const sellOpt = sigFilter.querySelector('option[value="SELL"]');
-            if (sellOpt) sellOpt.style.display = on ? 'none' : '';
-        }
+            if (sellOpt) sellOpt.style.display = on ? 'none' : ''; }
         // Save preference
-        try { localStorage.setItem('buyOnlyMode', on ? '1' : '0'); } catch(e) {}
-    }
+        try { localStorage.setItem('buyOnlyMode', on ? '1' : '0'); } catch(e) {} }
 
     // Initialize from saved preference (default: ON)
     try {
         const saved = localStorage.getItem('buyOnlyMode');
-        if (saved === '0') buyOnlyToggle.checked = false;
-    } catch(e) {}
+        if (saved === '0') buyOnlyToggle.checked = false; } catch(e) {}
     buyOnlyToggle.addEventListener('change', applyBuyOnlyMode);
     applyBuyOnlyMode();
 
@@ -1260,13 +1222,9 @@
         try {
             const resp = await fetch('/api/scan');
             const data = await resp.json();
-            showM1ScanResults(data, mode);
-        } catch(e) {
-            alert('Scan failed: ' + e.message);
-        } finally {
-            hideLoading();
-        }
-    }
+            showM1ScanResults(data, mode); } catch(e) {
+            alert('Scan failed: ' + e.message); } finally {
+            hideLoading(); } }
 
     /* ═══════════════════════════════════════════════════════════════
        SCAN TABLE MANAGER — sort, filter, re-render
@@ -1278,8 +1236,7 @@
         sortKey: null,
         sortAsc: true,
         totalScanned: 0,
-        method: 'M1',
-    };
+        method: 'M1', };
 
     // Wire up filter controls once
     document.getElementById('scanSearchInput').addEventListener('input', _scanApplyFilters);
@@ -1298,23 +1255,17 @@
                 if (va == null) va = asc ? Infinity : -Infinity;
                 if (vb == null) vb = asc ? Infinity : -Infinity;
                 if (typeof va === 'string') return asc ? va.localeCompare(vb) : vb.localeCompare(va);
-                return asc ? va - vb : vb - va;
-            });
-        }
-        _scanRenderRows(rows);
-    }
+                return asc ? va - vb : vb - va; }); }
+        _scanRenderRows(rows); }
 
     function _scanRenderRows(rows) {
         const tbody = document.getElementById('scanBody');
         if (rows.length === 0) {
             tbody.innerHTML = `<tr><td colspan="${_scan.columns.length}" class="text-center text-secondary py-4">
-                <i class="bi bi-emoji-neutral fs-3 d-block mb-2"></i>No matching results</td></tr>`;
-        } else {
-            tbody.innerHTML = rows.map(_scan.renderRow).join('');
-        }
+                <i class="bi bi-emoji-neutral fs-3 d-block mb-2"></i>No matching results</td></tr>`; } else {
+            tbody.innerHTML = rows.map(_scan.renderRow).join(''); }
         document.getElementById('scanVisibleCount').textContent = `${rows.length} of ${_scan.rows.length} shown`;
-        document.getElementById('scanFooter').textContent = `${_scan.rows.length} results from ${_scan.totalScanned} stocks scanned`;
-    }
+        document.getElementById('scanFooter').textContent = `${_scan.rows.length} results from ${_scan.totalScanned} stocks scanned`; }
 
     function _scanSetupHeaders() {
         const tr = document.createElement('tr');
@@ -1324,24 +1275,19 @@
             th.dataset.key = col.key;
             if (_scan.sortKey === col.key) {
                 th.classList.add(_scan.sortAsc ? 'sort-asc' : 'sort-desc');
-                th.querySelector('.sort-arrow').textContent = _scan.sortAsc ? '▲' : '▼';
-            }
+                th.querySelector('.sort-arrow').textContent = _scan.sortAsc ? '▲' : '▼'; }
             th.addEventListener('click', () => {
                 if (_scan.sortKey === col.key) { _scan.sortAsc = !_scan.sortAsc; }
                 else { _scan.sortKey = col.key; _scan.sortAsc = col.type === 'str'; }
                 _scanSetupHeaders();
-                _scanApplyFilters();
-            });
-            tr.appendChild(th);
-        });
+                _scanApplyFilters(); });
+            tr.appendChild(th); });
         document.getElementById('scanHead').innerHTML = '';
-        document.getElementById('scanHead').appendChild(tr);
-    }
+        document.getElementById('scanHead').appendChild(tr); }
 
     function _scanResetControls() {
         document.getElementById('scanSearchInput').value = '';
-        document.getElementById('scanSignalFilter').value = '';
-    }
+        document.getElementById('scanSignalFilter').value = ''; }
 
     function showM1ScanResults(data, mode) {
         let filtered = data;
@@ -1349,8 +1295,7 @@
             BUY:     '🚀 Method I BUY — Volatility Breakout Signals',
             SELL:    '🔴 Method I SELL / EXIT Signals',
             SQUEEZE: '🔵 Stocks in Active Squeeze — Spring Coiling',
-            ALL:     '📊 Method I — Full Scan Results'
-        };
+            ALL:     '📊 Method I — Full Scan Results' };
         if (mode==='BUY')     filtered = data.filter(s => s.buy_signal);
         if (mode==='SELL')    filtered = data.filter(s => s.sell_signal);
         if (mode==='SQUEEZE') filtered = data.filter(s => s.cond1 && !s.buy_signal);
@@ -1371,9 +1316,7 @@
                 percent_b: s.percent_b,
                 direction_lean: s.direction_lean,
                 squeeze_days: s.squeeze_days || 0,
-                _searchText: `${s.ticker} ${sig} ${s.phase} ${s.direction_lean||''}`.toUpperCase(),
-            };
-        });
+                _searchText: `${s.ticker} ${sig} ${s.phase} ${s.direction_lean||''}`.toUpperCase(), }; });
         _scan.totalScanned = data.length;
         _scan.method = 'M1';
         _scan.sortKey = 'confidence'; _scan.sortAsc = false;
@@ -1407,15 +1350,13 @@
                 <td class="font-mono">${r.percent_b}</td>
                 <td>${lean}</td>
                 <td>${r.squeeze_days||'—'}</td>
-            </tr>`;
-        };
+            </tr>`; };
 
         document.getElementById('scanTitle').innerHTML = '<i class="bi bi-search me-2 text-info"></i>' + (titles[mode] || 'Results');
         _scanResetControls();
         _scanSetupHeaders();
         _scanApplyFilters();
-        document.getElementById('scanResults').style.display = 'block';
-    }
+        document.getElementById('scanResults').style.display = 'block'; }
 
     /* ═══════════════════════════════════════════════════════════════
        METHODS II, III, IV SCANNER (new /api/scan/strategies)
@@ -1431,28 +1372,20 @@
                 const resp = await fetch('/api/scan/strategies');
                 strategyScanCache = await resp.json();
                 // Cache expires after 5 minutes
-                setTimeout(() => { strategyScanCache = null; }, 5 * 60 * 1000);
-            }
-            showStrategyScanResults(strategyScanCache, method, mode);
-        } catch(e) {
-            alert('Strategy scan failed: ' + e.message);
-        } finally {
-            hideLoading();
-        }
-    }
+                setTimeout(() => { strategyScanCache = null; }, 5 * 60 * 1000); }
+            showStrategyScanResults(strategyScanCache, method, mode); } catch(e) {
+            alert('Strategy scan failed: ' + e.message); } finally {
+            hideLoading(); } }
 
     function methodLabel(code) {
         const labels = {
             M2: 'Method II — Trend Following',
             M3: 'Method III — Reversals',
-            M4: 'Method IV — Walking the Bands',
-        };
-        return labels[code] || code;
-    }
+            M4: 'Method IV — Walking the Bands', };
+        return labels[code] || code; }
 
     function methodColor(code) {
-        return { M2:'var(--m2-color)', M3:'var(--m3-color)', M4:'var(--m4-color)' }[code] || '#fff';
-    }
+        return { M2:'var(--m2-color)', M3:'var(--m3-color)', M4:'var(--m4-color)' }[code] || '#fff'; }
 
     function showStrategyScanResults(data, method, mode) {
         // Extract matching strategy for each stock
@@ -1471,23 +1404,18 @@
                 indicators: strat.indicators || {},
                 patterns: strat.patterns || [],
                 pct_b:  (stock.m1 && stock.m1.percent_b) || 0,
-                mfi:    (stock.m1 && stock.m1.mfi) || 0,
-            });
-        });
+                mfi:    (stock.m1 && stock.m1.mfi) || 0, }); });
 
         // Filter by mode
         let filtered = rawRows;
         let title = '';
         if (mode === 'BUY') {
             filtered = rawRows.filter(r => r.signal_type === 'BUY');
-            title = `🚀 ${methodLabel(method)} — BUY Signals`;
-        } else if (mode === 'SELL') {
+            title = `🚀 ${methodLabel(method)} — BUY Signals`; } else if (mode === 'SELL') {
             filtered = rawRows.filter(r => r.signal_type === 'SELL');
-            title = `🔴 ${methodLabel(method)} — SELL Signals`;
-        } else {
+            title = `🔴 ${methodLabel(method)} — SELL Signals`; } else {
             filtered = rawRows.filter(r => r.signal_type !== 'NONE');
-            title = `📊 ${methodLabel(method)} — All Active Signals`;
-        }
+            title = `📊 ${methodLabel(method)} — All Active Signals`; }
 
         // Build flat rows with sort keys
         _scan.rows = filtered.map(r => {
@@ -1501,9 +1429,7 @@
                 _patternStr: patternStr,
                 _pctB: r.indicators.pct_b !== undefined ? r.indicators.pct_b : r.pct_b,
                 _mfi: r.indicators.mfi !== undefined ? r.indicators.mfi : r.mfi,
-                _searchText: `${r.ticker} ${r.signal_type} ${r.strength} ${r.reason} ${patternStr}`.toUpperCase(),
-            };
-        });
+                _searchText: `${r.ticker} ${r.signal_type} ${r.strength} ${r.reason} ${patternStr}`.toUpperCase(), }; });
         _scan.totalScanned = data.length;
         _scan.method = method;
         _scan.sortKey = 'confidence'; _scan.sortAsc = false;
@@ -1515,22 +1441,19 @@
                 {key:'_signalType',label:'Signal',type:'str'}, {key:'strength',label:'Strength',type:'str'},
                 {key:'confidence',label:'Conf.',type:'num'}, {key:'_pctB',label:'%b',type:'num'},
                 {key:'_mfi',label:'MFI',type:'num'}, {key:'reason',label:'Reason',type:'str'},
-            ];
-        } else if (method === 'M3') {
+            ]; } else if (method === 'M3') {
             _scan.columns = [
                 {key:'_ticker_display',label:'Ticker',type:'str'}, {key:'price',label:'Price',type:'num'},
                 {key:'_signalType',label:'Signal',type:'str'}, {key:'strength',label:'Strength',type:'str'},
                 {key:'confidence',label:'Conf.',type:'num'}, {key:'_patternStr',label:'Pattern',type:'str'},
                 {key:'reason',label:'Reason',type:'str'},
-            ];
-        } else {
+            ]; } else {
             _scan.columns = [
                 {key:'_ticker_display',label:'Ticker',type:'str'}, {key:'price',label:'Price',type:'num'},
                 {key:'_signalType',label:'Signal',type:'str'}, {key:'strength',label:'Strength',type:'str'},
                 {key:'confidence',label:'Conf.',type:'num'}, {key:'_walkType',label:'Walk Type',type:'str'},
                 {key:'reason',label:'Reason',type:'str'},
-            ];
-        }
+            ]; }
 
         _scan.renderRow = (r) => {
             const sigBadge = makeSigBadge(r.signal_type);
@@ -1541,16 +1464,13 @@
                 const pctB = typeof r._pctB === 'number' ? r._pctB.toFixed(3) : r._pctB;
                 const mfi = typeof r._mfi === 'number' ? r._mfi.toFixed(1) : r._mfi;
                 const mfiC = parseFloat(mfi) > 50 ? 'text-green' : 'text-red';
-                extraCols = `<td class="font-mono">${pctB}</td><td class="font-mono ${mfiC}">${mfi}</td>`;
-            } else if (method === 'M3') {
+                extraCols = `<td class="font-mono">${pctB}</td><td class="font-mono ${mfiC}">${mfi}</td>`; } else if (method === 'M3') {
                 const pat = r.patterns.length > 0 ? r.patterns.map(p => `<span class="badge bg-secondary me-1" style="font-size:0.68rem">${p.name}</span>`).join('') : '—';
-                extraCols = `<td>${pat}</td>`;
-            } else if (method === 'M4') {
+                extraCols = `<td>${pat}</td>`; } else if (method === 'M4') {
                 const wt = r._walkType;
                 const wtHtml = wt.includes('Upper') ? '<span class="text-green">▲ Upper Walk</span>' :
                                wt.includes('Lower') ? '<span class="text-red">▼ Lower Walk</span>' : '—';
-                extraCols = `<td>${wtHtml}</td>`;
-            }
+                extraCols = `<td>${wtHtml}</td>`; }
             const reasonShort = r.reason.length > 60 ? r.reason.substring(0,57) + '...' : r.reason;
             return `<tr style="cursor:pointer" onclick="goAnalyze('${r.ticker}', '${method}')">
                 <td class="font-mono fw-bold">${r._ticker_display}</td>
@@ -1560,15 +1480,13 @@
                 <td><span class="${confClass}">${r.confidence}%</span></td>
                 ${extraCols}
                 <td class="small text-secondary" title="${r.reason}">${reasonShort}</td>
-            </tr>`;
-        };
+            </tr>`; };
 
         document.getElementById('scanTitle').innerHTML = '<i class="bi bi-search me-2 text-info"></i>' + title;
         _scanResetControls();
         _scanSetupHeaders();
         _scanApplyFilters();
-        document.getElementById('scanResults').style.display = 'block';
-    }
+        document.getElementById('scanResults').style.display = 'block'; }
 
     /* ═══════════════════════════════════════════════════════════════
        HELPERS
@@ -1576,21 +1494,18 @@
     function makeSigBadge(type) {
         if (type === 'BUY')  return '<span class="badge badge-buy">🚀 BUY</span>';
         if (type === 'SELL') return '<span class="badge badge-sell">🔴 SELL</span>';
-        return '<span class="badge badge-none">— NONE</span>';
-    }
+        return '<span class="badge badge-none">— NONE</span>'; }
 
     function makeStrengthBadge(s) {
         if (s === 'STRONG')   return '<span class="badge" style="background:#3fb950;color:#000">STRONG</span>';
         if (s === 'MODERATE') return '<span class="badge" style="background:#d29922;color:#000">MODERATE</span>';
         if (s === 'WEAK')     return '<span class="badge" style="background:#484f58">WEAK</span>';
-        return '<span class="badge badge-none">—</span>';
-    }
+        return '<span class="badge badge-none">—</span>'; }
 
     let _scanModal = null;
     function _getScanModal() {
         if (!_scanModal) _scanModal = new bootstrap.Modal(document.getElementById('scanModal'));
-        return _scanModal;
-    }
+        return _scanModal; }
 
     function showLoading(msg) {
         document.getElementById('scanLoadingText').textContent = msg || 'Scanning all stocks...';
@@ -1598,12 +1513,10 @@
         document.getElementById('scanResults').style.display = 'none';
         document.getElementById('scanFooter').textContent = '';
         document.getElementById('scanTitle').innerHTML = '<i class="bi bi-search me-2 text-info"></i>Scanning…';
-        _getScanModal().show();
-    }
+        _getScanModal().show(); }
 
     function hideLoading() {
-        document.getElementById('scanLoading').style.display = 'none';
-    }
+        document.getElementById('scanLoading').style.display = 'none'; }
 
     /* ═══════════════════════════════════════════════════════════════
        TOP 5 PICKS ENGINE — Frontend Logic
@@ -1622,16 +1535,13 @@
 
     function _getTopPicksModal() {
         if (!_tpModal) _tpModal = new bootstrap.Modal(document.getElementById('topPicksModal'));
-        return _tpModal;
-    }
+        return _tpModal; }
 
     /** Abort any in-progress analysis (called when modal is closed) */
     function tpAbort() {
         if (_tpEventSource) {
             _tpEventSource.close();
-            _tpEventSource = null;
-        }
-    }
+            _tpEventSource = null; } }
 
     /** Method names for display */
     function tpMethodName(m) {
@@ -1639,9 +1549,7 @@
             M1: 'Method I — Volatility Squeeze',
             M2: 'Method II — Trend Following',
             M3: 'Method III — Reversals',
-            M4: 'Method IV — Walking the Bands',
-        }[m] || m;
-    }
+            M4: 'Method IV — Walking the Bands', }[m] || m; }
 
     /**
      * Main entry point — called when user clicks "Top 5 Picks" button.
@@ -1693,9 +1601,7 @@
                 document.getElementById('tpPhaseText').textContent = msg.message || msg.phase;
                 if (msg.phase === 'scanning') {
                     document.getElementById('tpProgressText').textContent = 'Scanning ~2,000+ stocks...';
-                    document.getElementById('tpProgressFill').style.width = '5%';
-                }
-            }
+                    document.getElementById('tpProgressFill').style.width = '5%'; } }
             else if (msg.type === 'progress') {
                 // Server is reporting per-stock progress during deep analysis
                 const pct = msg.pct || 0;
@@ -1703,31 +1609,25 @@
                 document.getElementById('tpProgressText').textContent =
                     `Deep-analyzing ${msg.done} of ${msg.total} stocks... (${msg.ticker.replace('.NS','')})`;
                 document.getElementById('tpPhaseText').textContent =
-                    'Running full Technical Analysis + Triple BB+TA+PA Engine on each stock...';
-            }
+                    'Running full Technical Analysis + Triple BB+TA+PA Engine on each stock...'; }
             else if (msg.type === 'result') {
                 // Analysis complete — render results
                 _tpEventSource.close();
                 _tpEventSource = null;
                 document.getElementById('tpProgress').style.display = 'none';
-                tpRenderResults(msg.data, method, filter);
-            }
+                tpRenderResults(msg.data, method, filter); }
             else if (msg.type === 'error') {
                 _tpEventSource.close();
                 _tpEventSource = null;
                 document.getElementById('tpPhaseText').textContent = 'Analysis failed';
                 document.getElementById('tpProgressText').textContent = msg.message || 'Unknown error';
-                document.getElementById('tpProgressFill').style.width = '0%';
-            }
-        };
+                document.getElementById('tpProgressFill').style.width = '0%'; } };
 
         _tpEventSource.onerror = function() {
             _tpEventSource.close();
             _tpEventSource = null;
             document.getElementById('tpPhaseText').textContent = 'Connection lost';
-            document.getElementById('tpProgressText').textContent = 'Server connection was interrupted. Please try again.';
-        };
-    }
+            document.getElementById('tpProgressText').textContent = 'Server connection was interrupted. Please try again.'; }; }
 
     /**
      * Render the Top Picks results — the main display function.
@@ -1771,14 +1671,12 @@
                 </div>
             `;
             document.getElementById('tpFooter').textContent = 'Analysis complete — no stocks met the quality threshold.';
-            return;
-        }
+            return; }
 
         // Render each pick card
         picksList.innerHTML = picks.map(pick => tpRenderCard(pick, method)).join('');
         document.getElementById('tpFooter').textContent =
-            `Analysis complete · ${picks.length} top pick${picks.length>1?'s':''} from ${data.total_analyzed} analyzed stocks`;
-    }
+            `Analysis complete · ${picks.length} top pick${picks.length>1?'s':''} from ${data.total_analyzed} analyzed stocks`; }
 
     /**
      * Render a single Top Pick card.
@@ -1833,16 +1731,14 @@
             'B':  'B (60-69): Decent pick — worth considering, some mixed signals',
             'C':  'C (50-59): Mediocre — mixed signals, proceed with caution',
             'D':  'D (40-49): Weak — conflicting signals, high risk',
-            'F':  'F (0-39): Failing — do not recommend, signals mostly against'
-        };
+            'F':  'F (0-39): Failing — do not recommend, signals mostly against' };
         const gradeTooltip = gradeDesc[pick.grade] || 'Composite grade based on all analysis engines';
         const scoreTooltip = `Composite Score: ${score.toFixed(1)}/100\nWeighted: BB (20%) + TA (20%) + Triple (15%) + Price Action (15%) + R/R (15%) + Agreement (10%) + Data (5%)`;
 
         // Short grade label for legend
         const gradeLegend = {
             'A+': 'Exceptional', 'A': 'Excellent', 'B+': 'Good pick',
-            'B': 'Decent', 'C': 'Mediocre', 'D': 'Weak', 'F': 'Avoid'
-        };
+            'B': 'Decent', 'C': 'Mediocre', 'D': 'Weak', 'F': 'Avoid' };
 
         // Build component bars
         const comps = pick.components || {};
@@ -1854,8 +1750,7 @@
             pa_score: 'Price Action',
             risk_reward: 'Risk/Reward',
             signal_agreement: 'Agreement',
-            data_quality: 'Data Quality',
-        };
+            data_quality: 'Data Quality', };
         const compBarsHtml = compOrder.map(key => {
             const c = comps[key] || {};
             const val = c.score || 0;
@@ -1870,8 +1765,7 @@
                     <div class="tp-comp-val" style="color:${barColor}">${val.toFixed?val.toFixed(0):val}/100</div>
                     <div class="tp-comp-hint">${hint}</div>
                 </div>
-            `;
-        }).join('');
+            `; }).join('');
 
         // Build reasons list
         const reasonsHtml = (pick.reasons || []).map(r => `<div class="tp-reason">${r}</div>`).join('');
@@ -1889,8 +1783,7 @@
             if (u.includes('BUY')) return '#56d364';
             if (u.includes('STRONG SELL') || u.includes('SUPER STRONG SELL')) return '#f85149';
             if (u.includes('SELL')) return '#ff7b72';
-            return '#d29922';
-        }
+            return '#d29922'; }
 
         // ── TRIPLE CONVICTION VERDICT (from backend _generate_triple_verdict) ──
         const tripleVerdictHtml = (function(){
@@ -1931,8 +1824,7 @@
             const sysBadges = systems.map(s => {
                 if(!s.dir) return '';
                 const c = isBuyLike(s.dir) ? '#3fb950' : isSellLike(s.dir) ? '#f85149' : '#d29922';
-                return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:0.68rem;background:${c}18;color:${c};border:1px solid ${c}33"><strong>${s.name}</strong> ${s.dir.replace('STRONG ','⚡')}</span>`;
-            }).filter(Boolean).join(' ');
+                return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:0.68rem;background:${c}18;color:${c};border:1px solid ${c}33"><strong>${s.name}</strong> ${s.dir.replace('STRONG ','⚡')}</span>`; }).filter(Boolean).join(' ');
 
             const hasPa = pick.pa_data && pick.pa_data.success;
 
@@ -1940,7 +1832,7 @@
                 <div class="tp-triple-verdict" style="border:1px solid ${tvColor}33;border-radius:10px;padding:12px 14px;margin:10px 0;background:${tvColor}0A">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
                         <div style="display:flex;align-items:center;gap:8px">
-                            <span style="font-size:0.8rem;font-weight:700;color:#c9d1d9">⚡ Triple Conviction</span>
+                            <span style="font-size:0.8rem;font-weight:700;color:var(--bs-body-color)">⚡ Triple Conviction</span>
                             <span style="font-size:0.9rem;font-weight:800;padding:3px 12px;border-radius:6px;background:${tvColor}22;color:${tvColor};border:1px solid ${tvColor}44">${tvEmoji} ${tv}</span>
                         </div>
                         <span style="font-size:0.68rem;color:#8b949e">Combined: <strong style="color:${tvColor}">+${tvScore.toFixed?tvScore.toFixed(1):tvScore}</strong>/±${tvMax} · ${tvConf.toFixed?tvConf.toFixed(1):tvConf}% confidence</span>
@@ -1956,8 +1848,7 @@
                     </div>
                     <div style="font-size:0.72rem;color:#8b949e;line-height:1.5">${tvText||''}${hasPa?'':' <em>(PA data unavailable)</em>'}</div>
                 </div>
-            `;
-        })();
+            `; })();
 
         // ── UNIFIED TRIPLE TARGETS (BB + TA + PA + Wyckoff combined) ──
         const tripleTargetsHtml = (function(){
@@ -1979,8 +1870,7 @@
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:${c}11;border-left:3px solid ${c};margin:2px 0;font-size:0.72rem">
                         <span><strong style="color:${c}">${t.tier}</strong>${adj} <span style="color:#8b949e">(${(t.sources||[]).join('+')})</span></span>
                         <span><strong>${fmt(t.price)}</strong> <span style="color:${c}">(${t.pct >= 0 ? '+' : ''}${t.pct.toFixed(2)}%)</span> <span style="color:#58a6ff;margin-left:4px">RR ${t.rr || '?'}:1</span></span>
-                    </div>`;
-            }).join('');
+                    </div>`; }).join('');
 
             const warningsHtml = warnings.length
                 ? `<div style="margin-top:6px;padding:4px 8px;background:rgba(210,153,34,0.08);border-left:3px solid #d29922;font-size:0.65rem;color:#d29922">${warnings.map(w => '⚠️ ' + w).join('<br>')}</div>`
@@ -1989,14 +1879,14 @@
             return `
                 <div style="margin:8px 0;padding:8px 10px;border:1px solid ${dirClr}33;border-radius:8px;background:${dirClr}08">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:4px">
-                        <div style="font-size:0.72rem;font-weight:700;color:#c9d1d9">
+                        <div style="font-size:0.72rem;font-weight:700;color:var(--bs-body-color)">
                             ${dirEmoji} Unified Triple Plan
                             <span style="font-size:0.6rem;color:#8b949e;font-weight:400;margin-left:4px">(BB + TA + PA + Wyckoff)</span>
                         </div>
                         <span style="font-size:0.65rem;color:#8b949e">Confidence: <strong style="color:${dirClr}">${tt.confidence || 0}%</strong></span>
                     </div>
                     <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:4px">
-                        <span><strong style="color:#c9d1d9">Entry:</strong> ${fmt(tt.entry?.price)}</span>
+                        <span><strong style="color:var(--bs-body-color)">Entry:</strong> ${fmt(tt.entry?.price)}</span>
                         <span><strong style="color:#f85149">Stop:</strong> ${fmt(sl.price)} <span style="color:#8b949e">(${sl.pct >= 0 ? '+' : ''}${(sl.pct||0).toFixed(2)}%, ${sl.method || '?'})</span></span>
                     </div>
                     ${tiersHtml}
@@ -2005,8 +1895,7 @@
                     </div>
                     ${warningsHtml}
                 </div>
-            `;
-        })();
+            `; })();
 
         // Legacy summary line (kept as a quick glance)
         let targetHtml = '';
@@ -2018,8 +1907,7 @@
                 parts.push(`<span style="color:#f85149">BB Stop: ₹${Number(pick.stop_loss).toLocaleString('en-IN')}</span>`);
             if (pick.rr_ratio)
                 parts.push(`<span style="color:#58a6ff">R:R = 1:${Number(pick.rr_ratio).toFixed(1)}</span>`);
-            targetHtml = `<div class="tp-verdicts">${parts.map(p => `<div class="tp-verdict-item">${p}</div>`).join('')}</div>`;
-        }
+            targetHtml = `<div class="tp-verdicts">${parts.map(p => `<div class="tp-verdict-item">${p}</div>`).join('')}</div>`; }
 
         // Build action items
         const actionsHtml = (pick.ta_action_items || []).length > 0
@@ -2126,12 +2014,9 @@
                 // ── 3. Expansion status ──
                 let expansionHtml = '';
                 if (ind.expansion_end) {
-                    expansionHtml = '<div style="margin:6px 0;padding:6px 10px;border-radius:6px;background:#f8514922;border:1px solid #f8514933;font-size:0.75rem"><span style="color:#f85149;font-weight:700">⚠ EXPANSION ENDING</span> <span style="color:#8b949e">— Bands were widening but are now contracting. The big move may be over. Consider tightening stops or taking profits (Ch.15).</span></div>';
-                } else if (ind.expansion_up) {
-                    expansionHtml = '<div style="margin:6px 0;padding:6px 10px;border-radius:6px;background:#3fb95022;border:1px solid #3fb95033;font-size:0.75rem"><span style="color:#3fb950;font-weight:700">📈 EXPANSION UP</span> <span style="color:#8b949e">— Bands are actively widening upward. Strong bullish volatility breakout in progress. Ride the trend (Ch.15 p.120).</span></div>';
-                } else if (ind.expansion_down) {
-                    expansionHtml = '<div style="margin:6px 0;padding:6px 10px;border-radius:6px;background:#f8514922;border:1px solid #f8514933;font-size:0.75rem"><span style="color:#f85149;font-weight:700">📉 EXPANSION DOWN</span> <span style="color:#8b949e">— Bands are actively widening downward. Strong bearish volatility breakout. Avoid longs or consider shorts.</span></div>';
-                }
+                    expansionHtml = '<div style="margin:6px 0;padding:6px 10px;border-radius:6px;background:#f8514922;border:1px solid #f8514933;font-size:0.75rem"><span style="color:#f85149;font-weight:700">⚠ EXPANSION ENDING</span> <span style="color:#8b949e">— Bands were widening but are now contracting. The big move may be over. Consider tightening stops or taking profits (Ch.15).</span></div>'; } else if (ind.expansion_up) {
+                    expansionHtml = '<div style="margin:6px 0;padding:6px 10px;border-radius:6px;background:#3fb95022;border:1px solid #3fb95033;font-size:0.75rem"><span style="color:#3fb950;font-weight:700">📈 EXPANSION UP</span> <span style="color:#8b949e">— Bands are actively widening upward. Strong bullish volatility breakout in progress. Ride the trend (Ch.15 p.120).</span></div>'; } else if (ind.expansion_down) {
+                    expansionHtml = '<div style="margin:6px 0;padding:6px 10px;border-radius:6px;background:#f8514922;border:1px solid #f8514933;font-size:0.75rem"><span style="color:#f85149;font-weight:700">📉 EXPANSION DOWN</span> <span style="color:#8b949e">— Bands are actively widening downward. Strong bearish volatility breakout. Avoid longs or consider shorts.</span></div>'; }
 
                 // ── 4. Method-specific conditions checklist ──
                 // For M1: use the generic 5 buy conditions from bb_data
@@ -2159,11 +2044,10 @@
                     condHtml = condItems.map(([ok, lbl, desc]) =>
                         `<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:0.73rem">
                             <span style="color:${ok?'#3fb950':'#484f58'};flex-shrink:0">${ok?'✅':'⬜'}</span>
-                            <div><span style="color:${ok?'#c9d1d9':'#6e7681'};font-weight:600">${lbl}</span>
+                            <div><span style="color:${ok?'var(--bs-body-color)':'#6e7681'};font-weight:600">${lbl}</span>
                             <span style="color:#6e7681"> — ${desc}</span></div>
                         </div>`
-                    ).join('');
-                } else {
+                    ).join(''); } else {
                     // M2/M3/M4: use method-specific checklist from strategy indicators
                     condCount = methodChecklist.filter(c => c.ok).length;
                     condTotal = methodChecklist.length;
@@ -2171,13 +2055,12 @@
                         `<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:0.73rem">
                             <span style="color:${c.ok?'#3fb950':'#484f58'};flex-shrink:0">${c.ok?'✅':'⬜'}</span>
                             <div>
-                                <span style="color:${c.ok?'#c9d1d9':'#6e7681'};font-weight:600">${c.name||'—'}</span>
+                                <span style="color:${c.ok?'var(--bs-body-color)':'#6e7681'};font-weight:600">${c.name||'—'}</span>
                                 ${c.detail?`<span style="color:#58a6ff;font-size:0.7rem;margin-left:6px">${c.detail}</span>`:''}
                                 ${c.explain?`<div style="color:#6e7681;font-size:0.68rem;margin-top:1px">${c.explain}</div>`:''}
                             </div>
                         </div>`
-                    ).join('');
-                }
+                    ).join(''); }
 
                 // ── 5. Exit signals ──
                 // M1: use bb_data exit signals
@@ -2211,19 +2094,18 @@
                     ];
                     const sCount = sItems.filter(([ok]) => ok).length;
                     shortHtml = `
-                        <div style="margin-top:8px;padding-top:6px;border-top:1px solid #21262d">
+                        <div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--bs-border-color)">
                             <div style="font-size:0.75rem;font-weight:600;color:${pick.bb_short_signal?'#f85149':'#8b949e'};margin-bottom:4px">
                                 ${pick.bb_short_signal?'🔴 SHORT-SIDE BREAKOUT ACTIVE':'⬇️ Short-Side Conditions'} (${sCount}/5)
                             </div>
                             ${sItems.map(([ok, lbl, desc]) =>
                                 `<div style="display:flex;align-items:flex-start;gap:6px;padding:2px 0;font-size:0.72rem">
                                     <span style="color:${ok?'#f85149':'#484f58'};flex-shrink:0">${ok?'🔴':'⬜'}</span>
-                                    <div><span style="color:${ok?'#c9d1d9':'#6e7681'};font-weight:600">${lbl}</span>
+                                    <div><span style="color:${ok?'var(--bs-body-color)':'#6e7681'};font-weight:600">${lbl}</span>
                                     <span style="color:#6e7681"> — ${desc}</span></div>
                                 </div>`
                             ).join('')}
-                        </div>`;
-                }
+                        </div>`; }
 
                 // ── 7. Strategy-specific details (only for the selected method) ──
                 let stratHtml = '';
@@ -2241,64 +2123,59 @@
                     if (code === 'M2') {
                         const m2Ind = s.indicators || {};
                         detail = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:0.72rem;color:#8b949e;margin-top:4px">
-                            <div><span style="color:#484f58">%b:</span> <span style="color:#c9d1d9">${fmt(m2Ind.pct_b,4)}</span> <span style="color:#6e7681">${m2Ind.pct_b>0.8?'(bullish > 0.8)':m2Ind.pct_b<0.2?'(bearish < 0.2)':'(neutral)'}</span></div>
-                            <div><span style="color:#484f58">MFI:</span> <span style="color:#c9d1d9">${fmt(m2Ind.mfi)}</span> <span style="color:#6e7681">${m2Ind.mfi>80?'(strong inflow > 80)':m2Ind.mfi<20?'(weak outflow < 20)':'(moderate)'}</span></div>
+                            <div><span style="color:#484f58">%b:</span> <span style="color:var(--bs-body-color)">${fmt(m2Ind.pct_b,4)}</span> <span style="color:#6e7681">${m2Ind.pct_b>0.8?'(bullish > 0.8)':m2Ind.pct_b<0.2?'(bearish < 0.2)':'(neutral)'}</span></div>
+                            <div><span style="color:#484f58">MFI:</span> <span style="color:var(--bs-body-color)">${fmt(m2Ind.mfi)}</span> <span style="color:#6e7681">${m2Ind.mfi>80?'(strong inflow > 80)':m2Ind.mfi<20?'(weak outflow < 20)':'(moderate)'}</span></div>
                             ${m2Ind.vwmacd_hist!=null?`<div><span style="color:#484f58">VWMACD:</span> <span style="color:${m2Ind.vwmacd_hist>0?'#3fb950':'#f85149'}">${fmtS(m2Ind.vwmacd_hist)}</span> <span style="color:#6e7681">(volume-weighted momentum, Table 19.1 p.157)</span></div>`:''}
-                            <div><span style="color:#484f58">Trend:</span> <span style="color:#c9d1d9">%b ${m2Ind.pct_b_trend||'—'}, MFI ${m2Ind.mfi_trend||'—'}</span> · Price ${m2Ind.price_vs_mid||'—'} middle band</div>
+                            <div><span style="color:#484f58">Trend:</span> <span style="color:var(--bs-body-color)">%b ${m2Ind.pct_b_trend||'—'}, MFI ${m2Ind.mfi_trend||'—'}</span> · Price ${m2Ind.price_vs_mid||'—'} middle band</div>
                             ${m2Ind.bearish_divergence?`<div style="grid-column:1/3"><span style="color:#d29922;font-weight:600">⚠ Bearish Divergence</span> — %b rising but MFI falling, smart money may be exiting (Ch.19)</div>`:''}
                             ${m2Ind.bullish_divergence?`<div style="grid-column:1/3"><span style="color:#3fb950;font-weight:600">📈 Bullish Divergence</span> — %b falling but MFI rising, smart money may be accumulating (Ch.19)</div>`:''}
-                        </div>`;
-                    } else if (code === 'M3') {
+                        </div>`; } else if (code === 'M3') {
                         const m3Ind = s.indicators || {};
                         const m3SL = m3Ind.w_stop_loss || m3Ind.m_stop_loss || null;
                         detail = `<div style="font-size:0.72rem;color:#8b949e;margin-top:4px">
                             ${m3Ind.ii_pct!=null?`<div><span style="color:#484f58">II%:</span> <span style="color:${m3Ind.ii_pct>0?'#3fb950':'#f85149'}">${fmtS(m3Ind.ii_pct)}</span> — ${m3Ind.ii_pct>0?'accumulation (confirms reversal up)':'distribution (confirms reversal down)'}</div>`:''}
                             ${m3Ind.ad_pct!=null?`<div><span style="color:#484f58">AD%:</span> <span style="color:${m3Ind.ad_pct>0?'#3fb950':'#f85149'}">${fmtS(m3Ind.ad_pct)}</span> — accumulation/distribution confirmation</div>`:''}
-                            <div><span style="color:#484f58">W-Bottoms:</span> <span style="color:#c9d1d9">${m3Ind.w_bottoms_found||0}</span> found (${m3Ind.recent_w_bottoms||0} recent) — bullish reversal pattern (Ch.12 p.100)</div>
-                            <div><span style="color:#484f58">M-Tops:</span> <span style="color:#c9d1d9">${m3Ind.m_tops_found||0}</span> found (${m3Ind.recent_m_tops||0} recent) — bearish reversal pattern (Ch.13 p.108)</div>
+                            <div><span style="color:#484f58">W-Bottoms:</span> <span style="color:var(--bs-body-color)">${m3Ind.w_bottoms_found||0}</span> found (${m3Ind.recent_w_bottoms||0} recent) — bullish reversal pattern (Ch.12 p.100)</div>
+                            <div><span style="color:#484f58">M-Tops:</span> <span style="color:var(--bs-body-color)">${m3Ind.m_tops_found||0}</span> found (${m3Ind.recent_m_tops||0} recent) — bearish reversal pattern (Ch.13 p.108)</div>
                             ${m3Ind.three_push_high_found?`<div><span style="color:#484f58">Three Pushes High:</span> <span style="color:#f85149">${m3Ind.three_push_high_found}</span> — bearish reversal exhaustion (Ch.20 p.160)</div>`:''}
                             ${m3Ind.three_push_low_found?`<div><span style="color:#484f58">Three Pushes Low:</span> <span style="color:#3fb950">${m3Ind.three_push_low_found}</span> — bullish reversal exhaustion (Ch.20 p.160)</div>`:''}
                             ${m3Ind.systematised_buy?`<div><span style="color:#3fb950;font-weight:600">✅ Systematised BUY</span> — II% positive + AD% confirms accumulation (Ch.20 p.163)</div>`:''}
                             ${m3Ind.systematised_sell?`<div><span style="color:#f85149;font-weight:600">🔴 Systematised SELL</span> — II% negative + AD% confirms distribution (Ch.20 p.163)</div>`:''}
                             ${m3Ind.rally_day?`<div><span style="color:#3fb950;font-weight:600">📈 Rally Day</span> — entry discipline confirmed, safe to enter (Ch.20 p.165)</div>`:''}
                             ${m3SL?`<div><span style="color:#484f58">Stop Loss:</span> <span style="color:#f85149">₹${Number(m3SL).toLocaleString('en-IN')}</span> — set at pattern low/high</div>`:''}
-                        </div>`;
-                    } else if (code === 'M4') {
+                        </div>`; } else if (code === 'M4') {
                         const m4Ind = s.indicators || {};
                         detail = `<div style="font-size:0.72rem;color:#8b949e;margin-top:4px">
                             <div><span style="color:#484f58">Upper Walk:</span> <span style="color:${m4Ind.upper_walk_active?'#3fb950':'#6e7681'}">${m4Ind.upper_walk_active?'ACTIVE — riding upper band (bullish persistence)':'Not detected'}</span></div>
                             <div><span style="color:#484f58">Lower Walk:</span> <span style="color:${m4Ind.lower_walk_active?'#f85149':'#6e7681'}">${m4Ind.lower_walk_active?'ACTIVE — riding lower band (bearish persistence)':'Not detected'}</span></div>
                             <div><span style="color:#484f58">SAR:</span> <span style="color:${m4Ind.sar_bull?'#3fb950':'#f85149'}">${m4Ind.sar_bull?'Bullish (dots below price — trend support)':'Bearish (dots above price — trend reversing)'}</span></div>
                             <div style="color:#6e7681;margin-top:2px">Tags of the bands are just that — tags, NOT signals. A tag of the upper band is NOT a sell signal (Rule 15, p.184).</div>
-                        </div>`;
-                    }
+                        </div>`; }
 
                     const patHtml = pats.length > 0
                         ? pats.map(p => {
                             const nm = (p.name||p.type||'').replace(/_/g,' ');
                             const pc = (nm.toUpperCase().includes('W-BOTTOM')||nm.toUpperCase().includes('THREE-PUSH-LOW'))?'#3fb950':'#f85149';
-                            return `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:0.68rem;background:${pc}18;color:${pc};border:1px solid ${pc}33;margin:2px">${nm}</span>`;
-                          }).join('')
+                            return `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:0.68rem;background:${pc}18;color:${pc};border:1px solid ${pc}33;margin:2px">${nm}</span>`; }).join('')
                         : '';
 
                     stratHtml += `
-                        <div style="margin-top:6px;padding:8px 10px;border-radius:6px;border:1px solid #30363d;background:#0d1117">
+                        <div style="margin-top:6px;padding:8px 10px;border-radius:6px;border:1px solid var(--bs-border-color);background:var(--bs-body-bg)">
                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                                <span style="font-size:0.78rem;font-weight:700;color:#c9d1d9">${s.name||code}</span>
+                                <span style="font-size:0.78rem;font-weight:700;color:var(--bs-body-color)">${s.name||code}</span>
                                 <span style="padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:700;background:${sigColor}22;color:${sigColor};border:1px solid ${sigColor}44">${sigType} · ${sig.strength||''} (${sig.confidence||0}%)</span>
                             </div>
                             ${patHtml?`<div style="margin-top:4px">${patHtml}</div>`:''}
                             ${detail}
-                        </div>`;
-                }
+                        </div>`; }
 
                 // ── Combine all sections ──
                 const methodNames = {M1:'Method I — Squeeze',M2:'Method II — Trend Following',M3:'Method III — Reversals',M4:'Method IV — Walking the Bands'};
                 return `
-                <div class="tp-bb-deep-dive" style="border:1px solid #30363d;border-radius:10px;padding:12px 14px;margin:10px 0;background:#161b22">
+                <div class="tp-bb-deep-dive" style="border:1px solid var(--bs-border-color);border-radius:10px;padding:12px 14px;margin:10px 0;background:var(--bs-tertiary-bg)">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-                        <span style="font-size:0.85rem;font-weight:700;color:#c9d1d9">📊 Bollinger Band Deep Dive</span>
-                        <span style="font-size:0.68rem;padding:2px 8px;border-radius:4px;background:#30363d;color:#8b949e">Book Ch.15–21</span>
+                        <span style="font-size:0.85rem;font-weight:700;color:var(--bs-body-color)">📊 Bollinger Band Deep Dive</span>
+                        <span style="font-size:0.68rem;padding:2px 8px;border-radius:4px;background:var(--bs-border-color);color:#8b949e">Book Ch.15–21</span>
                         ${pick.bb_direction_lean && pick.bb_direction_lean!=='NEUTRAL'?`<span style="font-size:0.68rem;padding:2px 8px;border-radius:4px;background:${pick.bb_direction_lean==='BULLISH'?'#3fb950':'#f85149'}22;color:${pick.bb_direction_lean==='BULLISH'?'#3fb950':'#f85149'};font-weight:600">Lean: ${pick.bb_direction_lean}</span>`:''}
                     </div>
 
@@ -2342,10 +2219,9 @@
                     ${stratHtml?`<div style="font-size:0.73rem;font-weight:600;color:#58a6ff;margin:10px 0 4px">Strategy Signals</div>${stratHtml}`:''}
 
                     <!-- BB Summary -->
-                    ${pick.bb_action_message?`<div style="margin-top:8px;padding:6px 10px;border-radius:6px;background:#0d1117;border:1px solid #21262d;font-size:0.73rem;color:#c9d1d9">💡 <strong>Action:</strong> ${pick.bb_action_message}</div>`:''}
+                    ${pick.bb_action_message?`<div style="margin-top:8px;padding:6px 10px;border-radius:6px;background:var(--bs-body-bg);border:1px solid var(--bs-border-color);font-size:0.73rem;color:var(--bs-body-color)">💡 <strong>Action:</strong> ${pick.bb_action_message}</div>`:''}
                 </div>
-                `;
-            })()}
+                `; })()}
 
             <!-- PRICE ACTION (Al Brooks) DETAILS -->
             ${(function(){
@@ -2384,29 +2260,27 @@
                     if (pl.target_2) parts.push(`<span style="color:#56d364">T2: ₹${Number(pl.target_2).toLocaleString('en-IN')}</span>`);
                     if (pl.stop_loss) parts.push(`<span style="color:#f85149">SL: ₹${Number(pl.stop_loss).toLocaleString('en-IN')}</span>`);
                     if (pl.risk_reward) parts.push(`<span style="color:#d29922">R:R 1:${Number(pl.risk_reward).toFixed(1)}</span>`);
-                    plHtml = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">${parts.join('')}</div>`;
-                }
+                    plHtml = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">${parts.join('')}</div>`; }
                 return `
-                <div class="tp-pa-section" style="border:1px solid #30363d;border-radius:8px;padding:10px 12px;margin:8px 0;background:#161b22">
+                <div class="tp-pa-section" style="border:1px solid var(--bs-border-color);border-radius:8px;padding:10px 12px;margin:8px 0;background:var(--bs-tertiary-bg)">
                     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-                        <span style="font-size:0.85rem;font-weight:600;color:#c9d1d9">📊 Al Brooks Price Action</span>
+                        <span style="font-size:0.85rem;font-weight:600;color:var(--bs-body-color)">📊 Al Brooks Price Action</span>
                         <span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:${aiColor}22;color:${aiColor};font-weight:600">Always-In: ${aiDir}</span>
-                        ${pa.signal_strength ? `<span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:#30363d;color:#c9d1d9">${pa.signal_strength}</span>` : ''}
+                        ${pa.signal_strength ? `<span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:var(--bs-border-color);color:var(--bs-body-color)">${pa.signal_strength}</span>` : ''}
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:0.75rem;color:#8b949e">
-                        <div><span style="color:#484f58">Setup:</span> <span style="color:#c9d1d9">${setupLabel || '—'}</span></div>
-                        <div><span style="color:#484f58">Trend:</span> <span style="color:#c9d1d9">${tDir} · ${tPhase}</span></div>
-                        <div><span style="color:#484f58">Patterns:</span> <span style="color:#c9d1d9">${pats}</span></div>
+                        <div><span style="color:#484f58">Setup:</span> <span style="color:var(--bs-body-color)">${setupLabel || '—'}</span></div>
+                        <div><span style="color:#484f58">Trend:</span> <span style="color:var(--bs-body-color)">${tDir} · ${tPhase}</span></div>
+                        <div><span style="color:#484f58">Patterns:</span> <span style="color:var(--bs-body-color)">${pats}</span></div>
                         <div><span style="color:#484f58">Breakout:</span> <span style="color:${bk.in_breakout?'#d29922':'#8b949e'}">${bkLabel}</span></div>
-                        <div style="grid-column:1/3"><span style="color:#484f58">Last Bar:</span> <span style="color:#c9d1d9">${lbDesc}${lbSignal}</span></div>
+                        <div style="grid-column:1/3"><span style="color:#484f58">Last Bar:</span> <span style="color:var(--bs-body-color)">${lbDesc}${lbSignal}</span></div>
                     </div>
                     ${plHtml}
                     ${paReasons}
                     ${pa.al_brooks_context ? `<div style="margin-top:4px;font-size:0.72rem;color:#58a6ff;font-style:italic">"${pa.al_brooks_context}"</div>` : ''}
                     ${csVerdict ? `<div style="margin-top:4px;font-size:0.72rem;color:#d29922">Cross-System: ${csVerdict} (${csConf}%)</div>` : ''}
                 </div>
-                `;
-            })()}
+                `; })()}
 
             <!-- TRIPLE CONVICTION VERDICT — computed from BB + TA + PA -->
             ${tripleVerdictHtml}
@@ -2425,8 +2299,7 @@
                 🔍 Open Full Analysis for ${pick.ticker_display || pick.ticker} →
             </a>
         </div>
-        `;
-    }
+        `; }
 
     /* ═══════════════════════════════════════════════════════════════
        EOD DATA AVAILABILITY CHECK
@@ -2455,28 +2328,22 @@
                     ? ' (Local: ' + d.local_last_date + ' → YF: ' + d.yf_last_date + ')'
                     : '';
                 text.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>EOD Data Available' + dateInfo;
-                badge.title = d.reason + '. Click to download.';
-            } else if (d.market_open_today) {
+                badge.title = d.reason + '. Click to download.'; } else if (d.market_open_today) {
                 badge.className = 'badge rounded-pill d-inline-flex align-items-center gap-1';
                 badge.style.cssText += ';background:#b45309;';
                 badge.removeAttribute('data-bs-toggle');
                 badge.removeAttribute('data-bs-target');
                 text.innerHTML = '<i class="bi bi-clock-fill me-1"></i>Market Open — EOD after 4 PM';
-                badge.title = 'NSE market is still open. EOD data will be available after market close.';
-            } else {
+                badge.title = 'NSE market is still open. EOD data will be available after market close.'; } else {
                 badge.className = 'badge rounded-pill bg-danger d-inline-flex align-items-center gap-1';
                 badge.removeAttribute('data-bs-toggle');
                 badge.removeAttribute('data-bs-target');
                 text.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Not Available';
-                badge.title = d.reason;
-            }
-        } catch (e) {
+                badge.title = d.reason; } } catch (e) {
             spinner.style.display = 'none';
             badge.className = 'badge rounded-pill bg-secondary d-inline-flex align-items-center gap-1';
             text.textContent = 'Check failed';
-            badge.title = e.message;
-        }
-    }
+            badge.title = e.message; } }
 
     // Auto-check on page load
     checkEodStatus();
@@ -2495,9 +2362,7 @@
             const src = info.fetched_at
                 ? 'Updated: ' + info.fetched_at
                 : '(hardcoded fallback)';
-            document.getElementById('dlTickerSource').textContent = src;
-        } catch(e) {}
-    }
+            document.getElementById('dlTickerSource').textContent = src; } catch(e) {} }
     loadTickerInfo();
 
     async function refreshTickers() {
@@ -2508,18 +2373,12 @@
             const r = await fetch('/api/tickers/refresh', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
             const data = await r.json();
             if (data.error) {
-                alert('Failed: ' + data.error);
-            } else {
+                alert('Failed: ' + data.error); } else {
                 document.getElementById('dlTickerCount').textContent = data.count;
-                document.getElementById('dlTickerSource').textContent = 'Updated: ' + data.fetched_at;
-            }
-        } catch(e) {
-            alert('Failed to fetch from NSE: ' + e.message);
-        } finally {
+                document.getElementById('dlTickerSource').textContent = 'Updated: ' + data.fetched_at; } } catch(e) {
+            alert('Failed to fetch from NSE: ' + e.message); } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Update from NSE';
-        }
-    }
+            btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Update from NSE'; } }
 
     // Reset modal to initial state when re-opened
     document.getElementById('downloadModal').addEventListener('show.bs.modal', () => {
@@ -2528,15 +2387,13 @@
         document.getElementById('dlFinished').style.display = 'none';
         document.getElementById('dlStartBtn').disabled = false;
         document.getElementById('dlLog').textContent = 'Waiting to start…';
-        loadTickerInfo();
-    });
+        loadTickerInfo(); });
 
     function _fmtTime(sec) {
         sec = Math.round(sec);
         if (sec < 60) return sec + 's';
         const m = Math.floor(sec / 60), s = sec % 60;
-        return m + 'm ' + s + 's';
-    }
+        return m + 'm ' + s + 's'; }
 
     async function startDownload() {
         const force = document.getElementById('dlForceCheck').checked;
@@ -2548,19 +2405,15 @@
             const resp = await fetch('/api/download/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ force, threads })
-            });
+                body: JSON.stringify({ force, threads }) });
             const result = await resp.json();
             if (result.error) {
                 alert(result.error);
                 startBtn.disabled = false;
-                return;
-            }
-        } catch (e) {
+                return; } } catch (e) {
             alert('Failed to start download: ' + e.message);
             startBtn.disabled = false;
-            return;
-        }
+            return; }
 
         // Switch to progress view
         document.getElementById('dlBeforeStart').style.display = 'none';
@@ -2590,18 +2443,15 @@
             if (s.done > 0 && s.total > s.done && elapsed > 0) {
                 const rate = s.done / elapsed;
                 const remaining = (s.total - s.done) / rate;
-                document.getElementById('dlEta').textContent = 'ETA: ' + _fmtTime(remaining);
-            } else if (s.done >= s.total && s.total > 0) {
-                document.getElementById('dlEta').textContent = 'Done';
-            }
+                document.getElementById('dlEta').textContent = 'ETA: ' + _fmtTime(remaining); } else if (s.done >= s.total && s.total > 0) {
+                document.getElementById('dlEta').textContent = 'Done'; }
 
             if (s.current) {
                 _logLines.push(s.current);
                 if (_logLines.length > 200) _logLines = _logLines.slice(-200);
                 const logEl = document.getElementById('dlLog');
                 logEl.textContent = _logLines.join('\n');
-                logEl.scrollTop = logEl.scrollHeight;
-            }
+                logEl.scrollTop = logEl.scrollHeight; }
 
             if (s.finished) {
                 _dlEvtSrc.close();
@@ -2615,9 +2465,7 @@
                     '<strong>' + s.failed + '</strong> failed &nbsp;·&nbsp; ' +
                     'Total time: <strong>' + _fmtTime(elapsed) + '</strong>';
                 // Refresh EOD badge after download completes
-                setTimeout(checkEodStatus, 1000);
-            }
-        };
+                setTimeout(checkEodStatus, 1000); } };
 
         _dlEvtSrc.onerror = function() {
             // SSE disconnected — poll once to get final state
@@ -2632,15 +2480,12 @@
                         '<strong>' + s.skipped + '</strong> skipped &nbsp;·&nbsp; ' +
                         '<strong>' + s.failed + '</strong> failed';
                     // Refresh EOD badge after download completes
-                    setTimeout(checkEodStatus, 1000);
-                }
-            }).catch(() => {});
-        };
-    }
+                    setTimeout(checkEodStatus, 1000); } }).catch(() => {}); }; }
 
     // (Global Market Sentiment moved to its own /global-sentiment page)
 
     </script>
 <script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
+{% include "_theme_picker.html" %}
 </body>
 </html>

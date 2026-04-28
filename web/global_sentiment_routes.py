@@ -13,8 +13,9 @@ Isolation:
 """
 
 import sys, os, math, json
+from datetime import date
 import numpy as np
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, jsonify, request, render_template, Response
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -63,3 +64,31 @@ def api_global_sentiment():
     refresh = request.args.get("refresh", "0").lower() in ("1", "true", "yes")
     result = get_global_sentiment(force_refresh=refresh)
     return jsonify(_safe_json(result))
+
+
+@global_sentiment_bp.route("/api/global-sentiment/export/pdf")
+def api_global_sentiment_export_pdf():
+    """Download the current global-sentiment readout as a colour-coded PDF.
+
+    Re-uses the same engine output the dashboard renders. Optional
+    `?refresh=1` bypasses the 15-minute cache before rendering.
+    """
+    from web.pdf_global_sentiment import build_global_sentiment_pdf
+
+    refresh = request.args.get("refresh", "0").lower() in ("1", "true", "yes")
+    result = _safe_json(get_global_sentiment(force_refresh=refresh))
+
+    try:
+        pdf_bytes = build_global_sentiment_pdf(result)
+    except Exception as ex:
+        return jsonify({"error": f"PDF build failed: {ex}"}), 500
+
+    filename = f"Hiranya_Global_Sentiment_{date.today().isoformat()}.pdf"
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )

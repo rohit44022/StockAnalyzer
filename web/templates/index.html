@@ -1106,8 +1106,13 @@
               <div class="tp-picks-container" id="tpPicksList"></div>
             </div>
           </div>
-          <div class="modal-footer border-0 pt-0">
+          <div class="modal-footer border-0 pt-0 d-flex justify-content-between align-items-center">
             <small class="text-secondary" id="tpFooter"></small>
+            <button type="button" class="btn btn-sm btn-outline-success d-none"
+                    id="tpExportXlsxBtn" onclick="tpExportXlsx(this)"
+                    title="Download all 5 picks with full analysis as a colour-coded Excel workbook">
+              <i class="bi bi-file-earmark-excel"></i> Export Excel
+            </button>
           </div>
         </div>
       </div>
@@ -1532,6 +1537,8 @@
 
     let _tpModal = null;
     let _tpEventSource = null;
+    let _tpLastMethod = null;     // remembered for the Excel export button
+    let _tpLastFilter = null;
 
     function _getTopPicksModal() {
         if (!_tpModal) _tpModal = new bootstrap.Modal(document.getElementById('topPicksModal'));
@@ -1583,6 +1590,11 @@
         document.getElementById('tpTitle').innerHTML =
             `<i class="bi ${dirIcon} me-2" style="color:${dirColor}"></i>Top 5 ${dirLabel} Picks — ${tpMethodName(method)}`;
         document.getElementById('tpFooter').textContent = '';
+        // Hide export button until analysis completes; remember context for download
+        const _expBtn = document.getElementById('tpExportXlsxBtn');
+        if (_expBtn) _expBtn.classList.add('d-none');
+        _tpLastMethod = method;
+        _tpLastFilter = filter;
 
         _getTopPicksModal().show();
 
@@ -1676,7 +1688,40 @@
         // Render each pick card
         picksList.innerHTML = picks.map(pick => tpRenderCard(pick, method)).join('');
         document.getElementById('tpFooter').textContent =
-            `Analysis complete · ${picks.length} top pick${picks.length>1?'s':''} from ${data.total_analyzed} analyzed stocks`; }
+            `Analysis complete · ${picks.length} top pick${picks.length>1?'s':''} from ${data.total_analyzed} analyzed stocks`;
+        // Reveal Excel export button now that we have results
+        const _expBtn = document.getElementById('tpExportXlsxBtn');
+        if (_expBtn) _expBtn.classList.remove('d-none'); }
+
+    /* ──────────────────────────────────────────────────────────
+       EXCEL EXPORT — fetch the full analysis as .xlsx and trigger
+       a browser download. Re-runs the engine on the server so the
+       file always reflects the current scan + scoring rules.
+       ────────────────────────────────────────────────────────── */
+    async function tpExportXlsx(btn) {
+        if (!_tpLastMethod || !_tpLastFilter) return;
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generating…';
+        try {
+            const url = `/api/top-picks/${_tpLastMethod}/export/xlsx?filter=${_tpLastFilter}`;
+            const r = await fetch(url);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const blob = await r.blob();
+            const today = new Date().toISOString().slice(0, 10);
+            const filename = `Hiranya_Top5_${_tpLastFilter}_${_tpLastMethod}_${today}.xlsx`;
+            const dlUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = dlUrl; a.download = filename;
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(dlUrl); }, 100);
+        } catch (e) {
+            alert('Could not generate Excel: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    }
 
     /**
      * Render a single Top Pick card.

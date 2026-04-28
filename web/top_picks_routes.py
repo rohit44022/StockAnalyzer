@@ -335,3 +335,60 @@ def top_picks_api(method):
     )
 
     return jsonify(_safe_json(result))
+
+
+# ═══════════════════════════════════════════════════════════════
+# ROUTE: /api/top-picks/<method>/export/xlsx — Excel download
+# ═══════════════════════════════════════════════════════════════
+
+@top_picks_bp.route("/api/top-picks/<method>/export/xlsx")
+def top_picks_export_xlsx(method):
+    """
+    Download the Top 5 picks for a given method+filter as a colour-coded
+    Excel workbook.
+
+    Same scan + analysis pipeline as the streaming/non-streaming endpoints —
+    just rendered to .xlsx instead of JSON. Idempotent.
+
+    Query params:
+      filter:  BUY (default) | SELL
+      capital: optional float, defaults to DEFAULT_CAPITAL
+    """
+    from datetime import date as _date
+    from web.excel_top_picks import build_top_picks_xlsx
+
+    method = method.upper()
+    if method not in ("M1", "M2", "M3", "M4"):
+        return jsonify({"error": f"Invalid method '{method}'. Use M1, M2, M3, or M4."}), 400
+
+    signal_filter = (request.args.get("filter", "BUY") or "BUY").upper()
+    if signal_filter not in ("BUY", "SELL"):
+        signal_filter = "BUY"
+    try:
+        capital = float(request.args.get("capital", DEFAULT_CAPITAL))
+    except (TypeError, ValueError):
+        capital = DEFAULT_CAPITAL
+
+    scan_data = _run_internal_scan(method)
+    result = find_top_picks(
+        scan_results=scan_data,
+        method=method,
+        signal_filter=signal_filter,
+        capital=capital,
+    )
+    safe = _safe_json(result)
+
+    try:
+        xlsx_bytes = build_top_picks_xlsx(safe, method=method, signal_filter=signal_filter)
+    except Exception as ex:
+        return jsonify({"error": f"Excel build failed: {ex}"}), 500
+
+    filename = f"Hiranya_Top5_{signal_filter}_{method}_{_date.today().isoformat()}.xlsx"
+    return Response(
+        xlsx_bytes,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )

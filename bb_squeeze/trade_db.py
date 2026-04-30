@@ -37,6 +37,7 @@ def init_db() -> None:
             buy_date    TEXT    NOT NULL,
             sell_date   TEXT    NOT NULL,
             notes       TEXT    DEFAULT '',
+            position_id INTEGER DEFAULT NULL,
             created_at  TEXT    DEFAULT (datetime('now'))
         )
     """)
@@ -45,21 +46,25 @@ def init_db() -> None:
         existing = {r[1] for r in c.execute("PRAGMA table_info(trades)").fetchall()}
         if "user_id" not in existing:
             c.execute("ALTER TABLE trades ADD COLUMN user_id INTEGER DEFAULT NULL")
+        if "position_id" not in existing:
+            c.execute("ALTER TABLE trades ADD COLUMN position_id INTEGER DEFAULT NULL")
     except Exception:
         pass
     c.execute("CREATE INDEX IF NOT EXISTS idx_trades_user_id ON trades(user_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_trades_position_id ON trades(position_id)")
     c.commit()
     c.close()
 
 
 _INSERT = """INSERT INTO trades
     (user_id, stock, platform, trade_type, exchange, quantity,
-     buy_price, sell_price, buy_date, sell_date, notes)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?)"""
+     buy_price, sell_price, buy_date, sell_date, notes, position_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"""
 
 
 def add_trade(d: dict, user_id: int = None) -> int:
     c = _conn()
+    pos_id = d.get("position_id")
     cur = c.execute(_INSERT, (
         user_id,
         d["stock"].upper().strip(),
@@ -72,11 +77,26 @@ def add_trade(d: dict, user_id: int = None) -> int:
         d["buy_date"],
         d["sell_date"],
         d.get("notes", ""),
+        int(pos_id) if pos_id else None,
     ))
     c.commit()
     tid = cur.lastrowid
     c.close()
     return tid
+
+
+def delete_trades_by_position(position_id: int, user_id: int = None, is_admin: bool = False) -> int:
+    """Delete trade rows linked to a portfolio position. Returns rows deleted."""
+    if not position_id:
+        return 0
+    c = _conn()
+    if is_admin:
+        n = c.execute("DELETE FROM trades WHERE position_id=?", (position_id,)).rowcount
+    else:
+        n = c.execute("DELETE FROM trades WHERE position_id=? AND user_id=?", (position_id, user_id)).rowcount
+    c.commit()
+    c.close()
+    return n
 
 
 def get_all_trades(user_id: int = None, is_admin: bool = False) -> list[dict]:

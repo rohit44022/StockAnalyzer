@@ -56,6 +56,34 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 /* FY table */
 .fy-tbl th{font-size:.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.04em}
 .fy-tbl td{font-family:'JetBrains Mono',monospace;font-size:.85rem}
+.fy-toggle{cursor:pointer;color:#8b949e;background:transparent;border:1px solid var(--card-border);border-radius:6px;padding:.15rem .45rem;font-size:.75rem;transition:all .15s}
+.fy-toggle:hover{color:#58a6ff;border-color:#58a6ff;background:rgba(88,166,255,.08)}
+.fy-toggle .bi{transition:transform .2s}
+.fy-toggle.open .bi{transform:rotate(180deg)}
+.fy-detail-row{background:rgba(88,166,255,.04)}
+.fy-detail-row td{padding:0 !important}
+.fy-detail-inner{padding:.75rem 1rem}
+.fy-detail-tbl th{font-size:.7rem;color:#8b949e;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--card-border)}
+.fy-detail-tbl td{font-family:'JetBrains Mono',monospace;font-size:.78rem;padding:.4rem .5rem;border-bottom:1px solid rgba(48,54,61,.4)}
+.fy-detail-tbl tbody tr:last-child td{border-bottom:none}
+.fy-detail-tbl tfoot td{font-weight:700;background:rgba(255,255,255,.03);border-top:2px solid var(--card-border)}
+
+/* Money Flow card */
+.mf-card{background:var(--bs-body-bg);border:1px solid var(--card-border);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem}
+.mf-title{font-size:.78rem;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem}
+.mf-line{display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;font-family:'JetBrains Mono',monospace;font-size:.88rem}
+.mf-line.mf-eq{border-top:1px dashed var(--card-border);margin-top:.25rem;padding-top:.55rem}
+.mf-line.mf-final{border-top:2px solid #58a6ff;margin-top:.5rem;padding-top:.65rem;font-size:1rem}
+.mf-line .mf-label{color:var(--bs-body-color)}
+.mf-line .mf-sub{color:#8b949e;font-size:.78rem}
+.mf-line .mf-val{font-weight:600}
+.mf-deduct{background:rgba(248,81,73,.04);border-left:3px solid rgba(248,81,73,.4);border-radius:6px;padding:.5rem .85rem;margin:.4rem 0}
+.mf-deduct-head{display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.85rem;font-family:'JetBrains Mono',monospace;color:#f85149;padding-bottom:.3rem;border-bottom:1px dashed rgba(248,81,73,.25);margin-bottom:.3rem}
+.mf-deduct-row{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:.78rem;padding:.18rem 0 .18rem .9rem;color:#8b949e}
+.mf-deduct-row .mf-amt{color:var(--bs-body-color)}
+.mf-take{background:linear-gradient(135deg,rgba(63,185,80,.08),rgba(88,166,255,.06));border:1px solid rgba(63,185,80,.3);border-radius:8px;padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;margin-top:.75rem}
+.mf-take .mf-take-label{font-size:.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.08em}
+.mf-take .mf-take-val{font-family:'JetBrains Mono',monospace;font-size:1.25rem;font-weight:700}
 
 /* ══ UNIFIED NAV ══ */
 .sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
@@ -667,6 +695,150 @@ function confirmDelete(id){
 /* ═══════════════════════════════════════════════════════════════
    FY TAX SUMMARY
    ═══════════════════════════════════════════════════════════════ */
+function fyLabelOf(sellDate){
+    // Indian FY: Apr 1 → Mar 31. Matches server-side _fy_label in trade_calculator.py
+    const d = new Date(sellDate);
+    const y = d.getFullYear(), m = d.getMonth()+1; // 1-12
+    const start = (m >= 4) ? y : (y - 1);
+    const end = String(start + 1).slice(-2);
+    return `FY ${start}-${end}`; }
+
+function computeFyAggregates(fy){
+    const trades = TRADES.filter(t => fyLabelOf(t.sell_date) === fy);
+    const a = {invested:0, sales:0, gross:0, brokerage:0, stt:0, exchange:0, sebi:0, stamp:0, dp:0, gst:0};
+    trades.forEach(t=>{
+        const p = t.pnl, c = p.charges;
+        a.invested  += p.buy_value;
+        a.sales     += p.sell_value;
+        a.gross     += p.gross_pnl;
+        a.brokerage += c.total_brokerage;
+        a.stt       += c.total_stt;
+        a.exchange  += c.total_exchange;
+        a.sebi      += c.sebi;
+        a.stamp     += c.stamp_duty;
+        a.dp        += c.dp_charges;
+        a.gst       += c.gst; });
+    return {trades, agg:a}; }
+
+function buildMoneyFlowCard(f, agg){
+    const totalCharges = f.total_charges;
+    const totalTax     = f.total_tax;          // includes cess
+    const taxOnly      = totalTax - f.cess;
+    const netBeforeTax = agg.gross - totalCharges;
+    const takeHome     = netBeforeTax - totalTax;
+    const grossCls = pnlCls(agg.gross);
+    const netCls   = pnlCls(netBeforeTax);
+    const tkCls    = pnlCls(takeHome);
+
+    const taxLines = [];
+    if(f.stcg_tax > 0)        taxLines.push(`<div class="mf-deduct-row"><span>STCG Tax (20%)</span><span class="mf-amt">${fmtR(f.stcg_tax)}</span></div>`);
+    if(f.ltcg_tax > 0)        taxLines.push(`<div class="mf-deduct-row"><span>LTCG Tax (12.5%, after ₹1.25L exemption)</span><span class="mf-amt">${fmtR(f.ltcg_tax)}</span></div>`);
+    if(f.speculative_tax > 0) taxLines.push(`<div class="mf-deduct-row"><span>Speculative Tax (slab, indicative 30%)</span><span class="mf-amt">${fmtR(f.speculative_tax)}</span></div>`);
+    if(taxOnly === 0 && f.cess === 0) taxLines.push(`<div class="mf-deduct-row"><span>No tax payable for this FY</span><span class="mf-amt">${fmtR(0)}</span></div>`);
+    taxLines.push(`<div class="mf-deduct-row"><span>Health &amp; Edu Cess (4%)</span><span class="mf-amt">${fmtR(f.cess)}</span></div>`);
+
+    return `<div class="mf-card">
+        <div class="mf-title"><i class="bi bi-cash-stack me-1"></i>Money Flow — ${f.fy}</div>
+
+        <div class="mf-line"><span class="mf-label">Total Sale Value <span class="mf-sub">(${f.trade_count} trade${f.trade_count===1?'':'s'})</span></span><span class="mf-val">${fmtR(agg.sales)}</span></div>
+        <div class="mf-line"><span class="mf-label">− Total Buy Cost</span><span class="mf-val">${fmtR(agg.invested)}</span></div>
+        <div class="mf-line mf-eq"><span class="mf-label"><strong>= Gross Profit</strong></span><span class="mf-val ${grossCls}"><strong>${fmtR(agg.gross)}</strong></span></div>
+
+        <div class="mf-deduct">
+            <div class="mf-deduct-head"><span><i class="bi bi-dash-circle me-1"></i>Brokerage &amp; Charges</span><span>${fmtR(totalCharges)}</span></div>
+            <div class="mf-deduct-row"><span>Brokerage (Buy + Sell)</span><span class="mf-amt">${fmtR(agg.brokerage)}</span></div>
+            <div class="mf-deduct-row"><span>STT (Securities Transaction Tax)</span><span class="mf-amt">${fmtR(agg.stt)}</span></div>
+            <div class="mf-deduct-row"><span>Exchange Transaction Charges</span><span class="mf-amt">${fmtR(agg.exchange)}</span></div>
+            <div class="mf-deduct-row"><span>SEBI Charges</span><span class="mf-amt">${fmtR(agg.sebi)}</span></div>
+            <div class="mf-deduct-row"><span>Stamp Duty</span><span class="mf-amt">${fmtR(agg.stamp)}</span></div>
+            <div class="mf-deduct-row"><span>DP Charges</span><span class="mf-amt">${fmtR(agg.dp)}</span></div>
+            <div class="mf-deduct-row"><span>GST (18% on brokerage + exchange + SEBI)</span><span class="mf-amt">${fmtR(agg.gst)}</span></div>
+        </div>
+
+        <div class="mf-line mf-eq"><span class="mf-label"><strong>= Net Profit (before tax)</strong></span><span class="mf-val ${netCls}"><strong>${fmtR(netBeforeTax)}</strong></span></div>
+
+        <div class="mf-deduct">
+            <div class="mf-deduct-head"><span><i class="bi bi-dash-circle me-1"></i>Capital Gains Tax</span><span>${fmtR(totalTax)}</span></div>
+            ${taxLines.join('')}
+        </div>
+
+        <div class="mf-take">
+            <span class="mf-take-label"><i class="bi bi-piggy-bank me-1"></i>Your Take-Home</span>
+            <span class="mf-take-val ${tkCls}">${fmtR(takeHome)}</span>
+        </div>
+    </div>`; }
+
+function buildFyDetailRow(f, colspan){
+    const fy = f.fy;
+    const {trades, agg} = computeFyAggregates(fy);
+    if(!trades.length){
+        return `<tr class="fy-detail-row" id="fyDetail-${cssId(fy)}" style="display:none">
+            <td colspan="${colspan}"><div class="fy-detail-inner text-secondary small">No trades in this FY.</div></td></tr>`; }
+
+    trades.sort((a,b)=> a.sell_date.localeCompare(b.sell_date));
+    const moneyFlow = buildMoneyFlowCard(f, agg);
+
+    const rows = trades.map(t=>{
+        const p = t.pnl, c = p.charges;
+        const taxBadge = `<span class="badge badge-${p.tax_category.toLowerCase()}">${p.tax_category}</span>`;
+        const typeBadge = `<span class="badge badge-${t.trade_type}">${t.trade_type==='delivery'?'Delivery':'Intraday'}</span>`;
+        const chargesTitle = `Brokerage ₹${c.total_brokerage.toFixed(2)} • STT ₹${c.total_stt.toFixed(2)} • Exchange ₹${c.total_exchange.toFixed(2)} • SEBI ₹${c.sebi.toFixed(2)} • Stamp ₹${c.stamp_duty.toFixed(2)} • DP ₹${c.dp_charges.toFixed(2)} • GST ₹${c.gst.toFixed(2)}`;
+        return `<tr>
+            <td><strong>${t.stock}</strong></td>
+            <td>${typeBadge}</td>
+            <td>${t.sell_date}</td>
+            <td class="text-end">${t.quantity}</td>
+            <td class="text-end">${fmtR(p.buy_value)}</td>
+            <td class="text-end">${fmtR(p.sell_value)}</td>
+            <td class="text-end ${pnlCls(p.gross_pnl)}">${fmtR(p.gross_pnl)}</td>
+            <td class="text-end text-yellow" title="${chargesTitle}">${fmtR(c.total)}</td>
+            <td class="text-end ${pnlCls(p.net_pnl)}"><strong>${fmtR(p.net_pnl)}</strong></td>
+            <td>${taxBadge}</td>
+        </tr>`; }).join('');
+
+    const totalsRow = `<tr>
+        <td colspan="4"><strong>FY Totals (${trades.length} trade${trades.length===1?'':'s'})</strong></td>
+        <td class="text-end">${fmtR(agg.invested)}</td>
+        <td class="text-end">${fmtR(agg.sales)}</td>
+        <td class="text-end ${pnlCls(agg.gross)}">${fmtR(agg.gross)}</td>
+        <td class="text-end text-yellow">${fmtR(f.total_charges)}</td>
+        <td class="text-end ${pnlCls(agg.gross - f.total_charges)}">${fmtR(agg.gross - f.total_charges)}</td>
+        <td class="text-secondary small">— see card above for tax</td>
+    </tr>`;
+
+    return `<tr class="fy-detail-row" id="fyDetail-${cssId(fy)}" style="display:none">
+        <td colspan="${colspan}">
+            <div class="fy-detail-inner">
+                ${moneyFlow}
+                <div class="text-secondary small mb-2"><i class="bi bi-list-ul me-1"></i>Per-trade breakdown <span class="text-muted">— hover Charges for sub-components. Tax shown only at FY level above (LTCG exemption &amp; loss set-off apply per FY, not per trade).</span></div>
+                <div class="table-responsive">
+                    <table class="fy-detail-tbl table table-dark mb-0" style="background:transparent">
+                        <thead><tr>
+                            <th>Stock</th><th>Type</th><th>Sell Date</th>
+                            <th class="text-end">Qty</th>
+                            <th class="text-end">Buy Value</th><th class="text-end">Sell Value</th>
+                            <th class="text-end">Gross P&L</th><th class="text-end">Charges</th><th class="text-end">Net P&L</th>
+                            <th>Cat.</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                        <tfoot>${totalsRow}</tfoot>
+                    </table>
+                </div>
+            </div>
+        </td></tr>`; }
+
+function cssId(fy){ return fy.replace(/[^a-zA-Z0-9]/g,'_'); }
+
+function toggleFyDetail(fy, btn){
+    const row = document.getElementById('fyDetail-'+cssId(fy));
+    if(!row) return;
+    const open = row.style.display !== 'none';
+    row.style.display = open ? 'none' : '';
+    btn.classList.toggle('open', !open);
+    btn.innerHTML = open
+        ? '<i class="bi bi-chevron-down"></i> Show More'
+        : '<i class="bi bi-chevron-down"></i> Show Less'; }
+
 async function renderFYSummary(){
     const body = document.getElementById('fyBody');
     const empty = document.getElementById('fyEmpty');
@@ -684,6 +856,7 @@ async function renderFYSummary(){
             return; }
         if(fyPdf) fyPdf.classList.remove('d-none');
 
+        const COLSPAN = 14;
         let html = `<div class="table-responsive"><table class="table table-dark fy-tbl mb-0">
         <thead><tr>
             <th>FY</th><th class="text-end">Trades</th>
@@ -692,9 +865,11 @@ async function renderFYSummary(){
             <th class="text-end">Speculative</th>
             <th class="text-end">Cess</th><th class="text-end">Total Charges</th>
             <th class="text-end"><strong>Total Tax</strong></th>
+            <th class="text-center">Details</th>
         </tr></thead><tbody>`;
 
         data.forEach(f=>{
+            const fyEsc = f.fy.replace(/'/g,"\\'");
             html += `<tr>
                 <td><strong>${f.fy}</strong></td>
                 <td class="text-end">${f.trade_count}</td>
@@ -709,7 +884,13 @@ async function renderFYSummary(){
                 <td class="text-end">${fmtR(f.cess)}</td>
                 <td class="text-end text-yellow">${fmtR(f.total_charges)}</td>
                 <td class="text-end"><strong class="text-purple">${fmtR(f.total_tax)}</strong></td>
-            </tr>`; });
+                <td class="text-center">
+                    <button type="button" class="fy-toggle" onclick="toggleFyDetail('${fyEsc}', this)">
+                        <i class="bi bi-chevron-down"></i> Show More
+                    </button>
+                </td>
+            </tr>`;
+            html += buildFyDetailRow(f, COLSPAN); });
         html += '</tbody></table></div>';
         body.innerHTML = html; }catch(e){body.innerHTML='<p class="text-center text-danger py-4 mb-0">Error loading summary</p>';if(fyPdf) fyPdf.classList.add('d-none');} }
 

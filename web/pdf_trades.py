@@ -409,7 +409,7 @@ def _build_trade_ledger(trades: list[dict], st: dict, content_w: float) -> list:
     headers = [
         "#", "Stock", "Plat.", "Type", "Buy Date", "Sell Date",
         "Qty", "Buy", "Sell", "Gross", "Charges", "Net", "Tax", "Post-Tax",
-        "Ret %", "Cat",
+        "Ret %", "Cat", "Source",
     ]
     rows: list[list[Any]] = []
     color_cells: list[tuple] = []
@@ -427,6 +427,8 @@ def _build_trade_ledger(trades: list[dict], st: dict, content_w: float) -> list:
         post = p.get("post_tax_pnl", 0) or 0
         ret = p.get("return_pct", 0) or 0
 
+        pos_id = t.get("position_id")
+        source = f"Portfolio #{pos_id}" if pos_id else "Manual"
         rows.append([
             str(i),
             (t.get("stock") or "—").upper(),
@@ -444,6 +446,7 @@ def _build_trade_ledger(trades: list[dict], st: dict, content_w: float) -> list:
             _money_plain(post),
             f"{ret:+.2f}%",
             p.get("tax_category") or "—",
+            source,
         ])
 
         # Colour P&L columns
@@ -470,28 +473,37 @@ def _build_trade_ledger(trades: list[dict], st: dict, content_w: float) -> list:
         elif cat == "SPECULATIVE":
             color_cells.append(("TEXTCOLOR", (15, i), (15, i), PURPLE))
 
+        # Source: dim "Manual", brand-colour the portfolio link
+        if pos_id:
+            color_cells.append(("TEXTCOLOR", (16, i), (16, i), BRAND))
+            color_cells.append(("FONTNAME", (16, i), (16, i), "Helvetica-Bold"))
+        else:
+            color_cells.append(("TEXTCOLOR", (16, i), (16, i), GREY))
+
     # Column widths sized for landscape A4 (~273mm content)
     cw = [
-        content_w * 0.030,  # #
-        content_w * 0.085,  # Stock
-        content_w * 0.055,  # Platform
-        content_w * 0.060,  # Type
-        content_w * 0.065,  # Buy Date
-        content_w * 0.065,  # Sell Date
-        content_w * 0.045,  # Qty
-        content_w * 0.060,  # Buy
-        content_w * 0.060,  # Sell
-        content_w * 0.075,  # Gross
-        content_w * 0.075,  # Charges
-        content_w * 0.080,  # Net
-        content_w * 0.065,  # Tax
-        content_w * 0.080,  # Post-Tax
-        content_w * 0.055,  # Ret %
-        content_w * 0.045,  # Cat
+        content_w * 0.028,  # #
+        content_w * 0.080,  # Stock
+        content_w * 0.050,  # Platform
+        content_w * 0.055,  # Type
+        content_w * 0.062,  # Buy Date
+        content_w * 0.062,  # Sell Date
+        content_w * 0.040,  # Qty
+        content_w * 0.055,  # Buy
+        content_w * 0.055,  # Sell
+        content_w * 0.070,  # Gross
+        content_w * 0.070,  # Charges
+        content_w * 0.075,  # Net
+        content_w * 0.060,  # Tax
+        content_w * 0.075,  # Post-Tax
+        content_w * 0.050,  # Ret %
+        content_w * 0.043,  # Cat
+        content_w * 0.070,  # Source
     ]
 
     color_cells.append(("ALIGN", (0, 0), (0, -1), "CENTER"))
     color_cells.append(("ALIGN", (15, 0), (15, -1), "CENTER"))
+    color_cells.append(("ALIGN", (16, 0), (16, -1), "CENTER"))
 
     tbl = _grid_table(headers, rows, cw, color_cells, font_size=7.5)
     return [_section_title("Trade History — Detailed Ledger", st), tbl]
@@ -805,8 +817,120 @@ def _build_fy_master_table(fy_summary: list[dict], st: dict, content_w: float) -
     return [_section_title("Financial-Year Tax Schedule", st), tbl]
 
 
+def _aggregate_fy_charges(fy_trades: list[dict]) -> dict:
+    """Sum sale/buy values and every charge component for the given FY's trades."""
+    a = {
+        "invested": 0.0, "sales": 0.0, "gross": 0.0,
+        "brokerage": 0.0, "stt": 0.0, "exchange": 0.0,
+        "sebi": 0.0, "stamp": 0.0, "dp": 0.0, "gst": 0.0,
+    }
+    for t in fy_trades:
+        p = t.get("pnl") or {}
+        c = p.get("charges") or {}
+        a["invested"]  += p.get("buy_value", 0) or 0
+        a["sales"]     += p.get("sell_value", 0) or 0
+        a["gross"]     += p.get("gross_pnl", 0) or 0
+        a["brokerage"] += c.get("total_brokerage", 0) or 0
+        a["stt"]       += c.get("total_stt", 0) or 0
+        a["exchange"]  += c.get("total_exchange", 0) or 0
+        a["sebi"]      += c.get("sebi", 0) or 0
+        a["stamp"]     += c.get("stamp_duty", 0) or 0
+        a["dp"]        += c.get("dp_charges", 0) or 0
+        a["gst"]       += c.get("gst", 0) or 0
+    return a
+
+
+def _build_money_flow_block(f: dict, agg: dict, st: dict, content_w: float) -> list:
+    """Step-by-step deduction walk for one FY — mirrors the on-page Money Flow card."""
+    total_charges = f.get("total_charges", 0) or 0
+    total_tax     = f.get("total_tax", 0) or 0     # already includes cess
+    cess          = f.get("cess", 0) or 0
+    net_before    = (agg["gross"] or 0) - total_charges
+    take_home     = net_before - total_tax
+
+    flow_rows = [
+        ["Total Sale Value",            _money(agg["sales"]),    ""],
+        ["Less: Total Buy Cost",        _money(agg["invested"]), ""],
+        [Paragraph("<b>= Gross Profit</b>", st["cell"]),
+         Paragraph(f"<b>{_money(agg['gross'])}</b>", st["cell_right"]),
+         ""],
+
+        ["Less: Brokerage (Buy + Sell)",       _money(agg["brokerage"]), ""],
+        ["Less: STT (Securities Transaction Tax)", _money(agg["stt"]),   ""],
+        ["Less: Exchange Transaction Charges", _money(agg["exchange"]),  ""],
+        ["Less: SEBI Charges",                 _money(agg["sebi"]),      ""],
+        ["Less: Stamp Duty",                   _money(agg["stamp"]),     ""],
+        ["Less: DP Charges",                   _money(agg["dp"]),        ""],
+        ["Less: GST (18% on brokerage + exchange + SEBI)", _money(agg["gst"]), ""],
+        [Paragraph("<i>Sub-total: Brokerage &amp; Charges</i>", st["cell"]),
+         Paragraph(f"<i>{_money(total_charges)}</i>", st["cell_right"]),
+         ""],
+
+        [Paragraph("<b>= Net Profit (before tax)</b>", st["cell"]),
+         Paragraph(f"<b>{_money(net_before)}</b>", st["cell_right"]),
+         ""],
+
+        ["Less: STCG Tax (20%)",
+         _money(f.get("stcg_tax", 0), blank_if_zero=True), ""],
+        ["Less: LTCG Tax (12.5%, after Rs.1,25,000 exemption)",
+         _money(f.get("ltcg_tax", 0), blank_if_zero=True), ""],
+        ["Less: Speculative Tax (slab, 30% indicative)",
+         _money(f.get("speculative_tax", 0), blank_if_zero=True), ""],
+        ["Less: Health & Edu Cess (4%)",
+         _money(cess, blank_if_zero=True), ""],
+        [Paragraph("<i>Sub-total: Capital Gains Tax</i>", st["cell"]),
+         Paragraph(f"<i>{_money(total_tax)}</i>", st["cell_right"]),
+         ""],
+
+        [Paragraph("<b>YOUR TAKE-HOME</b>", st["cell"]),
+         Paragraph(
+             f"<font color='{(GREEN if take_home >= 0 else RED).hexval()}'><b>{_money(take_home)}</b></font>",
+             st["cell_right"],
+         ),
+         ""],
+    ]
+
+    cw = [content_w * 0.55, content_w * 0.25, content_w * 0.20]
+    tbl = Table(flow_rows, colWidths=cw)
+    style = [
+        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+        ("VALIGN",   (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN",    (1, 0), (1, -1), "RIGHT"),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING",   (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 3),
+        ("BOX",    (0, 0), (-1, -1), 0.5, GREY_LIGHT),
+    ]
+    # Highlight headline rows
+    style += [
+        ("BACKGROUND", (0, 2),  (-1, 2),  colors.HexColor("#EEF6EE")),  # Gross Profit
+        ("LINEABOVE",  (0, 2),  (-1, 2),  0.5, GREY_LIGHT),
+        ("BACKGROUND", (0, 10), (-1, 10), colors.HexColor("#FDF6E7")),  # Charges sub-total
+        ("BACKGROUND", (0, 11), (-1, 11), colors.HexColor("#EEF6EE")),  # Net before tax
+        ("LINEABOVE",  (0, 11), (-1, 11), 0.5, GREY_LIGHT),
+        ("BACKGROUND", (0, 16), (-1, 16), colors.HexColor("#FDF6E7")),  # Tax sub-total
+        ("BACKGROUND", (0, 17), (-1, 17), colors.HexColor("#E8F5EC") if take_home >= 0 else colors.HexColor("#FBE8E6")),
+        ("LINEABOVE",  (0, 17), (-1, 17), 1.0, BRAND),
+        ("FONTSIZE",   (0, 17), (-1, 17), 10),
+    ]
+    tbl.setStyle(TableStyle(style))
+
+    return [
+        Paragraph("<b>Money Flow</b> — every rupee in and out", st["h3"]),
+        Paragraph(
+            "Sale value &rarr; buy cost &rarr; gross profit &rarr; itemised charges "
+            "&rarr; net before tax &rarr; itemised tax &amp; cess &rarr; take-home.",
+            st["small"],
+        ),
+        Spacer(1, 2),
+        tbl,
+        Spacer(1, 4),
+    ]
+
+
 def _build_fy_per_year_detail(fy_summary: list[dict], trades: list[dict], st: dict, content_w: float) -> list:
-    """One sub-block per FY: ITR-style breakdown plus contributing trades."""
+    """One sub-block per FY: Money Flow walk + ITR-style breakdown plus contributing trades."""
     if not fy_summary or not trades:
         return []
 
@@ -816,7 +940,7 @@ def _build_fy_per_year_detail(fy_summary: list[dict], trades: list[dict], st: di
         fy = _fy_label_for(t.get("sell_date") or "")
         by_fy[fy].append(t)
 
-    elems: list = [_section_title("Per-Year ITR-Style Breakdown", st)]
+    elems: list = [_section_title("Per-Year Breakdown", st)]
     for f in fy_summary:
         fy = f.get("fy", "—")
         elems.append(Spacer(1, 4))
@@ -824,6 +948,10 @@ def _build_fy_per_year_detail(fy_summary: list[dict], trades: list[dict], st: di
             f"<b>{fy}</b> — {f.get('trade_count', 0):,} trade(s)",
             st["h3"],
         ))
+
+        # NEW: Money Flow walk before the ITR table
+        agg = _aggregate_fy_charges(by_fy.get(fy, []))
+        elems.extend(_build_money_flow_block(f, agg, st, content_w))
 
         # Loss set-off / exemption commentary
         commentary = []

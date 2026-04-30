@@ -60,7 +60,7 @@ from bb_squeeze.quant_strategy import run_quant_analysis
 from bb_squeeze.config import CSV_DIR
 from hybrid_pa_engine import run_triple_analysis
 from price_action.engine import run_price_action_analysis, pa_result_to_dict
-from bb_squeeze.trade_db import init_db as _init_trade_db, add_trade, get_all_trades, get_trade, delete_trade, update_trade, user_has_trades
+from bb_squeeze.trade_db import init_db as _init_trade_db, add_trade, get_all_trades, get_trade, delete_trade, update_trade, user_has_trades, delete_trades_by_position
 from bb_squeeze.trade_calculator import calculate_trade, calculate_fy_summary
 from bb_squeeze.portfolio_db import (
     init_portfolio_db as _init_portfolio_db,
@@ -1134,9 +1134,19 @@ def api_update_trade(tid):
 
 @app.route("/api/trades/<int:tid>", methods=["DELETE"])
 def api_delete_trade(tid):
-    """Delete a trade."""
-    ok = delete_trade(tid, user_id=_uid(), is_admin=_is_admin())
-    return jsonify({"status": "ok" if ok else "not_found"})
+    """Delete a trade. If it was auto-logged from a portfolio position, also delete that position."""
+    uid = _uid()
+    is_admin = _is_admin()
+    existing = get_trade(tid, user_id=uid, is_admin=is_admin)
+    linked_pid = (existing or {}).get("position_id")
+    ok = delete_trade(tid, user_id=uid, is_admin=is_admin)
+    position_deleted = False
+    if ok and linked_pid:
+        try:
+            position_deleted = delete_position(int(linked_pid), user_id=uid, is_admin=is_admin)
+        except Exception:
+            position_deleted = False
+    return jsonify({"status": "ok" if ok else "not_found", "position_deleted": position_deleted})
 
 
 @app.route("/api/trades/summary")
@@ -1278,29 +1288,80 @@ def api_portfolio_update(pid):
 
 @app.route("/api/portfolio/<int:pid>", methods=["DELETE"])
 def api_portfolio_delete(pid):
-    """Delete a position."""
-    ok = delete_position(pid, user_id=_uid(), is_admin=_is_admin())
-    return jsonify({"status": "ok" if ok else "not_found"})
+    """Delete a position. Also remove any auto-logged trade entries that point to this position."""
+    uid = _uid()
+    is_admin = _is_admin()
+    ok = delete_position(pid, user_id=uid, is_admin=is_admin)
+    trades_deleted = 0
+    if ok:
+        try:
+            trades_deleted = delete_trades_by_position(pid, user_id=uid, is_admin=is_admin)
+        except Exception:
+            trades_deleted = 0
+    return jsonify({"status": "ok" if ok else "not_found", "trades_deleted": trades_deleted})
 
 
 @app.route("/api/portfolio/<int:pid>/close", methods=["POST"])
 def api_portfolio_close(pid):
-    """Close an open position with sell details."""
+    """Close an open position with sell details and auto-log a trade entry."""
     data = request.get_json(force=True)
     sell_price = data.get("sell_price")
     sell_date = data.get("sell_date")
     if not sell_price or not sell_date:
         return jsonify({"error": "sell_price and sell_date required"}), 400
+
+    uid = _uid()
+    is_admin = _is_admin()
+
+    pos = get_position(pid, user_id=uid, is_admin=is_admin)
+    if not pos or pos.get("status") != "OPEN":
+        return jsonify({"status": "not_found_or_already_closed"})
+
     ok = close_position(pid, float(sell_price), sell_date, data.get("sell_reason", ""),
-                        user_id=_uid(), is_admin=_is_admin())
-    return jsonify({"status": "ok" if ok else "not_found_or_already_closed"})
+                        user_id=uid, is_admin=is_admin)
+    if not ok:
+        return jsonify({"status": "not_found_or_already_closed"})
+
+    trade_id = None
+    try:
+        ticker_clean = (pos.get("ticker") or "").upper().replace(".NS", "").strip()
+        reason = (data.get("sell_reason") or "").strip()
+        strat = (pos.get("strategy_code") or "").strip()
+        note_bits = [b for b in [f"Auto-closed from portfolio (#{pid})", strat, reason] if b]
+        trade_payload = {
+            "stock":      ticker_clean,
+            "platform":   (data.get("platform") or "zerodha").lower(),
+            "trade_type": (data.get("trade_type") or "delivery").lower(),
+            "exchange":   (data.get("exchange") or "NSE").upper(),
+            "quantity":   int(pos.get("quantity") or 1),
+            "buy_price":  float(pos.get("buy_price")),
+            "sell_price": float(sell_price),
+            "buy_date":   pos.get("buy_date"),
+            "sell_date":  sell_date,
+            "notes":      " — ".join(note_bits),
+            "position_id": pid,
+        }
+        trade_id = add_trade(trade_payload, user_id=uid)
+    except Exception as exc:
+        # Position is already closed; surface trade-log failure but don't roll back.
+        return jsonify({"status": "ok", "trade_logged": False, "trade_error": str(exc)})
+
+    return jsonify({"status": "ok", "trade_logged": True, "trade_id": trade_id})
 
 
 @app.route("/api/portfolio/<int:pid>/reopen", methods=["POST"])
 def api_portfolio_reopen(pid):
-    """Reopen a closed position."""
-    ok = reopen_position(pid, user_id=_uid(), is_admin=_is_admin())
-    return jsonify({"status": "ok" if ok else "not_found_or_already_open"})
+    """Reopen a closed position. Also removes any auto-logged trade entries since the trade no longer exists."""
+    uid = _uid()
+    is_admin = _is_admin()
+    ok = reopen_position(pid, user_id=uid, is_admin=is_admin)
+    trades_deleted = 0
+    if ok:
+        try:
+            trades_deleted = delete_trades_by_position(pid, user_id=uid, is_admin=is_admin)
+        except Exception:
+            trades_deleted = 0
+    return jsonify({"status": "ok" if ok else "not_found_or_already_open", "trades_deleted": trades_deleted})
 
 
 @app.route("/api/portfolio/<int:pid>/analyze", methods=["GET"])
@@ -1628,30 +1689,81 @@ def _build_open_export_rows():
 
 
 def _build_closed_export_rows():
-    """Build rows for Closed Positions export."""
-    positions = get_closed_positions(user_id=_uid(), is_admin=_is_admin())
+    """Build rows for Closed Positions export, including the same charges &
+    tax breakdown the Trades dashboard computes — so the Excel/PDF reflects
+    everything the user sees on /portfolio AND /trades for that position."""
+    uid = _uid()
+    is_admin = _is_admin()
+    positions = get_closed_positions(user_id=uid, is_admin=is_admin)
+
+    # Pre-build a {position_id: trade_id} map so we can surface the auto-logged
+    # trade reference next to each closed position.
+    try:
+        all_trades = get_all_trades(user_id=uid, is_admin=is_admin)
+        pos_to_trade = {
+            int(t["position_id"]): t["id"]
+            for t in all_trades
+            if t.get("position_id")
+        }
+    except Exception:
+        pos_to_trade = {}
+
     rows = []
     for p in positions:
         buy_price = float(p.get("buy_price") or 0)
         sell_price = float(p.get("sell_price") or 0)
         qty = int(p.get("quantity") or 0)
-        pnl = (sell_price - buy_price) * qty if (buy_price and sell_price) else 0
+        gross_pnl = (sell_price - buy_price) * qty if (buy_price and sell_price) else 0
         pnl_pct = ((sell_price - buy_price) / buy_price * 100.0) if buy_price else 0
         days = _days_between(p.get("buy_date"), p.get("sell_date"))
+        ticker_clean = (p.get("ticker") or "").replace(".NS", "")
+
+        # Compute the same charges + tax block the Trades dashboard uses, so
+        # users see one consistent number across Portfolio and Trades exports.
+        charges_total = 0.0
+        net_pnl = gross_pnl
+        tax_amt = 0.0
+        post_tax = gross_pnl
+        tax_cat = ""
+        try:
+            if buy_price and sell_price and qty and p.get("buy_date") and p.get("sell_date"):
+                pnl_obj = calculate_trade(
+                    stock=ticker_clean, platform="zerodha",
+                    trade_type="delivery", exchange="NSE",
+                    quantity=qty, buy_price=buy_price, sell_price=sell_price,
+                    buy_date=p.get("buy_date"), sell_date=p.get("sell_date"),
+                ).to_dict()
+                charges_total = pnl_obj.get("charges", {}).get("total", 0) or 0
+                net_pnl = pnl_obj.get("net_pnl", net_pnl) or net_pnl
+                tax_amt = pnl_obj.get("total_tax", 0) or 0
+                post_tax = pnl_obj.get("post_tax_pnl", net_pnl) or net_pnl
+                tax_cat = pnl_obj.get("tax_category", "") or ""
+        except Exception:
+            pass  # fall back to gross only — never let calc failure block export
+
+        linked_tid = pos_to_trade.get(int(p["id"])) if p.get("id") else None
 
         rows.append({
-            "Ticker": (p.get("ticker") or "").replace(".NS", ""),
-            "Strategy": p.get("strategy_code", ""),
-            "Buy Price": buy_price,
-            "Buy Date": p.get("buy_date", ""),
-            "Sell Price": sell_price,
-            "Sell Date": p.get("sell_date", "") or "",
-            "Quantity": qty,
-            "P&L": round(pnl, 2),
-            "P&L %": round(pnl_pct, 2),
-            "Days Held": days,
-            "Reason": p.get("sell_reason", "") or "",
-            "Notes": p.get("notes", "") or "",
+            "Ticker":      ticker_clean,
+            "Strategy":    p.get("strategy_code", ""),
+            "Buy Price":   buy_price,
+            "Buy Date":    p.get("buy_date", ""),
+            "Sell Price":  sell_price,
+            "Sell Date":   p.get("sell_date", "") or "",
+            "Quantity":    qty,
+            "Invested":    round(buy_price * qty, 2),
+            "Sale Value":  round(sell_price * qty, 2),
+            "Gross P&L":   round(gross_pnl, 2),
+            "Charges":     round(charges_total, 2),
+            "Net P&L":     round(net_pnl, 2),
+            "Tax (incl. cess)": round(tax_amt, 2),
+            "Post-Tax P&L": round(post_tax, 2),
+            "Tax Category": tax_cat,
+            "P&L %":       round(pnl_pct, 2),
+            "Days Held":   days,
+            "Reason":      p.get("sell_reason", "") or "",
+            "Linked Trade #": linked_tid if linked_tid else "",
+            "Notes":       p.get("notes", "") or "",
         })
     return rows
 
@@ -1720,13 +1832,20 @@ def api_portfolio_export_xlsx():
         green_fill = PatternFill("solid", fgColor="E6F4EA")
         red_fill = PatternFill("solid", fgColor="FDE7E9")
 
+        money_cols = {
+            "Buy Price", "Sell Price", "Current Price", "Invested",
+            "Sale Value", "P&L", "Gross P&L", "Charges", "Net P&L",
+            "Tax (incl. cess)", "Post-Tax P&L",
+        }
+        signed_cols = {"P&L", "P&L %", "Gross P&L", "Net P&L", "Post-Tax P&L"}
+
         for r_idx, row in enumerate(rows, start=5):
             for c_idx, h in enumerate(headers, start=1):
                 val = row.get(h, "")
                 cell = ws.cell(row=r_idx, column=c_idx, value=val)
                 cell.border = border
-                # Color P&L columns
-                if h in ("P&L", "P&L %") and isinstance(val, (int, float)):
+                # Color P&L-style columns by sign
+                if h in signed_cols and isinstance(val, (int, float)):
                     if val > 0:
                         cell.font = green_font
                         cell.fill = green_fill
@@ -1734,7 +1853,7 @@ def api_portfolio_export_xlsx():
                         cell.font = red_font
                         cell.fill = red_fill
                 # Format number columns
-                if h in ("Buy Price", "Sell Price", "Current Price", "Invested", "P&L") and isinstance(val, (int, float)):
+                if h in money_cols and isinstance(val, (int, float)):
                     cell.number_format = '#,##0.00'
                 elif h == "P&L %" and isinstance(val, (int, float)):
                     cell.number_format = '0.00"%"'
@@ -1756,12 +1875,16 @@ def api_portfolio_export_xlsx():
         # Summary row at the bottom (for numeric columns)
         summary_row_idx = 5 + len(rows) + 1
         ws.cell(row=summary_row_idx, column=1, value="TOTAL").font = Font(bold=True)
+        sum_cols = {
+            "Quantity", "Invested", "Sale Value", "P&L", "Gross P&L",
+            "Charges", "Net P&L", "Tax (incl. cess)", "Post-Tax P&L",
+        }
         for c_idx, h in enumerate(headers, start=1):
-            if h in ("Invested", "P&L", "Quantity"):
+            if h in sum_cols:
                 col_sum = sum((row.get(h) or 0) for row in rows if isinstance(row.get(h), (int, float)))
                 cell = ws.cell(row=summary_row_idx, column=c_idx, value=round(col_sum, 2))
                 cell.font = Font(bold=True)
-                if h in ("Invested", "P&L"):
+                if h != "Quantity":
                     cell.number_format = '#,##0.00'
 
     buf = BytesIO()
@@ -1780,7 +1903,7 @@ def api_portfolio_export_pdf():
     """Export portfolio positions to PDF."""
     from io import BytesIO
     from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.pagesizes import A3, A4, landscape
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import (
@@ -1793,15 +1916,19 @@ def api_portfolio_export_pdf():
         rows = _build_closed_export_rows()
         title = "Strategy Portfolio — Closed Positions"
         filename = f"portfolio_closed_{date.today().isoformat()}.pdf"
+        # Closed has 20 columns (charges/tax breakdown) — needs landscape A3.
+        page_size = landscape(A3)
     else:
         rows = _build_open_export_rows()
         title = "Strategy Portfolio — Open Positions"
         filename = f"portfolio_open_{date.today().isoformat()}.pdf"
+        # Open has ~14 columns — landscape A4 is fine.
+        page_size = landscape(A4)
 
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf,
-        pagesize=landscape(A4),
+        pagesize=page_size,
         leftMargin=10 * mm, rightMargin=10 * mm,
         topMargin=12 * mm, bottomMargin=12 * mm,
         title=title,
@@ -1823,6 +1950,22 @@ def api_portfolio_export_pdf():
         textColor=colors.HexColor("#666666"),
         spaceAfter=10,
     )
+    # Header cells need to wrap onto multiple lines so 20 columns don't collide.
+    th_style = ParagraphStyle(
+        "PortfolioHeaderCell", parent=styles["Normal"],
+        fontName="Helvetica-Bold", fontSize=8, leading=10,
+        textColor=colors.whitesmoke, alignment=1,  # center
+    )
+    td_left = ParagraphStyle(
+        "PortfolioCellLeft", parent=styles["Normal"],
+        fontName="Helvetica", fontSize=7.5, leading=9.5,
+        textColor=colors.HexColor("#1F2933"), alignment=0,
+    )
+    td_right = ParagraphStyle(
+        "PortfolioCellRight", parent=styles["Normal"],
+        fontName="Helvetica", fontSize=7.5, leading=9.5,
+        textColor=colors.HexColor("#1F2933"), alignment=2,  # right
+    )
 
     story = []
     story.append(Paragraph(title, title_style))
@@ -1837,115 +1980,161 @@ def api_portfolio_export_pdf():
     else:
         headers = list(rows[0].keys())
 
-        # Build table data
-        data = [headers]
+        # Money / signed / text column groups for formatting
+        money_cols = {
+            "Buy Price", "Sell Price", "Current Price", "Invested", "Sale Value",
+            "P&L", "Gross P&L", "Charges", "Net P&L", "Tax (incl. cess)", "Post-Tax P&L",
+        }
+        right_cols = money_cols | {
+            "Quantity", "P&L %", "Days Held", "Linked Trade #",
+        }
+        text_cols = {"Notes", "Reason", "Ticker", "Strategy", "Tax Category", "Action", "Risk", "Sizing"}
+
+        def _fmt_cell(h, v):
+            if v is None or v == "":
+                return ""
+            if isinstance(v, float):
+                if h == "P&L %":
+                    return f"{v:.2f}%"
+                if h in money_cols:
+                    return f"{v:,.2f}"
+                return f"{v:.2f}"
+            return str(v)
+
+        # Build data with Paragraph cells so headers and long text wrap properly.
+        header_row = [Paragraph(h.replace("&", "&amp;"), th_style) for h in headers]
+        data = [header_row]
+
         for r in rows:
             row_vals = []
             for h in headers:
                 v = r.get(h, "")
-                if isinstance(v, float):
-                    if h == "P&L %":
-                        v = f"{v:.2f}%"
-                    elif h in ("Buy Price", "Sell Price", "Current Price", "Invested", "P&L"):
-                        v = f"{v:,.2f}"
-                    else:
-                        v = f"{v:.2f}"
-                row_vals.append(str(v) if v is not None else "")
+                txt = _fmt_cell(h, v)
+                style = td_right if h in right_cols else td_left
+                row_vals.append(Paragraph(txt.replace("&", "&amp;"), style))
             data.append(row_vals)
 
         # Compute column widths proportionally
-        page_width = landscape(A4)[0] - 20 * mm
-        n_cols = len(headers)
+        page_width = page_size[0] - 20 * mm
 
-        # Heuristic: longer columns like Ticker/Notes get more width
-        weights = []
-        for h in headers:
-            if h in ("Notes", "Reason"):
-                weights.append(2.0)
-            elif h in ("Ticker", "Buy Date", "Sell Date", "Action"):
-                weights.append(1.2)
-            else:
-                weights.append(1.0)
+        # Width weights — longer-text columns get more, narrow numeric columns less.
+        weight_map = {
+            "Notes": 2.4, "Reason": 1.8,
+            "Ticker": 1.0, "Strategy": 0.7,
+            "Buy Date": 1.0, "Sell Date": 1.0,
+            "Buy Price": 0.9, "Sell Price": 0.9, "Current Price": 0.9,
+            "Quantity": 0.6, "Days Held": 0.6,
+            "Invested": 1.0, "Sale Value": 1.0,
+            "Gross P&L": 1.0, "Charges": 0.95, "Net P&L": 1.0,
+            "Tax (incl. cess)": 1.1, "Post-Tax P&L": 1.05,
+            "Tax Category": 0.85, "P&L": 1.0, "P&L %": 0.7,
+            "Linked Trade #": 0.85, "Action": 1.1, "Risk": 0.9, "Sizing": 1.0,
+        }
+        weights = [weight_map.get(h, 1.0) for h in headers]
         total_w = sum(weights)
         col_widths = [page_width * (w / total_w) for w in weights]
 
         tbl = Table(data, colWidths=col_widths, repeatRows=1)
 
         ts = TableStyle([
-            # Header styling
+            # Header band
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2E5A8A")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, 0), 9),
-            ("ALIGN", (0, 0), (-1, 0), "CENTER"),
             ("VALIGN", (0, 0), (-1, 0), "MIDDLE"),
             ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
             ("TOPPADDING", (0, 0), (-1, 0), 6),
+            ("LEFTPADDING",  (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
 
-            # Body styling
-            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-            ("FONTSIZE", (0, 1), (-1, -1), 8),
+            # Body
             ("VALIGN", (0, 1), (-1, -1), "MIDDLE"),
+            ("TOPPADDING",    (0, 1), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 3),
             ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#AAAAAA")),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1),
              [colors.whitesmoke, colors.HexColor("#F3F6FA")]),
         ])
 
-        # Color P&L cells by sign
-        try:
-            pnl_idx = headers.index("P&L") if "P&L" in headers else None
-        except ValueError:
-            pnl_idx = None
-        try:
-            pnlp_idx = headers.index("P&L %") if "P&L %" in headers else None
-        except ValueError:
-            pnlp_idx = None
+        # Re-apply colour to signed columns by replacing the Paragraph with a coloured one
+        # (per-cell TEXTCOLOR doesn't apply to Paragraph children, so colour goes inline).
+        signed_cols = ("P&L", "P&L %", "Gross P&L", "Net P&L", "Post-Tax P&L")
+        amber_cols  = ("Charges",)
+        purple_cols = ("Tax (incl. cess)",)
+
+        def _coloured_paragraph(text: str, hex_color: str, align: int = 2) -> Paragraph:
+            ps = ParagraphStyle(
+                "Coloured", parent=td_right if align == 2 else td_left,
+                textColor=colors.HexColor(hex_color),
+                fontName="Helvetica-Bold",
+            )
+            return Paragraph(text, ps)
 
         for i, r in enumerate(rows, start=1):
-            if pnl_idx is not None:
-                v = r.get("P&L")
-                if isinstance(v, (int, float)):
-                    if v > 0:
-                        ts.add("TEXTCOLOR", (pnl_idx, i), (pnl_idx, i),
-                               colors.HexColor("#006100"))
-                    elif v < 0:
-                        ts.add("TEXTCOLOR", (pnl_idx, i), (pnl_idx, i),
-                               colors.HexColor("#9C0006"))
-            if pnlp_idx is not None:
-                v = r.get("P&L %")
-                if isinstance(v, (int, float)):
-                    if v > 0:
-                        ts.add("TEXTCOLOR", (pnlp_idx, i), (pnlp_idx, i),
-                               colors.HexColor("#006100"))
-                    elif v < 0:
-                        ts.add("TEXTCOLOR", (pnlp_idx, i), (pnlp_idx, i),
-                               colors.HexColor("#9C0006"))
+            for h in signed_cols:
+                if h not in headers:
+                    continue
+                v = r.get(h)
+                if not isinstance(v, (int, float)) or v == 0:
+                    continue
+                idx = headers.index(h)
+                colour = "#006100" if v > 0 else "#9C0006"
+                data[i][idx] = _coloured_paragraph(_fmt_cell(h, v), colour, align=2)
+            for h in amber_cols:
+                if h in headers:
+                    v = r.get(h)
+                    if isinstance(v, (int, float)) and v:
+                        data[i][headers.index(h)] = _coloured_paragraph(
+                            _fmt_cell(h, v), "#B7791F", align=2)
+            for h in purple_cols:
+                if h in headers:
+                    v = r.get(h)
+                    if isinstance(v, (int, float)) and v:
+                        data[i][headers.index(h)] = _coloured_paragraph(
+                            _fmt_cell(h, v), "#6B2D9C", align=2)
 
         tbl.setStyle(ts)
         story.append(tbl)
 
         # Totals
-        total_invested = sum((r.get("Invested") or 0) for r in rows if isinstance(r.get("Invested"), (int, float)))
-        total_pnl = sum((r.get("P&L") or 0) for r in rows if isinstance(r.get("P&L"), (int, float)))
-        total_qty = sum((r.get("Quantity") or 0) for r in rows if isinstance(r.get("Quantity"), (int, float)))
+        def _total(col):
+            return sum((r.get(col) or 0) for r in rows if isinstance(r.get(col), (int, float)))
+
+        total_invested = _total("Invested")
+        total_pnl      = _total("P&L")
+        total_qty      = _total("Quantity")
+        total_gross    = _total("Gross P&L")
+        total_charges  = _total("Charges")
+        total_net      = _total("Net P&L")
+        total_tax      = _total("Tax (incl. cess)")
+        total_post     = _total("Post-Tax P&L")
 
         story.append(Spacer(1, 8))
         totals_style = ParagraphStyle(
             "Totals", parent=styles["Normal"], fontSize=10,
             textColor=colors.HexColor("#1F4E78"), leading=14,
         )
-        totals_html = (
-            f"<b>Total Positions:</b> {len(rows)} &nbsp;&nbsp;|&nbsp;&nbsp; "
-            f"<b>Total Quantity:</b> {int(total_qty)}"
-        )
+        bits = [
+            f"<b>Total Positions:</b> {len(rows)}",
+            f"<b>Total Quantity:</b> {int(total_qty)}",
+        ]
         if total_invested:
-            totals_html += f" &nbsp;&nbsp;|&nbsp;&nbsp; <b>Total Invested:</b> ₹{total_invested:,.2f}"
-        color = "#006100" if total_pnl >= 0 else "#9C0006"
-        totals_html += (
-            f" &nbsp;&nbsp;|&nbsp;&nbsp; <b>Total P&amp;L:</b> "
-            f"<font color='{color}'>₹{total_pnl:,.2f}</font>"
-        )
-        story.append(Paragraph(totals_html, totals_style))
+            bits.append(f"<b>Total Invested:</b> Rs. {total_invested:,.2f}")
+        if total_pnl:
+            color = "#006100" if total_pnl >= 0 else "#9C0006"
+            bits.append(f"<b>Total P&amp;L:</b> <font color='{color}'>Rs. {total_pnl:,.2f}</font>")
+        if total_gross:
+            color = "#006100" if total_gross >= 0 else "#9C0006"
+            bits.append(f"<b>Gross P&amp;L:</b> <font color='{color}'>Rs. {total_gross:,.2f}</font>")
+        if total_charges:
+            bits.append(f"<b>Charges:</b> <font color='#B7791F'>Rs. {total_charges:,.2f}</font>")
+        if total_net:
+            color = "#006100" if total_net >= 0 else "#9C0006"
+            bits.append(f"<b>Net P&amp;L:</b> <font color='{color}'>Rs. {total_net:,.2f}</font>")
+        if total_tax:
+            bits.append(f"<b>Tax:</b> <font color='#6B2D9C'>Rs. {total_tax:,.2f}</font>")
+        if total_post:
+            color = "#006100" if total_post >= 0 else "#9C0006"
+            bits.append(f"<b>Post-Tax:</b> <font color='{color}'>Rs. {total_post:,.2f}</font>")
+        story.append(Paragraph(" &nbsp;&nbsp;|&nbsp;&nbsp; ".join(bits), totals_style))
 
     doc.build(story)
     buf.seek(0)

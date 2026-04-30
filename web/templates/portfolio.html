@@ -934,6 +934,31 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
           </select>
         </div>
         <hr style="border-color:var(--card-border)">
+        <div class="small fw-bold mb-2" style="color:var(--b)"><i class="bi bi-receipt me-1"></i>Trade Logging <span class="text-secondary fw-normal">(auto-adds to Trade History &amp; FY Tax Summary)</span></div>
+        <div class="row g-2">
+          <div class="col-4 mb-3">
+            <label class="form-label small text-secondary">Platform</label>
+            <select class="form-select" id="closePlatform">
+              <option value="zerodha" selected>Zerodha</option>
+              <option value="dhan">Dhan</option>
+            </select>
+          </div>
+          <div class="col-4 mb-3">
+            <label class="form-label small text-secondary">Trade Type</label>
+            <select class="form-select" id="closeTradeType">
+              <option value="delivery" selected>Delivery (CNC)</option>
+              <option value="intraday">Intraday (MIS)</option>
+            </select>
+          </div>
+          <div class="col-4 mb-3">
+            <label class="form-label small text-secondary">Exchange</label>
+            <select class="form-select" id="closeExchange">
+              <option value="NSE" selected>NSE</option>
+              <option value="BSE">BSE</option>
+            </select>
+          </div>
+        </div>
+        <hr style="border-color:var(--card-border)">
         <div class="small fw-bold mb-2" style="color:var(--p)"><i class="bi bi-brain me-1"></i>Mental Game Fields <span class="text-secondary fw-normal">(optional)</span></div>
         <div class="row g-2">
           <div class="col-6 mb-3">
@@ -2659,6 +2684,9 @@ async function submitClose() {
     const price = parseFloat(document.getElementById('closePrice').value);
     const date = document.getElementById('closeDate').value;
     const reason = document.getElementById('closeReason').value;
+    const platform = document.getElementById('closePlatform').value;
+    const tradeType = document.getElementById('closeTradeType').value;
+    const exchange = document.getElementById('closeExchange').value;
     const psychSystem = document.getElementById('closePsychSystem').value;
     const psychPattern = document.getElementById('closePsychPattern').value;
     const psychReflection = document.getElementById('closePsychReflection').value.trim();
@@ -2669,9 +2697,18 @@ async function submitClose() {
     const res = await fetch(`/api/portfolio/${selectedPid}/close`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ sell_price: price, sell_date: date, sell_reason: reason }) });
+        body: JSON.stringify({
+            sell_price: price,
+            sell_date: date,
+            sell_reason: reason,
+            platform: platform,
+            trade_type: tradeType,
+            exchange: exchange,
+        }) });
     const data = await res.json();
     if (data.error) return alert(data.error);
+    if (data.trade_logged === false && data.trade_error) {
+        alert('Position closed, but trade entry could not be logged automatically: ' + data.trade_error); }
 
     // If psych fields filled, auto-log trade psychology
     if (psychSystem || psychPattern || psychReflection) {

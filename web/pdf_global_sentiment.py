@@ -84,10 +84,10 @@ def _styles() -> dict[str, ParagraphStyle]:
                                    textColor=GREY_DARK, leading=10),
         "rec_action": ParagraphStyle("RecAction", parent=base["Normal"], fontSize=22,
                                      fontName="Helvetica-Bold", spaceAfter=4, leading=24),
-        "kpi_label": ParagraphStyle("KpiLabel", parent=base["Normal"], fontSize=8,
+        "kpi_label": ParagraphStyle("KpiLabel", parent=base["Normal"], fontSize=7.5,
                                     textColor=GREY, leading=10, alignment=1),
-        "kpi_value": ParagraphStyle("KpiValue", parent=base["Normal"], fontSize=12,
-                                    textColor=GREY_DARK, leading=14, alignment=1,
+        "kpi_value": ParagraphStyle("KpiValue", parent=base["Normal"], fontSize=14,
+                                    textColor=GREY_DARK, leading=17, alignment=1,
                                     fontName="Helvetica-Bold"),
         "note":     ParagraphStyle("Note", parent=base["Normal"], fontSize=8,
                                    textColor=GREY_DARK, leading=11, leftIndent=8),
@@ -108,6 +108,32 @@ def _fmt_pct(v: Any, decimals: int = 2, signed: bool = True) -> str:
     if v is None or not isinstance(v, (int, float)): return "—"
     sign = "+" if (signed and v >= 0) else ""
     return f"{sign}{v:.{decimals}f}%"
+
+
+def _safe_unit(unit: Any) -> str:
+    """ReportLab default Helvetica is Latin-1 only. The Unicode rupee glyph
+    renders as a missing-character box (■). Replace it with 'Rs.' so the
+    PDF stays readable without bundling a Unicode font."""
+    if not unit:
+        return ""
+    s = str(unit)
+    return s.replace("₹", "Rs.").replace("₹", "Rs.")
+
+
+def _fmt_last(v: Any, unit: Any) -> str:
+    """Render a numeric reading with a Latin-1-safe unit suffix/prefix."""
+    if v is None:
+        return "—"
+    if not isinstance(v, (int, float)):
+        return str(v)
+    u = _safe_unit(unit)
+    if u in ("%",):
+        return f"{v:,.2f}{u}"
+    if u in ("$",):
+        return f"${v:,.2f}"
+    if u.startswith("Rs."):
+        return f"Rs. {v:,.2f}"
+    return f"{v:,.2f}"
 
 
 def _signed_color(v: Any) -> colors.Color:
@@ -144,8 +170,20 @@ def _label_colors(label: str) -> tuple[colors.Color, colors.Color]:
     return GREY_DARK, GREY_BG
 
 
-def _section_title(text: str, st: dict) -> Paragraph:
-    return Paragraph(text, st["h2"])
+def _section_title(text: str, st: dict) -> Table:
+    """Section heading rendered as a small table with a coloured left bar
+    + light blue background so sections separate visually."""
+    p = Paragraph(f"<font color='{BRAND.hexval()}'><b>{text}</b></font>", st["h2"])
+    t = Table([[p]], colWidths=["*"])
+    t.setStyle(TableStyle([
+        ("BACKGROUND",   (0, 0), (-1, -1), colors.HexColor("#EEF4FB")),
+        ("LINEBEFORE",   (0, 0), (0, -1), 3, BRAND),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING",   (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
+    ]))
+    return t
 
 
 def _grid_table(headers: list[str], rows: list[list[Any]],
@@ -161,10 +199,15 @@ def _grid_table(headers: list[str], rows: list[list[Any]],
         ("FONTSIZE", (0, 0), (-1, 0), font_size),
         ("ALIGN", (0, 0), (-1, 0), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
-        ("TOPPADDING", (0, 0), (-1, 0), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+        ("TOPPADDING", (0, 0), (-1, 0), 6),
         ("FONTSIZE", (0, 1), (-1, -1), font_size),
         ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        # More generous body padding so wrapped Paragraphs don't clip neighbours
+        ("LEFTPADDING",   (0, 1), (-1, -1), 4),
+        ("RIGHTPADDING",  (0, 1), (-1, -1), 4),
+        ("TOPPADDING",    (0, 1), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 4),
         ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#BFCBD7")),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, ROW_ALT]),
     ]
@@ -184,14 +227,17 @@ def _kpi_card(label: str, value: str, st: dict,
         value_p = Paragraph(
             f"<font color='{value_color.hexval()}'>{value}</font>", st["kpi_value"])
     tbl = Table([[label_p], [value_p]], colWidths=[None])
+    accent = value_color or BRAND
     tbl.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.5, GREY_LIGHT),
         ("BACKGROUND", (0, 0), (-1, -1), fill or colors.HexColor("#F8FAFC")),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 0), (-1, -1), 6),
         ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        # Subtle accent line at the top — matches the value colour
+        ("LINEABOVE", (0, 0), (-1, 0), 2, accent),
     ]))
     return tbl
 
@@ -239,14 +285,23 @@ def _build_header(data: dict, st: dict) -> list:
         bits.append(f"cache age {int(cache_age)}s")
     bits.append(f"source <b>{source}</b>")
 
-    return [
-        Paragraph("Global Market Sentiment", st["title"]),
-        Paragraph(
+    title_block = Table([
+        [Paragraph("<b>Global Market Sentiment</b>", st["title"])],
+        [Paragraph(
             " &nbsp;&bull;&nbsp; ".join(bits) +
             " &nbsp;&bull;&nbsp; Hiranya Macro Inter-market Engine",
             st["subtitle"],
-        ),
-    ]
+        )],
+    ], colWidths=["*"])
+    title_block.setStyle(TableStyle([
+        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+        ("TOPPADDING",    (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        # Subtle accent rule under the whole title block
+        ("LINEBELOW", (0, 1), (-1, 1), 1.5, BRAND),
+    ]))
+    return [title_block, Spacer(1, 6)]
 
 
 def _build_regime_banner(data: dict, st: dict, content_w: float) -> list:
@@ -534,6 +589,15 @@ def _build_correlations(data: dict, st: dict, content_w: float) -> list:
                "Magnitude", "Holding", "Stability"]
     rows: list[list[Any]] = []
     color_cells: list[tuple] = []
+    # Cell-level styles so wrapped Paragraphs match the surrounding font
+    cell_style = ParagraphStyle(
+        "CorrCell", fontSize=7.5, leading=9.5, textColor=GREY_DARK,
+    )
+    pair_style = ParagraphStyle(
+        "CorrPair", fontSize=7.5, leading=9.5, textColor=GREY_DARK,
+        fontName="Helvetica-Bold",
+    )
+
     for i, c in enumerate(corrs, start=1):
         c30 = c.get("corr_30d") if c.get("corr_30d") is not None else c.get("correlation")
         c60 = c.get("corr_60d")
@@ -544,14 +608,14 @@ def _build_correlations(data: dict, st: dict, content_w: float) -> list:
         rs = c.get("regime_shift")
 
         rows.append([
-            c.get("pair", "—"),
+            Paragraph(c.get("pair", "—"), pair_style),
             _fmt_num(c30, decimals=2),
             _fmt_num(c60, decimals=2),
             _fmt_num(c90, decimals=2),
-            c.get("expectation", "—"),
+            Paragraph(c.get("expectation", "—"), cell_style),
             magn.upper(),
             "✓ HOLDING" if holding else "✗ BROKEN",
-            stab.upper() + (" ⚡FLIP" if rs else ""),
+            stab.upper() + (" * FLIP" if rs else ""),
         ])
         # Colour the headline 30d cell by sign
         if c30 is not None:
@@ -571,19 +635,26 @@ def _build_correlations(data: dict, st: dict, content_w: float) -> list:
             color_cells.append(("TEXTCOLOR", (7, i), (7, i), RED))
         if rs:
             color_cells.append(("BACKGROUND", (7, i), (7, i), AMBER_BG))
-        for ci in (1, 2, 3, 5):
+        for ci in (1, 2, 3, 5, 6, 7):
             color_cells.append(("ALIGN", (ci, i), (ci, i), "CENTER"))
+        # Top-align cells so wrapped multi-line text doesn't push numbers to the bottom
+        color_cells.append(("VALIGN", (0, i), (-1, i), "TOP"))
 
+    # Wider Pair + Expectation columns, narrower correlation numerics, narrower trailing tags.
     cw = [
-        content_w * 0.18, content_w * 0.07, content_w * 0.07, content_w * 0.07,
-        content_w * 0.30, content_w * 0.10, content_w * 0.10, content_w * 0.11,
+        content_w * 0.16,  # Pair
+        content_w * 0.07, content_w * 0.07, content_w * 0.07,  # 30/60/90 d
+        content_w * 0.31,  # Expectation (was 0.30 — slight bump)
+        content_w * 0.10,  # Magnitude
+        content_w * 0.11,  # Holding (slightly wider so "✓ HOLDING" sits comfortably)
+        content_w * 0.11,  # Stability
     ]
     return [
         _section_title("Inter-market Correlations (3-window)", st),
         Paragraph(
             "Pairwise rolling correlations (Pearson) over 30 / 60 / 90 days. "
-            "Headline column is 30d. ‘Stability’ shows agreement across windows; "
-            "‘⚡FLIP’ marks a recent regime change between 30d and 90d.",
+            "Headline column is 30d. 'Stability' shows agreement across windows; "
+            "'* FLIP' marks a recent regime change between 30d and 90d.",
             st["small"],
         ),
         Spacer(1, 3),
@@ -599,36 +670,49 @@ def _build_historical_context(data: dict, st: dict, content_w: float) -> list:
     headers = ["Indicator", "Last", "1Y rank", "5Y rank", "Position", "Multi-year note"]
     rows: list[list[Any]] = []
     color_cells: list[tuple] = []
+    cell_style = ParagraphStyle(
+        "HCNote", fontSize=8, leading=10, textColor=GREY_DARK,
+    )
+
     for i, c in enumerate(ctx, start=1):
         last = c.get("last")
         unit = c.get("unit") or ""
-        last_str = (f"{last:,.2f}{unit}" if isinstance(last, (int, float))
-                    else str(last) if last is not None else "—")
+        last_str = _fmt_last(last, unit)
         rank1y = c.get("pct_rank_1y")
         rank5y = c.get("pct_rank_5y")
         label  = c.get("label", "—")
         note   = c.get("context_note") or ""
         tone   = c.get("tone") or "neutral"
 
+        t_color, t_bg = _tone_colors(tone)
+        # Position cell as Paragraph so it can wrap & carry colour
+        pos_style = ParagraphStyle(
+            f"HCPos{i}", fontSize=8, leading=10, textColor=t_color,
+            fontName="Helvetica-Bold",
+        )
+
         rows.append([
             c.get("name", c.get("key", "—")),
             last_str,
             _fmt_num(rank1y, decimals=0) if rank1y is not None else "—",
             _fmt_num(rank5y, decimals=0) if rank5y is not None else "—",
-            label,
-            note,
+            Paragraph(label, pos_style),
+            Paragraph(note, cell_style) if note else "",
         ])
-        t_color, t_bg = _tone_colors(tone)
-        color_cells.append(("TEXTCOLOR", (4, i), (4, i), t_color))
-        color_cells.append(("FONTNAME",  (4, i), (4, i), "Helvetica-Bold"))
         if tone == "extreme":
             color_cells.append(("BACKGROUND", (4, i), (4, i), t_bg))
         for ci in (1, 2, 3):
             color_cells.append(("ALIGN", (ci, i), (ci, i), "RIGHT" if ci == 1 else "CENTER"))
+        color_cells.append(("VALIGN", (0, i), (-1, i), "TOP"))
 
+    # Bigger Last column (Rs. prefix needs space), bigger Multi-year note column.
     cw = [
-        content_w * 0.16, content_w * 0.13, content_w * 0.10, content_w * 0.10,
-        content_w * 0.20, content_w * 0.31,
+        content_w * 0.18,  # Indicator
+        content_w * 0.14,  # Last (Rs. + 2 decimals)
+        content_w * 0.09,  # 1Y rank
+        content_w * 0.09,  # 5Y rank
+        content_w * 0.18,  # Position label
+        content_w * 0.32,  # Multi-year note
     ]
     return [
         _section_title("Historical Context (1Y vs 5Y)", st),
@@ -726,8 +810,7 @@ def _build_instruments(data: dict, st: dict, content_w: float) -> list:
         for i, r in enumerate(items, start=1):
             unit = r.get("unit") or ""
             last = r.get("last")
-            last_str = (f"{last:,.2f}{unit}" if isinstance(last, (int, float))
-                        else str(last) if last is not None else "—")
+            last_str = _fmt_last(last, unit)
             ch1, ch5, ch20, ch60 = (
                 r.get("change_1d_pct"), r.get("change_5d_pct"),
                 r.get("change_20d_pct"), r.get("change_60d_pct"),
@@ -761,9 +844,13 @@ def _build_instruments(data: dict, st: dict, content_w: float) -> list:
             color_cells.append(("ALIGN", (8, i), (8, i), "CENTER"))
 
         cw = [
-            content_w * 0.20, content_w * 0.13, content_w * 0.09, content_w * 0.09,
-            content_w * 0.09, content_w * 0.09, content_w * 0.09, content_w * 0.09,
-            content_w * 0.13,
+            content_w * 0.18,  # Instrument
+            content_w * 0.16,  # Last (with Rs. prefix needs more room)
+            content_w * 0.085, content_w * 0.085,
+            content_w * 0.085, content_w * 0.085,
+            content_w * 0.085,  # 1Y rank
+            content_w * 0.085,  # Vol
+            content_w * 0.115,  # Status
         ]
         elems.append(_grid_table(headers, rows, cw, color_cells, font_size=7.5))
         elems.append(Spacer(1, 4))

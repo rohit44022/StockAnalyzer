@@ -101,6 +101,10 @@ app.register_blueprint(sentiment_bp)
 from web.global_sentiment_routes import global_sentiment_bp
 app.register_blueprint(global_sentiment_bp)
 
+# Fundamental Pro (separate, isolated module — does NOT touch bb_squeeze.fundamentals)
+# from fundamental_pro.routes.blueprint import fp_bp
+# app.register_blueprint(fp_bp)
+
 # Bootswatch theming
 from web.theme import theme_bp, inject_theme
 app.register_blueprint(theme_bp)
@@ -497,6 +501,8 @@ def _fund_dict(fd):
             for af in (fd.annual_financials or [])
         ],
         "financial_statements_analysis": fd.financial_statements_analysis,
+        # ── Meta (cache freshness) ──
+        "cache_age_sec": getattr(fd, '_cache_age_sec', -1),
     }
 
 
@@ -546,12 +552,15 @@ def api_analyze(ticker_raw):
     # Run additional strategies (Methods II, III, IV)
     strategies = run_all_strategies(df)
 
-    # Fetch fundamentals
+    # Fetch fundamentals (cached — 4h TTL)
     fd = None
+    fund_warnings = []
     try:
         fd = fetch_fundamentals(ticker)
-    except Exception:
-        pass
+        if fd and fd.fetch_error:
+            fund_warnings.append(fd.fetch_error)
+    except Exception as e:
+        fund_warnings.append(f"Fundamental fetch failed: {type(e).__name__}: {e}")
 
     # Build chart data
     chart = _build_chart_data(df)
@@ -593,10 +602,14 @@ def api_analyze(ticker_raw):
     # Data freshness
     freshness = get_data_freshness(df)
 
+    fund_dict = _fund_dict(fd) if fd and not fd.fetch_error else {"error": fund_warnings[0] if fund_warnings else "No fundamental data"}
+    if fund_warnings and isinstance(fund_dict, dict) and "error" not in fund_dict:
+        fund_dict["_warnings"] = fund_warnings
+
     return jsonify({
         "signal":       _signal_dict(sig),
         "strategies":   [strategy_result_to_dict(sr) for sr in strategies],
-        "fundamentals": _fund_dict(fd),
+        "fundamentals": fund_dict,
         "chart":        chart,
         "quant":        quant,
         "hybrid":       triple,
@@ -618,6 +631,11 @@ def api_refresh_data(ticker_raw):
     # Save fresh data to CSV
     csv_path = os.path.join(CSV_DIR, f"{ticker}.csv")
     df.to_csv(csv_path)
+
+    # Invalidate fundamental cache so next load fetches fresh data
+    from bb_squeeze.fundamentals import _fund_cache, _fund_cache_lock
+    with _fund_cache_lock:
+        _fund_cache.pop(ticker, None)
 
     freshness = get_data_freshness(df)
     return jsonify({

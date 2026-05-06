@@ -306,6 +306,23 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 
     <!-- Analysis content -->
     <div id="analysisContent" style="display:none;">
+
+      <!-- ═══ EXPERT DAILY COMMENTARY (60-year market veteran) ═══ -->
+      <div class="analysis-panel mb-3" id="expertCommentaryPanel" style="display:none;">
+        <div class="d-flex align-items-center mb-2">
+          <i class="bi bi-newspaper me-2" style="color:var(--c);font-size:1.2rem"></i>
+          <span class="fw-semibold" style="color:var(--c)">Daily Expert Commentary</span>
+          <span class="badge ms-2 font-mono" id="commentaryToneBadge" style="font-size:.7rem"></span>
+          <span class="ms-auto small text-secondary" id="commentaryDate"></span>
+        </div>
+        <!-- Quick Stats Row -->
+        <div class="row g-2 mb-2" id="commentaryQuickStats"></div>
+        <!-- Commentary Body -->
+        <div id="commentaryBody" style="font-size:.82rem;line-height:1.75;color:rgba(255,255,255,.8)"></div>
+        <!-- Expert Verdict Box -->
+        <div class="p-2 rounded mt-2" id="commentaryExpertBox" style="border-radius:8px;font-size:.85rem;line-height:1.7"></div>
+      </div>
+
       <div class="row g-3">
 
         <!-- LEFT: Recommendation + Targets -->
@@ -364,6 +381,61 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
               <div class="chart-container" style="max-height:120px;max-width:200px;margin:0 auto"><canvas id="pnlGaugeChart"></canvas></div>
               <div class="small mt-1" id="holdExplain" style="color:var(--bs-body-color);line-height:1.6"></div>
             </div>
+          </div>
+
+          <!-- ═══ FUNDAMENTAL HEALTH SNAPSHOT (50-year expert) ═══ -->
+          <div class="analysis-panel mb-3" id="fundHealthPanel" style="display:none;">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-heart-pulse me-2" style="color:var(--g);font-size:1.1rem"></i>
+              <span class="text-secondary small text-uppercase">Fundamental Health Check</span>
+              <span class="badge ms-auto font-mono" id="fundHealthBadge" style="font-size:.7rem"></span>
+            </div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.5;margin-bottom:8px">
+              A 50-year market veteran never holds a position without knowing: <strong>Is the company behind this stock financially healthy?</strong> Technicals tell you WHEN to act — fundamentals tell you WHETHER the company deserves your capital.
+            </div>
+            <div id="fundHealthSector" class="small mb-2" style="color:#8b949e"></div>
+            <div class="row g-2 mb-2" id="fundHealthMetrics"></div>
+            <!-- Score bars -->
+            <div id="fundHealthScoreBars" class="mb-2"></div>
+            <!-- Expert assessment -->
+            <div id="fundHealthFlags" class="mb-2"></div>
+            <div class="p-2 rounded" id="fundHealthExpert" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);font-size:.8rem;line-height:1.6"></div>
+          </div>
+
+          <!-- ═══ BENCHMARK ALPHA (50-year expert: are you beating the market?) ═══ -->
+          <div class="analysis-panel mb-3" id="benchmarkPanel" style="display:none;">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-graph-up-arrow me-2" style="color:var(--b);font-size:1.1rem"></i>
+              <span class="text-secondary small text-uppercase">Alpha vs Nifty 50 — Are You Beating the Market?</span>
+              <span class="badge ms-auto font-mono" id="benchmarkBadge" style="font-size:.7rem"></span>
+            </div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.5;margin-bottom:8px">
+              A veteran always asks: <strong>"Am I generating alpha or just riding the market wave?"</strong> If Nifty rose 15% and your stock rose 12%, you actually LOST value relative to a simple index fund.
+            </div>
+            <div class="row g-2 mb-2" id="benchmarkBars"></div>
+            <div class="chart-container mb-2" style="max-height:100px"><canvas id="benchmarkBarChart"></canvas></div>
+            <div class="p-2 rounded" id="benchmarkExpert" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);font-size:.8rem;line-height:1.6"></div>
+          </div>
+
+          <!-- ═══ TRAILING STOPS (50-year expert: protect profits dynamically) ═══ -->
+          <div class="analysis-panel" id="trailingStopPanel" style="display:none;">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-shield-lock me-2" style="color:var(--o);font-size:1.1rem"></i>
+              <span class="text-secondary small text-uppercase">Dynamic Trailing Stops (ATR-Based)</span>
+              <span class="badge ms-1" id="trailProfitBadge" style="font-size:.65rem;display:none"></span>
+            </div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.5;margin-bottom:8px">
+              <strong>Static stops get you stopped out.</strong> Professional traders use ATR-based (Average True Range) stops that adapt to the stock's actual volatility. Volatile stock? Wider stop. Calm stock? Tighter stop. Like a seatbelt that adjusts to road conditions.
+            </div>
+            <table class="table table-sm table-dark mb-0" style="font-size:.85rem">
+              <thead><tr><th>Stop Type</th><th>Price</th><th>Risk</th></tr></thead>
+              <tbody id="trailingStopBody"></tbody>
+            </table>
+            <div class="mt-2 d-flex justify-content-between small text-secondary">
+              <span>ATR(14): <span class="font-mono fw-bold text-info" id="trailATR14"></span></span>
+              <span>Daily Vol: <span class="font-mono fw-bold" id="trailDailyVol"></span></span>
+            </div>
+            <div class="p-2 rounded mt-2" id="trailingExpert" style="background:rgba(255,165,0,.04);border:1px solid rgba(255,165,0,.12);font-size:.8rem;line-height:1.6"></div>
           </div>
         </div>
 
@@ -1392,7 +1464,13 @@ function renderAnalysis(data) {
     renderMultiSystem(data.multi_system || {});
 
     // ═══════ VINCE RISK & MONEY MANAGEMENT RENDER ═══════
-    renderVinceRisk(data.vince_risk || {}, data.holding || {}); }
+    renderVinceRisk(data.vince_risk || {}, data.holding || {});
+
+    // ═══════ 50-YEAR EXPERT PANELS ═══════
+    renderExpertCommentary(data.expert_commentary || {});
+    renderFundamentalHealth(data.fundamental_snapshot || {});
+    renderBenchmarkAlpha(data.benchmark || {});
+    renderTrailingStops(data.trailing_stops || {}, data.holding || {}); }
 
 function renderMultiSystem(ms) {
     const section = document.getElementById('multiSystemSection');
@@ -2608,9 +2686,280 @@ function hideAnalysis() {
     // Cleanup chart instances
     if (pnlGaugeInstance) { pnlGaugeInstance.destroy(); pnlGaugeInstance = null; }
     if (radarInstance) { radarInstance.destroy(); radarInstance = null; }
+    if (benchmarkChart) { benchmarkChart.destroy(); benchmarkChart = null; }
     // Hide dynamic panels
     const dp = document.getElementById('daltonPanel');
-    if (dp) dp.style.display = 'none'; }
+    if (dp) dp.style.display = 'none';
+    ['expertCommentaryPanel','fundHealthPanel','benchmarkPanel','trailingStopPanel'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.style.display = 'none'; }); }
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPERT DAILY COMMENTARY RENDERING (60-year market veteran)
+// ═══════════════════════════════════════════════════════════════
+function renderExpertCommentary(ec) {
+    const panel = document.getElementById('expertCommentaryPanel');
+    if (!ec || !ec.available) { panel.style.display = 'none'; return; }
+    panel.style.display = 'block';
+
+    // Tone badge
+    const badge = document.getElementById('commentaryToneBadge');
+    const toneColors = {
+        'STRONGLY BULLISH': {bg:'rgba(63,185,80,.15)',fg:'var(--g)',icon:'bi-arrow-up-circle-fill'},
+        'MILDLY BULLISH':   {bg:'rgba(63,185,80,.08)',fg:'var(--g)',icon:'bi-arrow-up-circle'},
+        'NEUTRAL':          {bg:'rgba(210,153,34,.12)',fg:'var(--y)',icon:'bi-dash-circle'},
+        'MILDLY BEARISH':   {bg:'rgba(248,81,73,.08)',fg:'var(--r)',icon:'bi-arrow-down-circle'},
+        'STRONGLY BEARISH': {bg:'rgba(248,81,73,.15)',fg:'var(--r)',icon:'bi-arrow-down-circle-fill'},
+    };
+    const tc = toneColors[ec.tone] || toneColors['NEUTRAL'];
+    badge.innerHTML = `<i class="bi ${tc.icon} me-1"></i>${ec.tone}`;
+    badge.style.background = tc.bg;
+    badge.style.color = tc.fg;
+    badge.style.border = `1px solid ${tc.fg}`;
+    badge.style.borderRadius = '6px';
+    badge.style.padding = '2px 10px';
+
+    // Date
+    document.getElementById('commentaryDate').textContent = new Date().toLocaleDateString('en-IN', {weekday:'short', day:'numeric', month:'short', year:'numeric'});
+
+    // Quick Stats Row
+    const stats = document.getElementById('commentaryQuickStats');
+    const chgClr = ec.day_change_pct >= 0 ? 'var(--g)' : 'var(--r)';
+    const chgIcon = ec.day_change_pct >= 0 ? 'bi-caret-up-fill' : 'bi-caret-down-fill';
+    const volClr = ec.vol_ratio > 1.5 ? 'var(--g)' : ec.vol_ratio < 0.7 ? 'var(--r)' : 'var(--y)';
+    stats.innerHTML = `
+        <div class="col-6 col-md-3"><div class="ind-pill" style="width:100%;flex-direction:column;align-items:center;padding:6px 8px">
+            <span class="text-secondary" style="font-size:.65rem">Day Change</span>
+            <span class="font-mono fw-bold" style="color:${chgClr}"><i class="bi ${chgIcon}"></i> ${ec.day_change_pct>0?'+':''}${ec.day_change_pct}%</span>
+            <span class="text-secondary" style="font-size:.6rem">₹${ec.day_change>0?'+':''}${ec.day_change}</span>
+        </div></div>
+        <div class="col-6 col-md-3"><div class="ind-pill" style="width:100%;flex-direction:column;align-items:center;padding:6px 8px">
+            <span class="text-secondary" style="font-size:.65rem">Range (H-L)</span>
+            <span class="font-mono fw-bold">₹${ec.intraday_range}</span>
+            <span class="text-secondary" style="font-size:.6rem">${ec.intraday_range_pct}% spread</span>
+        </div></div>
+        <div class="col-6 col-md-3"><div class="ind-pill" style="width:100%;flex-direction:column;align-items:center;padding:6px 8px">
+            <span class="text-secondary" style="font-size:.65rem">Volume</span>
+            <span class="font-mono fw-bold" style="color:${volClr}">${ec.vol_ratio}x avg</span>
+            <span class="text-secondary" style="font-size:.6rem">${(ec.volume/100000).toFixed(1)}L (${ec.vol_desc})</span>
+        </div></div>
+        <div class="col-6 col-md-3"><div class="ind-pill" style="width:100%;flex-direction:column;align-items:center;padding:6px 8px">
+            <span class="text-secondary" style="font-size:.65rem">Candle</span>
+            <span class="font-mono fw-bold" style="font-size:.7rem">${ec.candle_type}</span>
+            <span class="text-secondary" style="font-size:.6rem">O:${ec.open} H:${ec.high} L:${ec.low} C:${ec.close}</span>
+        </div></div>
+    `;
+
+    // Commentary paragraphs
+    const body = document.getElementById('commentaryBody');
+    let html = '';
+    if (ec.para_price) html += `<p class="mb-2" style="border-left:3px solid rgba(57,210,192,.3);padding-left:10px">${ec.para_price}</p>`;
+    if (ec.para_volume) html += `<p class="mb-2" style="border-left:3px solid rgba(210,153,34,.3);padding-left:10px">${ec.para_volume}</p>`;
+    if (ec.para_bollinger) html += `<p class="mb-2" style="border-left:3px solid rgba(88,166,255,.3);padding-left:10px">${ec.para_bollinger}</p>`;
+    if (ec.para_systems) html += `<p class="mb-2" style="border-left:3px solid rgba(188,140,255,.3);padding-left:10px">${ec.para_systems}</p>`;
+    body.innerHTML = html;
+
+    // Expert verdict box
+    const expertBox = document.getElementById('commentaryExpertBox');
+    expertBox.style.background = tc.bg;
+    expertBox.style.border = `1px solid ${tc.fg}`;
+    expertBox.innerHTML = `<i class="bi bi-mortarboard me-1" style="color:${tc.fg}"></i><strong style="color:${tc.fg}">Expert Take (${ec.tone}):</strong><br><span style="color:rgba(255,255,255,.8)">${ec.expert_synthesis}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FUNDAMENTAL HEALTH SNAPSHOT RENDERING (50-year expert)
+// ═══════════════════════════════════════════════════════════════
+function renderFundamentalHealth(fs) {
+    const panel = document.getElementById('fundHealthPanel');
+    if (!fs || !fs.available) { panel.style.display = 'none'; return; }
+    panel.style.display = 'block';
+
+    // Expert view badge
+    const badge = document.getElementById('fundHealthBadge');
+    const viewClr = {STRONG:'var(--g)',GOOD:'rgba(63,185,80,.8)',NEUTRAL:'var(--y)',CAUTION:'var(--o)',WEAK:'var(--r)'}[fs.expert_view]||'var(--y)';
+    const viewBg = {STRONG:'rgba(63,185,80,.15)',GOOD:'rgba(63,185,80,.10)',NEUTRAL:'rgba(210,153,34,.15)',CAUTION:'rgba(240,136,62,.15)',WEAK:'rgba(248,81,73,.15)'}[fs.expert_view]||'rgba(255,255,255,.08)';
+    badge.textContent = fs.fundamental_signal ? `${fs.fundamental_signal} (${fs.fundamental_score}/100)` : fs.expert_view;
+    badge.style.background = viewBg;
+    badge.style.color = viewClr;
+    badge.style.border = `1px solid ${viewClr}`;
+    badge.style.borderRadius = '6px';
+    badge.style.padding = '2px 8px';
+
+    // Sector
+    document.getElementById('fundHealthSector').innerHTML = fs.sector ? `<i class="bi bi-building me-1"></i>${fs.company_name || ''} &middot; <span class="text-info">${fs.sector}</span>` : '';
+
+    // Key metrics grid
+    const m = document.getElementById('fundHealthMetrics');
+    const metricData = [
+        ['PE Ratio', fs.pe_ratio, null, fs.pe_ratio<15?'var(--g)':fs.pe_ratio>50?'var(--r)':'var(--y)', 'Price-to-Earnings ratio. Lower = cheaper. <15 is attractive, >50 is expensive.'],
+        ['PB Ratio', fs.pb_ratio, null, fs.pb_ratio<2?'var(--g)':fs.pb_ratio>5?'var(--r)':'var(--y)', 'Price-to-Book. Lower = more value. <2 is good for most sectors.'],
+        ['ROE', fs.roe, '%', fs.roe>15?'var(--g)':fs.roe<5?'var(--r)':'var(--y)', 'Return on Equity — how well the company uses your money. >15% is strong.'],
+        ['ROCE', fs.roce, '%', fs.roce>15?'var(--g)':fs.roce<8?'var(--r)':'var(--y)', 'Return on Capital Employed. >15% means the business generates good returns.'],
+        ['D/E', fs.debt_to_equity, '', fs.debt_to_equity<0.5?'var(--g)':fs.debt_to_equity>1.5?'var(--r)':'var(--y)', 'Debt-to-Equity. <0.5 = low debt (safe). >1.5 = high debt (risky in downturns).'],
+        ['Profit Margin', fs.profit_margin, '%', fs.profit_margin>15?'var(--g)':fs.profit_margin<5?'var(--r)':'var(--y)', 'Net profit per ₹100 of revenue. Higher = more profitable.'],
+        ['Rev Growth', fs.revenue_growth, '%', fs.revenue_growth>15?'var(--g)':fs.revenue_growth<0?'var(--r)':'var(--y)', 'Year-over-year revenue growth. >15% = strong, <0% = shrinking.'],
+        ['Earnings Growth', fs.earnings_growth, '%', fs.earnings_growth>15?'var(--g)':fs.earnings_growth<0?'var(--r)':'var(--y)', 'Year-over-year earnings growth. Growing earnings = rising stock.'],
+        ['Current Ratio', fs.current_ratio, '', fs.current_ratio>1.5?'var(--g)':fs.current_ratio<1?'var(--r)':'var(--y)', 'Can the company pay its short-term bills? >1.5 = comfortable, <1 = red flag.'],
+        ['Div Yield', fs.dividend_yield, '%', fs.dividend_yield>2?'var(--g)':'var(--y)', 'Annual dividend as % of price. Bonus income while you hold.'],
+    ];
+    m.innerHTML = metricData.filter(([,v])=>v!=null).map(([label,val,suffix,clr,tip]) =>
+        `<div class="col-6 col-md-4"><div class="ind-pill tip-wrap" style="width:100%;justify-content:space-between"><span class="text-secondary">${label}</span><span class="ind-val font-mono" style="color:${clr||'inherit'}">${typeof val==='number'?val.toFixed(val<10?2:1):'N/A'}${suffix||''}</span><div class="tip-text">${tip}</div></div></div>`
+    ).join('');
+
+    // Score bars (Valuation, Profitability, Growth, Stability)
+    const bars = document.getElementById('fundHealthScoreBars');
+    const scoreData = [
+        ['Valuation', fs.valuation_score],
+        ['Profitability', fs.profitability_score],
+        ['Growth', fs.growth_score],
+        ['Stability', fs.stability_score],
+    ].filter(([,v])=>v!=null);
+    if (scoreData.length) {
+        bars.innerHTML = scoreData.map(([label, score]) => {
+            const pct = Math.min(Math.max(score, 0), 100);
+            const clr = pct>=70?'var(--g)':pct>=40?'var(--y)':'var(--r)';
+            return `<div class="d-flex align-items-center gap-2 mb-1"><span class="small text-secondary" style="width:85px">${label}</span><div style="flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.06)"><div style="width:${pct}%;height:100%;border-radius:4px;background:${clr};transition:.3s"></div></div><span class="font-mono small" style="color:${clr};width:35px;text-align:right">${score}</span></div>`;
+        }).join('');
+    } else { bars.innerHTML = ''; }
+
+    // Health/concern flags
+    const flags = document.getElementById('fundHealthFlags');
+    let flagHtml = '';
+    if (fs.health_flags && fs.health_flags.length) {
+        flagHtml += fs.health_flags.map(f => `<div class="confirm-item green" style="font-size:.78rem"><i class="bi bi-check-circle me-1"></i>${f}</div>`).join('');
+    }
+    if (fs.concern_flags && fs.concern_flags.length) {
+        flagHtml += fs.concern_flags.map(f => `<div class="confirm-item red" style="font-size:.78rem"><i class="bi bi-exclamation-triangle me-1"></i>${f}</div>`).join('');
+    }
+    flags.innerHTML = flagHtml;
+
+    // Expert note
+    const expert = document.getElementById('fundHealthExpert');
+    expert.innerHTML = `<i class="bi bi-mortarboard me-1" style="color:${viewClr}"></i><strong style="color:${viewClr}">Expert View: ${fs.expert_view}</strong><br><span style="color:rgba(255,255,255,.7)">${fs.expert_note}</span>`;
+    if (fs.fundamental_verdict) {
+        expert.innerHTML += `<br><span class="small" style="color:rgba(255,255,255,.4)">Full verdict: ${fs.fundamental_verdict}</span>`;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BENCHMARK ALPHA RENDERING (50-year expert: are you beating the market?)
+// ═══════════════════════════════════════════════════════════════
+let benchmarkChart = null;
+function renderBenchmarkAlpha(bm) {
+    const panel = document.getElementById('benchmarkPanel');
+    if (!bm || !bm.available) { panel.style.display = 'none'; return; }
+    panel.style.display = 'block';
+
+    // Verdict badge
+    const badge = document.getElementById('benchmarkBadge');
+    const vClr = {EXCELLENT:'var(--g)',GOOD:'rgba(63,185,80,.8)',NEUTRAL:'var(--y)',LAGGING:'var(--o)',POOR:'var(--r)'}[bm.verdict]||'var(--y)';
+    const vBg = {EXCELLENT:'rgba(63,185,80,.15)',GOOD:'rgba(63,185,80,.10)',NEUTRAL:'rgba(210,153,34,.15)',LAGGING:'rgba(240,136,62,.15)',POOR:'rgba(248,81,73,.15)'}[bm.verdict]||'rgba(255,255,255,.08)';
+    badge.textContent = `Alpha: ${bm.alpha_pct>0?'+':''}${bm.alpha_pct}%`;
+    badge.style.background = vBg;
+    badge.style.color = vClr;
+    badge.style.border = `1px solid ${vClr}`;
+    badge.style.borderRadius = '6px';
+    badge.style.padding = '2px 8px';
+
+    // Comparison metrics
+    const barsDiv = document.getElementById('benchmarkBars');
+    const alphaClr = bm.alpha_pct > 0 ? 'var(--g)' : 'var(--r)';
+    const alphaIcon = bm.beating_market ? 'bi-trophy-fill' : 'bi-arrow-down-circle';
+    barsDiv.innerHTML = `
+        <div class="col-4"><div class="ind-pill" style="width:100%;flex-direction:column;align-items:center"><span class="text-secondary small">Your Return</span><span class="ind-val font-mono" style="color:${bm.position_return_pct>=0?'var(--g)':'var(--r)'}">${bm.position_return_pct>0?'+':''}${bm.position_return_pct}%</span></div></div>
+        <div class="col-4"><div class="ind-pill" style="width:100%;flex-direction:column;align-items:center"><span class="text-secondary small">Nifty 50</span><span class="ind-val font-mono" style="color:${bm.nifty_return_pct>=0?'var(--g)':'var(--r)'}">${bm.nifty_return_pct>0?'+':''}${bm.nifty_return_pct}%</span></div></div>
+        <div class="col-4"><div class="ind-pill" style="width:100%;flex-direction:column;align-items:center"><span class="text-secondary small"><i class="bi ${alphaIcon} me-1"></i>Alpha</span><span class="ind-val font-mono fw-bold" style="color:${alphaClr}">${bm.alpha_pct>0?'+':''}${bm.alpha_pct}%</span></div></div>
+    `;
+
+    // Bar chart: Your Return vs Nifty
+    const canvas = document.getElementById('benchmarkBarChart');
+    if (benchmarkChart) { benchmarkChart.destroy(); }
+    benchmarkChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: ['Your Position', 'Nifty 50', 'Alpha'],
+            datasets: [{
+                data: [bm.position_return_pct, bm.nifty_return_pct, bm.alpha_pct],
+                backgroundColor: [
+                    bm.position_return_pct >= 0 ? 'rgba(63,185,80,.6)' : 'rgba(248,81,73,.6)',
+                    bm.nifty_return_pct >= 0 ? 'rgba(57,210,192,.6)' : 'rgba(248,81,73,.6)',
+                    bm.alpha_pct >= 0 ? 'rgba(63,185,80,.8)' : 'rgba(248,81,73,.8)',
+                ],
+                borderColor: [
+                    bm.position_return_pct >= 0 ? '#3fb950' : '#f85149',
+                    bm.nifty_return_pct >= 0 ? '#39d2c0' : '#f85149',
+                    bm.alpha_pct >= 0 ? '#3fb950' : '#f85149',
+                ],
+                borderWidth: 1, borderRadius: 4 }]
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false },
+                tooltip: { callbacks: { label: ctx => `${ctx.raw>0?'+':''}${ctx.raw}%` } } },
+            scales: { x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#8b949e', callback: v => v+'%' } },
+                      y: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 11 } } } } } });
+
+    // Annualized + expert note
+    const expert = document.getElementById('benchmarkExpert');
+    let annText = '';
+    if (bm.annualized_position != null && bm.days_held > 30) {
+        annText = `<div class="small mb-1" style="color:rgba(255,255,255,.5)">Annualized (CAGR): Your <strong class="font-mono" style="color:${bm.annualized_position>=0?'var(--g)':'var(--r)'}">${bm.annualized_position>0?'+':''}${bm.annualized_position}%</strong> vs Nifty <strong class="font-mono" style="color:${bm.annualized_nifty>=0?'var(--g)':'var(--r)'}">${bm.annualized_nifty>0?'+':''}${bm.annualized_nifty}%</strong> = Alpha <strong class="font-mono" style="color:${bm.annualized_alpha>=0?'var(--g)':'var(--r)'}">${bm.annualized_alpha>0?'+':''}${bm.annualized_alpha}%</strong> over ${bm.days_held} days</div>`; }
+    expert.innerHTML = `${annText}<i class="bi bi-mortarboard me-1" style="color:${vClr}"></i><strong style="color:${vClr}">${bm.verdict}</strong> — <span style="color:rgba(255,255,255,.7)">${bm.note}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TRAILING STOPS RENDERING (50-year expert: protect profits dynamically)
+// ═══════════════════════════════════════════════════════════════
+function renderTrailingStops(ts, holding) {
+    const panel = document.getElementById('trailingStopPanel');
+    if (!ts || !ts.available) { panel.style.display = 'none'; return; }
+    panel.style.display = 'block';
+
+    const price = holding.current_price || 0;
+    const buyPrice = holding.buy_price || 0;
+
+    // Profit locked badge
+    const profitBadge = document.getElementById('trailProfitBadge');
+    if (ts.profit_locked) {
+        profitBadge.style.display = '';
+        profitBadge.textContent = `🔒 +${ts.locked_pnl_pct}% Locked`;
+        profitBadge.style.background = 'rgba(63,185,80,.15)';
+        profitBadge.style.color = 'var(--g)';
+        profitBadge.style.border = '1px solid var(--g)';
+        profitBadge.style.borderRadius = '6px';
+        profitBadge.style.padding = '2px 8px';
+    } else { profitBadge.style.display = 'none'; }
+
+    // Stop levels table
+    const tb = document.getElementById('trailingStopBody');
+    const riskFromPrice = (stop) => price > 0 ? ((price - stop) / price * 100).toFixed(1) : '—';
+    const isRec = (stop) => Math.abs(stop - ts.recommended_stop) < 0.01;
+
+    const stops = [
+        ['Chandelier Exit', ts.chandelier_exit, 'Highest High(22) − 3×ATR(22). Classic trend-following stop.', 'var(--o)'],
+        ['ATR Trail (Tight)', ts.atr_trail_tight, 'Close − 2×ATR(14). For active traders.', 'var(--y)'],
+        ['SuperTrend', ts.supertrend_stop, 'Close − 2×ATR(10). Popular Indian market stop.', 'var(--c)'],
+        ['ATR Trail (Wide)', ts.atr_trail_wide, 'Close − 3×ATR(14). For swing traders.', 'var(--b)'],
+    ];
+    tb.innerHTML = stops.map(([label, stop, tip, clr]) => {
+        const rec = isRec(stop);
+        const risk = riskFromPrice(stop);
+        const aboveBuy = stop > buyPrice;
+        const rowStyle = rec ? 'background:rgba(255,165,0,.06);border-left:3px solid var(--o)' : '';
+        return `<tr style="${rowStyle}" title="${tip}">
+            <td><span style="color:${clr}"><i class="bi bi-${rec?'star-fill':'dash-lg'} me-1"></i>${label}${rec?' <span class="badge bg-warning bg-opacity-25 text-warning" style="font-size:.6rem">RECOMMENDED</span>':''}</span></td>
+            <td class="font-mono fw-bold">${fmtINR2(stop)} ${aboveBuy?'<span style="color:var(--g);font-size:.65rem">above buy</span>':''}</td>
+            <td class="font-mono small" style="color:${parseFloat(risk)>10?'var(--r)':parseFloat(risk)>5?'var(--y)':'var(--g)'}">${risk}%</td>
+        </tr>`; }).join('');
+
+    // ATR & volatility
+    document.getElementById('trailATR14').textContent = `₹${ts.atr_14}`;
+    document.getElementById('trailDailyVol').textContent = `${ts.daily_vol_pct}%/day`;
+
+    // Expert note
+    const expert = document.getElementById('trailingExpert');
+    expert.innerHTML = `<i class="bi bi-shield-lock me-1" style="color:var(--o)"></i><strong>Expert:</strong> <span style="color:rgba(255,255,255,.7)">${ts.expert_note}</span>
+        <br><span class="small" style="color:rgba(255,255,255,.35)">Recommended stop: <strong class="font-mono">₹${ts.recommended_stop}</strong> (${ts.risk_pct}% risk from current price). ATR(14) = ₹${ts.atr_14} means the stock moves ~₹${ts.atr_14}/day on average — your stop should respect this breathing room.</span>`;
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  ADD POSITION

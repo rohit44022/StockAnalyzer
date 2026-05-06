@@ -15,12 +15,16 @@ This module NEVER modifies any existing module.  It only reads from them.
 from __future__ import annotations
 
 import math
+import time as _time
+import logging
 from datetime import datetime, date
 
 import pandas as pd
 import numpy as np
+import yfinance as yf
 
 from bb_squeeze.data_loader import load_stock_data, normalise_ticker
+from bb_squeeze.fundamentals import fetch_fundamentals
 from bb_squeeze.indicators import compute_all_indicators
 from bb_squeeze.signals import analyze_signals
 from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
@@ -61,6 +65,630 @@ def _holding_days(buy_date_str: str) -> int:
         return (date.today() - bd).days
     except Exception:
         return 0
+
+
+_pa_logger = logging.getLogger(__name__)
+
+# ── Nifty benchmark cache (2y of daily closes) ───────────────
+_nifty_closes: pd.Series | None = None
+_nifty_fetch_ts: float = 0.0
+_NIFTY_CACHE_TTL: float = 4 * 3600.0   # 4 hours
+
+
+def _get_nifty_closes() -> pd.Series | None:
+    """Return Nifty 50 daily Close series (cached 4h)."""
+    global _nifty_closes, _nifty_fetch_ts
+    if _nifty_closes is not None and _time.time() - _nifty_fetch_ts < _NIFTY_CACHE_TTL:
+        return _nifty_closes
+    try:
+        nifty = yf.download("^NSEI", period="2y", progress=False, timeout=10)
+        if nifty is not None and not nifty.empty:
+            closes = nifty["Close"].squeeze()
+            if isinstance(closes, pd.Series) and len(closes) > 10:
+                _nifty_closes = closes
+                _nifty_fetch_ts = _time.time()
+                return _nifty_closes
+    except Exception as e:
+        _pa_logger.debug("Nifty fetch failed: %s", e)
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════
+#  FUNDAMENTAL HEALTH SNAPSHOT (50-year expert: never trade blind)
+# ═══════════════════════════════════════════════════════════════
+
+def _fetch_fundamental_snapshot(ticker: str) -> dict:
+    """
+    Lightweight fundamental health check for a portfolio position.
+    Uses the 4h-cached fetch_fundamentals() — no extra latency.
+
+    A 50-year market veteran never holds a position without knowing:
+      1. Is the company making money? (ROE, margins)
+      2. Is it growing? (revenue/earnings growth)
+      3. Is it overvalued? (PE, PB vs sector)
+      4. Can it survive a downturn? (debt, current ratio)
+      5. What's the overall fundamental verdict?
+    """
+    try:
+        fd = fetch_fundamentals(ticker)
+        if fd.fetch_error:
+            return {"available": False, "error": fd.fetch_error}
+
+        # ── Expert health assessment ──
+        health_flags = []
+        concern_flags = []
+
+        # Profitability check
+        if fd.roe is not None:
+            if fd.roe > 15:
+                health_flags.append(f"Strong ROE ({fd.roe:.1f}%) — company generates good returns on equity")
+            elif fd.roe < 5:
+                concern_flags.append(f"Weak ROE ({fd.roe:.1f}%) — poor capital efficiency")
+
+        # Debt check
+        if fd.debt_to_equity is not None:
+            if fd.debt_to_equity < 0.5:
+                health_flags.append("Low debt — financially strong balance sheet")
+            elif fd.debt_to_equity > 1.5:
+                concern_flags.append(f"High debt (D/E: {fd.debt_to_equity:.2f}) — vulnerable in downturns")
+
+        # Growth check
+        if fd.revenue_growth is not None:
+            if fd.revenue_growth > 15:
+                health_flags.append(f"Strong revenue growth ({fd.revenue_growth:.1f}%) — business expanding")
+            elif fd.revenue_growth < 0:
+                concern_flags.append(f"Revenue declining ({fd.revenue_growth:.1f}%) — business shrinking")
+
+        # Valuation check
+        if fd.pe_ratio is not None:
+            if fd.pe_ratio < 15:
+                health_flags.append(f"Attractively valued (PE: {fd.pe_ratio:.1f})")
+            elif fd.pe_ratio > 50:
+                concern_flags.append(f"Expensive valuation (PE: {fd.pe_ratio:.1f}) — growth must justify price")
+
+        # Cash flow check
+        if fd.free_cash_flow is not None:
+            if fd.free_cash_flow > 0:
+                health_flags.append("Positive free cash flow — self-funding business")
+            else:
+                concern_flags.append("Negative free cash flow — burning cash")
+
+        # Expert verdict
+        health_count = len(health_flags)
+        concern_count = len(concern_flags)
+        if health_count >= 3 and concern_count == 0:
+            expert_view = "STRONG"
+            expert_note = "Fundamentals are rock-solid. Technicals + fundamentals aligned = high conviction hold."
+        elif health_count >= 2 and concern_count <= 1:
+            expert_view = "GOOD"
+            expert_note = "Fundamentals support the position. Minor concerns exist but the business is sound."
+        elif concern_count >= 3:
+            expert_view = "WEAK"
+            expert_note = "Fundamental concerns detected. Even if technicals look good, weak fundamentals can catch up. Tighter stops advised."
+        elif concern_count >= 2:
+            expert_view = "CAUTION"
+            expert_note = "Mixed fundamentals. The business has notable weaknesses. Don't overstay — take profits when technicals weaken."
+        else:
+            expert_view = "NEUTRAL"
+            expert_note = "Fundamentals are average. Let technicals drive your decision."
+
+        return {
+            "available": True,
+            "company_name": fd.company_name,
+            "sector": fd.sector,
+            "pe_ratio": _safe(fd.pe_ratio),
+            "pb_ratio": _safe(fd.pb_ratio),
+            "roe": _safe(fd.roe),
+            "roce": _safe(fd.roce),
+            "debt_to_equity": _safe(fd.debt_to_equity, 3),
+            "profit_margin": _safe(fd.profit_margin),
+            "operating_margin": _safe(fd.operating_margin),
+            "revenue_growth": _safe(fd.revenue_growth),
+            "earnings_growth": _safe(fd.earnings_growth),
+            "free_cash_flow": _safe(fd.free_cash_flow),
+            "current_ratio": _safe(fd.current_ratio),
+            "dividend_yield": _safe(fd.dividend_yield),
+            "fundamental_score": fd.fundamental_score,
+            "fundamental_signal": fd.fundamental_signal,
+            "fundamental_verdict": fd.fundamental_verdict,
+            "valuation_score": fd.valuation_score,
+            "profitability_score": fd.profitability_score,
+            "growth_score": fd.growth_score,
+            "stability_score": fd.stability_score,
+            # Expert assessment
+            "expert_view": expert_view,
+            "expert_note": expert_note,
+            "health_flags": health_flags[:5],
+            "concern_flags": concern_flags[:5],
+        }
+    except Exception as e:
+        _pa_logger.debug("Fundamental snapshot failed for %s: %s", ticker, e)
+        return {"available": False, "error": "Could not fetch fundamentals"}
+
+
+# ═══════════════════════════════════════════════════════════════
+#  BENCHMARK ALPHA (50-year expert: always know if you're beating the market)
+# ═══════════════════════════════════════════════════════════════
+
+def _compute_benchmark_alpha(buy_date_str: str, position_return_pct: float) -> dict:
+    """
+    Compare your holding-period return vs Nifty 50 over the same dates.
+
+    A 50-year veteran always asks: "Am I generating alpha or just riding
+    the market wave?" If Nifty rose 15% and your stock rose 12%, you
+    actually LOST value relative to a simple index fund.
+    """
+    try:
+        buy_date = datetime.strptime(buy_date_str, "%Y-%m-%d").date()
+        days_held = (date.today() - buy_date).days
+        if days_held < 3:
+            return {"available": False, "reason": "Too few days to compare"}
+
+        nifty = _get_nifty_closes()
+        if nifty is None or nifty.empty:
+            return {"available": False, "error": "Nifty data unavailable"}
+
+        # Find closest trading day on or after buy date
+        nifty_idx = nifty.index.tz_localize(None) if nifty.index.tz else nifty.index
+        mask = nifty_idx >= pd.Timestamp(buy_date)
+        if mask.sum() < 2:
+            return {"available": False, "error": "Buy date outside Nifty data range"}
+
+        nifty_slice = nifty[mask]
+        nifty_start = float(nifty_slice.iloc[0])
+        nifty_end = float(nifty_slice.iloc[-1])
+        nifty_return = (nifty_end - nifty_start) / nifty_start * 100
+
+        alpha = position_return_pct - nifty_return
+
+        # Annualised returns (CAGR)
+        years = days_held / 365.25
+        if years >= 0.08:  # ~30 days minimum for annualisation
+            ann_pos = ((1 + position_return_pct / 100) ** (1 / years) - 1) * 100
+            ann_nifty = ((1 + nifty_return / 100) ** (1 / years) - 1) * 100
+            ann_alpha = ann_pos - ann_nifty
+        else:
+            ann_pos = ann_nifty = ann_alpha = None
+
+        # Expert assessment
+        if alpha > 10:
+            verdict = "EXCELLENT"
+            note = "You're significantly outperforming the market. Strong stock picking."
+        elif alpha > 3:
+            verdict = "GOOD"
+            note = "Beating the market by a healthy margin. Your entry was well-timed."
+        elif alpha > -3:
+            verdict = "NEUTRAL"
+            note = "Roughly matching the market. You're not losing but not gaining edge either."
+        elif alpha > -10:
+            verdict = "LAGGING"
+            note = "Underperforming Nifty. A simple index fund would have done better over this period."
+        else:
+            verdict = "POOR"
+            note = "Significantly trailing the market. Re-evaluate if this position deserves your capital."
+
+        return {
+            "available": True,
+            "nifty_return_pct": round(nifty_return, 2),
+            "position_return_pct": round(position_return_pct, 2),
+            "alpha_pct": round(alpha, 2),
+            "annualized_position": _safe(ann_pos) if ann_pos else None,
+            "annualized_nifty": _safe(ann_nifty) if ann_nifty else None,
+            "annualized_alpha": _safe(ann_alpha) if ann_alpha else None,
+            "days_held": days_held,
+            "beating_market": alpha > 0,
+            "nifty_start": round(nifty_start, 2),
+            "nifty_end": round(nifty_end, 2),
+            "verdict": verdict,
+            "note": note,
+        }
+    except Exception as e:
+        _pa_logger.debug("Benchmark alpha failed: %s", e)
+        return {"available": False, "error": "Benchmark comparison unavailable"}
+
+
+# ═══════════════════════════════════════════════════════════════
+#  TRAILING STOPS (50-year expert: protect profits with dynamic stops)
+# ═══════════════════════════════════════════════════════════════
+
+def _compute_trailing_stops(df: pd.DataFrame, buy_price: float) -> dict:
+    """
+    ATR-based dynamic trailing stops — the professional way.
+
+    Static stops (fixed %) get you whipsawed in volatile stocks and
+    leave money on the table in calm ones. Dynamic stops adapt to
+    the stock's actual breathing room (ATR = Average True Range).
+
+    Levels computed:
+      • Chandelier Exit:  Highest_High(22) - 3×ATR(22)  [Chuck LeBeau]
+      • ATR Trail (tight): Close - 2×ATR(14)             [active traders]
+      • ATR Trail (wide):  Close - 3×ATR(14)             [swing traders]
+      • SuperTrend-style:  Close - 2×ATR(10)             [Indian market standard]
+    """
+    if len(df) < 30:
+        return {"available": False}
+
+    high = df["High"].values.astype(float)
+    low = df["Low"].values.astype(float)
+    close = df["Close"].values.astype(float)
+
+    # True Range series
+    tr = np.zeros(len(df))
+    tr[0] = high[0] - low[0]
+    for i in range(1, len(df)):
+        tr[i] = max(high[i] - low[i],
+                     abs(high[i] - close[i - 1]),
+                     abs(low[i] - close[i - 1]))
+
+    # ATR at different lookbacks
+    atr_10 = float(np.mean(tr[-10:]))
+    atr_14 = float(np.mean(tr[-14:]))
+    atr_22 = float(np.mean(tr[-22:]))
+
+    price = close[-1]
+    highest_22 = float(np.max(high[-22:]))
+
+    # ── Stop Levels ──
+    chandelier   = highest_22 - 3 * atr_22      # LeBeau classic
+    atr_tight    = price - 2 * atr_14            # Active traders
+    atr_wide     = price - 3 * atr_14            # Swing traders
+    supertrend   = price - 2 * atr_10            # Indian market favourite
+
+    # Daily volatility as % of price
+    vol_pct = (atr_14 / price) * 100 if price > 0 else 0
+
+    # Pick recommended stop: highest (tightest) that still gives breathing room
+    # Rule: never set stop inside 1×ATR of current price (too tight = whipsaw)
+    min_stop = price - atr_14
+    candidates = [s for s in [chandelier, atr_tight, supertrend]
+                  if 0 < s < price and s <= min_stop]
+    recommended = max(candidates) if candidates else atr_wide
+
+    # Risk from current price to recommended stop
+    risk_pct = (price - recommended) / price * 100 if price > 0 else 0
+
+    # Is recommended stop above buy price? (= profit locked in)
+    profit_locked = recommended > buy_price
+    locked_pnl_pct = ((recommended - buy_price) / buy_price * 100) if profit_locked and buy_price > 0 else 0
+
+    # Expert note
+    if profit_locked and locked_pnl_pct > 10:
+        expert_note = f"Excellent — trailing stop locks in {locked_pnl_pct:.1f}% profit even if the stock reverses. Let the winner run."
+    elif profit_locked:
+        expert_note = f"Good — trailing stop is above your buy price, locking in {locked_pnl_pct:.1f}% profit. Move stop up as the stock rises."
+    elif risk_pct < 5:
+        expert_note = "Tight risk. The stop is close to current price — you'll exit quickly if the trend turns."
+    elif risk_pct < 10:
+        expert_note = "Reasonable risk. The stop gives the stock room to breathe while protecting against large drops."
+    else:
+        expert_note = "Wide risk zone. Consider whether this much downside is acceptable for your position size."
+
+    return {
+        "available":         True,
+        "atr_14":            round(atr_14, 2),
+        "atr_22":            round(atr_22, 2),
+        "daily_vol_pct":     round(vol_pct, 2),
+        "chandelier_exit":   round(chandelier, 2),
+        "atr_trail_tight":   round(atr_tight, 2),
+        "atr_trail_wide":    round(atr_wide, 2),
+        "supertrend_stop":   round(supertrend, 2),
+        "recommended_stop":  round(recommended, 2),
+        "risk_pct":          round(risk_pct, 2),
+        "profit_locked":     profit_locked,
+        "locked_pnl_pct":    round(locked_pnl_pct, 2) if profit_locked else 0,
+        "expert_note":       expert_note,
+        "highest_22d":       round(highest_22, 2),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  EXPERT DAILY COMMENTARY (60-year market veteran)
+# ═══════════════════════════════════════════════════════════════
+
+def _generate_expert_commentary(df: pd.DataFrame, sig, multi_sys: dict, buy_price: float) -> dict:
+    """
+    Generate natural-language expert commentary for today's price action.
+    Synthesises OHLCV, Bollinger Bands, volume, Price Action, Triple
+    system, and holding context into a daily briefing paragraph.
+    Written as if by a market expert with 60 years of experience.
+    """
+    try:
+        if df is None or len(df) < 5:
+            return {"available": False}
+
+        last = df.iloc[-1]
+        prev = df.iloc[-2]
+        prev2 = df.iloc[-3] if len(df) >= 3 else prev
+
+        # ── Price Data ──
+        o = float(last["Open"])
+        h = float(last["High"])
+        l = float(last["Low"])
+        c = float(last["Close"])
+        v = int(last["Volume"])
+        prev_c = float(prev["Close"])
+        prev_h = float(prev["High"])
+        prev_l = float(prev["Low"])
+
+        # Day change
+        day_change = c - prev_c
+        day_change_pct = (day_change / prev_c * 100) if prev_c else 0
+        intraday_range = h - l
+        intraday_range_pct = (intraday_range / l * 100) if l else 0
+
+        # Body vs wick analysis (candle character)
+        body = abs(c - o)
+        upper_wick = h - max(o, c)
+        lower_wick = min(o, c) - l
+        total_range = h - l if h != l else 0.01
+        body_ratio = body / total_range
+
+        # ── Volume Context ──
+        vol_sma = float(last.get("Vol_SMA50", v))
+        vol_ratio = v / vol_sma if vol_sma > 0 else 1.0
+        vol_desc = "extremely heavy" if vol_ratio > 2.5 else "heavy" if vol_ratio > 1.5 else "above average" if vol_ratio > 1.1 else "average" if vol_ratio > 0.7 else "below average" if vol_ratio > 0.4 else "very thin"
+
+        # ── Bollinger Band Context ──
+        bb_upper = float(last.get("BB_Upper", c))
+        bb_mid = float(last.get("BB_Mid", c))
+        bb_lower = float(last.get("BB_Lower", c))
+        pct_b = float(last.get("Percent_B", 0.5))
+        bbw = float(last.get("BBW", 0))
+        squeeze = bool(last.get("Squeeze_ON", False))
+        sar_bull = bool(last.get("SAR_Bull", False))
+        mfi = float(last.get("MFI", 50))
+        cmf = float(last.get("CMF", 0))
+        rsi = float(last.get("RSI", 50))
+
+        # Position relative to bands
+        if pct_b > 1.0:
+            bb_position = "trading ABOVE the upper Bollinger Band — strong bullish momentum but potentially overextended"
+        elif pct_b > 0.8:
+            bb_position = "hugging the upper band — strong bullish pressure"
+        elif pct_b > 0.6:
+            bb_position = "in the upper half of the bands — mild bullish bias"
+        elif pct_b > 0.4:
+            bb_position = "near the middle band — neutral territory, waiting for direction"
+        elif pct_b > 0.2:
+            bb_position = "in the lower half of the bands — under selling pressure"
+        elif pct_b > 0.0:
+            bb_position = "near the lower band — weak and potentially oversold"
+        else:
+            bb_position = "BELOW the lower Bollinger Band — extreme weakness, but bounce probability rises"
+
+        # ── Candle Interpretation ──
+        is_green = c > o
+        is_doji = body_ratio < 0.15
+        is_hammer = lower_wick > body * 2 and upper_wick < body * 0.5 and not is_green
+        is_shooting_star = upper_wick > body * 2 and lower_wick < body * 0.5 and is_green
+        is_marubozu = body_ratio > 0.85
+
+        if is_doji:
+            candle_desc = "a Doji candle (indecision — neither bulls nor bears won today)"
+        elif is_hammer:
+            candle_desc = "a Hammer pattern (sellers tried hard but buyers reclaimed ground — potential reversal)"
+        elif is_shooting_star:
+            candle_desc = "a Shooting Star (buyers pushed up but sellers slammed it back — potential reversal warning)"
+        elif is_marubozu and is_green:
+            candle_desc = "a bullish Marubozu (strong conviction buying from open to close, no wicks)"
+        elif is_marubozu and not is_green:
+            candle_desc = "a bearish Marubozu (relentless selling from open to close — strong bearish conviction)"
+        elif is_green and body_ratio > 0.6:
+            candle_desc = "a solid green candle with good body — buyers in control"
+        elif not is_green and body_ratio > 0.6:
+            candle_desc = "a solid red candle — sellers dominated today's session"
+        elif is_green:
+            candle_desc = "a green candle with notable wicks — buyers edged out but faced resistance"
+        else:
+            candle_desc = "a red candle with wicks — selling pressure but some support below"
+
+        # ── Multi-System Verdicts ──
+        pa = multi_sys.get("price_action", {})
+        triple = multi_sys.get("triple", {})
+        hybrid = multi_sys.get("hybrid", {})
+
+        pa_signal = pa.get("signal", "N/A")
+        pa_trend = pa.get("trend", "N/A")
+        pa_bar = pa.get("bar_desc", "")
+        pa_patterns = pa.get("patterns", [])
+        triple_verdict = triple.get("verdict", "N/A")
+        triple_conf = triple.get("confidence", 0)
+        hybrid_verdict = hybrid.get("verdict", "N/A")
+
+        # ── Holding Context ──
+        pnl_pct = (c - buy_price) / buy_price * 100 if buy_price else 0
+        pnl_dir = "profit" if pnl_pct > 0 else "loss"
+        from_buy = f"{'up' if pnl_pct > 0 else 'down'} {abs(pnl_pct):.1f}% from your entry"
+
+        # ── Squeeze Commentary ──
+        squeeze_note = ""
+        if squeeze:
+            # Check BBW percentile
+            bbw_min_6m = float(last.get("BBW_6M_Min", bbw))
+            squeeze_note = "The Bollinger Squeeze is currently ON — volatility is compressed to 6-month lows. A major directional move is brewing. "
+        else:
+            expansion_up = bool(last.get("Expansion_Up", False))
+            expansion_down = bool(last.get("Expansion_Down", False))
+            if expansion_up:
+                squeeze_note = "The squeeze has FIRED UPWARD — momentum is expanding bullishly. "
+            elif expansion_down:
+                squeeze_note = "The squeeze has FIRED DOWNWARD — bearish expansion underway. "
+
+        # ── Volume-Price Divergence ──
+        vol_price_note = ""
+        if day_change_pct > 1 and vol_ratio < 0.7:
+            vol_price_note = "⚠ CAUTION: Price rose on thin volume — this rally lacks conviction and may not sustain. "
+        elif day_change_pct < -1 and vol_ratio < 0.7:
+            vol_price_note = "The decline happened on low volume — selling pressure is mild, likely not a panic move. "
+        elif day_change_pct > 1 and vol_ratio > 1.5:
+            vol_price_note = "Price rose on heavy volume — institutional participation likely. This move has conviction. "
+        elif day_change_pct < -1 and vol_ratio > 1.5:
+            vol_price_note = "⚠ ALERT: Price fell on heavy volume — significant distribution happening. Smart money may be exiting. "
+
+        # ── MFI/CMF Money Flow ──
+        mf_note = ""
+        if mfi > 80 and cmf > 0.2:
+            mf_note = "Money flow is extremely strong (MFI overbought) — buyers are aggressive but watch for exhaustion. "
+        elif mfi < 20 and cmf < -0.2:
+            mf_note = "Money flow has dried up (MFI oversold, negative CMF) — extreme pessimism often precedes a bounce. "
+        elif mfi > 60 and cmf > 0.1:
+            mf_note = "Positive money flow — funds are flowing INTO this stock. "
+        elif mfi < 40 and cmf < -0.1:
+            mf_note = "Negative money flow — capital is draining out. "
+
+        # ── Build the Commentary Paragraphs ──
+        # Paragraph 1: Price Action Summary
+        direction = "gained" if day_change > 0 else "lost" if day_change < 0 else "closed flat"
+        para1 = (
+            f"Today the stock {direction} ₹{abs(day_change):.2f} ({day_change_pct:+.2f}%), "
+            f"opening at ₹{o:.2f}, reaching a high of ₹{h:.2f} and a low of ₹{l:.2f}, "
+            f"before closing at ₹{c:.2f}. The intraday range was ₹{intraday_range:.2f} "
+            f"({intraday_range_pct:.1f}% of the low). "
+            f"The candle formed is {candle_desc}."
+        )
+
+        # Paragraph 2: Volume & Money Flow
+        para2 = (
+            f"Volume came in at {v:,} shares — {vol_desc} "
+            f"({vol_ratio:.1f}x the 50-day average of {int(vol_sma):,}). "
+            f"{vol_price_note}{mf_note}"
+        )
+
+        # Paragraph 3: Bollinger Band & Squeeze
+        para3 = (
+            f"On the Bollinger Band framework, the stock is {bb_position} "
+            f"(%%B = {pct_b:.2f}). "
+            f"Bands: Upper ₹{bb_upper:.2f} | Mid ₹{bb_mid:.2f} | Lower ₹{bb_lower:.2f}. "
+            f"Band width is {bbw:.4f}. "
+            f"{squeeze_note}"
+            f"SAR is {'bullish (below price — uptrend intact)' if sar_bull else 'bearish (above price — trend is down)'}."
+        )
+
+        # Paragraph 4: Multi-System Verdict
+        systems_parts = []
+        if triple_verdict and triple_verdict != "N/A" and triple_verdict != "ERROR":
+            systems_parts.append(f"Triple Engine (BB+TA+PA) verdict: {triple_verdict} ({triple_conf:.0f}% confidence)")
+        if pa_signal and pa_signal != "N/A" and pa_signal != "ERROR":
+            pa_str = f"Price Action: {pa_signal} signal"
+            if pa_trend and pa_trend != "N/A":
+                pa_str += f", trend is {pa_trend}"
+            if pa_bar:
+                pa_str += f" — last bar: {pa_bar}"
+            systems_parts.append(pa_str)
+        if pa_patterns:
+            systems_parts.append(f"Active patterns: {', '.join(pa_patterns[:3])}")
+
+        para4 = ""
+        if systems_parts:
+            para4 = "From a multi-system perspective: " + ". ".join(systems_parts) + "."
+
+        # Paragraph 5: Expert Synthesis (the 60-year veteran speaks)
+        # Determine overall tone
+        bull_signals = sum([
+            day_change_pct > 0.5,
+            vol_ratio > 1.2 and day_change > 0,
+            pct_b > 0.6,
+            sar_bull,
+            mfi > 55,
+            cmf > 0.05,
+            rsi > 50 and rsi < 70,
+            pa_signal in ("BUY", "STRONG_BUY"),
+            triple_verdict in ("STRONG_BUY", "BUY", "BULLISH"),
+        ])
+        bear_signals = sum([
+            day_change_pct < -0.5,
+            vol_ratio > 1.2 and day_change < 0,
+            pct_b < 0.4,
+            not sar_bull,
+            mfi < 45,
+            cmf < -0.05,
+            rsi > 70,  # overbought = potential reversal
+            pa_signal in ("SELL", "STRONG_SELL"),
+            triple_verdict in ("STRONG_SELL", "SELL", "BEARISH"),
+        ])
+
+        if bull_signals >= 6:
+            tone = "STRONGLY BULLISH"
+            expert_synth = (
+                f"As a 60-year market veteran, I see a textbook bullish day. Multiple systems confirm upward momentum. "
+                f"You are {from_buy}. "
+                f"The tape reads healthy — let your winner run but keep your trailing stop active."
+            )
+        elif bull_signals >= 4:
+            tone = "MILDLY BULLISH"
+            expert_synth = (
+                f"A constructive session — more positive signals than negative. "
+                f"You are {from_buy}. "
+                f"The stock is holding well but hasn't broken out decisively yet. "
+                f"Patience is the veteran's greatest weapon."
+            )
+        elif bear_signals >= 6:
+            tone = "STRONGLY BEARISH"
+            expert_synth = (
+                f"Multiple warning signs today — I'd be very cautious. "
+                f"You are {from_buy}. "
+                f"When the tape speaks this loudly, a veteran listens. "
+                f"Check your stops and don't average down into weakness."
+            )
+        elif bear_signals >= 4:
+            tone = "MILDLY BEARISH"
+            expert_synth = (
+                f"A cautionary session — selling pressure outweighs buying today. "
+                f"You are {from_buy}. "
+                f"Not panic-worthy, but watch for follow-through selling tomorrow. "
+                f"The market tells you early if a stock is in trouble — respect the message."
+            )
+        else:
+            tone = "NEUTRAL"
+            expert_synth = (
+                f"A balanced day with mixed signals — the market hasn't decided on direction yet. "
+                f"You are {from_buy}. "
+                f"In 60 years of trading, I've learned: when the market doesn't tell you anything, "
+                f"the best trade is no trade. Hold your position, respect your stops, wait for clarity."
+            )
+
+        # ── Combine all paragraphs ──
+        full_commentary = f"{para1}\n\n{para2}\n\n{para3}"
+        if para4:
+            full_commentary += f"\n\n{para4}"
+        full_commentary += f"\n\n💡 **Expert Take ({tone}):** {expert_synth}"
+
+        # ── Key Stats for Frontend Cards ──
+        return {
+            "available": True,
+            "tone": tone,
+            "day_change": round(day_change, 2),
+            "day_change_pct": round(day_change_pct, 2),
+            "open": round(o, 2),
+            "high": round(h, 2),
+            "low": round(l, 2),
+            "close": round(c, 2),
+            "volume": v,
+            "vol_ratio": round(vol_ratio, 2),
+            "vol_desc": vol_desc,
+            "intraday_range": round(intraday_range, 2),
+            "intraday_range_pct": round(intraday_range_pct, 2),
+            "candle_type": candle_desc.split("(")[0].strip() if "(" in candle_desc else candle_desc,
+            "bb_position_text": bb_position,
+            "pct_b": round(pct_b, 3),
+            "squeeze_on": squeeze,
+            "sar_bullish": sar_bull,
+            "rsi": round(rsi, 1),
+            "mfi": round(mfi, 1),
+            "cmf": round(cmf, 4),
+            "bull_signals": bull_signals,
+            "bear_signals": bear_signals,
+            "commentary": full_commentary,
+            "para_price": para1,
+            "para_volume": para2,
+            "para_bollinger": para3,
+            "para_systems": para4,
+            "expert_synthesis": expert_synth,
+            "pnl_from_buy": from_buy,
+        }
+    except Exception as e:
+        logger.warning(f"Expert commentary generation failed: {e}")
+        return {"available": False, "error": str(e)}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1056,6 +1684,19 @@ def analyze_position(position: dict) -> dict:
         ticker, buy_price, int(position["quantity"]),
     )
 
+    # 11. Fundamental Health Snapshot (50-year expert: never trade blind)
+    fund_snapshot = _fetch_fundamental_snapshot(ticker)
+
+    # 12. Benchmark Alpha — are you beating the market?
+    pnl_pct = (current_price - buy_price) / buy_price * 100 if buy_price else 0
+    benchmark = _compute_benchmark_alpha(position["buy_date"], pnl_pct)
+
+    # 13. Dynamic Trailing Stops (ATR-based — the professional way)
+    trailing_stops = _compute_trailing_stops(df, buy_price)
+
+    # 14. Expert Daily Commentary (60-year market veteran)
+    expert_commentary = _generate_expert_commentary(df, sig, multi_sys, buy_price)
+
     return {
         "position":                position,
         "indicators":              indicators,
@@ -1077,6 +1718,10 @@ def analyze_position(position: dict) -> dict:
         "targets":         targets,
         "multi_system":    multi_sys,
         "vince_risk":      vince_risk,
+        "fundamental_snapshot": fund_snapshot,
+        "benchmark":       benchmark,
+        "trailing_stops":  trailing_stops,
+        "expert_commentary": expert_commentary,
         "holding": {
             "days":          days,
             "buy_price":     buy_price,

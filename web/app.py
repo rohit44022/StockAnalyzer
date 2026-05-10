@@ -1425,6 +1425,64 @@ def api_portfolio_analyze_all():
     return jsonify(results)
 
 
+@app.route("/api/portfolio/quotes", methods=["GET"])
+def api_portfolio_quotes():
+    """Fast price + P&L snapshot for all open positions.
+
+    Returns just current_price / invested / current_value / pnl_amount / pnl_pct
+    per position so the portfolio table can render numbers immediately. The
+    heavier /analyze-all endpoint then fills action / risk / sizing badges."""
+    positions = get_open_positions(user_id=_uid(), is_admin=_is_admin())
+    out = []
+    total_invested = 0.0
+    total_current = 0.0
+    total_pnl = 0.0
+    for p in positions:
+        pid = p.get("id")
+        try:
+            buy_price = float(p.get("buy_price") or 0)
+            qty = int(p.get("quantity") or 0)
+        except (TypeError, ValueError):
+            continue
+        if buy_price <= 0 or qty <= 0:
+            out.append({"id": pid, "error": "Invalid buy price/qty"})
+            continue
+        ticker = normalise_ticker((p.get("ticker") or "").strip())
+        df = load_stock_data(ticker, csv_dir=CSV_DIR, use_live_fallback=False)
+        if df is None or df.empty or "Close" not in df.columns:
+            out.append({"id": pid, "ticker": ticker, "error": "No price data"})
+            continue
+        try:
+            current_price = float(df["Close"].iloc[-1])
+        except Exception:
+            out.append({"id": pid, "ticker": ticker, "error": "Bad price data"})
+            continue
+        invested = buy_price * qty
+        current_value = current_price * qty
+        pnl_amount = (current_price - buy_price) * qty
+        pnl_pct = (current_price - buy_price) / buy_price * 100 if buy_price else 0.0
+        total_invested += invested
+        total_current += current_value
+        total_pnl += pnl_amount
+        out.append({
+            "id":            pid,
+            "ticker":        ticker,
+            "current_price": round(current_price, 2),
+            "invested":      round(invested, 2),
+            "current_value": round(current_value, 2),
+            "pnl_amount":    round(pnl_amount, 2),
+            "pnl_pct":       round(pnl_pct, 2),
+        })
+    return jsonify({
+        "positions": out,
+        "totals": {
+            "invested":      round(total_invested, 2),
+            "current_value": round(total_current, 2),
+            "pnl_amount":    round(total_pnl, 2),
+        },
+    })
+
+
 @app.route("/api/portfolio/unrealized-daily", methods=["GET"])
 def api_portfolio_unrealized_daily():
     """Return per-day unrealized P&L as total and per-stock series for open positions."""

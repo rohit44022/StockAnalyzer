@@ -17,6 +17,7 @@ from __future__ import annotations
 import math
 import time as _time
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, date
 
 import pandas as pd
@@ -1596,13 +1597,17 @@ def _compute_vince_risk(
 #  MAIN ANALYSIS FUNCTION
 # ═══════════════════════════════════════════════════════════════
 
-def analyze_position(position: dict) -> dict:
+def analyze_position(position: dict, light: bool = False) -> dict:
     """
     Full daily analysis for a single portfolio position.
 
     Args:
         position: dict from portfolio_db with keys:
             ticker, strategy_code, buy_price, buy_date, quantity, status, ...
+        light: if True, skip the slow network-bound work (fundamentals snapshot,
+            multi-system Triple/Wyckoff/Dalton, benchmark alpha, expert
+            commentary). Used for the portfolio table where we only need
+            recommendation + risk badges. Cuts ~5–10s per position.
 
     Returns:
         dict with: position, indicators, strategy_signals, recommendation,
@@ -1622,20 +1627,20 @@ def analyze_position(position: dict) -> dict:
             "error": f"Insufficient data for {ticker}",
         }
 
-    df = compute_all_indicators(df)
-    last = df.iloc[-1]
+    df_with_ind = compute_all_indicators(df)
+    last = df_with_ind.iloc[-1]
 
     # 2. Run Method I
-    sig = analyze_signals(ticker, df)
+    sig = analyze_signals(ticker, df_with_ind)
 
     # 3. Run Methods II, III, IV
-    strats = run_all_strategies(df)
+    strats = run_all_strategies(df_with_ind)
 
     # 4. Compute targets
-    targets = _compute_targets(df, buy_price)
+    targets = _compute_targets(df_with_ind, buy_price)
 
     # 5. Generate recommendation
-    rec = _generate_recommendation(strategy_code, sig, strats, df, buy_price)
+    rec = _generate_recommendation(strategy_code, sig, strats, df_with_ind, buy_price)
 
     # 6. Build strategy signal summary (which strategy was used + current status)
     strategy_map = {"M2": strats[0], "M3": strats[1], "M4": strats[2]}
@@ -1673,29 +1678,53 @@ def analyze_position(position: dict) -> dict:
     # 8. Holding info
     days = _holding_days(position["buy_date"])
     current_price = float(last["Close"])
+    pnl_pct = (current_price - buy_price) / buy_price * 100 if buy_price else 0
 
-    # 9. Multi-system analysis (Hybrid, Triple, PA)
-    # Use the raw data (before BB indicators) for these engines — they compute their own
-    df_raw = load_stock_data(ticker, csv_dir=CSV_DIR)
-    multi_sys = _run_multi_system(df_raw, ticker, buy_price) if df_raw is not None and len(df_raw) >= 60 else {}
+    # 9–14. Heavy / network-bound work — runs concurrently in non-light mode,
+    # is skipped entirely in light mode (table view).
+    multi_sys = {}
+    fund_snapshot = {"available": False}
+    benchmark = {}
+    trailing_stops = _compute_trailing_stops(df_with_ind, buy_price)
+    expert_commentary = {}
 
-    # 10. Vince Risk & Money Management
+    # Vince risk is needed for the table (risk_grade + sizing_status), so it
+    # runs in both modes. It's local-only (no network).
     vince_risk = _compute_vince_risk(
         ticker, buy_price, int(position["quantity"]),
     )
 
-    # 11. Fundamental Health Snapshot (50-year expert: never trade blind)
-    fund_snapshot = _fetch_fundamental_snapshot(ticker)
+    if not light:
+        # Multi-system engines compute their own indicators, so they need raw
+        # OHLCV (compute_all_indicators above mutated `df` in place).
+        df_raw = load_stock_data(ticker, csv_dir=CSV_DIR)
+        # Fan out the slow, independent calls so the user-facing latency is
+        # the max of any single call, not the sum.
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            f_multi = ex.submit(
+                _run_multi_system, df_raw, ticker, buy_price
+            ) if df_raw is not None and len(df_raw) >= 60 else None
+            f_fund = ex.submit(_fetch_fundamental_snapshot, ticker)
+            f_bench = ex.submit(
+                _compute_benchmark_alpha, position["buy_date"], pnl_pct
+            )
 
-    # 12. Benchmark Alpha — are you beating the market?
-    pnl_pct = (current_price - buy_price) / buy_price * 100 if buy_price else 0
-    benchmark = _compute_benchmark_alpha(position["buy_date"], pnl_pct)
+            if f_multi is not None:
+                try:
+                    multi_sys = f_multi.result()
+                except Exception as e:
+                    _pa_logger.debug("multi_system failed for %s: %s", ticker, e)
+            try:
+                fund_snapshot = f_fund.result()
+            except Exception as e:
+                _pa_logger.debug("fundamentals failed for %s: %s", ticker, e)
+                fund_snapshot = {"available": False, "error": "Fetch failed"}
+            try:
+                benchmark = f_bench.result()
+            except Exception as e:
+                _pa_logger.debug("benchmark failed for %s: %s", ticker, e)
 
-    # 13. Dynamic Trailing Stops (ATR-based — the professional way)
-    trailing_stops = _compute_trailing_stops(df, buy_price)
-
-    # 14. Expert Daily Commentary (60-year market veteran)
-    expert_commentary = _generate_expert_commentary(df, sig, multi_sys, buy_price)
+        expert_commentary = _generate_expert_commentary(df_with_ind, sig, multi_sys, buy_price)
 
     return {
         "position":                position,
@@ -1730,12 +1759,22 @@ def analyze_position(position: dict) -> dict:
             "invested":      _safe(buy_price * int(position["quantity"])),
             "current_value": _safe(current_price * int(position["quantity"])),
             "pnl_amount":    _safe((current_price - buy_price) * int(position["quantity"])),
-            "pnl_pct":       _safe((current_price - buy_price) / buy_price * 100 if buy_price else 0),
+            "pnl_pct":       _safe(pnl_pct),
         },
+        "light": light,
         "error": None,
     }
 
 
-def analyze_all_open_positions(positions: list[dict]) -> list[dict]:
-    """Run analyze_position on each open position."""
-    return [analyze_position(p) for p in positions]
+def analyze_all_open_positions(positions: list[dict], light: bool = True) -> list[dict]:
+    """Run analyze_position for each open position.
+
+    Defaults to light=True because this is used to populate the portfolio
+    table and only needs recommendation + vince_risk. Runs positions in
+    parallel — local indicator/strategy work is CPU-bound but quick, and
+    light mode means no yfinance round-trips."""
+    if not positions:
+        return []
+    max_workers = min(8, len(positions))
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        return list(ex.map(lambda p: analyze_position(p, light=light), positions))

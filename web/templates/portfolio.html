@@ -1179,7 +1179,35 @@ function renderPositions() {
         cb.appendChild(tr); });
 
     // Auto-analyze open positions for live data
-    if (open.length) fetchLiveUpdates(open); }
+    if (open.length) {
+        // Phase 1: fast quotes — populate prices, P&L, summary cards immediately.
+        fetchQuickQuotes(open);
+        // Phase 2: full analysis — fills action / risk / sizing badges in background.
+        fetchLiveUpdates(open); } }
+
+async function fetchQuickQuotes(openPositions) {
+    try {
+        const res = await fetch('/api/portfolio/quotes');
+        if (!res.ok) return;
+        const data = await res.json();
+        const rows = data.positions || [];
+        rows.forEach(q => {
+            if (q.error) return;
+            const curEl = document.getElementById(`cur_${q.id}`);
+            const pnlEl = document.getElementById(`pnl_${q.id}`);
+            const pnlpEl = document.getElementById(`pnlp_${q.id}`);
+            if (curEl) curEl.textContent = fmtINR2(q.current_price);
+            if (pnlEl) { pnlEl.textContent = `${pnlSign(q.pnl_amount)}${fmtINR2(q.pnl_amount)}`; pnlEl.style.color = pnlColor(q.pnl_amount); }
+            if (pnlpEl) { pnlpEl.textContent = `${pnlSign(q.pnl_pct)}${fmt(q.pnl_pct)}%`; pnlpEl.style.color = pnlColor(q.pnl_pct); } });
+        const totals = data.totals || {};
+        const tInv = totals.invested || 0;
+        const tCur = totals.current_value || 0;
+        const tPnl = totals.pnl_amount || 0;
+        document.getElementById('sumInvested').textContent = fmtINR(tInv);
+        document.getElementById('sumCurrent').textContent = fmtINR(tCur);
+        document.getElementById('sumPnl').textContent = `${pnlSign(tPnl)}${fmtINR(tPnl)}`;
+        document.getElementById('sumPnl').style.color = pnlColor(tPnl);
+    } catch (e) { /* fall through to analyze-all */ } }
 
 async function fetchLiveUpdates(openPositions) {
     const res = await fetch('/api/portfolio/analyze-all');

@@ -246,10 +246,13 @@ def signup(
 # ═══════════════════════════════════════════════════════════
 
 def login(identifier: str, password: str, ip_address: str = "",
-          user_agent: str = "") -> dict:
+          user_agent: str = "", remember: bool = False) -> dict:
     """
     Login with username or email + password.
     Returns {success, token, user, error, locked_seconds}
+
+    remember=True extends the server-side session row's lifetime to 30 days
+    so it matches the 30-day cookie issued by set_session_cookie().
     """
     if not identifier or not password:
         return {"success": False, "error": "Username/email and password are required"}
@@ -282,7 +285,7 @@ def login(identifier: str, password: str, ip_address: str = "",
     # Success
     reset_rate_limit(ip_address)
     update_last_login(user["id"])
-    token = create_session(user["id"], ip_address, user_agent)
+    token = create_session(user["id"], ip_address, user_agent, remember=remember)
 
     return {
         "success": True,

@@ -1,4 +1,9 @@
 {# Bootstrap CSS link (theme-aware) + app theme delegation layer.
-   Order matters: theme.css must come AFTER bootstrap so it can override. #}
+   Order matters: theme.css must come AFTER bootstrap so it can override.
+   Google Fonts loaded here so every page picks up Inter / JetBrains Mono /
+   Noto Sans Devanagari (हिरण्य) without per-template <link> tags. #}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link id="bootstrapCss" rel="stylesheet" href="{{ bootstrap_css_url }}">
 <link id="appThemeCss"  rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v={{ theme_assets_version }}">

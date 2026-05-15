@@ -101,7 +101,7 @@ def do_login():
     ip = request.remote_addr or "unknown"
     ua = request.headers.get("User-Agent", "")
 
-    result = login(identifier, password, ip_address=ip, user_agent=ua)
+    result = login(identifier, password, ip_address=ip, user_agent=ua, remember=remember)
 
     if not result["success"]:
         return redirect(url_for("auth.login_page", error=result["error"], next=next_url))

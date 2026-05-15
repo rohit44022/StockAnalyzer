@@ -85,6 +85,11 @@ def init_auth_middleware(app):
         # Store user in request context (available in all routes)
         g.user = user_data
         g.session_token = token
+        # Tell after_request to slide the browser cookie forward so the cookie
+        # max_age matches the rolled-forward DB expiry (long-lived sessions
+        # never silently expire while the user is active).
+        g.refresh_session_cookie = True
+        g.session_lifetime_seconds = user_data.get("lifetime_seconds")
 
     @app.after_request
     def _security_headers(response):
@@ -101,6 +106,27 @@ def init_auth_middleware(app):
         if hasattr(g, "user") and g.user:
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
             response.headers["Pragma"] = "no-cache"
+
+        # Sliding cookie refresh — re-issue the session cookie with the same
+        # remaining lifetime so 30-day "Remember me" sessions roll forward on
+        # every request instead of expiring 30 days after login.
+        if (getattr(g, "refresh_session_cookie", False)
+                and getattr(g, "session_token", None)
+                and getattr(g, "session_lifetime_seconds", None)):
+            lifetime = int(g.session_lifetime_seconds)
+            # Only re-issue persistent cookies. A session-only cookie (24h
+            # default) stays session-only; the DB still slides on activity.
+            if lifetime > 24 * 3600:
+                is_prod = os.environ.get("FLASK_ENV") == "production"
+                response.set_cookie(
+                    SESSION_COOKIE,
+                    g.session_token,
+                    max_age=lifetime,
+                    httponly=True,
+                    samesite="Lax",
+                    secure=is_prod,
+                    path="/",
+                )
         return response
 
     @app.errorhandler(401)

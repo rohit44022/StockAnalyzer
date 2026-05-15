@@ -17,8 +17,10 @@ from contextlib import contextmanager
 _DB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 _DB_PATH = os.path.join(_DB_DIR, "app.db")
 
-# Session lifetime
+# Session lifetime (default — when "Remember me" is NOT ticked)
 SESSION_LIFETIME_HOURS = 24
+# Session lifetime when "Remember me for 30 days" IS ticked
+REMEMBER_ME_LIFETIME_DAYS = 30
 # Max failed login attempts before lockout
 MAX_FAILED_ATTEMPTS = 5
 # Lockout duration in minutes
@@ -74,13 +76,14 @@ def init_auth_db():
             );
 
             CREATE TABLE IF NOT EXISTS sessions (
-                id           TEXT    PRIMARY KEY,
-                user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                ip_address   TEXT,
-                user_agent   TEXT,
-                created_at   TEXT    DEFAULT (datetime('now')),
-                expires_at   TEXT    NOT NULL,
-                is_valid     INTEGER DEFAULT 1
+                id               TEXT    PRIMARY KEY,
+                user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                ip_address       TEXT,
+                user_agent       TEXT,
+                created_at       TEXT    DEFAULT (datetime('now')),
+                expires_at       TEXT    NOT NULL,
+                lifetime_seconds INTEGER NOT NULL DEFAULT 86400,
+                is_valid         INTEGER DEFAULT 1
             );
 
             CREATE TABLE IF NOT EXISTS rate_limit (
@@ -118,6 +121,18 @@ def _migrate_google_columns(conn):
         conn.execute("CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)")
     except Exception:
         pass  # Table doesn't exist yet — init_auth_db will create it
+
+    # Sessions table — add lifetime_seconds so each session can have its own
+    # rolling expiry (24h for normal logins, 30d for "Remember me" logins).
+    try:
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()}
+        if "lifetime_seconds" not in existing:
+            conn.execute(
+                "ALTER TABLE sessions ADD COLUMN lifetime_seconds INTEGER NOT NULL "
+                f"DEFAULT {SESSION_LIFETIME_HOURS * 3600}"
+            )
+    except Exception:
+        pass
 
 
 # ═══════════════════════════════════════════════════════════
@@ -267,15 +282,27 @@ def link_google_account(
 #  SESSION MANAGEMENT
 # ═══════════════════════════════════════════════════════════
 
-def create_session(user_id: int, ip_address: str = "", user_agent: str = "") -> str:
-    """Create a new session token. Returns the token UUID."""
+def create_session(user_id: int, ip_address: str = "", user_agent: str = "",
+                   remember: bool = False) -> str:
+    """Create a new session token. Returns the token UUID.
+
+    remember=True  → 30-day rolling lifetime (Remember-me checkbox).
+    remember=False → 24-hour rolling lifetime (default).
+
+    The lifetime is stored on the row so validate_session() can slide the
+    expiry forward on each request, keeping active users logged in."""
     token = str(uuid.uuid4())
-    expires = (datetime.utcnow() + timedelta(hours=SESSION_LIFETIME_HOURS)).isoformat()
+    lifetime_seconds = (
+        REMEMBER_ME_LIFETIME_DAYS * 24 * 3600 if remember
+        else SESSION_LIFETIME_HOURS * 3600
+    )
+    expires = (datetime.utcnow() + timedelta(seconds=lifetime_seconds)).isoformat()
     with _get_conn() as conn:
         conn.execute(
-            """INSERT INTO sessions (id, user_id, ip_address, user_agent, expires_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (token, user_id, ip_address, user_agent[:500], expires),
+            """INSERT INTO sessions
+                 (id, user_id, ip_address, user_agent, expires_at, lifetime_seconds)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (token, user_id, ip_address, user_agent[:500], expires, lifetime_seconds),
         )
     return token
 
@@ -283,7 +310,11 @@ def create_session(user_id: int, ip_address: str = "", user_agent: str = "") -> 
 def validate_session(token: str) -> dict | None:
     """
     Returns user dict if session is valid and not expired. Otherwise None.
-    Also invalidates expired sessions opportunistically.
+
+    Also performs sliding refresh: on every successful validate, expires_at
+    is pushed forward to now + lifetime_seconds. Active users therefore stay
+    logged in for their full session lifetime (24h or 30d) from their LAST
+    request, not from login time.
     """
     if not token:
         return None
@@ -292,7 +323,8 @@ def validate_session(token: str) -> dict | None:
             "UPDATE sessions SET is_valid = 0 WHERE expires_at < datetime('now')"
         )
         row = conn.execute(
-            """SELECT s.*, u.id as uid, u.username, u.email,
+            """SELECT s.id as sid, s.lifetime_seconds,
+                      u.id as uid, u.username, u.email,
                       u.first_name, u.last_name,
                       u.is_active, u.is_admin
                FROM sessions s
@@ -303,6 +335,12 @@ def validate_session(token: str) -> dict | None:
             (token,),
         ).fetchone()
         if row:
+            lifetime = int(row["lifetime_seconds"] or SESSION_LIFETIME_HOURS * 3600)
+            new_expiry = (datetime.utcnow() + timedelta(seconds=lifetime)).isoformat()
+            conn.execute(
+                "UPDATE sessions SET expires_at = ? WHERE id = ?",
+                (new_expiry, token),
+            )
             return {
                 "user_id": row["uid"],
                 "username": row["username"],
@@ -312,6 +350,7 @@ def validate_session(token: str) -> dict | None:
                 "last_name": row["last_name"],
                 "is_admin": bool(row["is_admin"]),
                 "session_id": token,
+                "lifetime_seconds": lifetime,
             }
     return None
 

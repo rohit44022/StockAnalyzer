@@ -234,9 +234,10 @@ def google_sign_in(
     if not user.get("is_active", True):
         return {"success": False, "error": "Account is deactivated. Contact support."}
 
-    # Step 4: Create session
+    # Step 4: Create session. Google sign-in is treated as "remember me" by
+    # the route handler (30-day cookie), so the DB row must also live 30 days.
     update_last_login(user["id"])
-    token = create_session(user["id"], ip_address, user_agent)
+    token = create_session(user["id"], ip_address, user_agent, remember=True)
 
     return {
         "success": True,

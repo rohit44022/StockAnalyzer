@@ -21,6 +21,18 @@
   --card-border:  var(--bs-border-color);
   --text:         var(--bs-body-color);
   --text-muted:   var(--bs-secondary-color);
+
+  /* Google-font stack — overrides Bootstrap/Bootswatch defaults so the
+     whole app reads in Inter (UI) and JetBrains Mono (numbers / code).
+     Noto Sans Devanagari sits in the heading fallback chain so हिरण्य
+     renders cleanly across OSes that lack a good system Devanagari face. */
+  --app-font-sans:     'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --app-font-mono:     'JetBrains Mono', ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --app-font-display:  'Inter', 'Noto Sans Devanagari', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --bs-body-font-family: var(--app-font-sans);
+  --bs-font-sans-serif:  var(--app-font-sans);
+  --bs-font-monospace:   var(--app-font-mono);
 }
 
 /* ───────────── 2. Body / typography ───────────── */
@@ -29,13 +41,22 @@ html, body {
   color:            var(--bs-body-color) !important;
 }
 body {
-  font-family: var(--bs-body-font-family) !important;
+  font-family: var(--app-font-sans) !important;
   font-size:   var(--bs-body-font-size);
   line-height: var(--bs-body-line-height);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01", "ss03";  /* Inter: nicer ‘a’, ‘l’, single-storey ‘g’ */
 }
 h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
-  font-family: var(--bs-body-font-family);
+  font-family: var(--app-font-display);
   color: var(--bs-heading-color, var(--bs-body-color));
+  letter-spacing: -0.01em;
+}
+code, pre, kbd, samp, .font-monospace, .font-mono {
+  font-family: var(--app-font-mono) !important;
+  font-feature-settings: "calt", "ss02";  /* JetBrains Mono ligatures off, nicer ‘1’ */
 }
 
 /* ───────────── 3. Cards, headers, footers ───────────── */

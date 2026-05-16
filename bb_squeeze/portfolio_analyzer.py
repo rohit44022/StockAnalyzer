@@ -987,6 +987,82 @@ def _generate_recommendation(
             reasons.append("No active band walk — hold and monitor")
             action_triggers.append(f"WATCH for upper band walk if %b sustains > {M4_WALK_PCT_B_UPPER}")
 
+    # ──────────────────────────────────────────────────────────────────
+    #  CROSS-METHOD SYNTHESIS for M1 (squeeze) positions
+    #  Implements Bollinger's "Combining Methods" pro tip — Chs 15 + 18 + 19
+    # ──────────────────────────────────────────────────────────────────
+    #  This block refines an M1 HOLD verdict using Method IV (band walk)
+    #  and Method II (%b/MFI divergence) signals. It runs ONLY when:
+    #    • the position was bought via Method I (strategy_code == "M1"), AND
+    #    • Method I's own rules currently put the verdict at HOLD
+    #      (sig.hold_signal is True — i.e. post-breakout, no exit yet).
+    #  It never overrides a Method I sell_signal (SAR flip / lower-band
+    #  tag / double-negative) or buy_signal — so existing M1 exit / add
+    #  logic is preserved unchanged.
+    #
+    #  Three rules, in priority order, drawn verbatim from the book:
+    #    1. M4 upper walk has BROKEN → take profits.
+    #       Ch.18: "When the walk ends and price closes below the middle
+    #       band, the trend has changed. Take profits."
+    #    2. M2 bearish %b/MFI divergence with %b still in the upper zone
+    #       → exit. Ch.19 p.155: "When %b and MFI disagree, believe MFI."
+    #    3. M4 upper walk is ACTIVE → hold with conviction. Ch.18: "Tags
+    #       of the upper band during an uptrend CONFIRM the strength of
+    #       the trend." (Pro tip: "the walk tells you to hold on and
+    #       let profits run.")
+    if strategy_code == "M1" and action == "HOLD" and sig.hold_signal:
+        m2_ind = m2.indicators if isinstance(m2.indicators, dict) else {}
+        m2_bearish_div = bool(m2_ind.get("bearish_divergence", False))
+        # "MFI falling while %b stays high" — the pro tip's exact qualifier.
+        # 0.7 captures the upper 30% of the bands (above middle band but
+        # below the M2_PCT_B_BUY_THRESHOLD of 0.8), which the book treats
+        # as the "still high" zone where rally-exhaustion divergences matter.
+        pct_b_high = pct_b > 0.7
+
+        if m4.signal.signal_type == "SELL":
+            # Rule 1 — Method IV walk has ended.
+            action = "SELL"
+            strength = "STRONG" if m4.signal.strength == "STRONG" else "MODERATE"
+            reasons.append(
+                "Method IV exit — the upper band walk that was confirming "
+                "your squeeze entry has now ended (Ch.18: 'When the walk "
+                "ends and price closes below the middle band, the trend "
+                "has changed. Take profits.')."
+            )
+            action_triggers.append(
+                f"EXIT: upper band walk broken — price has pulled back "
+                f"below the middle band ₹{mid:.2f}"
+            )
+        elif m2_bearish_div and pct_b_high:
+            # Rule 2 — Method II bearish divergence with %b still high.
+            action = "SELL"
+            strength = "MODERATE"
+            reasons.append(
+                f"Method II bearish divergence — %b stayed high at "
+                f"{pct_b:.2f} while MFI fell to {mfi:.0f} (Ch.19 p.155: "
+                "'When %b and MFI disagree, believe MFI'). The rally is "
+                "hollow — institutional money is leaving while price drifts up."
+            )
+            action_triggers.append(
+                "EXIT: bearish %b/MFI divergence near the upper band — "
+                "tighten the stop to the middle band immediately"
+            )
+        elif m4.signal.signal_type == "HOLD":
+            # Rule 3 — Method I entry has matured into a Method IV walk.
+            strength = "STRONG"
+            reasons.append(
+                "Squeeze + Walk combo active — your Method I squeeze "
+                "entry has matured into a Method IV upper band walk "
+                "(Ch.18: 'Tags of the upper band during an uptrend "
+                "CONFIRM the strength of the trend'). Hold on and let "
+                "profits run."
+            )
+            action_triggers.append(
+                f"HOLD while the walk persists — exit ONLY on a close "
+                f"below the middle band ₹{mid:.2f}, or on a Method II "
+                "bearish divergence"
+            )
+
     # ── Cross-strategy confirmation ──
     if m2.signal.signal_type == "BUY":
         confirms.append("M2 Trend Following: BUY confirmed (%b + MFI aligned)")

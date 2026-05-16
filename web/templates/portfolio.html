@@ -332,6 +332,8 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
             <div class="text-secondary small text-uppercase mb-1">Recommendation</div>
             <div class="rec-action" id="recAction"></div>
             <div id="recExplain" class="small mt-2 mb-2" style="line-height:1.6;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,.03)"></div>
+            <!-- Plain-English deep explanation (data-driven, strictly derived from engine output) -->
+            <div id="recLayman" class="small mt-2 mb-2" style="display:none"></div>
             <div class="text-secondary small mt-1">Strength: <span class="font-mono fw-bold" id="recStrength"></span></div>
             <div class="text-secondary small">Strategy: <span class="font-mono" id="recStrategy"></span></div>
             <div class="d-flex flex-wrap gap-2 mt-2" id="recMeta"></div>
@@ -1115,7 +1117,7 @@ async function loadPositions() {
     const res = await fetch('/api/portfolio');
     allPositions = await res.json();
     renderPositions();
-  loadDailyUnrealizedChart(); }
+    loadDailyUnrealizedChart(); }
 
 function renderPositions() {
     const open = allPositions.filter(p => p.status === 'OPEN');
@@ -1302,6 +1304,339 @@ async function analyzePosition(pid) {
     currentAnalysis = data;
     renderAnalysis(data); }
 
+// ═══════════════════════════════════════════════════════════════
+//  PLAIN-ENGLISH EXPLANATION RENDERER
+//  Builds a beginner-friendly narrative for the Recommendation card.
+//  Every sentence is derived from values the backend already produced —
+//  this function NEVER invents new logic and NEVER contradicts the
+//  engine's verdict. It only re-expresses existing data in friendlier
+//  language. If the analyzer says HOLD STRONG, the layman text agrees.
+// ═══════════════════════════════════════════════════════════════
+function renderLaymanExplain(rec, ind, hold, tgt, pos) {
+    const el = document.getElementById('recLayman');
+    if (!el) return;
+
+    const action   = rec.action || 'HOLD';
+    const strength = rec.strength || 'MODERATE';
+    const stratCd  = rec.strategy_code || '';
+    const stratNm  = STRATEGY_NAMES[stratCd] || stratCd;
+    const eqZone   = (rec.entry_quality && rec.entry_quality.zone) || '';
+    const mmLabel  = (rec.momentum && rec.momentum.label) || '';
+    const volTrend = (rec.momentum && rec.momentum.volume_trend) || '';
+    const pnlPct   = Number(hold && hold.pnl_pct) || 0;
+    const pnlAmt   = Number(hold && hold.pnl_amount) || 0;
+    const days     = Number(hold && hold.days) || 0;
+    const qty      = Number(hold && hold.quantity) || 0;
+    const buyPx    = Number(hold && hold.buy_price) || 0;
+    const curPx    = Number(hold && hold.current_price) || 0;
+    const invested = Number(hold && hold.invested) || 0;
+    const curValue = Number(hold && hold.current_value) || 0;
+    const buyDate  = (pos && pos.buy_date) || '';
+    const ticker   = (pos && pos.ticker || '').replace('.NS', '');
+    const pctB     = Number(ind && ind.percent_b);
+    const mfi      = Number(ind && ind.mfi);
+    const cmf      = Number(ind && ind.cmf);
+    const sarBull  = !!(ind && ind.sar_bull);
+    const stopLoss = Number(tgt && tgt.stop_loss) || 0;
+    const bbMid    = Number(tgt && tgt.bb_mid)    || 0;
+    const bbUpper  = Number(tgt && tgt.bb_upper)  || 0;
+    const bbLower  = Number(tgt && tgt.bb_lower)  || 0;
+    const high52w  = Number(tgt && tgt.high_52w)  || 0;
+    const rrRatio  = Number(tgt && tgt.risk_reward) || 0;
+    const pctToUpper = Number(tgt && tgt.pct_to_upper) || 0;
+    const pctTo52w   = Number(tgt && tgt.pct_to_52w_high) || 0;
+
+    // Rupee impact of a 1% move on this position size
+    const movePerPct = qty * curPx * 0.01;
+    // What's at stake (rupees) if the stop fires
+    const downsideRs = qty > 0 && stopLoss > 0 ? qty * (buyPx - stopLoss) : 0;
+    // What's the win to upper band (rupees)
+    const upsideRs   = qty > 0 && bbUpper > 0  ? qty * (bbUpper - buyPx) : 0;
+    // What's the win to 52-week high (rupees) — long-horizon target
+    const longUpside = qty > 0 && high52w > 0  ? qty * (high52w - buyPx) : 0;
+
+    // ── 1. Position-state sentence (P&L + buy context in plain words) ──
+    let pnlLine;
+    if (pnlAmt > 0) {
+        pnlLine = `You're <strong style="color:var(--g)">up ${fmtINR(pnlAmt)} (${pnlPct.toFixed(2)}%)</strong>`;
+    } else if (pnlAmt < 0) {
+        pnlLine = `You're <strong style="color:var(--r)">down ${fmtINR(Math.abs(pnlAmt))} (${Math.abs(pnlPct).toFixed(2)}%)</strong>`;
+    } else {
+        pnlLine = `You're at <strong>break-even</strong>`;
+    }
+    const daysWord = days === 0 ? 'today' : `for <strong>${days} day${days === 1 ? '' : 's'}</strong>`;
+    const buyContext = buyDate
+        ? ` You bought <strong>${qty.toLocaleString('en-IN')} share${qty === 1 ? '' : 's'}</strong> of <strong>${ticker || 'this stock'}</strong> at <strong>${fmtINR2(buyPx)}</strong> on <strong>${buyDate}</strong> (total invested ${fmtINR(invested)}); the position is worth ${fmtINR(curValue)} now.`
+        : '';
+    const moveSensitivity = movePerPct > 0
+        ? ` At your current position size, every <strong>1% price move</strong> equals about <strong>${fmtINR2(movePerPct)}</strong> in your P&amp;L.`
+        : '';
+    const positionLine = `${pnlLine} on this position ${days === 0 ? 'today' : 'after holding it ' + daysWord}.${buyContext}${moveSensitivity}`;
+
+    // ── 2. "What the system sees" narrative (action × strength × strategy) ──
+    const stratPhraseMap = {
+        'M1': 'volatility breakout (squeeze) setup',
+        'M2': 'trend-following setup with %b and MFI',
+        'M3': 'reversal pattern setup (W-Bottom / M-Top)',
+        'M4': 'walking-the-bands trend confirmation',
+    };
+    const stratPhrase = stratPhraseMap[stratCd] || 'strategy setup';
+
+    const systemSeesMap = {
+        'HOLD-STRONG':   `The signals strongly support holding. Your ${stratPhrase} is still firing on all cylinders — the conditions that justified your original buy are intact and reinforced by current momentum.`,
+        'HOLD-MODERATE': `The system says keep holding. Your ${stratPhrase} is still working, though signals are mixed enough that you should stay attentive rather than confident.`,
+        'HOLD-WEAK':     `Hold for now, but conviction is low. Your ${stratPhrase} is neither clearly intact nor clearly broken — the stock is in a grey zone, so don't add and don't relax.`,
+        'SELL-STRONG':   `Multiple exit signals have fired against your ${stratPhrase}. The textbook reasons to leave have stacked up — acting quickly preserves capital.`,
+        'SELL-MODERATE': `An exit signal is present but not overwhelming. Some indicators on your ${stratPhrase} have flipped against you — consider partial selling or tightening your stop.`,
+        'SELL-WEAK':     `A mild sell warning has appeared. Your ${stratPhrase} is showing weakness but isn't broken yet — keep your stop tight and monitor closely.`,
+        'ADD-STRONG':    `Adding to this position is favorable. Your ${stratPhrase} is firing a fresh continuation signal on top of the original entry.`,
+        'ADD-MODERATE':  `An add-on opportunity exists. Your ${stratPhrase} is showing renewed strength, though conviction is moderate — consider a smaller top-up.`,
+        'ADD-WEAK':      `A mild add signal is present. Your ${stratPhrase} suggests adding, but conviction is too low for an aggressive move — keep any addition small.`,
+        'BUY-STRONG':    `A fresh entry-strength signal has reappeared on your ${stratPhrase}.`,
+        'BUY-MODERATE':  `Your ${stratPhrase} is showing renewed strength comparable to the original entry conditions.`,
+        'BUY-WEAK':      `A faint re-entry signal is active on your ${stratPhrase} — confirmation is weak, so be cautious.`,
+    };
+    const systemSees = systemSeesMap[`${action}-${strength}`] ||
+        systemSeesMap[`${action}-MODERATE`] ||
+        `The system's view of your ${stratPhrase} right now is ${action} (${strength}).`;
+
+    // Strategy-specific book context — what kind of trade this is and how it typically behaves.
+    const bookContextMap = {
+        'M1': `<strong>About this setup:</strong> You bought on a Method I <em>volatility-breakout</em> from a Bollinger squeeze. The book's core idea: low volatility ALWAYS precedes high volatility — the tighter the squeeze before your entry, the more explosive the move tends to be. Typical M1 trades resolve in days-to-weeks. Your exit triggers are mechanical: a Parabolic SAR flip against you, price tagging the lower band, or both CMF + MFI turning negative.`,
+        'M2': `<strong>About this setup:</strong> You bought on Method II — <em>trend-following with %b and MFI confirmation</em>. Bollinger calls this his most reliable setup because it demands two independent witnesses: <em>price</em> (via %b) AND <em>money flow</em> (via MFI) must agree. As long as both stay aligned in the trend's direction, the position generally keeps working. The earliest warning of trouble is a divergence — price keeps drifting up but MFI starts falling. The book's rule: when %b and MFI disagree, believe MFI.`,
+        'M3': `<strong>About this setup:</strong> You bought on Method III — a <em>reversal pattern</em> (W-Bottom or M-Top). These setups are rarer than M1/M2 but Bollinger reports the highest confidence when they fire, because the pattern must be confirmed by %b geometry, not just price. The first low/high can break the band; the second one must hold inside. The pattern is invalidated only if price breaks back through the original extreme.`,
+        'M4': `<strong>About this setup:</strong> You bought on Method IV — <em>walking the bands</em>. This is a strong-trend continuation trade. The book's #1 mistake to avoid: selling just because price is at the upper band. Tags during a walk CONFIRM the trend; they don't end it. The walk only fails when price closes below the middle band (20-day SMA) — that's your exit trigger, not the upper-band touches.`,
+    };
+    const bookContext = bookContextMap[stratCd] || '';
+
+    // ── 3. "What to do next" — derived from action + risk levels ──
+    const steps = [];
+    if (action === 'HOLD') {
+        steps.push(`Keep watching daily — no action needed right now.`);
+        if (stopLoss > 0) {
+            const lossWord = downsideRs > 0
+                ? ` If breached at ${fmtINR2(stopLoss)}, the position would close at a loss of about <strong style="color:var(--r)">${fmtINR(downsideRs)}</strong> from your entry.`
+                : '';
+            steps.push(`Mental stop: <strong>${fmtINR2(stopLoss)}</strong>. If the stock closes below this, the thesis is broken — exit.${lossWord}`);
+        }
+        if (bbUpper > 0 && bbUpper > Number(ind.price || 0)) {
+            const gainWord = upsideRs > 0
+                ? ` Reaching ${fmtINR2(bbUpper)} would put the position at roughly <strong style="color:var(--g)">+${fmtINR(upsideRs)}</strong> from your entry.`
+                : '';
+            steps.push(`Profit-taking zone: consider booking partial profits around <strong>${fmtINR2(bbUpper)}</strong> (the upper band).${gainWord}`);
+        }
+        if (high52w > 0 && pctTo52w > 0 && longUpside > 0) {
+            steps.push(`Longer horizon — the 52-week high sits at <strong>${fmtINR2(high52w)}</strong> (${pctTo52w.toFixed(1)}% away). Reaching it would mean roughly <strong style="color:var(--g)">+${fmtINR(longUpside)}</strong> total profit.`);
+        }
+        if (mmLabel.includes('BEARISH')) {
+            steps.push(`Momentum is turning bearish — tighten your stop and don't add to this position.`);
+        }
+    } else if (action === 'SELL') {
+        if (strength === 'STRONG') {
+            steps.push(`Plan to <strong>exit at the next available opportunity</strong> — multiple signals say the trend has changed.`);
+        } else if (strength === 'MODERATE') {
+            steps.push(`Consider <strong>selling 50% now</strong> and trailing the rest with a tighter stop.`);
+        } else {
+            steps.push(`Tighten your stop loss to <strong>${fmtINR2(bbMid || stopLoss)}</strong> — exit if it's breached.`);
+        }
+        if (pnlPct > 0) {
+            steps.push(`You're in profit (${pnlPct.toFixed(2)}%) — booking it now locks in the gain.`);
+        } else if (pnlPct < -10) {
+            steps.push(`Position is down ${Math.abs(pnlPct).toFixed(2)}% — cutting the loss here protects you from further damage.`);
+        }
+        steps.push(`Don't average down on a SELL signal — that compounds risk instead of reducing it.`);
+    } else if (action === 'ADD' || action === 'BUY') {
+        steps.push(`Add only <strong>up to 50%</strong> of your existing position size — never double up at once.`);
+        if (volTrend === 'FADING') {
+            steps.push(`Volume is fading — <em>wait</em> for a day with above-average volume before adding.`);
+        } else if (volTrend === 'RISING') {
+            steps.push(`Volume is rising — that supports the add signal.`);
+        }
+        if (stopLoss > 0) {
+            steps.push(`Set a stop loss at <strong>${fmtINR2(stopLoss)}</strong> the moment you add — protect the addition immediately.`);
+        }
+        if (bbUpper > 0) {
+            steps.push(`First take-profit target: <strong>${fmtINR2(bbUpper)}</strong> (the upper band).`);
+        }
+    }
+
+    // ── 4. Indicator readout in human terms ──
+    // %b zone phrasing
+    let pctBPhrase;
+    if (!isFinite(pctB)) {
+        pctBPhrase = '';
+    } else if (pctB >= 1.0) {
+        pctBPhrase = `Price is <strong style="color:var(--g)">above the upper band</strong> (very strong, but stretched).`;
+    } else if (pctB >= 0.85) {
+        pctBPhrase = `Price is <strong style="color:var(--g)">in the upper zone</strong> of the bands — bullish positioning.`;
+    } else if (pctB >= 0.5) {
+        pctBPhrase = `Price is <strong>above the middle band</strong> — neutral-to-bullish.`;
+    } else if (pctB >= 0.15) {
+        pctBPhrase = `Price is <strong style="color:var(--y)">below the middle band</strong> — neutral-to-bearish.`;
+    } else if (pctB >= 0) {
+        pctBPhrase = `Price is <strong style="color:var(--r)">in the lower zone</strong> of the bands — bearish positioning.`;
+    } else {
+        pctBPhrase = `Price is <strong style="color:var(--r)">below the lower band</strong> (very weak).`;
+    }
+    // MFI phrasing
+    let mfiPhrase;
+    if (!isFinite(mfi)) {
+        mfiPhrase = '';
+    } else if (mfi >= 80) {
+        mfiPhrase = `Money Flow Index is <strong style="color:var(--g)">very strong (${mfi.toFixed(0)})</strong> — heavy buying pressure.`;
+    } else if (mfi >= 60) {
+        mfiPhrase = `Money Flow Index is <strong style="color:var(--g)">healthy (${mfi.toFixed(0)})</strong> — buyers are in control.`;
+    } else if (mfi >= 40) {
+        mfiPhrase = `Money Flow Index is <strong>balanced (${mfi.toFixed(0)})</strong> — neither side dominates.`;
+    } else if (mfi >= 20) {
+        mfiPhrase = `Money Flow Index is <strong style="color:var(--y)">weak (${mfi.toFixed(0)})</strong> — buyers are stepping back.`;
+    } else if (mfi >= 0) {
+        mfiPhrase = `Money Flow Index is <strong style="color:var(--r)">very weak (${mfi.toFixed(0)})</strong> — heavy selling pressure.`;
+    } else {
+        mfiPhrase = '';
+    }
+    // CMF (institutional money flow)
+    let cmfPhrase;
+    if (!isFinite(cmf)) {
+        cmfPhrase = '';
+    } else if (cmf > 0.05) {
+        cmfPhrase = `Institutional money is <strong style="color:var(--g)">accumulating</strong> (CMF +${cmf.toFixed(2)}).`;
+    } else if (cmf > 0) {
+        cmfPhrase = `Institutional money is <strong>mildly positive</strong> (CMF +${cmf.toFixed(2)}).`;
+    } else if (cmf > -0.05) {
+        cmfPhrase = `Institutional money is <strong style="color:var(--y)">flat-to-negative</strong> (CMF ${cmf.toFixed(2)}).`;
+    } else {
+        cmfPhrase = `Institutional money is <strong style="color:var(--r)">distributing — flowing OUT</strong> (CMF ${cmf.toFixed(2)}).`;
+    }
+    // SAR phrasing
+    const sarPhrase = sarBull
+        ? `Parabolic SAR is <strong style="color:var(--g)">bullish</strong> — the trend stop is below price, supporting your long.`
+        : `Parabolic SAR is <strong style="color:var(--r)">bearish</strong> — the trend stop has flipped above price; momentum has shifted down.`;
+    // Entry quality readout
+    let entryPhrase = '';
+    if (eqZone === 'EXCELLENT') entryPhrase = `Your entry was at the <strong style="color:var(--g)">lower band</strong> — textbook timing.`;
+    else if (eqZone === 'GOOD') entryPhrase = `Your entry was <strong style="color:var(--b)">between lower and middle band</strong> — favourable timing.`;
+    else if (eqZone === 'FAIR') entryPhrase = `Your entry was <strong style="color:var(--y)">in the upper half of the bands</strong> — average timing.`;
+    else if (eqZone === 'LATE') entryPhrase = `Your entry was <strong style="color:var(--r)">above the upper band</strong> — you chased the move; manage risk carefully.`;
+
+    // ── Assemble HTML ──
+    const indPhrases = [pctBPhrase, mfiPhrase, cmfPhrase, sarPhrase, entryPhrase].filter(Boolean);
+
+    // ── 5. "Bigger picture" — closing wrap-up that ties it all together ──
+    // Derived from rec.action, strength, strategy, entry zone, momentum, P&L,
+    // and R:R ratio — strictly summarizes what's already been shown above.
+    let bigPictureParts = [];
+
+    // (a) Trade type one-liner anchored to the strategy
+    const tradeTypeMap = {
+        'M1': 'a Bollinger squeeze breakout trade',
+        'M2': 'a trend-following %b + MFI trade',
+        'M3': 'a reversal-pattern trade (W-Bottom / M-Top)',
+        'M4': 'a band-walking continuation trade',
+    };
+    const tradeType = tradeTypeMap[stratCd] || 'a Bollinger Bands trade';
+
+    // (b) Status verb anchored to the current verdict
+    const verdictMap = {
+        'HOLD-STRONG':   'is performing exactly as the book prescribes',
+        'HOLD-MODERATE': 'is still on track but with mixed signals',
+        'HOLD-WEAK':     'is in a grey zone — neither strong nor broken',
+        'SELL-STRONG':   'has broken — multiple exit signals have stacked up',
+        'SELL-MODERATE': 'is weakening and may need partial exits',
+        'SELL-WEAK':     'is showing the first warning cracks',
+        'ADD-STRONG':    'is firing a strong continuation signal',
+        'ADD-MODERATE':  'is showing renewed strength',
+        'ADD-WEAK':      'is showing a mild add-on opportunity',
+        'BUY-STRONG':    'is firing a fresh entry-strength signal',
+        'BUY-MODERATE':  'is firing a moderate re-entry signal',
+        'BUY-WEAK':      'is showing a faint re-entry signal',
+    };
+    const verdictPhrase = verdictMap[`${action}-${strength}`] || `is currently rated ${action} (${strength})`;
+
+    bigPictureParts.push(
+        `This is <strong>${tradeType}</strong> and right now it <strong>${verdictPhrase}</strong>.`
+    );
+
+    // (c) Risk-reward in plain words
+    if (downsideRs > 0 && upsideRs > 0) {
+        const rrText = rrRatio > 0
+            ? ` The risk-to-reward ratio is <strong>1:${rrRatio}</strong> — for every rupee you risk to your stop, the upper-band target offers about ${rrRatio} rupees of reward.`
+            : '';
+        bigPictureParts.push(
+            `If the position works to the upper band, the gain from your entry is about <strong style="color:var(--g)">${fmtINR(upsideRs)}</strong>; if your stop is hit, the loss from your entry is about <strong style="color:var(--r)">${fmtINR(downsideRs)}</strong>.${rrText}`
+        );
+    }
+
+    // (d) Entry-quality and momentum context if available
+    if (eqZone) {
+        const eqMap = {
+            'EXCELLENT': 'a textbook lower-band entry',
+            'GOOD':      'a favourable entry between the lower and middle bands',
+            'FAIR':      'an average entry in the upper half of the bands',
+            'LATE':      'a chased entry above the upper band — be tight on stops',
+        };
+        const eqText = eqMap[eqZone] || `an entry classified as ${eqZone}`;
+        const momentumText = mmLabel
+            ? ` Current momentum is <strong>${mmLabel}</strong>` + (volTrend ? ` with volume ${volTrend.toLowerCase()}.` : '.')
+            : '';
+        bigPictureParts.push(
+            `Looking back, your entry quality was <strong>${eqText}</strong>.${momentumText}`
+        );
+    }
+
+    // (e) The "what you should remember" anchor — strategy + action specific
+    const rememberMap = {
+        'M1':   'Bollinger says the squeeze IS the entry; the bands themselves provide the exit. Trust the SAR flip, the lower-band tag, and the CMF/MFI double-negative.',
+        'M2':   'When %b and MFI agree, ride it. When they disagree, believe MFI — that is the book\'s rule from Chapter 19.',
+        'M3':   'Reversal patterns are valid only if the second touch is INSIDE the band. If it breaks back through the original extreme, the pattern has failed — exit immediately.',
+        'M4':   'Tags of the band during a walk CONFIRM the trend — they do not end it. Exit only on a close below the middle band.',
+    };
+    if (rememberMap[stratCd]) {
+        bigPictureParts.push(`<em>Book reminder:</em> ${rememberMap[stratCd]}`);
+    }
+
+    const bigPicture = bigPictureParts.join(' ');
+
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div style="border:1px solid var(--card-border);border-radius:8px;padding:10px 12px;background:rgba(88,166,255,.04);line-height:1.6">
+        <div class="text-secondary small text-uppercase mb-2" style="letter-spacing:.5px"><i class="bi bi-mortarboard-fill me-1 text-info"></i>Plain English Explanation</div>
+
+        <div class="mb-2">
+          <div class="small fw-semibold text-secondary mb-1">📊 Your position right now</div>
+          <div>${positionLine}</div>
+        </div>
+
+        <div class="mb-2">
+          <div class="small fw-semibold text-secondary mb-1">💡 What the system sees</div>
+          <div>${systemSees}</div>
+          ${bookContext ? `<div class="mt-1" style="padding-top:6px;border-top:1px dashed var(--card-border)">${bookContext}</div>` : ''}
+        </div>
+
+        ${steps.length ? `
+        <div class="mb-2">
+          <div class="small fw-semibold text-secondary mb-1">🎯 What you should do next</div>
+          <ul class="mb-0 ps-3">
+            ${steps.map(s => `<li>${s}</li>`).join('')}
+          </ul>
+        </div>` : ''}
+
+        ${indPhrases.length ? `
+        <div class="mb-2">
+          <div class="small fw-semibold text-secondary mb-1">📈 Key numbers decoded</div>
+          <ul class="mb-0 ps-3">
+            ${indPhrases.map(p => `<li>${p}</li>`).join('')}
+          </ul>
+        </div>` : ''}
+
+        ${bigPicture ? `
+        <div class="mb-0" style="padding-top:8px;border-top:1px dashed var(--card-border)">
+          <div class="small fw-semibold text-secondary mb-1">📖 The bigger picture</div>
+          <div>${bigPicture}</div>
+        </div>` : ''}
+      </div>`;
+}
+
 function renderAnalysis(data) {
     document.getElementById('analysisLoading').style.display = 'none';
     document.getElementById('analysisContent').style.display = 'block';
@@ -1340,6 +1675,16 @@ function renderAnalysis(data) {
         const actionMap = explMap[rec.action] || explMap['HOLD'];
         const txt = actionMap[rec.strength] || actionMap['_default'] || actionMap['MODERATE'] || '';
         recExpl.innerHTML = txt; }
+
+    // ──────────────────────────────────────────────────────────────
+    // PLAIN-ENGLISH DEEP EXPLANATION — strictly derived from engine output
+    // (rec.action / rec.strength / rec.strategy_code / rec.entry_quality /
+    //  rec.momentum + ind.percent_b / ind.mfi / ind.cmf / ind.sar_bull +
+    //  hold.pnl_pct / hold.days + tgt.stop_loss / bb_mid / bb_upper +
+    //  data.position.buy_date / quantity).
+    // Adds context — never contradicts the system's verdict.
+    // ──────────────────────────────────────────────────────────────
+    renderLaymanExplain(rec, ind, hold, tgt, data.position);
 
     // Entry Quality + Momentum badges
     const recMeta = document.getElementById('recMeta');

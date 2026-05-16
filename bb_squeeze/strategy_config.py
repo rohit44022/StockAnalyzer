@@ -49,12 +49,24 @@ M3_MFI_DIVERGE_THRESHOLD = 5   # MFI must differ by at least 5 points
 #             When walking, each tag confirms the trend."
 # ─────────────────────────────────────────────────────────────────
 
-M4_WALK_MIN_TOUCHES     = 3     # Min consecutive upper/lower band touches
-M4_WALK_LOOKBACK        = 10    # Bars to check for walk pattern
-M4_WALK_TOUCH_TOLERANCE = 0.005  # Price within 0.5% of band = "touch"
-M4_WALK_PCT_B_UPPER     = 0.85   # Walking upper: %b consistently > 0.85
-M4_WALK_PCT_B_LOWER     = 0.15   # Walking lower: %b consistently < 0.15
-M4_WALK_BB_MID_PULLBACK = True   # Allow pullback to middle band during walk
+M4_WALK_MIN_TOUCHES     = 3     # Book rule 1: ≥3 tags within 0.5% in 10-bar lookback
+M4_WALK_LOOKBACK        = 10    # Book rule 1: 10-day lookback window
+M4_WALK_TOUCH_TOLERANCE = 0.005  # Book rule 1: close within 0.5% of band = "touch"
+M4_WALK_PCT_B_UPPER     = 0.85   # Book rule 2: walking upper requires %b ≥ 0.85
+M4_WALK_PCT_B_LOWER     = 0.15   # Book rule 2: walking lower requires %b ≤ 0.15
+# Book rule 2 — "%b stays above 0.85 consistently": require this fraction of
+# the lookback window to have %b in the extreme zone before declaring a walk.
+# 0.6 = 6 of 10 bars must be in zone (the book's "consistently" qualifier).
+M4_WALK_ZONE_CONSISTENCY = 0.6
+# Book rule 3 — "Pullbacks stop at the middle band": when True, every close
+# in the lookback must hold at or above (upper walk) / below (lower walk)
+# the 20-day SMA. A single break of the middle band invalidates the walk.
+M4_WALK_BB_MID_PULLBACK = True
+# Book rule 4 — "Buy dips to the middle band": during an ACTIVE upper walk,
+# emit a BUY when %b pulls back into this band (likewise SELL for lower walk).
+# Range: just above the middle band, before the walk-break threshold of 0.5.
+M4_WALK_DIP_BUY_PCT_B_MIN = 0.50  # Lower edge of the dip-buy zone
+M4_WALK_DIP_BUY_PCT_B_MAX = 0.65  # Upper edge of the dip-buy zone
 
 # ─────────────────────────────────────────────────────────────────
 #  THREE PUSHES TO A HIGH — Book Ch.13 p.108

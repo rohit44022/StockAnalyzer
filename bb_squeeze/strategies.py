@@ -41,6 +41,8 @@ from bb_squeeze.strategy_config import (
     # Method IV
     M4_WALK_MIN_TOUCHES, M4_WALK_LOOKBACK, M4_WALK_TOUCH_TOLERANCE,
     M4_WALK_PCT_B_UPPER, M4_WALK_PCT_B_LOWER, M4_WALK_BB_MID_PULLBACK,
+    M4_WALK_ZONE_CONSISTENCY,
+    M4_WALK_DIP_BUY_PCT_B_MIN, M4_WALK_DIP_BUY_PCT_B_MAX,
     # Display
     STRATEGY_NAMES, STRATEGY_DESCRIPTIONS,
 )
@@ -1042,18 +1044,90 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
 #  "Tags of the band are just that — tags, not signals."
 # ═══════════════════════════════════════════════════════════════
 
+def _audit_band_walk(
+    df: pd.DataFrame,
+    band: str,
+    lookback: int = M4_WALK_LOOKBACK,
+) -> dict:
+    """
+    Compute the three book-rule metrics for a candidate band walk without
+    deciding whether it qualifies. Used both by _detect_band_walk and to
+    expose transparency fields in the M4 indicators dict.
+
+    Returns dict with: touch_count, zone_count, zone_fraction, mid_held,
+    rule1_pass, rule2_pass, rule3_pass.
+    """
+    window = df.iloc[-lookback:]
+    if len(window) < M4_WALK_MIN_TOUCHES:
+        return {
+            "touch_count": 0,
+            "zone_count": 0,
+            "zone_fraction": 0.0,
+            "mid_held": False,
+            "rule1_pass": False,
+            "rule2_pass": False,
+            "rule3_pass": False,
+        }
+
+    closes = window["Close"].values.astype(float)
+    pct_b  = window["Percent_B"].values.astype(float)
+    mids   = window["BB_Mid"].values.astype(float)
+
+    if band == "upper":
+        band_vals  = window["BB_Upper"].values.astype(float)
+        touch_mask = np.abs(closes - band_vals) / band_vals <= M4_WALK_TOUCH_TOLERANCE
+        beyond_mask = closes > band_vals
+        zone_mask  = pct_b >= M4_WALK_PCT_B_UPPER
+        mid_held   = bool(np.all(closes >= mids))
+    else:
+        band_vals  = window["BB_Lower"].values.astype(float)
+        touch_mask = np.abs(closes - band_vals) / band_vals <= M4_WALK_TOUCH_TOLERANCE
+        beyond_mask = closes < band_vals
+        zone_mask  = pct_b <= M4_WALK_PCT_B_LOWER
+        mid_held   = bool(np.all(closes <= mids))
+
+    touch_count   = int((touch_mask | beyond_mask).sum())
+    zone_count    = int(zone_mask.sum())
+    zone_fraction = zone_count / len(window)
+
+    return {
+        "touch_count":   touch_count,
+        "zone_count":    zone_count,
+        "zone_fraction": round(zone_fraction, 3),
+        "mid_held":      mid_held,
+        "rule1_pass":    touch_count >= M4_WALK_MIN_TOUCHES,
+        "rule2_pass":    zone_fraction >= M4_WALK_ZONE_CONSISTENCY,
+        "rule3_pass":    (mid_held if M4_WALK_BB_MID_PULLBACK else True),
+    }
+
+
 def _detect_band_walk(
     df: pd.DataFrame,
     band: str,
     lookback: int = M4_WALK_LOOKBACK,
 ) -> Optional[PatternMatch]:
     """
-    Detect if price is 'walking' along a Bollinger Band.
+    Detect a Bollinger Band walk strictly per Chapter 18 of *Bollinger on
+    Bollinger Bands*. All three book rules must hold simultaneously:
 
-    A walk is defined as:
-    - `M4_WALK_MIN_TOUCHES` or more closes within tolerance of the band
-      in the last `lookback` bars.
-    - %b consistently in the extreme zone.
+      Rule 1 — Tag count: ≥ M4_WALK_MIN_TOUCHES (3) closes are either
+               within M4_WALK_TOUCH_TOLERANCE (0.5 %) of the band, or
+               beyond it, in the last M4_WALK_LOOKBACK (10) bars.
+               %b being elevated alone is NOT a tag (was a leak in the
+               prior implementation).
+
+      Rule 2 — %b consistency: ≥ M4_WALK_ZONE_CONSISTENCY (60 %) of the
+               lookback bars have %b ≥ M4_WALK_PCT_B_UPPER (0.85) for an
+               upper walk, or %b ≤ M4_WALK_PCT_B_LOWER (0.15) for a
+               lower walk. The book's "stays consistently in zone" rule.
+
+      Rule 3 — Middle-band support: when M4_WALK_BB_MID_PULLBACK is True,
+               every close in the lookback must hold at or above (upper
+               walk) / at or below (lower walk) the 20-day SMA (BB_Mid).
+               A single break of the middle band invalidates the walk.
+
+    Returns a PatternMatch only when all three rules pass; otherwise None.
+    The PatternMatch.description carries human-readable diagnostics.
     """
     window = df.iloc[-lookback:]
     if len(window) < M4_WALK_MIN_TOUCHES:
@@ -1061,59 +1135,78 @@ def _detect_band_walk(
 
     closes  = window["Close"].values.astype(float)
     pct_b   = window["Percent_B"].values.astype(float)
+    mids    = window["BB_Mid"].values.astype(float)
     dates   = pd.to_datetime(window["Date"]).values if "Date" in window.columns else window.index
 
+    # ── Rule 1: strict tag count (within 0.5% OR beyond band) ──
     if band == "upper":
-        band_vals = window["BB_Upper"].values.astype(float)
+        band_vals  = window["BB_Upper"].values.astype(float)
         touch_mask = np.abs(closes - band_vals) / band_vals <= M4_WALK_TOUCH_TOLERANCE
-        zone_mask  = pct_b >= M4_WALK_PCT_B_UPPER
-    else:
-        band_vals = window["BB_Lower"].values.astype(float)
-        touch_mask = np.abs(closes - band_vals) / band_vals <= M4_WALK_TOUCH_TOLERANCE
-        zone_mask  = pct_b <= M4_WALK_PCT_B_LOWER
-
-    # Also count closes ABOVE upper band or BELOW lower band
-    if band == "upper":
         beyond_mask = closes > band_vals
     else:
+        band_vals  = window["BB_Lower"].values.astype(float)
+        touch_mask = np.abs(closes - band_vals) / band_vals <= M4_WALK_TOUCH_TOLERANCE
         beyond_mask = closes < band_vals
+    tag_mask = touch_mask | beyond_mask
+    touch_count = int(tag_mask.sum())
+    if touch_count < M4_WALK_MIN_TOUCHES:
+        return None
 
-    combined = touch_mask | zone_mask | beyond_mask
-    touch_count = int(combined.sum())
+    # ── Rule 2: %b consistency in the extreme zone ──
+    if band == "upper":
+        zone_mask = pct_b >= M4_WALK_PCT_B_UPPER
+    else:
+        zone_mask = pct_b <= M4_WALK_PCT_B_LOWER
+    zone_count = int(zone_mask.sum())
+    zone_fraction = zone_count / len(window)
+    if zone_fraction < M4_WALK_ZONE_CONSISTENCY:
+        return None
 
-    if touch_count >= M4_WALK_MIN_TOUCHES:
-        direction = "upper" if band == "upper" else "lower"
-        first_touch = np.argmax(combined)
-        last_touch  = len(combined) - 1 - np.argmax(combined[::-1])
-
-        desc = (
-            f"Price is walking the {direction} Bollinger Band: "
-            f"{touch_count} touches/closes in the {direction} zone "
-            f"over the last {lookback} bars. "
-        )
+    # ── Rule 3: pullbacks must stop at the middle band ──
+    if M4_WALK_BB_MID_PULLBACK:
         if band == "upper":
-            desc += (
-                "The book says: 'Tags of the upper band during an uptrend are NOT "
-                "sell signals — they CONFIRM the strength of the trend.' "
-                "Continue holding until price fails to tag and pulls to the middle band."
-            )
+            # Every close must be at or above BB_Mid (20-day SMA = support)
+            mid_held = bool(np.all(closes >= mids))
         else:
-            desc += (
-                "The book says: 'Tags of the lower band during a downtrend are NOT "
-                "buy signals — they CONFIRM the trend is still bearish.' "
-                "Stay out until price fails to tag and recovers to the middle band."
-            )
+            # Every close must be at or below BB_Mid (20-day SMA = resistance)
+            mid_held = bool(np.all(closes <= mids))
+        if not mid_held:
+            return None
 
-        return PatternMatch(
-            name=f"WALK-{direction.upper()}",
-            start_idx=first_touch,
-            end_idx=last_touch,
-            start_date=pd.Timestamp(dates[first_touch]).strftime("%Y-%m-%d"),
-            end_date=pd.Timestamp(dates[last_touch]).strftime("%Y-%m-%d"),
-            description=desc,
+    # All three rules satisfied — produce the PatternMatch.
+    direction = "upper" if band == "upper" else "lower"
+    first_tag = int(np.argmax(tag_mask))
+    last_tag  = int(len(tag_mask) - 1 - np.argmax(tag_mask[::-1]))
+
+    desc = (
+        f"Price is walking the {direction} Bollinger Band: "
+        f"{touch_count} of the last {lookback} bars tagged the band "
+        f"(within {M4_WALK_TOUCH_TOLERANCE*100:.1f}% or beyond), "
+        f"%b stayed in the extreme zone on {zone_count}/{lookback} bars "
+        f"({zone_fraction*100:.0f}%), and every close held "
+        f"{'above' if band == 'upper' else 'below'} the middle band. "
+    )
+    if band == "upper":
+        desc += (
+            "Book Ch.18: 'Tags of the upper band during an uptrend are NOT "
+            "sell signals — they CONFIRM the strength of the trend.' "
+            "Continue holding; dips to the middle band are buying opportunities."
+        )
+    else:
+        desc += (
+            "Book Ch.18: 'Tags of the lower band during a downtrend are NOT "
+            "buy signals — they CONFIRM the trend is still bearish.' "
+            "Stay out; rallies to the middle band are selling opportunities."
         )
 
-    return None
+    return PatternMatch(
+        name=f"WALK-{direction.upper()}",
+        start_idx=first_tag,
+        end_idx=last_tag,
+        start_date=pd.Timestamp(dates[first_tag]).strftime("%Y-%m-%d"),
+        end_date=pd.Timestamp(dates[last_tag]).strftime("%Y-%m-%d"),
+        description=desc,
+    )
 
 
 def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
@@ -1161,7 +1254,9 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
 
     if upper_walk:
         # Walking upper band — strong uptrend
-        if pct_b > 0.8 and sar_bull:
+        if pct_b > M4_WALK_PCT_B_UPPER and sar_bull:
+            # Book rule 4a — "Stay long": tags of the upper band confirm
+            # the trend. HOLD with conviction.
             signal_type = "HOLD"
             strength = "STRONG" if mfi > 60 else "MODERATE"
             confidence = min(int(70 + mfi * 0.3), 100)
@@ -1172,8 +1267,27 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
                 "DO NOT sell just because price is touching the upper band. "
                 "Exit only when price closes below the middle band."
             )
-        elif pct_b < 0.5:
-            # Walk is breaking — price pulled back to middle band
+        elif (M4_WALK_DIP_BUY_PCT_B_MIN <= pct_b <= M4_WALK_DIP_BUY_PCT_B_MAX
+                and sar_bull and mfi > 50):
+            # Book rule 4b — "Buy dips to the middle band". During an
+            # active upper walk, a pullback into this zone with SAR still
+            # bullish and money flow supportive is the textbook add-on.
+            # Ch.18: "dips to the middle band provide buying opportunities."
+            signal_type = "BUY"
+            strength = "MODERATE" if mfi > 60 else "WEAK"
+            confidence = min(int(50 + (mfi - 50) * 0.5), 75)
+            reason = "Dip-to-middle-band BUY during active upper walk"
+            details_lines.append(upper_walk.description)
+            details_lines.append(
+                f"Price has pulled back to %b = {pct_b:.2f} (near the middle band) "
+                f"during an active upper band walk. Book Ch.18: 'dips to the "
+                f"middle band provide buying opportunities.' SAR is bullish and "
+                f"MFI ({mfi:.0f}) supports the uptrend — textbook add-on entry."
+            )
+        elif pct_b < M4_WALK_DIP_BUY_PCT_B_MIN:
+            # Book rule for exit — "Take profits when the walk ends".
+            # Ch.18: "When the walk ends and price closes below the middle
+            # band, the trend has changed."
             signal_type = "SELL"
             strength = "MODERATE"
             confidence = 60
@@ -1184,6 +1298,8 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
                 "the trend has changed. Take profits.'"
             )
         else:
+            # In the no-man's-land between dip-buy ceiling and HOLD floor,
+            # or with SAR already flipped — watch but don't act.
             signal_type = "WATCH"
             strength = "MODERATE"
             confidence = 50
@@ -1196,7 +1312,9 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
 
     elif lower_walk:
         # Walking lower band — strong downtrend
-        if pct_b < 0.2 and not sar_bull:
+        if pct_b < M4_WALK_PCT_B_LOWER and not sar_bull:
+            # Book rule 4a (mirror) — "Stay short / avoid": tags of the
+            # lower band confirm the downtrend. DO NOT buy "because it's cheap".
             signal_type = "SELL"
             strength = "STRONG" if mfi < 40 else "MODERATE"
             confidence = min(int(70 + (100 - mfi) * 0.3), 100)
@@ -1207,8 +1325,24 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
                 "DO NOT buy just because price is touching the lower band. "
                 "Wait until price recovers above the middle band."
             )
-        elif pct_b > 0.5:
-            # Walk is breaking — price recovered to middle band
+        elif ((1.0 - M4_WALK_DIP_BUY_PCT_B_MAX) <= pct_b <= (1.0 - M4_WALK_DIP_BUY_PCT_B_MIN)
+                and not sar_bull and mfi < 50):
+            # Book rule 4b (mirror) — "Sell rallies to the middle band".
+            # During an active lower walk, a bounce into this zone with
+            # SAR still bearish and money flow weak is a short opportunity.
+            signal_type = "SELL"
+            strength = "MODERATE" if mfi < 40 else "WEAK"
+            confidence = min(int(50 + (50 - mfi) * 0.5), 75)
+            reason = "Rally-to-middle-band SELL during active lower walk"
+            details_lines.append(lower_walk.description)
+            details_lines.append(
+                f"Price has rallied to %b = {pct_b:.2f} (near the middle band) "
+                f"during an active lower band walk. Book Ch.18: 'sell rallies "
+                f"to the middle band — do NOT buy thinking it's cheap.' SAR "
+                f"remains bearish and MFI ({mfi:.0f}) confirms selling pressure."
+            )
+        elif pct_b > (1.0 - M4_WALK_DIP_BUY_PCT_B_MIN):
+            # Walk is breaking — price recovered above the middle band.
             signal_type = "BUY"
             strength = "MODERATE"
             confidence = 60
@@ -1316,6 +1450,11 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
         },
     ]
 
+    # ── Book-rule audit metrics — exposed so the panel can show WHY a
+    #    walk was or wasn't detected (rules 1, 2, 3 from Chapter 18). ──
+    upper_audit = _audit_band_walk(df, "upper")
+    lower_audit = _audit_band_walk(df, "lower")
+
     indicators = {
         "pct_b": round(pct_b, 4),
         "mfi": round(mfi, 2),
@@ -1328,6 +1467,20 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
         "price_vs_mid": round(close / bb_mid, 4) if bb_mid else None,
         "buy_checklist": buy_checklist,
         "sell_checklist": sell_checklist,
+        # Strict-book-mode audit (Chapter 18 rules 1–3)
+        "upper_walk_audit": upper_audit,
+        "lower_walk_audit": lower_audit,
+        "walk_rules_config": {
+            "min_touches":        M4_WALK_MIN_TOUCHES,
+            "lookback":           M4_WALK_LOOKBACK,
+            "touch_tolerance":    M4_WALK_TOUCH_TOLERANCE,
+            "pct_b_upper":        M4_WALK_PCT_B_UPPER,
+            "pct_b_lower":        M4_WALK_PCT_B_LOWER,
+            "zone_consistency":   M4_WALK_ZONE_CONSISTENCY,
+            "mid_pullback_check": M4_WALK_BB_MID_PULLBACK,
+            "dip_buy_min":        M4_WALK_DIP_BUY_PCT_B_MIN,
+            "dip_buy_max":        M4_WALK_DIP_BUY_PCT_B_MAX,
+        },
     }
 
     return StrategyResult(

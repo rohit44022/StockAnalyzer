@@ -78,6 +78,32 @@
             transform: translateY(-4px);
             box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
         .strat-hero > * { position: relative; z-index: 1; }
+
+        /* ── Collapsible toggle for strategy panels ── */
+        .strat-toggle {
+            display: block;
+            cursor: pointer;
+            user-select: none;
+            margin: -0.4rem -0.4rem 0 -0.4rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 10px;
+            position: relative;
+            transition: background 0.15s ease; }
+        .strat-toggle:hover { background: rgba(255,255,255,0.04); }
+        .strat-chevron {
+            position: absolute;
+            top: 50%; right: 0.8rem;
+            transform: translateY(-50%);
+            font-size: 1.4rem;
+            color: var(--bs-secondary-color);
+            transition: transform 0.25s ease;
+            pointer-events: none; }
+        .strat-toggle.collapsed .strat-chevron {
+            transform: translateY(-50%) rotate(-90deg); }
+        .strat-toggle.collapsed { margin-bottom: 0; }
+        .strat-toggle:not(.collapsed) { margin-bottom: 0.6rem; }
+        /* Hint that the whole panel is interactive when collapsed */
+        .strat-hero:has(.strat-toggle.collapsed) { padding-top: 1.1rem; padding-bottom: 1.1rem; }
         .strat-hero::before {
             content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             border-radius: 14px; opacity: 0.06;
@@ -629,18 +655,24 @@
             <!-- ════ METHOD II — TREND FOLLOWING (RANK #1 — Best Accuracy) ════ -->
             <div class="col-12">
                 <div class="strat-hero strat-m2">
-                    <div class="d-flex align-items-center gap-3 mb-2">
-                        <div class="strat-icon"><i class="bi bi-arrow-up-right-circle-fill"></i></div>
-                        <div class="strat-rating strat-rating-1 mb-0">
-                            <span class="strat-rating-rank">#1</span>
-                            <span class="strat-rating-stars">★★★★★</span>
-                            <span>Best Accuracy — 63.4% SELL accuracy, strongest trend confirmation with %b + MFI dual validation</span>
+                    <div class="strat-toggle collapsed" role="button" tabindex="0"
+                         data-bs-toggle="collapse" data-bs-target="#stratBodyM2"
+                         aria-expanded="false" aria-controls="stratBodyM2">
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <div class="strat-icon"><i class="bi bi-arrow-up-right-circle-fill"></i></div>
+                            <div class="strat-rating strat-rating-1 mb-0">
+                                <span class="strat-rating-rank">#1</span>
+                                <span class="strat-rating-stars">★★★★★</span>
+                                <span>Best Accuracy — 63.4% SELL accuracy, strongest trend confirmation with %b + MFI dual validation</span>
+                            </div>
                         </div>
+                        <div class="d-flex align-items-center gap-2 mb-0" style="padding-right:2rem">
+                            <span class="strat-method-tag">Method II · Chapter 16</span>
+                            <div class="strat-title mb-0">Trend Following — %b + MFI Confirmation</div>
+                        </div>
+                        <i class="bi bi-chevron-down strat-chevron"></i>
                     </div>
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="strat-method-tag">Method II · Chapter 16</span>
-                        <div class="strat-title mb-0">Trend Following — %b + MFI Confirmation</div>
-                    </div>
+                    <div class="collapse" id="stratBodyM2">
 
                     <div class="strat-desc">
                         Bollinger's <em>"trust but verify"</em> approach. <strong class="sig-buy">%b</strong> tells you
@@ -720,24 +752,31 @@
                         <button type="button" class="strat-scan-btn btn-top5-sell" onclick="event.stopPropagation(); runTopPicks('M2','SELL')" title="Deep-analyze ALL scanned stocks and pick the best 5 to SELL/SHORT"><i class="bi bi-trophy-fill"></i> Top 5 SELL</button>
                     </div>
                     <div class="book-ref"><i class="bi bi-bookmark-fill"></i> Bollinger on Bollinger Bands — Ch. 16 "Method II: Trend Following" · %b formula on p. 51</div>
+                    </div><!-- /#stratBodyM2 -->
                 </div>
             </div>
 
             <!-- ════ METHOD I — SQUEEZE (RANK #2 — Most Signals) ════ -->
             <div class="col-12">
                 <div class="strat-hero strat-m1">
-                    <div class="d-flex align-items-center gap-3 mb-2">
-                        <div class="strat-icon"><i class="bi bi-bullseye"></i></div>
-                        <div class="strat-rating strat-rating-2 mb-0">
-                            <span class="strat-rating-rank">#2</span>
-                            <span class="strat-rating-stars">★★★★☆</span>
-                            <span>Most Signals — 57.5% SELL accuracy, generates the most signals (2,600+ in backtest), cornerstone of the system</span>
+                    <div class="strat-toggle collapsed" role="button" tabindex="0"
+                         data-bs-toggle="collapse" data-bs-target="#stratBodyM1"
+                         aria-expanded="false" aria-controls="stratBodyM1">
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <div class="strat-icon"><i class="bi bi-bullseye"></i></div>
+                            <div class="strat-rating strat-rating-2 mb-0">
+                                <span class="strat-rating-rank">#2</span>
+                                <span class="strat-rating-stars">★★★★☆</span>
+                                <span>Most Signals — 57.5% SELL accuracy, generates the most signals (2,600+ in backtest), cornerstone of the system</span>
+                            </div>
                         </div>
+                        <div class="d-flex align-items-center gap-2 mb-0" style="padding-right:2rem">
+                            <span class="strat-method-tag">Method I · Chapters 15–16</span>
+                            <div class="strat-title mb-0">Volatility Breakout — The Squeeze</div>
+                        </div>
+                        <i class="bi bi-chevron-down strat-chevron"></i>
                     </div>
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="strat-method-tag">Method I · Chapters 15–16</span>
-                        <div class="strat-title mb-0">Volatility Breakout — The Squeeze</div>
-                    </div>
+                    <div class="collapse" id="stratBodyM1">
 
                     <div class="strat-desc">
                         The <strong>squeeze play</strong> is the cornerstone of Bollinger's system. When Bollinger Bands narrow
@@ -811,24 +850,31 @@
                         <button type="button" class="strat-scan-btn btn-top5-sell" onclick="event.stopPropagation(); runTopPicks('M1','SELL')" title="Deep-analyze ALL scanned stocks and pick the best 5 to SELL/SHORT"><i class="bi bi-trophy-fill"></i> Top 5 SELL</button>
                     </div>
                     <div class="book-ref"><i class="bi bi-bookmark-fill"></i> Bollinger on Bollinger Bands — Ch. 15 "The Squeeze" &amp; Ch. 16 "Method I: Volatility Breakout"</div>
+                    </div><!-- /#stratBodyM1 -->
                 </div>
             </div>
 
             <!-- ════ METHOD III — REVERSALS ════ -->
             <div class="col-12">
                 <div class="strat-hero strat-m3">
-                    <div class="d-flex align-items-center gap-3 mb-2">
-                        <div class="strat-icon"><i class="bi bi-arrow-repeat"></i></div>
-                        <div class="strat-rating strat-rating-3 mb-0">
-                            <span class="strat-rating-rank">#3</span>
-                            <span class="strat-rating-stars">★★★☆☆</span>
-                            <span>High Precision, Rare — 75% confidence when found, detects W-Bottoms &amp; M-Tops but strict pattern rules mean fewer signals</span>
+                    <div class="strat-toggle collapsed" role="button" tabindex="0"
+                         data-bs-toggle="collapse" data-bs-target="#stratBodyM3"
+                         aria-expanded="false" aria-controls="stratBodyM3">
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <div class="strat-icon"><i class="bi bi-arrow-repeat"></i></div>
+                            <div class="strat-rating strat-rating-3 mb-0">
+                                <span class="strat-rating-rank">#3</span>
+                                <span class="strat-rating-stars">★★★☆☆</span>
+                                <span>High Precision, Rare — 75% confidence when found, detects W-Bottoms &amp; M-Tops but strict pattern rules mean fewer signals</span>
+                            </div>
                         </div>
+                        <div class="d-flex align-items-center gap-2 mb-0" style="padding-right:2rem">
+                            <span class="strat-method-tag">Method III · Chapter 17</span>
+                            <div class="strat-title mb-0">Reversals — W-Bottoms &amp; M-Tops</div>
+                        </div>
+                        <i class="bi bi-chevron-down strat-chevron"></i>
                     </div>
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="strat-method-tag">Method III · Chapter 17</span>
-                        <div class="strat-title mb-0">Reversals — W-Bottoms &amp; M-Tops</div>
-                    </div>
+                    <div class="collapse" id="stratBodyM3">
 
                     <div class="strat-desc">
                         The most powerful <em>pattern-based</em> strategy in Bollinger's toolbox. Built on Arthur Merrill's research
@@ -917,24 +963,31 @@
                         <button type="button" class="strat-scan-btn btn-top5-sell" onclick="event.stopPropagation(); runTopPicks('M3','SELL')" title="Deep-analyze ALL scanned stocks and pick the best 5 to SELL/SHORT"><i class="bi bi-trophy-fill"></i> Top 5 SELL</button>
                     </div>
                     <div class="book-ref"><i class="bi bi-bookmark-fill"></i> Bollinger on Bollinger Bands — Ch. 17 "Method III: Reversals" · Arthur Merrill's 16 W variations · %b divergence analysis</div>
+                    </div><!-- /#stratBodyM3 -->
                 </div>
             </div>
 
             <!-- ════ METHOD IV — WALKING THE BANDS ════ -->
             <div class="col-12">
                 <div class="strat-hero strat-m4">
-                    <div class="d-flex align-items-center gap-3 mb-2">
-                        <div class="strat-icon"><i class="bi bi-signpost-split-fill"></i></div>
-                        <div class="strat-rating strat-rating-4 mb-0">
-                            <span class="strat-rating-rank">#4</span>
-                            <span class="strat-rating-stars">★★☆☆☆</span>
-                            <span>Trend Management — Best used as a holding tool after entry, confirms existing trends rather than generating new entries</span>
+                    <div class="strat-toggle collapsed" role="button" tabindex="0"
+                         data-bs-toggle="collapse" data-bs-target="#stratBodyM4"
+                         aria-expanded="false" aria-controls="stratBodyM4">
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <div class="strat-icon"><i class="bi bi-signpost-split-fill"></i></div>
+                            <div class="strat-rating strat-rating-4 mb-0">
+                                <span class="strat-rating-rank">#4</span>
+                                <span class="strat-rating-stars">★★☆☆☆</span>
+                                <span>Trend Management — Best used as a holding tool after entry, confirms existing trends rather than generating new entries</span>
+                            </div>
                         </div>
+                        <div class="d-flex align-items-center gap-2 mb-0" style="padding-right:2rem">
+                            <span class="strat-method-tag">Method IV · Chapter 18</span>
+                            <div class="strat-title mb-0">Walking the Bands — Trend Confirmation</div>
+                        </div>
+                        <i class="bi bi-chevron-down strat-chevron"></i>
                     </div>
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="strat-method-tag">Method IV · Chapter 18</span>
-                        <div class="strat-title mb-0">Walking the Bands — Trend Confirmation</div>
-                    </div>
+                    <div class="collapse" id="stratBodyM4">
 
                     <div class="strat-desc">
                         This is the strategy that separates amateurs from professionals. Most traders see price hitting
@@ -1024,6 +1077,7 @@
                         <button type="button" class="strat-scan-btn btn-top5-sell" onclick="event.stopPropagation(); runTopPicks('M4','SELL')" title="Deep-analyze ALL scanned stocks and pick the best 5 to SELL/SHORT"><i class="bi bi-trophy-fill"></i> Top 5 SELL</button>
                     </div>
                     <div class="book-ref"><i class="bi bi-bookmark-fill"></i> Bollinger on Bollinger Bands — Ch. 18 "Method IV: Walking the Bands" · "Tags are NOT signals" · Trend confirmation technique</div>
+                    </div><!-- /#stratBodyM4 -->
                 </div>
             </div>
         </div>

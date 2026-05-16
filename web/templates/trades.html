@@ -338,6 +338,167 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   </div>
 </div>
 
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!--  TRADE ANALYTICS — 6 dimensions of P&L                            -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="mb-2 d-flex align-items-center">
+  <h4 class="mb-0" style="font-weight:700">
+    <i class="bi bi-pie-chart-fill me-2 text-info"></i>Trade Analytics
+  </h4>
+  <span class="ms-2 small text-secondary">Six views of your P&amp;L across different dimensions</span>
+</div>
+<div id="analyticsEmpty" class="text-secondary small mb-3" style="display:none">
+  Add closed trades to populate the analytics charts.
+</div>
+
+<!-- 1. KPI TILES -->
+<div class="row g-2 mb-3" id="kpiRow" style="display:none">
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card h-100"><div class="card-body p-2 text-center">
+      <div class="small text-secondary text-uppercase" style="letter-spacing:.5px">Trades</div>
+      <div class="fs-5 fw-bold font-mono" id="kpiTrades">0</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card h-100"><div class="card-body p-2 text-center">
+      <div class="small text-secondary text-uppercase" style="letter-spacing:.5px">Win Rate</div>
+      <div class="fs-5 fw-bold font-mono" id="kpiWinRate">0%</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card h-100"><div class="card-body p-2 text-center">
+      <div class="small text-secondary text-uppercase" style="letter-spacing:.5px">Avg Win</div>
+      <div class="fs-5 fw-bold font-mono text-green" id="kpiAvgWin">₹0</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card h-100"><div class="card-body p-2 text-center">
+      <div class="small text-secondary text-uppercase" style="letter-spacing:.5px">Avg Loss</div>
+      <div class="fs-5 fw-bold font-mono text-red" id="kpiAvgLoss">₹0</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card h-100"><div class="card-body p-2 text-center">
+      <div class="small text-secondary text-uppercase" style="letter-spacing:.5px" title="Sum of wins ÷ |sum of losses|. >1 = profitable.">Profit Factor</div>
+      <div class="fs-5 fw-bold font-mono" id="kpiProfitFactor">—</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card h-100"><div class="card-body p-2 text-center">
+      <div class="small text-secondary text-uppercase" style="letter-spacing:.5px" title="(WinRate × AvgWin) − ((1−WinRate) × |AvgLoss|)">Expectancy</div>
+      <div class="fs-5 fw-bold font-mono" id="kpiExpectancy">₹0</div>
+    </div></div>
+  </div>
+</div>
+
+<!-- 2. EQUITY CURVE -->
+<div class="row g-3 mb-3" id="analyticsRow1" style="display:none">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex align-items-center">
+        <i class="bi bi-graph-up-arrow me-2"></i>
+        <span>Equity Curve (cumulative net P&L with drawdown shading)</span>
+        <span class="ms-auto small text-secondary" id="equityMeta"></span>
+      </div>
+      <div class="card-body" style="height:320px">
+        <canvas id="equityChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. EQUITY vs NIFTY OVERLAY -->
+<div class="row g-3 mb-3" id="analyticsRow1b" style="display:none">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex align-items-center">
+        <i class="bi bi-bar-chart-fill me-2"></i>
+        <span>Equity vs Nifty 50 (both normalized to % from window start)</span>
+        <span class="ms-auto small text-secondary" id="niftyMeta"></span>
+      </div>
+      <div class="card-body" style="height:320px">
+        <canvas id="niftyOverlayChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3 + 4: STRATEGY DOUGHNUT + HOLDING-PERIOD BARS -->
+<div class="row g-3 mb-3" id="analyticsRow2" style="display:none">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-diagram-3 me-2"></i>P&L by Strategy</div>
+      <div class="card-body" style="height:300px">
+        <canvas id="strategyChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-clock-history me-2"></i>P&L by Holding Period</div>
+      <div class="card-body" style="height:300px">
+        <canvas id="holdingChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 5 + 6: TOP WINNERS/LOSERS + RETURN DISTRIBUTION -->
+<div class="row g-3 mb-3" id="analyticsRow3" style="display:none">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-trophy me-2"></i>Top Winners &amp; Losers (by net P&L)</div>
+      <div class="card-body" style="height:320px">
+        <canvas id="topTradesChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-bar-chart-steps me-2"></i>Trade-Return Distribution (%)</div>
+      <div class="card-body" style="height:320px">
+        <canvas id="returnDistChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 8. CALENDAR HEATMAP (full width) -->
+<div class="row g-3 mb-3" id="analyticsRow4" style="display:none">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex align-items-center">
+        <i class="bi bi-calendar3 me-2"></i>
+        <span>P&L Calendar — green/red intensity by daily net P&L</span>
+        <span class="ms-auto small text-secondary" id="heatmapMeta"></span>
+      </div>
+      <div class="card-body">
+        <div id="heatmapContainer" style="overflow-x:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 9 + 10. CHARGES BREAKDOWN + WIN/LOSS HOLDING -->
+<div class="row g-3 mb-4" id="analyticsRow5" style="display:none">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-receipt-cutoff me-2"></i>Charges Breakdown (total across all trades)</div>
+      <div class="card-body" style="height:320px">
+        <canvas id="chargesChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-stopwatch me-2"></i>Avg Holding Period — Winners vs Losers</div>
+      <div class="card-body" style="height:320px">
+        <canvas id="holdingWinLossChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /container -->
 
 <!-- ═══════ DETAIL MODAL ═══════ -->
@@ -500,13 +661,24 @@ function updatePreview(){
 /* ═══════════════════════════════════════════════════════════════
    LOAD TRADES
    ═══════════════════════════════════════════════════════════════ */
+// Chart instances kept module-level so they can be destroyed before re-render.
+let equityChartInstance = null;
+let strategyChartInstance = null;
+let holdingChartInstance = null;
+let topTradesChartInstance = null;
+let returnDistChartInstance = null;
+let niftyOverlayChartInstance = null;
+let chargesChartInstance = null;
+let holdingWinLossChartInstance = null;
+
 async function loadTrades(){
     try{
         TRADES = await(await fetch('/api/trades')).json(); }catch(e){TRADES=[];}
     renderTable();
     renderSummary();
     await renderFYSummary();
-    renderMonthlyChart(); }
+    renderMonthlyChart();
+    renderAnalytics(); }
 
 /* ═══════════════════════════════════════════════════════════════
    ADD TRADE
@@ -979,6 +1151,642 @@ function renderMonthlyChart(){
             scales:{
                 x:{ticks:{color:'#8b949e'},grid:{color:'rgba(48,54,61,0.4)'}},
                 y:{ticks:{color:'#8b949e',callback:v=>v>=1e5?'₹'+(v/1e5).toFixed(1)+'L':v>=1e3?'₹'+(v/1e3).toFixed(0)+'K':'₹'+v},grid:{color:'rgba(48,54,61,0.4)'}}, } } }); }
+
+// ═══════════════════════════════════════════════════════════════
+//  TRADE ANALYTICS  —  six dimensions of P&L
+//  Every aggregation is pure client-side from the existing TRADES
+//  array (loaded by /api/trades). No new endpoint, no schema change.
+// ═══════════════════════════════════════════════════════════════
+
+const _AXIS_FMT_R = v => v >= 1e5 ? '₹' + (v/1e5).toFixed(1) + 'L'
+                       : v >= 1e3 ? '₹' + (v/1e3).toFixed(0) + 'K'
+                       : '₹' + v;
+const _AXIS_FMT_R_SIGNED = v => (v < 0 ? '-' : '') + _AXIS_FMT_R(Math.abs(v));
+
+// Strategy code is embedded in the notes field for trades that were
+// auto-closed from the portfolio. Format: "Auto-closed from portfolio (#X) — MX — ..."
+function _strategyOf(t) {
+    const m = (t.notes || '').match(/—\s*(M[1-4])\s*—/);
+    return m ? m[1] : 'Manual';
+}
+
+function _daysHeld(t) {
+    if (!t.buy_date || !t.sell_date) return 0;
+    const a = new Date(t.buy_date), b = new Date(t.sell_date);
+    return Math.max(0, Math.round((b - a) / 86400000));
+}
+
+function renderAnalytics() {
+    const have = (TRADES || []).length > 0;
+    document.getElementById('analyticsEmpty').style.display = have ? 'none' : 'block';
+    ['kpiRow','analyticsRow1','analyticsRow1b','analyticsRow2','analyticsRow3','analyticsRow4','analyticsRow5']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = have ? '' : 'none'; });
+    if (!have) {
+        [equityChartInstance, strategyChartInstance, holdingChartInstance,
+         topTradesChartInstance, returnDistChartInstance, niftyOverlayChartInstance,
+         chargesChartInstance, holdingWinLossChartInstance].forEach(c => { if (c) c.destroy(); });
+        equityChartInstance = strategyChartInstance = holdingChartInstance =
+            topTradesChartInstance = returnDistChartInstance = niftyOverlayChartInstance =
+            chargesChartInstance = holdingWinLossChartInstance = null;
+        const hc = document.getElementById('heatmapContainer'); if (hc) hc.innerHTML = '';
+        return;
+    }
+    renderKPIs();
+    renderEquityCurve();
+    renderNiftyOverlay();
+    renderStrategyChart();
+    renderHoldingChart();
+    renderTopTradesChart();
+    renderReturnDistChart();
+    renderCalendarHeatmap();
+    renderChargesChart();
+    renderHoldingWinLossChart();
+}
+
+// ── 1. KPI TILES ────────────────────────────────────────────────
+function renderKPIs() {
+    const pnls = TRADES.map(t => t.pnl.net_pnl);
+    const wins = pnls.filter(v => v > 0);
+    const losses = pnls.filter(v => v < 0);
+    const n = pnls.length;
+    const winRate = n ? wins.length / n : 0;
+    const avgWin  = wins.length ? wins.reduce((a, b) => a + b, 0) / wins.length : 0;
+    const avgLoss = losses.length ? losses.reduce((a, b) => a + b, 0) / losses.length : 0;
+    const sumWin  = wins.reduce((a, b) => a + b, 0);
+    const sumLoss = Math.abs(losses.reduce((a, b) => a + b, 0));
+    const pf = sumLoss > 0 ? (sumWin / sumLoss) : (sumWin > 0 ? Infinity : 0);
+    const expectancy = winRate * avgWin - (1 - winRate) * Math.abs(avgLoss);
+
+    document.getElementById('kpiTrades').textContent       = n;
+    const wrEl = document.getElementById('kpiWinRate');
+    wrEl.textContent = (winRate * 100).toFixed(1) + '%';
+    wrEl.className = 'fs-5 fw-bold font-mono ' + (winRate >= 0.5 ? 'text-green' : 'text-red');
+    document.getElementById('kpiAvgWin').textContent       = fmtR(avgWin);
+    document.getElementById('kpiAvgLoss').textContent      = fmtR(avgLoss);
+    const pfEl = document.getElementById('kpiProfitFactor');
+    pfEl.textContent = isFinite(pf) ? pf.toFixed(2) : '∞';
+    pfEl.className = 'fs-5 fw-bold font-mono ' + (pf > 1 ? 'text-green' : 'text-red');
+    const eEl = document.getElementById('kpiExpectancy');
+    eEl.textContent = fmtR(expectancy);
+    eEl.className = 'fs-5 fw-bold font-mono ' + pnlCls(expectancy);
+}
+
+// ── 2. EQUITY CURVE (cumulative net P&L + drawdown shading) ─────
+function renderEquityCurve() {
+    const ctx = document.getElementById('equityChart');
+    if (equityChartInstance) equityChartInstance.destroy();
+
+    // Sort trades by sell_date ascending; compute running sum
+    const sorted = [...TRADES].filter(t => t.sell_date).sort((a, b) => a.sell_date.localeCompare(b.sell_date));
+    let cum = 0, peak = 0, maxDD = 0;
+    const labels = [], equity = [], drawdown = [];
+    sorted.forEach(t => {
+        cum += t.pnl.net_pnl;
+        peak = Math.max(peak, cum);
+        const dd = cum - peak;       // ≤ 0 ; in rupees
+        maxDD = Math.min(maxDD, dd);
+        labels.push(t.sell_date);
+        equity.push(Math.round(cum));
+        drawdown.push(Math.round(dd));
+    });
+
+    const meta = document.getElementById('equityMeta');
+    meta.innerHTML = `Final: <strong class="${pnlCls(cum)}">${fmtR(cum)}</strong>` +
+                     `&nbsp;·&nbsp; Peak: <strong>${fmtR(peak)}</strong>` +
+                     `&nbsp;·&nbsp; Max DD: <strong class="text-red">${fmtR(maxDD)}</strong>`;
+
+    equityChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label:'Cumulative Net P&L', data: equity,
+                  borderColor:'#58a6ff', backgroundColor:'rgba(88,166,255,.10)',
+                  tension:.25, fill:true, pointRadius:3, pointHoverRadius:5 },
+                { label:'Drawdown from Peak', data: drawdown,
+                  borderColor:'#f85149', backgroundColor:'rgba(248,81,73,.15)',
+                  tension:.25, fill:true, pointRadius:0, yAxisID:'y2' }
+            ]
+        },
+        options: {
+            responsive:true, maintainAspectRatio:false,
+            interaction:{ mode:'index', intersect:false },
+            plugins:{ legend:{ labels:{ color:'#8b949e' }},
+                      tooltip:{ callbacks:{ label:(c)=>c.dataset.label+': '+fmtR(c.parsed.y) }}},
+            scales:{
+                x:{ ticks:{ color:'#8b949e', maxTicksLimit:10 }, grid:{ color:'rgba(48,54,61,.4)' }},
+                y:{ position:'left',  ticks:{ color:'#8b949e', callback:_AXIS_FMT_R_SIGNED }, grid:{ color:'rgba(48,54,61,.4)' }},
+                y2:{ position:'right', ticks:{ color:'#f85149', callback:_AXIS_FMT_R_SIGNED }, grid:{ drawOnChartArea:false }}
+            }
+        }
+    });
+}
+
+// ── 3. P&L BY STRATEGY (doughnut) ───────────────────────────────
+function renderStrategyChart() {
+    const ctx = document.getElementById('strategyChart');
+    if (strategyChartInstance) strategyChartInstance.destroy();
+
+    const groups = {};
+    TRADES.forEach(t => {
+        const s = _strategyOf(t);
+        if (!groups[s]) groups[s] = { gross:0, net:0, count:0 };
+        groups[s].gross += t.pnl.gross_pnl;
+        groups[s].net   += t.pnl.net_pnl;
+        groups[s].count += 1;
+    });
+    const order = ['M1','M2','M3','M4','Manual'];
+    const labels = order.filter(k => groups[k]);
+    const data = labels.map(k => Math.round(groups[k].net));
+    const counts = labels.map(k => groups[k].count);
+    const colors = { M1:'#58a6ff', M2:'#3fb950', M3:'#bc8cff', M4:'#f0883e', Manual:'#8b949e' };
+
+    strategyChartInstance = new Chart(ctx, {
+        type:'doughnut',
+        data:{
+            labels: labels.map((k,i) => `${k} · ${counts[i]} trade${counts[i]===1?'':'s'} · ${fmtR(data[i])}`),
+            datasets:[{
+                data: data.map(Math.abs),     // doughnut needs positives
+                backgroundColor: labels.map(k => colors[k] || '#8b949e'),
+                borderColor:'#0d1117', borderWidth:2
+            }]
+        },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{
+                legend:{ position:'right', labels:{ color:'#8b949e', font:{size:11}, boxWidth:14 }},
+                tooltip:{ callbacks:{
+                    label:(c)=>{
+                        const k = labels[c.dataIndex];
+                        const g = groups[k];
+                        return [`${k}: ${fmtR(g.net)} net (${g.count} trade${g.count===1?'':'s'})`,
+                                `Gross: ${fmtR(g.gross)} · Charges: ${fmtR(g.gross - g.net)}`];
+                    }
+                }}
+            }
+        }
+    });
+}
+
+// ── 4. P&L BY HOLDING PERIOD (grouped bar) ──────────────────────
+function renderHoldingChart() {
+    const ctx = document.getElementById('holdingChart');
+    if (holdingChartInstance) holdingChartInstance.destroy();
+
+    const buckets = {
+        '0–7 d':   { profit:0, loss:0, count:0 },
+        '8–30 d':  { profit:0, loss:0, count:0 },
+        '31–90 d': { profit:0, loss:0, count:0 },
+        '> 90 d':  { profit:0, loss:0, count:0 },
+    };
+    TRADES.forEach(t => {
+        const d = _daysHeld(t);
+        const key = d <= 7 ? '0–7 d'
+                  : d <= 30 ? '8–30 d'
+                  : d <= 90 ? '31–90 d'
+                  : '> 90 d';
+        const net = t.pnl.net_pnl;
+        if (net >= 0) buckets[key].profit += net;
+        else          buckets[key].loss   += net;
+        buckets[key].count += 1;
+    });
+    const labels = Object.keys(buckets);
+    const profits = labels.map(k => Math.round(buckets[k].profit));
+    const losses  = labels.map(k => Math.round(buckets[k].loss));
+    const counts  = labels.map(k => buckets[k].count);
+
+    holdingChartInstance = new Chart(ctx, {
+        type:'bar',
+        data:{
+            labels: labels.map((k, i) => `${k}  (${counts[i]})`),
+            datasets:[
+                { label:'Profit', data:profits, backgroundColor:'rgba(63,185,80,.7)',  borderRadius:4 },
+                { label:'Loss',   data:losses,  backgroundColor:'rgba(248,81,73,.7)', borderRadius:4 },
+            ]
+        },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{ labels:{ color:'#8b949e' }},
+                      tooltip:{ callbacks:{ label:(c)=>c.dataset.label+': '+fmtR(c.parsed.y) }}},
+            scales:{
+                x:{ ticks:{ color:'#8b949e' }, grid:{ color:'rgba(48,54,61,.4)' }},
+                y:{ ticks:{ color:'#8b949e', callback:_AXIS_FMT_R_SIGNED }, grid:{ color:'rgba(48,54,61,.4)' }}
+            }
+        }
+    });
+}
+
+// ── 5. TOP WINNERS / LOSERS (horizontal bar) ────────────────────
+function renderTopTradesChart() {
+    const ctx = document.getElementById('topTradesChart');
+    if (topTradesChartInstance) topTradesChartInstance.destroy();
+
+    const sorted = [...TRADES].sort((a, b) => b.pnl.net_pnl - a.pnl.net_pnl);
+    const topN = Math.min(5, sorted.length);
+    const winners = sorted.slice(0, topN);
+    const losers  = sorted.slice(-topN).reverse();
+
+    // Combine: winners on top, separator, losers on bottom
+    const combined = [];
+    winners.forEach(t => combined.push(t));
+    if (sorted.length > topN * 2) {
+        // Avoid showing the same trade twice when the list is small
+        const winnerIds = new Set(winners.map(t => t.id));
+        losers.filter(t => !winnerIds.has(t.id)).forEach(t => combined.push(t));
+    } else if (sorted.length > topN) {
+        // Add the actual losers (excluding any already in winners)
+        const winnerIds = new Set(winners.map(t => t.id));
+        sorted.filter(t => !winnerIds.has(t.id) && t.pnl.net_pnl < 0).slice(-topN).forEach(t => combined.push(t));
+    }
+
+    const labels = combined.map(t => `${t.stock} · ${t.sell_date}`);
+    const values = combined.map(t => Math.round(t.pnl.net_pnl));
+    const colors = values.map(v => v >= 0 ? 'rgba(63,185,80,.75)' : 'rgba(248,81,73,.75)');
+
+    topTradesChartInstance = new Chart(ctx, {
+        type:'bar',
+        data:{ labels, datasets:[{ label:'Net P&L', data: values, backgroundColor: colors, borderRadius:4 }] },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            indexAxis:'y',
+            plugins:{ legend:{ display:false },
+                      tooltip:{ callbacks:{ label:(c)=>'Net P&L: '+fmtR(c.parsed.x) }}},
+            scales:{
+                x:{ ticks:{ color:'#8b949e', callback:_AXIS_FMT_R_SIGNED }, grid:{ color:'rgba(48,54,61,.4)' }},
+                y:{ ticks:{ color:'#8b949e' }, grid:{ display:false }}
+            }
+        }
+    });
+}
+
+// ── 6. TRADE-RETURN DISTRIBUTION (histogram) ────────────────────
+function renderReturnDistChart() {
+    const ctx = document.getElementById('returnDistChart');
+    if (returnDistChartInstance) returnDistChartInstance.destroy();
+
+    // Compute pct return per trade: (sell - buy) / buy * 100
+    const returns = TRADES.map(t => {
+        if (!t.buy_price || t.buy_price <= 0) return null;
+        return (t.sell_price - t.buy_price) / t.buy_price * 100;
+    }).filter(v => v !== null && isFinite(v));
+
+    // Fixed buckets covering typical equity-trade range
+    const bins = [
+        { lo: -Infinity, hi: -20, label: '< -20%',  color: 'rgba(248,81,73,.95)' },
+        { lo: -20,       hi: -10, label: '-20…-10%', color: 'rgba(248,81,73,.75)' },
+        { lo: -10,       hi: -5,  label: '-10…-5%',  color: 'rgba(248,81,73,.55)' },
+        { lo: -5,        hi: 0,   label: '-5…0%',    color: 'rgba(248,81,73,.35)' },
+        { lo: 0,         hi: 5,   label: '0…+5%',    color: 'rgba(63,185,80,.35)' },
+        { lo: 5,         hi: 10,  label: '+5…+10%',  color: 'rgba(63,185,80,.55)' },
+        { lo: 10,        hi: 20,  label: '+10…+20%', color: 'rgba(63,185,80,.75)' },
+        { lo: 20,        hi: Infinity, label: '> +20%', color: 'rgba(63,185,80,.95)' },
+    ];
+    const counts = bins.map(b => returns.filter(r => r >= b.lo && r < b.hi).length);
+
+    returnDistChartInstance = new Chart(ctx, {
+        type:'bar',
+        data:{
+            labels: bins.map(b => b.label),
+            datasets:[{ label:'Trades', data: counts, backgroundColor: bins.map(b => b.color), borderRadius:4 }]
+        },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{ display:false },
+                      tooltip:{ callbacks:{ label:(c)=>c.parsed.y+' trade(s)' }}},
+            scales:{
+                x:{ ticks:{ color:'#8b949e' }, grid:{ color:'rgba(48,54,61,.4)' }},
+                y:{ ticks:{ color:'#8b949e', stepSize:1, precision:0 }, grid:{ color:'rgba(48,54,61,.4)' },
+                    title:{ display:true, text:'Number of trades', color:'#8b949e' }}
+            }
+        }
+    });
+}
+
+// ── 7. EQUITY vs NIFTY OVERLAY (line, % from window start) ──────
+async function renderNiftyOverlay() {
+    const ctx = document.getElementById('niftyOverlayChart');
+    if (niftyOverlayChartInstance) niftyOverlayChartInstance.destroy();
+
+    const sorted = [...TRADES].filter(t => t.sell_date).sort((a, b) => a.sell_date.localeCompare(b.sell_date));
+    if (sorted.length === 0) return;
+
+    const start = sorted[0].sell_date;
+    const end   = sorted[sorted.length - 1].sell_date;
+
+    // Build equity series (cumulative net P&L) and normalize as %
+    // relative to the user's "invested base" — defined here as the
+    // total turnover (sum of buy values) at the start, which is the
+    // most defensible denominator. Each trade contributes pnl to the
+    // running total, then we express it as a % of total turnover.
+    let cum = 0;
+    const eqByDate = {};
+    let totalBuyValue = 0;
+    sorted.forEach(t => {
+        totalBuyValue += (t.pnl && t.pnl.buy_value) || (t.buy_price * t.quantity) || 0;
+    });
+    const base = totalBuyValue > 0 ? totalBuyValue : 1;
+    sorted.forEach(t => {
+        cum += t.pnl.net_pnl;
+        eqByDate[t.sell_date] = cum / base * 100;
+    });
+
+    let nifty = { dates: [], closes: [] };
+    try {
+        const r = await fetch(`/api/nifty/series?start=${start}&end=${end}`);
+        if (r.ok) nifty = await r.json();
+    } catch (e) { /* ignore — chart falls back to equity-only */ }
+
+    // Master date axis = union of equity dates and Nifty dates
+    const allDatesSet = new Set([...Object.keys(eqByDate), ...nifty.dates]);
+    const labels = [...allDatesSet].sort();
+
+    // Forward-fill equity for in-between days (no trade = no P&L change)
+    let last = 0; const equityPct = [];
+    labels.forEach(d => {
+        if (d in eqByDate) last = eqByDate[d];
+        equityPct.push(Number(last.toFixed(3)));
+    });
+
+    // Build Nifty %-from-start series aligned to labels (forward-fill)
+    const niftyByDate = {}; nifty.dates.forEach((d, i) => niftyByDate[d] = nifty.closes[i]);
+    const firstNifty = nifty.closes.length ? nifty.closes[0] : null;
+    let lastNifty = firstNifty;
+    const niftyPct = labels.map(d => {
+        if (d in niftyByDate) lastNifty = niftyByDate[d];
+        if (!firstNifty || lastNifty === null) return null;
+        return Number(((lastNifty - firstNifty) / firstNifty * 100).toFixed(3));
+    });
+
+    const lastEq = equityPct[equityPct.length - 1] || 0;
+    const lastNf = niftyPct.filter(v => v !== null).pop() || 0;
+    const diff = lastEq - lastNf;
+    const diffClr = diff >= 0 ? 'text-green' : 'text-red';
+    document.getElementById('niftyMeta').innerHTML =
+        `You: <strong class="${lastEq >= 0 ? 'text-green':'text-red'}">${lastEq.toFixed(2)}%</strong>` +
+        ` &nbsp;·&nbsp; Nifty: <strong class="${lastNf >= 0 ? 'text-green':'text-red'}">${lastNf.toFixed(2)}%</strong>` +
+        ` &nbsp;·&nbsp; Alpha: <strong class="${diffClr}">${(diff >= 0 ? '+' : '') + diff.toFixed(2)}%</strong>`;
+
+    niftyOverlayChartInstance = new Chart(ctx, {
+        type:'line',
+        data:{ labels,
+            datasets:[
+                { label:'Your Equity (% of turnover)', data: equityPct,
+                  borderColor:'#58a6ff', backgroundColor:'rgba(88,166,255,.10)',
+                  tension:.25, fill:true, pointRadius:0, borderWidth:2 },
+                { label:'Nifty 50 (% from start)',     data: niftyPct,
+                  borderColor:'#bc8cff', backgroundColor:'transparent',
+                  tension:.25, fill:false, pointRadius:0, borderWidth:2, borderDash:[6,4] },
+            ] },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            interaction:{ mode:'index', intersect:false },
+            plugins:{ legend:{ labels:{ color:'#8b949e' }},
+                      tooltip:{ callbacks:{ label:(c)=> c.dataset.label + ': ' + (c.parsed.y!=null?c.parsed.y.toFixed(2):'—') + '%' }}},
+            scales:{
+                x:{ ticks:{ color:'#8b949e', maxTicksLimit:10 }, grid:{ color:'rgba(48,54,61,.4)' }},
+                y:{ ticks:{ color:'#8b949e', callback:v=>v.toFixed(1)+'%' }, grid:{ color:'rgba(48,54,61,.4)' }}
+            }
+        }
+    });
+}
+
+// ── 8. CALENDAR HEATMAP (custom HTML grid + instant tooltip) ────
+function renderCalendarHeatmap() {
+    const container = document.getElementById('heatmapContainer');
+    if (!container) return;
+
+    // Group trade P&L by sell date (and keep ticker list for tooltip)
+    const byDate = {};
+    const stocksByDate = {};
+    TRADES.forEach(t => {
+        if (!t.sell_date) return;
+        byDate[t.sell_date] = (byDate[t.sell_date] || 0) + t.pnl.net_pnl;
+        if (!stocksByDate[t.sell_date]) stocksByDate[t.sell_date] = [];
+        stocksByDate[t.sell_date].push(t.stock);
+    });
+    const dates = Object.keys(byDate).sort();
+    if (!dates.length) { container.innerHTML = '<span class="text-secondary small">No data</span>'; return; }
+
+    // Build month buckets from earliest trade month to today
+    const earliest = new Date(dates[0]);
+    const today    = new Date();
+    const months = [];
+    const cursor = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
+    const stop = new Date(today.getFullYear(), today.getMonth(), 1);
+    while (cursor <= stop) {
+        months.push({ y: cursor.getFullYear(), m: cursor.getMonth() });
+        cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    // Find max absolute net P&L for color scaling
+    const maxAbs = Math.max(...Object.values(byDate).map(Math.abs), 1);
+
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    // Cells are 18px now (was 14) — easier to hover on; 7-col layout per month.
+    let html = '<div style="position:relative;display:flex;gap:18px;flex-wrap:wrap;padding:6px 2px">';
+    months.forEach(({y, m}) => {
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+        // 1 = Monday … 7 = Sunday (matches ISO; JS getDay() is 0=Sun)
+        const firstWeekday = ((new Date(y, m, 1).getDay() + 6) % 7);
+
+        html += `<div style="flex:0 0 auto">
+            <div class="small text-secondary mb-1" style="text-align:center">${MONTH_NAMES[m]} ${y}</div>
+            <div style="display:grid;grid-template-columns:repeat(7,18px);grid-template-rows:repeat(6,18px);gap:3px">`;
+        for (let i = 0; i < firstWeekday; i++) html += `<div></div>`;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${y}-${String(m + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const pnl = byDate[dateStr];
+            let bg = 'rgba(255,255,255,.05)';
+            let cls = 'hm-cell';
+            let state = 'empty';
+            let pnlAttr = '';
+            let stocksAttr = '';
+            if (pnl !== undefined) {
+                const intensity = Math.min(Math.abs(pnl) / maxAbs, 1);
+                if (pnl > 0)      { bg = `rgba(63,185,80,${0.25 + intensity * 0.6})`;  state = 'win'; }
+                else if (pnl < 0) { bg = `rgba(248,81,73,${0.25 + intensity * 0.6})`; state = 'loss'; }
+                else              { bg = 'rgba(139,148,158,.25)';                     state = 'flat'; }
+                pnlAttr = ` data-pnl="${pnl}"`;
+                stocksAttr = ` data-stocks="${(stocksByDate[dateStr] || []).join(', ')}"`;
+            }
+            html += `<div class="${cls}" data-date="${dateStr}" data-state="${state}"${pnlAttr}${stocksAttr} style="background:${bg};border-radius:3px;cursor:pointer;transition:transform .1s ease,box-shadow .1s ease"></div>`;
+        }
+        html += `</div></div>`;
+    });
+    html += '</div>';
+
+    // Legend
+    html += `<div class="small text-secondary mt-2 d-flex align-items-center gap-2 flex-wrap">
+        Legend:
+        <span style="display:inline-block;width:14px;height:14px;background:rgba(248,81,73,.85);border-radius:2px"></span>large loss
+        <span style="display:inline-block;width:14px;height:14px;background:rgba(248,81,73,.35);border-radius:2px"></span>small loss
+        <span style="display:inline-block;width:14px;height:14px;background:rgba(255,255,255,.05);border-radius:2px;border:1px solid rgba(255,255,255,.1)"></span>no trade
+        <span style="display:inline-block;width:14px;height:14px;background:rgba(63,185,80,.35);border-radius:2px"></span>small gain
+        <span style="display:inline-block;width:14px;height:14px;background:rgba(63,185,80,.85);border-radius:2px"></span>large gain
+        <span class="ms-2">·</span>
+        <span>Hover any square for details</span>
+    </div>`;
+
+    // Shared tooltip element (one for the whole heatmap, follows the cursor)
+    html += `<div id="hmTooltip" style="
+        position:fixed;display:none;z-index:9999;pointer-events:none;
+        background:var(--card-bg,#161b22);color:var(--bs-body-color,#c9d1d9);
+        border:1px solid var(--card-border,rgba(255,255,255,.15));
+        border-radius:6px;padding:6px 10px;font-size:.78rem;line-height:1.4;
+        box-shadow:0 4px 16px rgba(0,0,0,.45);white-space:nowrap;
+        transition:opacity .08s ease"></div>`;
+
+    container.innerHTML = html;
+
+    // Wire up the tooltip + hover-zoom behaviour
+    const tooltip = document.getElementById('hmTooltip');
+    container.querySelectorAll('.hm-cell').forEach(cell => {
+        cell.addEventListener('mouseenter', (ev) => {
+            const date = cell.dataset.date;
+            const state = cell.dataset.state;
+            const pnl = cell.dataset.pnl;
+            const stocks = cell.dataset.stocks;
+            let body;
+            if (state === 'empty') {
+                body = `<div><strong>${date}</strong></div><div class="text-secondary">No trade</div>`;
+            } else {
+                const v = Number(pnl);
+                const sign = v >= 0 ? '+' : '';
+                const clr = v >= 0 ? '#3fb950' : '#f85149';
+                body = `<div><strong>${date}</strong></div>` +
+                       `<div>Net P&L: <strong style="color:${clr}">${sign}${fmtR(v)}</strong></div>` +
+                       (stocks ? `<div class="text-secondary">${stocks}</div>` : '');
+            }
+            tooltip.innerHTML = body;
+            tooltip.style.display = 'block';
+            cell.style.transform = 'scale(1.4)';
+            cell.style.boxShadow = '0 0 0 2px rgba(88,166,255,.6)';
+        });
+        cell.addEventListener('mousemove', (ev) => {
+            // Position tooltip near the cursor, flipped to the left if near right edge
+            const pad = 14;
+            const vw = window.innerWidth;
+            const w = tooltip.offsetWidth || 180;
+            let x = ev.clientX + pad;
+            if (x + w + 8 > vw) x = ev.clientX - w - pad;
+            tooltip.style.left = x + 'px';
+            tooltip.style.top  = (ev.clientY + pad) + 'px';
+        });
+        cell.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+            cell.style.transform = '';
+            cell.style.boxShadow = '';
+        });
+    });
+
+    const meta = document.getElementById('heatmapMeta');
+    if (meta) meta.textContent = `${dates.length} trading day${dates.length === 1 ? '' : 's'} with realized P&L`;
+}
+
+// ── 9. CHARGES BREAKDOWN (doughnut) ─────────────────────────────
+function renderChargesChart() {
+    const ctx = document.getElementById('chargesChart');
+    if (chargesChartInstance) chargesChartInstance.destroy();
+
+    // Sum each charge type across all trades.
+    const totals = {
+        'STT':           0,
+        'Brokerage':     0,
+        'Exchange':      0,
+        'SEBI':          0,
+        'GST':           0,
+        'Stamp Duty':    0,
+        'DP Charges':    0,
+    };
+    TRADES.forEach(t => {
+        const c = (t.pnl && t.pnl.charges) || {};
+        totals['STT']        += Number(c.total_stt        || 0);
+        totals['Brokerage']  += Number(c.total_brokerage  || 0);
+        totals['Exchange']   += Number(c.total_exchange   || 0);
+        totals['SEBI']       += Number(c.sebi             || 0);
+        totals['GST']        += Number(c.gst              || 0);
+        totals['Stamp Duty'] += Number(c.stamp_duty       || 0);
+        totals['DP Charges'] += Number(c.dp_charges       || 0);
+    });
+    // Drop zero-rupee categories so the donut doesn't show empty slices.
+    const labels = Object.keys(totals).filter(k => totals[k] > 0.01);
+    const data   = labels.map(k => Math.round(totals[k] * 100) / 100);
+    const colors = {
+        'STT':           '#f0883e',  // government tax — orange
+        'Brokerage':     '#58a6ff',  // broker — blue
+        'Exchange':      '#bc8cff',  // NSE/BSE — purple
+        'SEBI':          '#8b949e',  // regulator — grey
+        'GST':           '#d29922',  // tax — yellow
+        'Stamp Duty':    '#3fb950',  // state tax — green
+        'DP Charges':    '#ff7b72',  // depository — red
+    };
+    const totalCharges = data.reduce((a, b) => a + b, 0);
+
+    chargesChartInstance = new Chart(ctx, {
+        type:'doughnut',
+        data:{
+            labels: labels.map((k, i) => `${k} · ${fmtR(data[i])} (${(data[i] / Math.max(totalCharges, 1) * 100).toFixed(1)}%)`),
+            datasets:[{
+                data, backgroundColor: labels.map(k => colors[k] || '#8b949e'),
+                borderColor:'#0d1117', borderWidth:2
+            }]
+        },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{
+                legend:{ position:'right', labels:{ color:'#8b949e', font:{size:11}, boxWidth:14 }},
+                title:{ display:true, color:'#c9d1d9',
+                        text: `Total charges across ${TRADES.length} trade${TRADES.length === 1 ? '' : 's'}: ${fmtR(totalCharges)}` },
+                tooltip:{ callbacks:{ label:(c) => labels[c.dataIndex] + ': ' + fmtR(data[c.dataIndex]) }}
+            }
+        }
+    });
+}
+
+// ── 10. AVG HOLDING PERIOD — WINNERS vs LOSERS (paired bar) ─────
+function renderHoldingWinLossChart() {
+    const ctx = document.getElementById('holdingWinLossChart');
+    if (holdingWinLossChartInstance) holdingWinLossChartInstance.destroy();
+
+    const winners = TRADES.filter(t => t.pnl.net_pnl > 0).map(t => t.pnl.holding_days || _daysHeld(t));
+    const losers  = TRADES.filter(t => t.pnl.net_pnl < 0).map(t => t.pnl.holding_days || _daysHeld(t));
+    const avgWinDays  = winners.length ? winners.reduce((a, b) => a + b, 0) / winners.length : 0;
+    const avgLoseDays = losers.length  ? losers.reduce((a, b) => a + b, 0) / losers.length  : 0;
+
+    holdingWinLossChartInstance = new Chart(ctx, {
+        type:'bar',
+        data:{
+            labels:[`Winners (${winners.length})`, `Losers (${losers.length})`],
+            datasets:[{
+                label:'Avg days held',
+                data:[Number(avgWinDays.toFixed(1)), Number(avgLoseDays.toFixed(1))],
+                backgroundColor:['rgba(63,185,80,.75)', 'rgba(248,81,73,.75)'],
+                borderRadius:6, barPercentage:.5
+            }]
+        },
+        options:{
+            indexAxis:'y', responsive:true, maintainAspectRatio:false,
+            plugins:{
+                legend:{ display:false },
+                title:{
+                    display:true, color:'#c9d1d9',
+                    text: avgWinDays > avgLoseDays
+                        ? `✓ You let winners run longer — book-aligned ("cut losses short, let winners run")`
+                        : avgWinDays < avgLoseDays && losers.length
+                            ? `⚠ You hold losers longer than winners — opposite of the book's advice`
+                            : 'Even holding times — no clear pattern yet'
+                },
+                tooltip:{ callbacks:{ label:(c) => c.parsed.x + ' days (avg)' }}
+            },
+            scales:{
+                x:{ ticks:{ color:'#8b949e' }, grid:{ color:'rgba(48,54,61,.4)' },
+                    title:{ display:true, text:'Days', color:'#8b949e' }},
+                y:{ ticks:{ color:'#8b949e' }, grid:{ display:false }}
+            }
+        }
+    });
+}
 </script>
 <script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
 {% include "_theme_picker.html" %}

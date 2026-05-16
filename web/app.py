@@ -1425,6 +1425,30 @@ def api_portfolio_analyze_all():
     return jsonify(results)
 
 
+@app.route("/api/nifty/series", methods=["GET"])
+def api_nifty_series():
+    """Daily Nifty 50 close series over a given window.
+
+    Used by the Trades page to overlay the index on the equity curve.
+    Query params: start=YYYY-MM-DD, end=YYYY-MM-DD (both optional)
+    """
+    from bb_squeeze.portfolio_analyzer import _get_nifty_closes
+    start = request.args.get("start")
+    end   = request.args.get("end")
+    s = _get_nifty_closes()
+    if s is None or len(s) == 0:
+        return jsonify({"dates": [], "closes": []})
+    s.index = pd.to_datetime(s.index)
+    if start:
+        s = s[s.index >= pd.to_datetime(start)]
+    if end:
+        s = s[s.index <= pd.to_datetime(end)]
+    return jsonify({
+        "dates":  [d.strftime("%Y-%m-%d") for d in s.index],
+        "closes": [round(float(v), 2) for v in s.values],
+    })
+
+
 @app.route("/api/portfolio/quotes", methods=["GET"])
 def api_portfolio_quotes():
     """Fast price + P&L snapshot for all open positions.

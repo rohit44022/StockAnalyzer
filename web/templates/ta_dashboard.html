@@ -61,37 +61,7 @@ body{background:var(--bg);font-family:var(--bs-body-font-family)}
 <div id="loading"><div class="spinner-border text-primary" style="width:3rem;height:3rem"></div></div>
 
 <!-- ═══ UNIFIED NAVBAR ═══ -->
-<nav class="sc-nav">
-  <div class="container-fluid d-flex align-items-center px-3 gap-2">
-    <a class="sc-brand" href="/">हिरण्य</a>
-    <div class="sc-links">
-      <a class="sc-link" href="/">Home</a>
-      <a class="sc-link active" href="/ta">TA</a>
-      <a class="sc-link" href="/pa">Price Action</a>
-      <a class="sc-link" href="/triple">Triple</a>
-      <a class="sc-link" href="/global-sentiment" style="color:#fbc2eb">🌍 Global</a>
-          <a class="sc-link" href="/sentiment" style="color:#e040fb">📡 Sentiment</a>
-      <a class="sc-link" href="/trades">Trades</a>
-      <a class="sc-link" href="/portfolio">Portfolio</a>
-      <a class="sc-link" href="/risk-management">Risk</a>
-      <a class="sc-link" href="/mental-game">Mental</a>
-      {% if is_admin %}<a class="sc-link" href="/rentech">RenTech</a>{% endif %}
-    </div>
-    <div class="sc-right">
-      <span class="sc-clock" id="clockSpan"></span>
-      <div class="sc-avatar-wrap" id="avatarWrap">
-        <div class="sc-avatar" style="background:{{ avatar_color }}" onclick="document.getElementById('avatarWrap').classList.toggle('open')" title="{{ current_user.full_name if current_user else '' }}">{{ user_initials }}</div>
-        <div class="sc-avatar-menu">
-          <div class="am-header">{{ current_user.full_name if current_user else '' }}<small>{{ current_user.email if current_user else '' }}</small></div>
-          <a href="#"><i class="bi bi-person-circle"></i> Profile</a>
-          <a href="#"><i class="bi bi-gear"></i> Settings</a>
-          <div class="am-divider"></div>
-          <a href="/auth/logout" class="am-signout"><i class="bi bi-box-arrow-right"></i> Sign Out</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</nav>
+{% include "_nav.html" %}
 
 <!-- ══ HERO / SEARCH ══ -->
 <div class="container-fluid px-4 mt-4">

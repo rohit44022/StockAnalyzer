@@ -258,9 +258,12 @@ def _download_one(ticker: str, start: str, end: str,
                 last_date = pd.to_datetime(effective_last["Date"].iloc[-1])
                 today = pd.Timestamp.today().normalize()
                 days_old = (today - last_date).days
-                if days_old <= STALENESS_DAYS:
+                # days_old == 0 means file already has a bar for today, but
+                # that bar may be a partial intraday snapshot if the script
+                # was run before EOD. Always refresh today's row.
+                if 0 < days_old <= STALENESS_DAYS:
                     return "skipped"
-                # else: stale file → fall through and re-download
+                # else: stale file OR today's bar may be partial → re-download
         except Exception:
             pass  # corrupt file → re-download
 

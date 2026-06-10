@@ -1,0 +1,204 @@
+{# ═══════════════════════════════════════════════════════════════
+   Shared site navigation — included by every page template.
+   Active link is auto-detected from request.path (no manual flag).
+
+   HOME-PAGE-ONLY ELEMENTS:
+     The home page (/) has a Download Data button + EOD status badge
+     in the right side of the nav. We conditionally render those when
+     request.path == '/' so other pages aren't affected.
+   ═══════════════════════════════════════════════════════════════ #}
+{% set _path = request.path if request else '/' %}
+{% macro _link(href, label, prefix=None, style='') %}
+  {% set is_active = (_path == href) or (prefix and _path.startswith(prefix)) %}
+  <a class="sc-link {% if is_active %}active{% endif %}" href="{{ href }}"{% if style %} style="{{ style }}"{% endif %}>{{ label }}</a>
+{% endmacro %}
+<nav class="sc-nav">
+  <div class="container-fluid d-flex align-items-center px-3 gap-2">
+    <a class="sc-brand" href="/">हिरण्य</a>
+    <div class="sc-links">
+      {{ _link('/', 'Home') }}
+      {{ _link('/ta', 'TA', prefix='/ta') }}
+      {{ _link('/pa', 'Price Action', prefix='/pa') }}
+      {{ _link('/triple', 'Triple') }}
+      {{ _link('/data-browser', '📂 Data', prefix='/data-browser') }}
+      {{ _link('/global-sentiment', '🌍 Global', style='color:#fbc2eb') }}
+      {{ _link('/sentiment', '📡 Sentiment', style='color:#e040fb') }}
+      {{ _link('/trades', 'Trades') }}
+      {{ _link('/portfolio', 'Portfolio') }}
+      {{ _link('/risk-management', 'Risk') }}
+      {{ _link('/mental-game', 'Mental') }}
+      {% if is_admin %}{{ _link('/rentech', 'RenTech') }}{% endif %}
+    </div>
+    <div class="sc-right">
+      {# Home-only: Download Data button + EOD status badge (referenced by checkEodStatus in index.html) #}
+      {% if _path == '/' %}
+        <button class="btn btn-outline-info btn-sm sc-dl-btn" id="downloadDataBtn" data-bs-toggle="modal" data-bs-target="#downloadModal">
+          <i class="bi bi-cloud-arrow-down me-1"></i><span class="d-none d-md-inline">Download Data</span><span class="d-md-none">Data</span>
+        </button>
+        <span id="eodBadge" class="badge rounded-pill d-inline-flex align-items-center gap-1" style="font-size:.7rem;cursor:pointer;opacity:0;transition:opacity .3s" title="Click to refresh" onclick="checkEodStatus()">
+          <span class="spinner-border spinner-border-sm" role="status" id="eodSpinner"></span>
+          <span id="eodText">Checking…</span>
+        </span>
+      {% endif %}
+      <span class="sc-clock" id="clockSpan"></span>
+      <div class="sc-avatar-wrap" id="avatarWrap">
+        <div class="sc-avatar" style="background:{{ avatar_color }}" onclick="document.getElementById('avatarWrap').classList.toggle('open')" title="{{ current_user.full_name if current_user else '' }}">{{ user_initials }}</div>
+        <div class="sc-avatar-menu">
+          <div class="am-header">{{ current_user.full_name if current_user else '' }}<small>{{ current_user.email if current_user else '' }}</small></div>
+          <a href="#"><i class="bi bi-person-circle"></i> Profile</a>
+          <a href="#"><i class="bi bi-gear"></i> Settings</a>
+          <div class="am-divider"></div>
+          <a href="/auth/logout" class="am-signout"><i class="bi bi-box-arrow-right"></i> Sign Out</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   Complete nav styling — single source of truth.
+   Ships with this template so any page that includes the nav gets
+   a fully-styled nav even if its own style block has no nav CSS.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Bar itself */
+.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
+
+/* Brand (हिरण्य shimmer) */
+.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:scBrandShimmer 3s ease infinite,scBrandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s;display:inline-block}
+.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
+@keyframes scBrandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
+@keyframes scBrandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
+
+/* Link strip */
+.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.sc-nav .sc-links::-webkit-scrollbar{display:none}
+.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+.sc-nav .sc-link:hover{color:var(--bs-body-color, #fff);border-bottom-color:rgba(88,166,255,.3)}
+.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
+
+/* Right side: clock + avatar */
+.sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem;flex-shrink:0}
+.sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}.sc-nav .sc-clock{display:none}}
+
+/* Avatar bubble + dropdown menu */
+.sc-avatar-wrap{position:relative}
+.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15);box-sizing:border-box;flex-shrink:0;padding:0;line-height:1}
+.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}
+.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg, #161b22);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:220px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}
+.sc-avatar-wrap.open .sc-avatar-menu{display:block}
+.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color, #e6edf3)}
+.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}
+.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color, #e6edf3);text-decoration:none;font-size:.8rem;transition:background .15s;line-height:1.3}
+.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}
+.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}
+.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0;height:0}
+.sc-avatar-menu a.am-signout{color:#f85149}
+.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
+
+/* Home-only Download Data button */
+.sc-nav .sc-dl-btn{font-size:.75rem;padding:.3rem .6rem;border-radius:6px;white-space:nowrap}
+
+/* Regime dropdown — position:fixed so the menu escapes
+   any ancestor with overflow:auto/hidden (.sc-links has overflow-x:auto). */
+.sc-dropdown{position:relative;display:inline-flex;align-items:center}
+.sc-dropdown.active > .sc-dropdown-toggle{color:#58a6ff;border-bottom-color:#58a6ff}
+.sc-dropdown-toggle{background:transparent;border:none;color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;cursor:pointer;font-family:inherit}
+.sc-dropdown-toggle:hover{color:var(--bs-body-color, #fff);border-bottom-color:rgba(88,166,255,.3)}
+.sc-dropdown .sc-caret{font-size:.65rem;margin-left:2px;opacity:.7;transition:transform .15s;display:inline-block}
+.sc-dropdown.open .sc-caret{transform:rotate(180deg)}
+.sc-dropdown-menu{
+  display:none;
+  position:fixed;
+  /* top/left set by JS at open time */
+  min-width:300px;
+  background:rgba(13,17,23,.985);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(48,54,61,.85);
+  border-radius:10px;
+  box-shadow:0 12px 28px rgba(0,0,0,.55);
+  z-index:5000;
+  padding:6px;
+}
+.sc-dropdown.open .sc-dropdown-menu{display:block;animation:scDropFade .14s ease-out}
+@keyframes scDropFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.sc-dropdown-item{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:6px;color:rgba(255,255,255,.80);text-decoration:none;font-size:.85rem;line-height:1.35;transition:background .12s,color .12s}
+.sc-dropdown-item > span:first-child{font-size:1.05rem;line-height:1.3;width:22px;text-align:center;flex-shrink:0}
+.sc-dropdown-item .sc-di-text{display:flex;flex-direction:column;gap:1px}
+.sc-dropdown-item .sc-di-text small{color:rgba(255,255,255,.40);font-size:.68rem;letter-spacing:.3px}
+.sc-dropdown-item:hover{background:rgba(88,166,255,.12);color:#fff}
+.sc-dropdown-item:hover .sc-di-text small{color:rgba(255,255,255,.70)}
+.sc-dropdown-item.active{background:rgba(88,166,255,.20);color:#9ec5ff}
+.sc-dropdown-item.active .sc-di-text small{color:rgba(158,197,255,.75)}
+.sc-dropdown-divider{height:1px;background:rgba(255,255,255,.10);margin:5px 4px}
+@media(max-width:768px){.sc-dropdown-menu{min-width:260px}.sc-dropdown-toggle{font-size:.75rem;padding:.65rem .5rem}}
+</style>
+<script>
+(function(){
+  /* Open/close a dropdown. Positions menu absolutely relative to viewport
+     so it escapes any ancestor with overflow:hidden/auto. */
+  if (window.__scDropdownInit) return;
+  window.__scDropdownInit = true;
+
+  window.scToggleDropdown = function(btn){
+    const wrap = btn.parentElement;
+    const wasOpen = wrap.classList.contains('open');
+    // Close any other open dropdowns first
+    document.querySelectorAll('.sc-dropdown.open').forEach(function(d){
+      if (d !== wrap) d.classList.remove('open');
+    });
+    if (wasOpen) { wrap.classList.remove('open'); return; }
+    // Position menu using fixed coordinates from the button's bounding rect
+    const menu = wrap.querySelector('.sc-dropdown-menu');
+    if (menu) {
+      const r = btn.getBoundingClientRect();
+      menu.style.top  = (r.bottom) + 'px';
+      menu.style.left = (r.left)   + 'px';
+      // If the menu would extend past the viewport on the right, anchor to right edge of button
+      // Estimate width from min-width
+      const estW = Math.max(menu.offsetWidth || 0, 300);
+      if (r.left + estW > window.innerWidth - 12) {
+        menu.style.left = Math.max(8, window.innerWidth - estW - 12) + 'px';
+      }
+    }
+    wrap.classList.add('open');
+  };
+
+  /* Close on click outside (using bubble phase so child clicks reach handlers first) */
+  document.addEventListener('click', function(e){
+    document.querySelectorAll('.sc-dropdown.open').forEach(function(d){
+      if (!d.contains(e.target)) d.classList.remove('open');
+    });
+  });
+
+  /* Close on Escape */
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.sc-dropdown.open').forEach(function(d){
+        d.classList.remove('open');
+      });
+    }
+  });
+
+  /* Re-position open menus on window resize / scroll (since position:fixed) */
+  function reposOpenMenus(){
+    document.querySelectorAll('.sc-dropdown.open').forEach(function(d){
+      const btn = d.querySelector('.sc-dropdown-toggle');
+      const menu = d.querySelector('.sc-dropdown-menu');
+      if (!btn || !menu) return;
+      const r = btn.getBoundingClientRect();
+      menu.style.top = r.bottom + 'px';
+      menu.style.left = r.left + 'px';
+      const estW = Math.max(menu.offsetWidth || 0, 300);
+      if (r.left + estW > window.innerWidth - 12) {
+        menu.style.left = Math.max(8, window.innerWidth - estW - 12) + 'px';
+      }
+    });
+  }
+  window.addEventListener('resize', reposOpenMenus);
+  window.addEventListener('scroll', reposOpenMenus, true);
+})();
+</script>

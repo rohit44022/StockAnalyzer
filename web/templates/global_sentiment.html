@@ -139,27 +139,7 @@
 </head>
 <body>
 
-<nav class="sc-nav">
-  <div class="container-fluid d-flex align-items-center px-3 gap-2">
-    <a class="sc-brand" href="/">हिरण्य</a>
-    <div class="sc-links d-flex" style="overflow-x:auto">
-      <a class="sc-link" href="/">Home</a>
-      <a class="sc-link" href="/ta">TA</a>
-      <a class="sc-link" href="/pa">Price Action</a>
-      <a class="sc-link" href="/triple">Triple</a>
-      <a class="sc-link active" href="/global-sentiment">🌍 Global</a>
-      <a class="sc-link" href="/sentiment" style="color:#e040fb">📡 Sentiment</a>
-      <a class="sc-link" href="/trades">Trades</a>
-      <a class="sc-link" href="/portfolio">Portfolio</a>
-      <a class="sc-link" href="/risk-management">Risk</a>
-      <a class="sc-link" href="/mental-game">Mental</a>
-      {% if is_admin %}<a class="sc-link" href="/rentech">RenTech</a>{% endif %}
-    </div>
-    <div class="ms-auto">
-      <a href="/auth/logout" class="btn btn-outline-secondary btn-sm" style="font-size:.72rem;padding:.25rem .6rem"><i class="bi bi-box-arrow-right"></i></a>
-    </div>
-  </div>
-</nav>
+{% include "_nav.html" %}
 
 <div class="container-fluid py-4 px-md-4 px-2" style="max-width:1400px">
 

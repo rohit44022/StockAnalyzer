@@ -154,37 +154,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 <body>
 
 <!-- ═══ UNIFIED NAVBAR ═══ -->
-<nav class="sc-nav">
-  <div class="container-fluid d-flex align-items-center px-3 gap-2">
-    <a class="sc-brand" href="/">हिरण्य</a>
-    <div class="sc-links">
-      <a class="sc-link" href="/">Home</a>
-      <a class="sc-link" href="/ta">TA</a>
-      <a class="sc-link" href="/pa">Price Action</a>
-      <a class="sc-link" href="/triple">Triple</a>
-      <a class="sc-link" href="/global-sentiment" style="color:#fbc2eb">🌍 Global</a>
-          <a class="sc-link" href="/sentiment" style="color:#e040fb">📡 Sentiment</a>
-      <a class="sc-link" href="/trades">Trades</a>
-      <a class="sc-link active" href="/portfolio">Portfolio</a>
-      <a class="sc-link" href="/risk-management">Risk</a>
-      <a class="sc-link" href="/mental-game">Mental</a>
-      {% if is_admin %}<a class="sc-link" href="/rentech">RenTech</a>{% endif %}
-    </div>
-    <div class="sc-right">
-      <span class="sc-clock" id="clockSpan"></span>
-      <div class="sc-avatar-wrap" id="avatarWrap">
-        <div class="sc-avatar" style="background:{{ avatar_color }}" onclick="document.getElementById('avatarWrap').classList.toggle('open')" title="{{ current_user.full_name if current_user else '' }}">{{ user_initials }}</div>
-        <div class="sc-avatar-menu">
-          <div class="am-header">{{ current_user.full_name if current_user else '' }}<small>{{ current_user.email if current_user else '' }}</small></div>
-          <a href="#"><i class="bi bi-person-circle"></i> Profile</a>
-          <a href="#"><i class="bi bi-gear"></i> Settings</a>
-          <div class="am-divider"></div>
-          <a href="/auth/logout" class="am-signout"><i class="bi bi-box-arrow-right"></i> Sign Out</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</nav>
+{% include "_nav.html" %}
 
 <!-- ═══════ HERO ═══════ -->
 <div class="hero">
@@ -986,17 +956,29 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p class="text-secondary">Closing <strong class="text-info font-mono" id="closeTicker"></strong></p>
+        <p class="text-secondary">Selling <strong class="text-info font-mono" id="closeTicker"></strong>
+          <span class="text-secondary small">— holding <strong id="closeHoldingQty">0</strong> shares
+          @ avg ₹<strong id="closeHoldingAvg">0.00</strong></span>
+        </p>
         <div class="row g-2">
-          <div class="col-6 mb-3">
+          <div class="col-4 mb-3">
+            <label class="form-label small text-secondary">Quantity to Sell</label>
+            <input type="number" class="form-control font-mono" id="closeQty" step="1" min="1">
+            <div class="form-text small">
+              <a href="#" id="closeQtyAll" class="text-decoration-none" style="font-size:.75rem">sell all</a>
+              <span id="closeQtyRemaining" class="text-secondary ms-2"></span>
+            </div>
+          </div>
+          <div class="col-4 mb-3">
             <label class="form-label small text-secondary">Sell Price (₹)</label>
             <input type="number" class="form-control font-mono" id="closePrice" step="0.05" min="0.01">
           </div>
-          <div class="col-6 mb-3">
+          <div class="col-4 mb-3">
             <label class="form-label small text-secondary">Sell Date</label>
             <input type="date" class="form-control font-mono" id="closeDate">
           </div>
         </div>
+        <div id="closePnlPreview" class="small mb-3" style="display:none;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid var(--card-border)"></div>
         <div class="mb-3">
           <label class="form-label small text-secondary">Sell Reason</label>
           <select class="form-select" id="closeReason">
@@ -1149,7 +1131,8 @@ function renderPositions() {
             <td id="risk_${p.id}"><span class="badge badge-wait" style="font-size:.65rem">...</span></td>
             <td id="sizing_${p.id}"><span class="badge badge-wait" style="font-size:.65rem">...</span></td>
             <td>
-                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();confirmDelete(${p.id})" title="Delete"><i class="bi bi-trash3"></i></button>
+                <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation();promptBuyMore(${p.id})" title="Buy more — average into this position"><i class="bi bi-plus-lg"></i></button>
+                <button class="btn btn-sm btn-outline-danger ms-1" onclick="event.stopPropagation();confirmDelete(${p.id})" title="Delete"><i class="bi bi-trash3"></i></button>
             </td>
         `;
         tr.addEventListener('click', () => analyzePosition(p.id));
@@ -3339,10 +3322,16 @@ function renderTrailingStops(ts, holding) {
 // ═══════════════════════════════════════════════════════════════
 function showAddModal() {
     document.getElementById('addTicker').value = '';
+    const tEl = document.getElementById('addTicker');
+    const sEl = document.getElementById('addStrategy');
+    if (tEl) { tEl.readOnly = false; tEl.title = ''; }
+    if (sEl) { sEl.disabled = false; sEl.title = ''; }
     document.getElementById('addPrice').value = '';
     document.getElementById('addQty').value = '1';
     document.getElementById('addDate').value = new Date().toISOString().slice(0,10);
     document.getElementById('addNotes').value = '';
+    const titleEl = document.querySelector('#addModal .modal-title');
+    if (titleEl) titleEl.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Add Position';
     new bootstrap.Modal(document.getElementById('addModal')).show(); }
 
 async function submitAdd() {
@@ -3372,6 +3361,11 @@ async function submitAdd() {
             notes: notes }) });
     const data = await res.json();
     if (data.error) return alert(data.error);
+    if (data.merged) {
+        // Friendly confirmation so the user knows the buy was averaged in
+        // rather than creating a duplicate row (broker-style).
+        alert(`Averaged into existing ${ticker} position.\n` +
+              `Total holding: ${data.quantity} shares @ avg ₹${(data.avg_buy_price||0).toFixed(2)}.`); }
 
     // If psych fields filled, auto-log trade psychology
     if (psychEmotion || psychScore) {
@@ -3397,14 +3391,50 @@ function promptClosePosition() {
     const pos = allPositions.find(p => p.id === selectedPid);
     if (!pos) return;
 
+    const holdingQty = parseInt(pos.quantity || 0);
     document.getElementById('closeTicker').textContent = pos.ticker.replace('.NS','');
+    document.getElementById('closeHoldingQty').textContent = holdingQty;
+    document.getElementById('closeHoldingAvg').textContent = (pos.buy_price || 0).toFixed(2);
+    document.getElementById('closeQty').value = holdingQty;
+    document.getElementById('closeQty').max  = holdingQty;
     document.getElementById('closePrice').value = currentAnalysis?.targets?.current_price || '';
     document.getElementById('closeDate').value = new Date().toISOString().slice(0,10);
+    updateClosePreview();
     new bootstrap.Modal(document.getElementById('closeModal')).show(); }
 
+// Live preview of P&L + remaining qty as user edits qty / price
+function updateClosePreview() {
+    if (!selectedPid) return;
+    const pos = allPositions.find(p => p.id === selectedPid);
+    if (!pos) return;
+    const holdingQty = parseInt(pos.quantity || 0);
+    const avg = parseFloat(pos.buy_price || 0);
+    let qty = parseInt(document.getElementById('closeQty').value || 0);
+    if (qty > holdingQty) { qty = holdingQty; document.getElementById('closeQty').value = qty; }
+    if (qty < 1)          { qty = 1;          document.getElementById('closeQty').value = qty; }
+    const price = parseFloat(document.getElementById('closePrice').value || 0);
+    const remaining = holdingQty - qty;
+    const pnlPerShare = price > 0 ? (price - avg) : 0;
+    const totalPnl   = pnlPerShare * qty;
+    const pnlPct     = avg > 0 ? (pnlPerShare / avg * 100) : 0;
+    const pnlColor   = totalPnl >= 0 ? 'var(--g)' : 'var(--r)';
+    document.getElementById('closeQtyRemaining').textContent =
+        remaining > 0 ? `${remaining} shares will remain in portfolio` : 'Position will be CLOSED';
+    const prev = document.getElementById('closePnlPreview');
+    if (price > 0 && qty > 0) {
+        prev.style.display = '';
+        prev.innerHTML = `<strong>Preview:</strong> sell ${qty} × ₹${price.toFixed(2)} ` +
+            `(avg buy ₹${avg.toFixed(2)}) → ` +
+            `<span style="color:${pnlColor};font-weight:600">P&amp;L ₹${totalPnl.toFixed(2)} (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)</span> · ` +
+            (remaining > 0
+              ? `${remaining} left @ avg ₹${avg.toFixed(2)} (avg-cost basis)`
+              : `entire position will close`);
+    } else { prev.style.display = 'none'; } }
+
 async function submitClose() {
+    const qty   = parseInt(document.getElementById('closeQty').value);
     const price = parseFloat(document.getElementById('closePrice').value);
-    const date = document.getElementById('closeDate').value;
+    const date  = document.getElementById('closeDate').value;
     const reason = document.getElementById('closeReason').value;
     const platform = document.getElementById('closePlatform').value;
     const tradeType = document.getElementById('closeTradeType').value;
@@ -3413,13 +3443,15 @@ async function submitClose() {
     const psychPattern = document.getElementById('closePsychPattern').value;
     const psychReflection = document.getElementById('closePsychReflection').value.trim();
 
+    if (!qty || qty <= 0) return alert('Please enter a quantity to sell');
     if (!price || price <= 0) return alert('Please enter a valid sell price');
     if (!date) return alert('Please select a sell date');
 
-    const res = await fetch(`/api/portfolio/${selectedPid}/close`, {
+    const res = await fetch(`/api/portfolio/${selectedPid}/sell-partial`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
+            quantity: qty,
             sell_price: price,
             sell_date: date,
             sell_reason: reason,
@@ -3430,7 +3462,11 @@ async function submitClose() {
     const data = await res.json();
     if (data.error) return alert(data.error);
     if (data.trade_logged === false && data.trade_error) {
-        alert('Position closed, but trade entry could not be logged automatically: ' + data.trade_error); }
+        alert('Sale recorded, but trade entry could not be logged automatically: ' + data.trade_error); }
+    if (data.result && data.result.status === 'partially_sold') {
+        const r = data.result;
+        // Quiet confirmation — no full modal interrupt
+        console.log(`Partial sell: ${r.sold_qty} sold, ${r.remaining_qty} remaining at avg ₹${r.avg_buy_price}`); }
 
     // If psych fields filled, auto-log trade psychology
     if (psychSystem || psychPattern || psychReflection) {
@@ -3449,6 +3485,46 @@ async function submitClose() {
     bootstrap.Modal.getInstance(document.getElementById('closeModal')).hide();
     hideAnalysis();
     loadPositions(); }
+
+// Wire up live-preview listeners on the sell modal once.
+document.addEventListener('DOMContentLoaded', () => {
+    const ids = ['closeQty', 'closePrice'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateClosePreview);
+    });
+    const all = document.getElementById('closeQtyAll');
+    if (all) all.addEventListener('click', (e) => {
+        e.preventDefault();
+        const pos = allPositions.find(p => p.id === selectedPid);
+        if (pos) {
+            document.getElementById('closeQty').value = parseInt(pos.quantity || 0);
+            updateClosePreview();
+        }
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  BUY MORE — average-into-existing-position
+// ═══════════════════════════════════════════════════════════════
+// Opens the existing Add Position modal pre-filled with the same ticker +
+// strategy. The backend will detect the duplicate and auto-average the new
+// buy into the existing row.
+function promptBuyMore(pid) {
+    const pos = allPositions.find(p => p.id === pid);
+    if (!pos) return;
+    showAddModal();
+    setTimeout(() => {
+        const t = document.getElementById('addTicker');
+        const s = document.getElementById('addStrategy');
+        const d = document.getElementById('addDate');
+        if (t) { t.value = pos.ticker.replace('.NS',''); t.readOnly = true; t.title = 'Locked — averaging into existing position'; }
+        if (s) { s.value = pos.strategy_code; s.disabled = true; s.title = 'Locked — averaging into existing position'; }
+        if (d) d.value = new Date().toISOString().slice(0,10);
+        const titleEl = document.querySelector('#addModal .modal-title');
+        if (titleEl) titleEl.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Buy More — average into existing position';
+    }, 50);
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  DELETE / REOPEN

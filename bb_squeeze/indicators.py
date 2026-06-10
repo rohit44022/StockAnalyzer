@@ -189,7 +189,7 @@ def chaikin_money_flow(high: pd.Series, low: pd.Series,
     """
     hl_range = (high - low).replace(0, np.nan)
     mfm      = ((close - low) - (high - close)) / hl_range   # Money Flow Multiplier
-    mfv      = mfm * volume                                    # Money Flow Volume
+    mfv      = (mfm * volume).fillna(0)                        # Money Flow Volume; no-trade bars (H==L) contribute 0
     cmf      = mfv.rolling(window=period).sum() / volume.rolling(window=period).sum()
     return cmf.fillna(0.0).rename("CMF")
 

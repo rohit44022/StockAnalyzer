@@ -255,6 +255,7 @@ def api_vince_position_size():
                          data["last_price"], fraction)
     ps["optimal_f_raw"] = opt["optimal_f"]
     ps["ticker"] = ticker
+
     return _jsonify(ps)
 
 

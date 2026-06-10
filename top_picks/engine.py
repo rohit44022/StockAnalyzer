@@ -94,6 +94,42 @@ def _safe(v, default=0):
 # MAIN ENTRY POINT
 # ═══════════════════════════════════════════════════════════════
 
+def pick_passes_strict_checklist(pick: dict, method: str, signal_filter: str) -> bool:
+    """
+    Strict checklist filter used by Stage 5 of find_top_picks.
+
+    A pick is kept ONLY if EVERY canonical Bollinger condition for the
+    method+direction evaluates True. No 4-of-5 compromise — every box ticked.
+
+      M1 BUY  — squeeze + price_breakout + volume_confirm + cmf_positive + mfi_above_50
+      M1 SELL — squeeze + price_below   + volume_confirm + ii_negative  + mfi_low
+      M2/M3/M4 — every item in the strategy's buy_checklist / sell_checklist
+                 (these are the book-faithful checklists defined in strategies.py)
+    """
+    if method == "M1":
+        if signal_filter == "SELL":
+            conds = pick.get("bb_short_conditions", {})
+            return all(conds.get(k, False) for k in [
+                "squeeze", "price_below", "volume_confirm",
+                "ii_negative", "mfi_low",
+            ])
+        conds = pick.get("bb_conditions", {})
+        return all(conds.get(k, False) for k in [
+            "squeeze", "price_breakout", "volume_confirm",
+            "cmf_positive", "mfi_above_50",
+        ])
+    strats = pick.get("bb_strategies", [])
+    method_strat = next((s for s in strats if s.get("code") == method), None)
+    if not method_strat:
+        return False
+    ind = method_strat.get("indicators", {})
+    checklist_key = "buy_checklist" if signal_filter == "BUY" else "sell_checklist"
+    checklist = ind.get(checklist_key, [])
+    if not checklist:
+        return False
+    return all(item.get("ok", False) for item in checklist)
+
+
 def find_top_picks(
     scan_results: list[dict],
     method: str,
@@ -165,35 +201,6 @@ def find_top_picks(
         qualified, method, signal_filter, capital, progress_callback
     )
 
-    # ── Stage 5: Strict method-specific checklist filter ────────
-    # Only keep stocks where ALL conditions for the method are met.
-    # For M1: check bb_conditions (BUY) or bb_short_conditions (SELL)
-    # For M2/M3/M4: check the strategy's buy_checklist or sell_checklist
-    def _all_conditions_met(pick):
-        if method == "M1":
-            if signal_filter == "SELL":
-                conds = pick.get("bb_short_conditions", {})
-                return all(conds.get(k, False) for k in [
-                    "squeeze", "price_below", "volume_confirm",
-                    "ii_negative", "mfi_low",
-                ])
-            conds = pick.get("bb_conditions", {})
-            return all(conds.get(k, False) for k in [
-                "squeeze", "price_breakout", "volume_confirm",
-                "cmf_positive", "mfi_above_50",
-            ])
-        else:
-            strats = pick.get("bb_strategies", [])
-            method_strat = next((s for s in strats if s.get("code") == method), None)
-            if not method_strat:
-                return False
-            ind = method_strat.get("indicators", {})
-            checklist_key = "buy_checklist" if signal_filter == "BUY" else "sell_checklist"
-            checklist = ind.get(checklist_key, [])
-            if not checklist:
-                return False
-            return all(item.get("ok", False) for item in checklist)
-
     scored.sort(key=lambda x: x["composite_score"], reverse=True)
 
     # Apply minimum score threshold
@@ -202,7 +209,10 @@ def find_top_picks(
     ]
 
     # Strict filter: ALL method conditions must be met — no exceptions
-    strict_picks = [p for p in above_min if _all_conditions_met(p)]
+    strict_picks = [
+        p for p in above_min
+        if pick_passes_strict_checklist(p, method, signal_filter)
+    ]
 
     # ── Stage 6: Rank and select top N ──────────────────────────
     top = strict_picks[:TOP_N]

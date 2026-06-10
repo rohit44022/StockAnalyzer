@@ -66,7 +66,7 @@ from bb_squeeze.portfolio_db import (
     init_portfolio_db as _init_portfolio_db,
     add_position, get_all_positions, get_open_positions, get_closed_positions,
     get_position, update_position, close_position, reopen_position, delete_position,
-    user_has_positions,
+    partial_sell_position, user_has_positions,
 )
 from bb_squeeze.portfolio_analyzer import analyze_position, analyze_all_open_positions
 from web.ta_routes import ta_bp
@@ -528,6 +528,206 @@ def api_tickers():
     """Return list of all available tickers."""
     tickers = get_all_tickers_from_csv(CSV_DIR)
     return jsonify(tickers)
+
+
+# ── Data Browser: inspect raw CSV files & freshness from the UI ───
+@app.route("/data-browser")
+def data_browser_page():
+    """Page that lists every CSV in stock_csv with freshness + lets the user
+    search a scrip and inspect its recent OHLCV rows."""
+    return render_template("data_browser.html")
+
+
+_db_list_cache = {"ts": 0, "data": None}
+_DB_LIST_CACHE_TTL = 60  # seconds
+
+
+def _read_last_csv_row(filepath: str) -> tuple[str | None, str | None]:
+    """Read just the final non-empty line of a CSV — returns (date_str, last_line).
+    Avoids loading the whole file via pandas (we have ~2000 files)."""
+    try:
+        with open(filepath, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            if size == 0:
+                return None, None
+            chunk = min(2048, size)
+            f.seek(size - chunk)
+            tail = f.read().decode("utf-8", errors="ignore")
+        lines = [ln for ln in tail.splitlines() if ln.strip()]
+        if not lines:
+            return None, None
+        last = lines[-1]
+        date_str = last.split(",", 1)[0].strip()
+        # Normalise possible "2026-05-20 00:00:00+05:30" → "2026-05-20"
+        if len(date_str) >= 10 and date_str[4] == "-" and date_str[7] == "-":
+            date_str = date_str[:10]
+        else:
+            date_str = None
+        return date_str, last
+    except Exception:
+        return None, None
+
+
+def _trading_days_between(last_date_str: str | None) -> int:
+    """Approximate NSE trading-days between last_date and today."""
+    from bb_squeeze.data_loader import _is_nse_trading_day
+    if not last_date_str:
+        return 999
+    try:
+        last = pd.Timestamp(last_date_str).to_pydatetime()
+    except Exception:
+        return 999
+    now = pd.Timestamp.now().to_pydatetime()
+    days = 0
+    cur = last + timedelta(days=1)
+    while cur.date() <= now.date():
+        if _is_nse_trading_day(cur):
+            days += 1
+        cur += timedelta(days=1)
+    return days
+
+
+def _freshness_status(trading_days_stale: int) -> str:
+    """Bucket trading-days-stale into a color-coded status label."""
+    if trading_days_stale >= 999:
+        return "missing"
+    if trading_days_stale <= 1:
+        return "fresh"
+    if trading_days_stale <= 2:
+        return "recent"
+    if trading_days_stale <= 5:
+        return "stale"
+    if trading_days_stale <= 10:
+        return "very_stale"
+    return "ancient"
+
+
+@app.route("/api/data-browser/list")
+def api_data_browser_list():
+    """Return every CSV in stock_csv with last_date, freshness, file size, mtime.
+    Cached for 60s so search-as-you-type is snappy."""
+    from pathlib import Path
+    now_ts = _time.time()
+    if (_db_list_cache["data"] is not None
+            and (now_ts - _db_list_cache["ts"]) < _DB_LIST_CACHE_TTL):
+        return jsonify(_db_list_cache["data"])
+
+    items = []
+    csv_path = Path(CSV_DIR)
+    if csv_path.exists():
+        for f in sorted(csv_path.glob("*.csv")):
+            stem = f.stem
+            if stem.startswith(".") or len(stem) < 4:
+                continue
+            try:
+                st = f.stat()
+            except Exception:
+                continue
+            last_date, _ = _read_last_csv_row(str(f))
+            tds = _trading_days_between(last_date)
+            items.append({
+                "ticker": stem,
+                "last_date": last_date,
+                "trading_days_stale": tds,
+                "status": _freshness_status(tds),
+                "file_size": st.st_size,
+                "file_mtime": int(st.st_mtime),
+            })
+
+    # Headline stats for the page
+    by_status = {}
+    for it in items:
+        by_status[it["status"]] = by_status.get(it["status"], 0) + 1
+    latest = max((it["last_date"] for it in items if it["last_date"]), default=None)
+
+    payload = {
+        "csv_dir": CSV_DIR,
+        "total": len(items),
+        "latest_date": latest,
+        "by_status": by_status,
+        "items": items,
+    }
+    _db_list_cache["data"] = payload
+    _db_list_cache["ts"] = now_ts
+    return jsonify(payload)
+
+
+@app.route("/api/data-browser/data/<ticker_raw>")
+def api_data_browser_data(ticker_raw):
+    """Return last N rows of the raw CSV for a single ticker so the user can
+    see exactly what is stored on disk."""
+    ticker = normalise_ticker(ticker_raw)
+    csv_file = os.path.join(CSV_DIR, f"{ticker}.csv")
+    if not os.path.exists(csv_file):
+        return jsonify({"error": f"No CSV for {ticker}"}), 404
+
+    try:
+        limit = int(request.args.get("limit", 60))
+    except (TypeError, ValueError):
+        limit = 60
+    limit = max(1, min(limit, 1000))
+
+    try:
+        df = pd.read_csv(csv_file)
+    except Exception as e:
+        return jsonify({"error": f"Failed to read CSV: {type(e).__name__}: {e}"}), 500
+
+    # Pick the date column
+    date_col = next((c for c in ("Date", "date", "Datetime", "datetime") if c in df.columns), None)
+    if date_col is None:
+        return jsonify({"error": "No Date column in CSV"}), 500
+    df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+    df = df.dropna(subset=[date_col]).sort_values(date_col)
+
+    total_rows = len(df)
+    df_tail = df.tail(limit).copy()
+    df_tail[date_col] = df_tail[date_col].dt.strftime("%Y-%m-%d")
+
+    # Compute per-row close-to-close change so the UI can colour green/red
+    rows = []
+    prev_close = None
+    # Use the full df's preceding close (not just the tail's first row) so the
+    # earliest tail row still has a real prior reference.
+    if total_rows > limit:
+        try:
+            prev_close = float(df["Close"].iloc[-(limit + 1)])
+        except Exception:
+            prev_close = None
+
+    for _, r in df_tail.iterrows():
+        rec = {c: (None if pd.isna(r[c]) else (float(r[c]) if c not in (date_col,) else r[c]))
+               for c in df_tail.columns}
+        try:
+            close = float(r["Close"]) if not pd.isna(r["Close"]) else None
+        except Exception:
+            close = None
+        if close is not None and prev_close is not None and prev_close != 0:
+            rec["pct_change"] = (close - prev_close) / prev_close * 100.0
+        else:
+            rec["pct_change"] = None
+        if close is not None:
+            prev_close = close
+        rows.append(rec)
+
+    st = os.stat(csv_file)
+    last_date = rows[-1].get(date_col) if rows else None
+    tds = _trading_days_between(last_date)
+
+    return jsonify({
+        "ticker": ticker,
+        "csv_path": csv_file,
+        "total_rows": total_rows,
+        "returned_rows": len(rows),
+        "columns": list(df_tail.columns),
+        "date_col": date_col,
+        "rows": rows,
+        "last_date": last_date,
+        "trading_days_stale": tds,
+        "status": _freshness_status(tds),
+        "file_size": st.st_size,
+        "file_mtime": int(st.st_mtime),
+    })
 
 
 @app.route("/api/analyze/<ticker_raw>")
@@ -1275,7 +1475,13 @@ def api_portfolio_list():
 
 @app.route("/api/portfolio", methods=["POST"])
 def api_portfolio_add():
-    """Add a new portfolio position."""
+    """
+    Add a new portfolio position. Broker-style behavior:
+    if an OPEN position with the same (ticker, strategy_code) already exists for
+    this user, the new buy is AVERAGED into it (volume-weighted) instead of
+    creating a duplicate row. Response surfaces a `merged` flag so the UI can
+    show e.g. "Averaged into existing position: 200 @ ₹2,366.67".
+    """
     data = request.get_json(force=True)
     required = ["ticker", "strategy_code", "buy_price", "buy_date"]
     for f in required:
@@ -1283,8 +1489,14 @@ def api_portfolio_add():
             return jsonify({"error": f"Missing required field: {f}"}), 400
     if data["strategy_code"].upper() not in ("M1", "M2", "M3", "M4"):
         return jsonify({"error": "strategy_code must be M1, M2, M3, or M4"}), 400
-    pid = add_position(data, user_id=_uid())
-    return jsonify({"status": "ok", "id": pid})
+    result = add_position(data, user_id=_uid())
+    return jsonify({
+        "status":        "ok",
+        "id":            result["id"],
+        "merged":        result["merged"],
+        "quantity":      result["quantity"],
+        "avg_buy_price": result["avg_buy_price"],
+    })
 
 
 @app.route("/api/portfolio/<int:pid>", methods=["GET"])
@@ -1365,6 +1577,85 @@ def api_portfolio_close(pid):
         return jsonify({"status": "ok", "trade_logged": False, "trade_error": str(exc)})
 
     return jsonify({"status": "ok", "trade_logged": True, "trade_id": trade_id})
+
+
+@app.route("/api/portfolio/<int:pid>/sell-partial", methods=["POST"])
+def api_portfolio_sell_partial(pid):
+    """
+    Sell a specified quantity from an OPEN position. Broker-style:
+      - quantity == position.quantity → close the position fully
+      - quantity <  position.quantity → reduce position; position stays OPEN;
+        avg_buy_price preserved (Zerodha-style average-cost basis)
+      - quantity >  position.quantity → 400 error
+
+    A trade row is logged into the trades table for the sold portion with
+    buy_price = avg_buy_price of the position and the sold quantity, so the
+    Trades page reflects the realized P&L.
+    """
+    data = request.get_json(force=True)
+    try:
+        sell_qty = int(data.get("quantity", 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "quantity must be an integer"}), 400
+    sell_price = data.get("sell_price")
+    sell_date  = data.get("sell_date")
+    if not sell_price or not sell_date:
+        return jsonify({"error": "sell_price and sell_date required"}), 400
+    if sell_qty <= 0:
+        return jsonify({"error": "quantity must be > 0"}), 400
+
+    uid = _uid()
+    is_admin = _is_admin()
+
+    pos = get_position(pid, user_id=uid, is_admin=is_admin)
+    if not pos or pos.get("status") != "OPEN":
+        return jsonify({"status": "not_found_or_already_closed"}), 404
+    if sell_qty > int(pos.get("quantity") or 0):
+        return jsonify({
+            "error": f"quantity ({sell_qty}) exceeds position quantity ({pos.get('quantity')})"
+        }), 400
+
+    result = partial_sell_position(
+        pid, sell_qty, float(sell_price), sell_date,
+        sell_reason=data.get("sell_reason", ""),
+        user_id=uid, is_admin=is_admin,
+    )
+    if result["status"] in ("not_found", "error"):
+        return jsonify({"status": result["status"]}), 400
+
+    trade_id = None
+    try:
+        ticker_clean = (pos.get("ticker") or "").upper().replace(".NS", "").strip()
+        reason = (data.get("sell_reason") or "").strip()
+        strat  = (pos.get("strategy_code") or "").strip()
+        kind   = "Partial sell" if result["status"] == "partially_sold" else "Auto-closed"
+        note_bits = [b for b in [f"{kind} from portfolio (#{pid})", strat, reason] if b]
+        trade_payload = {
+            "stock":      ticker_clean,
+            "platform":   (data.get("platform")   or "zerodha").lower(),
+            "trade_type": (data.get("trade_type") or "delivery").lower(),
+            "exchange":   (data.get("exchange")   or "NSE").upper(),
+            "quantity":   sell_qty,
+            "buy_price":  result["avg_buy_price"],          # avg-cost basis
+            "sell_price": float(sell_price),
+            "buy_date":   pos.get("buy_date"),
+            "sell_date":  sell_date,
+            "notes":      " — ".join(note_bits),
+            "position_id": pid,
+        }
+        trade_id = add_trade(trade_payload, user_id=uid)
+    except Exception as exc:
+        return jsonify({
+            "status": "ok", "result": result,
+            "trade_logged": False, "trade_error": str(exc),
+        })
+
+    return jsonify({
+        "status": "ok",
+        "result": result,
+        "trade_logged": True,
+        "trade_id": trade_id,
+    })
 
 
 @app.route("/api/portfolio/<int:pid>/reopen", methods=["POST"])

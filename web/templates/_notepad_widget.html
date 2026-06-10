@@ -37,7 +37,10 @@
   position: fixed;
   right: 18px;
   bottom: 18px;
-  z-index: 2000;
+  /* 10050 sits above Bootstrap 5 modal (1055) AND its backdrop (1050) so the
+     notepad always renders on top — even when a modal is open. */
+  z-index: 10050;
+  isolation: isolate;
   font-family: 'JetBrains Mono', system-ui, sans-serif;
 }
 .np-toggle {
@@ -143,6 +146,32 @@
   const NP_KEY_OPEN = 'np_widget_open';
   let saveTimer = null;
   let lastSent  = null;
+
+  // ─────────────────────────────────────────────────────────────
+  //  Bootstrap-modal coexistence
+  //  When a BS modal is open, two things break interaction with
+  //  any external floating widget:
+  //    1. The modal's focus-trap re-focuses the modal whenever
+  //       focus moves to an element outside the modal DOM, which
+  //       prevents typing in our textarea.
+  //    2. mousedown / click events on the backdrop area close
+  //       the modal.
+  //  We solve both by intercepting these events at the document
+  //  capture phase (fires BEFORE Bootstrap's bubble-phase handler)
+  //  and calling stopImmediatePropagation when the event target
+  //  is inside the notepad floater.
+  // ─────────────────────────────────────────────────────────────
+  function isInsideNotepad(target) {
+    const floater = document.getElementById('npFloater');
+    return !!(floater && target && floater.contains(target));
+  }
+  ['focusin', 'mousedown', 'click', 'mouseup', 'touchstart'].forEach(evt => {
+    document.addEventListener(evt, (e) => {
+      if (isInsideNotepad(e.target)) {
+        e.stopImmediatePropagation();
+      }
+    }, true);   // capture phase — runs before Bootstrap's listeners
+  });
 
   function setStatus(msg, cls) {
     const el = document.getElementById('npStatus');

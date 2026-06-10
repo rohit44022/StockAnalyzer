@@ -202,3 +202,6 @@
   window.addEventListener('scroll', reposOpenMenus, true);
 })();
 </script>
+
+{# ── Floating Quick Notes widget — isolated module, no nav dependency. ── #}
+{% if current_user %}{% include "_notepad_widget.html" %}{% endif %}

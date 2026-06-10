@@ -101,6 +101,12 @@ app.register_blueprint(sentiment_bp)
 from web.global_sentiment_routes import global_sentiment_bp
 app.register_blueprint(global_sentiment_bp)
 
+# Quick Notes (separate, isolated module — floating notepad widget)
+from web.notes_routes import notes_bp
+app.register_blueprint(notes_bp)
+from notes.db import init_notes_db
+init_notes_db()
+
 # Fundamental Pro (separate, isolated module — does NOT touch bb_squeeze.fundamentals)
 # from fundamental_pro.routes.blueprint import fp_bp
 # app.register_blueprint(fp_bp)

@@ -1,0 +1,252 @@
+{# ═══════════════════════════════════════════════════════════════
+   Floating Quick-Notes widget — completely isolated module.
+
+   - Persists notes server-side via /api/notes (user-scoped).
+   - Survives browser refresh; cleared on logout.
+   - Open/closed state persists in localStorage (per-browser).
+   - All CSS classes use `np-` prefix; all JS lives in IIFE — zero
+     collision risk with the rest of the app.
+
+   Included from _nav.html so it appears on every authenticated page
+   that uses the shared nav.
+   ═══════════════════════════════════════════════════════════════ #}
+<div id="npFloater" class="np-floater" data-open="false">
+  <button id="npToggle" class="np-toggle" type="button" onclick="npToggle()"
+          title="Quick notes (Ctrl+Shift+N)">
+    <span class="np-icon">📝</span>
+    <span class="np-label">Notes</span>
+  </button>
+  <div id="npPanel" class="np-panel" style="display:none">
+    <div class="np-header">
+      <span class="np-title">📝 Quick Notes</span>
+      <span id="npStatus" class="np-status"></span>
+      <button class="np-close" type="button" onclick="npToggle()" title="Hide">×</button>
+    </div>
+    <textarea id="npText" class="np-textarea"
+              placeholder="Type stock tickers, scan ideas, anything…&#10;&#10;Auto-saves as you type. Cleared on logout."
+              autocomplete="off" spellcheck="false"></textarea>
+    <div class="np-footer">
+      <button class="np-btn" type="button" onclick="npClear()" title="Clear all notes">Clear</button>
+      <span class="np-hint">Saved server-side · cleared on logout</span>
+    </div>
+  </div>
+</div>
+
+<style>
+.np-floater {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2000;
+  font-family: 'JetBrains Mono', system-ui, sans-serif;
+}
+.np-toggle {
+  padding: 8px 14px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #bc8cff 0%, #58a6ff 100%);
+  color: #fff;
+  border: none;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(124, 77, 255, .4);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform .2s, box-shadow .2s;
+}
+.np-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(124, 77, 255, .55);
+}
+.np-floater[data-open="true"] .np-toggle { display: none; }
+.np-panel {
+  background: rgba(13, 17, 23, .97);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(124, 77, 255, .4);
+  border-radius: 12px;
+  width: 340px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.np-header {
+  padding: 10px 14px;
+  background: rgba(124, 77, 255, .12);
+  border-bottom: 1px solid rgba(124, 77, 255, .25);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.np-title { font-weight: 700; font-size: .85rem; color: #fff; flex: 1; }
+.np-status { font-size: .7rem; color: rgba(255, 255, 255, .55); transition: color .2s; }
+.np-status.saved  { color: #7ee787; }
+.np-status.saving { color: #ffe082; }
+.np-status.error  { color: #ff8a80; }
+.np-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, .6);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.np-close:hover { color: #fff; }
+.np-textarea {
+  width: 100%;
+  min-height: 240px;
+  max-height: 55vh;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  resize: vertical;
+  color: #e6edf3;
+  font-family: inherit;
+  font-size: .82rem;
+  line-height: 1.55;
+  outline: none;
+}
+.np-textarea::placeholder { color: rgba(255, 255, 255, .35); }
+.np-footer {
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.np-btn {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 5px;
+  color: rgba(255, 255, 255, .7);
+  font-size: .7rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.np-btn:hover { color: #fff; border-color: rgba(255, 255, 255, .35); }
+.np-hint { font-size: .62rem; color: rgba(255, 255, 255, .4); }
+@media (max-width: 600px) {
+  .np-panel { width: calc(100vw - 36px); }
+}
+</style>
+
+<script>
+(function() {
+  // Guard against being included twice on a single page.
+  if (window.__npInit) return;
+  window.__npInit = true;
+
+  const NP_KEY_OPEN = 'np_widget_open';
+  let saveTimer = null;
+  let lastSent  = null;
+
+  function setStatus(msg, cls) {
+    const el = document.getElementById('npStatus');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.remove('saved', 'saving', 'error');
+    if (cls) el.classList.add(cls);
+  }
+
+  function loadOpenState() {
+    try { return localStorage.getItem(NP_KEY_OPEN) === '1'; } catch (e) { return false; }
+  }
+  function persistOpenState(open) {
+    try { localStorage.setItem(NP_KEY_OPEN, open ? '1' : '0'); } catch (e) {}
+  }
+
+  window.npToggle = function() {
+    const floater = document.getElementById('npFloater');
+    const panel   = document.getElementById('npPanel');
+    if (!floater || !panel) return;
+    const next = floater.dataset.open !== 'true';
+    floater.dataset.open  = next ? 'true' : 'false';
+    panel.style.display    = next ? 'flex' : 'none';
+    persistOpenState(next);
+    if (next) {
+      const ta = document.getElementById('npText');
+      if (ta) setTimeout(() => ta.focus(), 50);
+    }
+  };
+
+  async function fetchNotes() {
+    try {
+      const r = await fetch('/api/notes', { credentials: 'same-origin' });
+      if (!r.ok) return;
+      const d = await r.json();
+      const ta = document.getElementById('npText');
+      if (ta && typeof d.content === 'string') {
+        ta.value  = d.content;
+        lastSent  = d.content;
+      }
+    } catch (e) {}
+  }
+
+  async function saveNotes(content) {
+    if (content === lastSent) return;
+    setStatus('saving…', 'saving');
+    try {
+      const r = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ content: content }),
+      });
+      if (r.ok) { lastSent = content; setStatus('saved ✓', 'saved'); }
+      else      { setStatus('save failed', 'error'); }
+    } catch (e) { setStatus('offline', 'error'); }
+  }
+
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      const ta = document.getElementById('npText');
+      if (ta) saveNotes(ta.value);
+    }, 800);   // debounce — save 0.8s after the user stops typing
+  }
+
+  window.npClear = async function() {
+    if (!confirm('Clear all notes? This cannot be undone.')) return;
+    try {
+      const r = await fetch('/api/notes/clear', { method: 'POST', credentials: 'same-origin' });
+      if (!r.ok) { setStatus('error', 'error'); return; }
+      const ta = document.getElementById('npText');
+      if (ta) { ta.value = ''; lastSent = ''; }
+      setStatus('cleared', 'saved');
+    } catch (e) { setStatus('error', 'error'); }
+  };
+
+  // Keyboard shortcut: Ctrl/Cmd + Shift + N toggles the panel.
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'N' || e.key === 'n')) {
+      e.preventDefault();
+      npToggle();
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Restore open/closed state from prior page
+    if (loadOpenState()) {
+      const floater = document.getElementById('npFloater');
+      const panel   = document.getElementById('npPanel');
+      if (floater && panel) {
+        floater.dataset.open = 'true';
+        panel.style.display   = 'flex';
+      }
+    }
+    fetchNotes();
+    const ta = document.getElementById('npText');
+    if (ta) {
+      ta.addEventListener('input', scheduleSave);
+      ta.addEventListener('blur', () => {
+        clearTimeout(saveTimer);
+        saveNotes(ta.value);
+      });
+    }
+  });
+})();
+</script>

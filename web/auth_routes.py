@@ -241,6 +241,16 @@ def google_callback():
 @auth_bp.route("/logout", methods=["GET", "POST"])
 def do_logout():
     token = request.cookies.get(SESSION_COOKIE)
+
+    # Clear isolated quick-notes BEFORE invalidating the session so we can
+    # still resolve user_id from g. Failures here never block the logout.
+    try:
+        if hasattr(g, "user") and g.user:
+            from notes.db import clear_notes
+            clear_notes(g.user.get("id"))
+    except Exception:
+        pass
+
     if token:
         logout(token)
 

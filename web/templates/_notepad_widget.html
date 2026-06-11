@@ -20,7 +20,14 @@
     <div class="np-header">
       <span class="np-title">📝 Quick Notes</span>
       <span id="npStatus" class="np-status"></span>
-      <button class="np-close" type="button" onclick="npToggle()" title="Hide">×</button>
+      <button class="np-icon-btn np-minimize" type="button" onclick="npToggle()"
+              title="Minimize (notes are kept)" aria-label="Minimize">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+          <rect x="2" y="12" width="12" height="2" rx="1"/>
+        </svg>
+      </button>
+      <button class="np-icon-btn np-close" type="button" onclick="npToggle()"
+              title="Close (notes are kept — reopen anytime)" aria-label="Close">×</button>
     </div>
     <textarea id="npText" class="np-textarea"
               placeholder="Type stock tickers, scan ideas, anything…&#10;&#10;Auto-saves as you type. Cleared on logout."
@@ -88,16 +95,23 @@
 .np-status.saved  { color: #7ee787; }
 .np-status.saving { color: #ffe082; }
 .np-status.error  { color: #ff8a80; }
-.np-close {
+.np-icon-btn {
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, .6);
-  font-size: 1.4rem;
   line-height: 1;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, color .15s;
 }
-.np-close:hover { color: #fff; }
+.np-icon-btn:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+.np-close { font-size: 1.3rem; }
+.np-minimize { margin-right: 2px; }
+.np-minimize svg { display: block; }
 .np-textarea {
   width: 100%;
   min-height: 240px;

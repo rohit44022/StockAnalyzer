@@ -170,22 +170,25 @@
   //       prevents typing in our textarea.
   //    2. mousedown / click events on the backdrop area close
   //       the modal.
-  //  We solve both by intercepting these events at the document
-  //  capture phase (fires BEFORE Bootstrap's bubble-phase handler)
-  //  and calling stopImmediatePropagation when the event target
-  //  is inside the notepad floater.
+  //
+  //  Fix: attach BUBBLE-phase listeners on the floater itself.
+  //  The order is:
+  //    1. Capture/target phase reaches the inner button/textarea
+  //    2. Target's own onclick / focus handler fires normally
+  //    3. Event bubbles up to the floater
+  //    4. We stopPropagation here so Bootstrap's document-level
+  //       listeners never see the event.
+  //  This preserves all in-widget behavior (buttons, typing) while
+  //  shielding Bootstrap from external events.
   // ─────────────────────────────────────────────────────────────
-  function isInsideNotepad(target) {
+  function attachModalIsolation() {
     const floater = document.getElementById('npFloater');
-    return !!(floater && target && floater.contains(target));
+    if (!floater) return;
+    const events = ['focusin', 'mousedown', 'click', 'mouseup', 'touchstart'];
+    events.forEach(evt => {
+      floater.addEventListener(evt, (e) => { e.stopPropagation(); });
+    });
   }
-  ['focusin', 'mousedown', 'click', 'mouseup', 'touchstart'].forEach(evt => {
-    document.addEventListener(evt, (e) => {
-      if (isInsideNotepad(e.target)) {
-        e.stopImmediatePropagation();
-      }
-    }, true);   // capture phase — runs before Bootstrap's listeners
-  });
 
   function setStatus(msg, cls) {
     const el = document.getElementById('npStatus');
@@ -272,6 +275,7 @@
   });
 
   document.addEventListener('DOMContentLoaded', () => {
+    attachModalIsolation();
     // Restore open/closed state from prior page
     if (loadOpenState()) {
       const floater = document.getElementById('npFloater');

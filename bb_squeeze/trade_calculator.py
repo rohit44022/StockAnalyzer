@@ -48,6 +48,11 @@ BROKERAGE_RULES = {
         "delivery": {"mode": "zero"},
         "intraday": {"mode": "pct_or_flat", "pct": 0.0003, "flat": 20},
     },
+    "groww": {
+        # Groww equity delivery: ₹20 or 0.1% (whichever lower); intraday: ₹20 or 0.03%.
+        "delivery": {"mode": "pct_or_flat", "pct": 0.001,  "flat": 20},
+        "intraday": {"mode": "pct_or_flat", "pct": 0.0003, "flat": 20},
+    },
     "dhan": {
         "delivery": {"mode": "zero"},
         "intraday": {"mode": "pct_or_flat", "pct": 0.0003, "flat": 20},
@@ -57,7 +62,8 @@ BROKERAGE_RULES = {
 # DP (Depository Participant) charges — charged per scrip on delivery sell
 DP_CHARGES = {
     "zerodha": 15.34,   # ₹3.5 CDSL + ₹9.5 broker + ₹2.34 GST
-    "dhan":    14.75,    # ₹12.50 + GST
+    "groww":   18.50,   # ₹13.5 CDSL + ₹3 broker + GST (approx)
+    "dhan":    14.75,   # ₹12.50 + GST
 }
 
 # ── Tax rates (post Union Budget 2024) ──────────────────────────

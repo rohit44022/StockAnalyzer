@@ -30,6 +30,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 
 /* Badges */
 .badge-zerodha{background:rgba(240,136,62,.15);color:#f0883e}
+.badge-groww{background:rgba(0,209,157,.15);color:#00d19d}
 .badge-dhan{background:rgba(88,166,255,.15);color:#58a6ff}
 .badge-delivery{background:rgba(63,185,80,.15);color:#3fb950}
 .badge-intraday{background:rgba(210,153,34,.15);color:#d29922}
@@ -174,13 +175,20 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
             <input type="text" class="form-control" id="fStock" placeholder="e.g. RELIANCE" required autocomplete="off">
             <div class="ac-list" id="stockAcList"></div>
           </div>
-          <!-- Platform -->
+          <!-- Broker -->
           <div class="col-md-2">
-            <label class="form-label small text-secondary">Platform</label>
+            <label class="form-label small text-secondary">Broker</label>
             <select class="form-select" id="fPlatform">
               <option value="zerodha" selected>Zerodha</option>
+              <option value="groww">Groww</option>
               <option value="dhan">Dhan</option>
             </select>
+          </div>
+          <!-- Account Owner -->
+          <div class="col-md-2">
+            <label class="form-label small text-secondary">Owner</label>
+            <input type="text" class="form-control" id="fOwner" list="tradesOwnerSuggestions" placeholder="Self / Wife / …" autocomplete="off">
+            <datalist id="tradesOwnerSuggestions"></datalist>
           </div>
           <!-- Trade Type -->
           <div class="col-md-2">
@@ -644,11 +652,19 @@ let holdingWinLossChartInstance = null;
 async function loadTrades(){
     try{
         TRADES = await(await fetch('/api/trades')).json(); }catch(e){TRADES=[];}
+    refreshOwnerSuggestions();
     renderTable();
     renderSummary();
     await renderFYSummary();
     renderMonthlyChart();
     renderAnalytics(); }
+
+function refreshOwnerSuggestions(){
+    const dl = document.getElementById('tradesOwnerSuggestions');
+    if(!dl) return;
+    const seen = new Set(['Self']);
+    (TRADES || []).forEach(t => { const o = (t && t.owner || '').trim(); if(o) seen.add(o); });
+    dl.innerHTML = Array.from(seen).map(v => `<option value="${v}">`).join(''); }
 
 /* ═══════════════════════════════════════════════════════════════
    ADD TRADE
@@ -660,6 +676,7 @@ async function addTrade(e){
     const payload = {
         stock:      document.getElementById('fStock').value.trim().toUpperCase(),
         platform:   document.getElementById('fPlatform').value,
+        owner:      (document.getElementById('fOwner').value || 'Self').trim() || 'Self',
         trade_type: document.getElementById('fTradeType').value,
         exchange:   document.getElementById('fExchange').value,
         quantity:   parseInt(document.getElementById('fQty').value),
@@ -699,7 +716,9 @@ function renderTable(){
 
     tb.innerHTML = TRADES.map(t=>{
         const p = t.pnl;
-        const platformBadge = `<span class="badge badge-${t.platform}">${t.platform==='zerodha'?'Zerodha':'Dhan'}</span>`;
+        const brokerName = t.platform==='zerodha'?'Zerodha':t.platform==='groww'?'Groww':t.platform==='dhan'?'Dhan':t.platform;
+        const ownerTxt = (t.owner || 'Self');
+        const platformBadge = `<span class="badge badge-${t.platform}">${brokerName}</span><br><small class="text-secondary">${ownerTxt}</small>`;
         const typeBadge = `<span class="badge badge-${t.trade_type}">${t.trade_type==='delivery'?'Delivery':'Intraday'}</span>`;
         const taxBadge = `<span class="badge badge-${p.tax_category.toLowerCase()}">${p.tax_category}</span>`;
 
@@ -761,7 +780,8 @@ function showDetail(id){
     <!-- Trade Info -->
     <div class="row g-3 mb-3">
         <div class="col-md-6">
-            ${row('Platform', t.platform==='zerodha'?'Zerodha':'Dhan')}
+            ${row('Broker', t.platform==='zerodha'?'Zerodha':t.platform==='groww'?'Groww':t.platform==='dhan'?'Dhan':t.platform)}
+            ${row('Account Owner', t.owner || 'Self')}
             ${row('Trade Type', t.trade_type==='delivery'?'Delivery (CNC)':'Intraday (MIS)')}
             ${row('Exchange', t.exchange)}
             ${row('Quantity', t.quantity)}
@@ -910,6 +930,39 @@ function buildMoneyFlowCard(f, agg){
         </div>
     </div>`; }
 
+function buildAccountBreakdown(f){
+    // Prefer new per-(broker,owner) breakdown; fall back to old owner-agnostic
+    // by_platform if a stale API response is in play.
+    const rows = (f.by_account && f.by_account.length) ? f.by_account : (f.by_platform || []);
+    if(!rows.length) return '';
+    const brokerName = p => p === 'zerodha' ? 'Zerodha'
+                          : p === 'groww'   ? 'Groww'
+                          : p === 'dhan'    ? 'Dhan'
+                          : (p || '—');
+    const rowHtml = rows.map(r => `<tr>
+            <td><span class="badge badge-${r.platform}">${brokerName(r.platform)}</span></td>
+            <td>${r.owner ? `<span class="badge" style="background:rgba(88,166,255,.12);color:#58a6ff">${r.owner}</span>` : '<span class="text-muted">—</span>'}</td>
+            <td class="text-end">${r.trade_count}</td>
+            <td class="text-end ${pnlCls(r.gross)}">${fmtR(r.gross)}</td>
+            <td class="text-end text-yellow">${fmtR(r.charges)}</td>
+            <td class="text-end ${pnlCls(r.net)}"><strong>${fmtR(r.net)}</strong></td>
+        </tr>`).join('');
+    return `<div class="mf-card" style="margin-top:8px">
+        <div class="mf-title"><i class="bi bi-bank me-1"></i>Per-Account Breakdown — ${f.fy}
+            <span class="text-muted small ms-2" style="font-weight:400">(informational — LTCG exemption &amp; tax apply per PAN, not per account)</span></div>
+        <table class="fy-detail-tbl table table-dark mb-0" style="background:transparent">
+            <thead><tr>
+                <th>Broker</th>
+                <th>Owner</th>
+                <th class="text-end">Trades</th>
+                <th class="text-end">Gross P&L</th>
+                <th class="text-end">Charges</th>
+                <th class="text-end">Net (pre-tax)</th>
+            </tr></thead>
+            <tbody>${rowHtml}</tbody>
+        </table>
+    </div>`; }
+
 function buildFyDetailRow(f, colspan){
     const fy = f.fy;
     const {trades, agg} = computeFyAggregates(fy);
@@ -952,6 +1005,7 @@ function buildFyDetailRow(f, colspan){
         <td colspan="${colspan}">
             <div class="fy-detail-inner">
                 ${moneyFlow}
+                ${buildAccountBreakdown(f)}
                 <div class="text-secondary small mb-2"><i class="bi bi-list-ul me-1"></i>Per-trade breakdown <span class="text-muted">— hover Charges for sub-components. Tax shown only at FY level above (LTCG exemption &amp; loss set-off apply per FY, not per trade).</span></div>
                 <div class="table-responsive">
                     <table class="fy-detail-tbl table table-dark mb-0" style="background:transparent">

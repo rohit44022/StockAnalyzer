@@ -35,6 +35,8 @@ def init_portfolio_db() -> None:
             buy_date        TEXT    NOT NULL,
             quantity         INTEGER NOT NULL DEFAULT 1,
             notes           TEXT    DEFAULT '',
+            platform        TEXT    DEFAULT 'zerodha',
+            owner           TEXT    DEFAULT 'Self',
             status          TEXT    NOT NULL DEFAULT 'OPEN',
             sell_price      REAL,
             sell_date       TEXT,
@@ -48,6 +50,10 @@ def init_portfolio_db() -> None:
         existing = {r[1] for r in c.execute("PRAGMA table_info(portfolio_positions)").fetchall()}
         if "user_id" not in existing:
             c.execute("ALTER TABLE portfolio_positions ADD COLUMN user_id INTEGER DEFAULT NULL")
+        if "platform" not in existing:
+            c.execute("ALTER TABLE portfolio_positions ADD COLUMN platform TEXT DEFAULT 'zerodha'")
+        if "owner" not in existing:
+            c.execute("ALTER TABLE portfolio_positions ADD COLUMN owner TEXT DEFAULT 'Self'")
     except Exception:
         pass
     c.execute("CREATE INDEX IF NOT EXISTS idx_portfolio_user_id ON portfolio_positions(user_id)")
@@ -80,6 +86,8 @@ def add_position(d: dict, user_id: int = None) -> dict:
     add_price     = float(d["buy_price"])
     add_date      = d["buy_date"]
     add_notes     = d.get("notes", "")
+    add_platform  = (d.get("platform") or "zerodha").lower().strip()
+    add_owner     = (d.get("owner") or "Self").strip()
 
     c = _conn()
     existing = c.execute("""
@@ -121,11 +129,11 @@ def add_position(d: dict, user_id: int = None) -> dict:
 
     cur = c.execute("""
         INSERT INTO portfolio_positions
-            (user_id, ticker, strategy_code, buy_price, buy_date, quantity, notes, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN')
+            (user_id, ticker, strategy_code, buy_price, buy_date, quantity, notes, platform, owner, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN')
     """, (
         user_id, ticker, strategy_code,
-        add_price, add_date, add_qty, add_notes,
+        add_price, add_date, add_qty, add_notes, add_platform, add_owner,
     ))
     c.commit()
     pid = cur.lastrowid
@@ -196,11 +204,13 @@ def get_position(pid: int, user_id: int = None, is_admin: bool = False) -> dict 
 def update_position(pid: int, d: dict, user_id: int = None, is_admin: bool = False) -> bool:
     """Update an existing position (edit fields)."""
     c = _conn()
+    platform = (d.get("platform") or "zerodha").lower().strip()
+    owner    = (d.get("owner")    or "Self").strip()
     if is_admin:
         n = c.execute("""
             UPDATE portfolio_positions SET
                 ticker=?, strategy_code=?, buy_price=?, buy_date=?,
-                quantity=?, notes=?, updated_at=datetime('now')
+                quantity=?, notes=?, platform=?, owner=?, updated_at=datetime('now')
             WHERE id=?
         """, (
             d["ticker"].upper().strip(),
@@ -209,13 +219,14 @@ def update_position(pid: int, d: dict, user_id: int = None, is_admin: bool = Fal
             d["buy_date"],
             int(d.get("quantity", 1)),
             d.get("notes", ""),
+            platform, owner,
             pid,
         )).rowcount
     else:
         n = c.execute("""
             UPDATE portfolio_positions SET
                 ticker=?, strategy_code=?, buy_price=?, buy_date=?,
-                quantity=?, notes=?, updated_at=datetime('now')
+                quantity=?, notes=?, platform=?, owner=?, updated_at=datetime('now')
             WHERE id=? AND user_id=?
         """, (
             d["ticker"].upper().strip(),
@@ -224,6 +235,7 @@ def update_position(pid: int, d: dict, user_id: int = None, is_admin: bool = Fal
             d["buy_date"],
             int(d.get("quantity", 1)),
             d.get("notes", ""),
+            platform, owner,
             pid, user_id,
         )).rowcount
     c.commit()

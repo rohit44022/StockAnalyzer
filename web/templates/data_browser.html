@@ -161,19 +161,26 @@
             <span><span class="dot" style="background:#f85149"></span>&gt;10 td behind</span>
             <span class="ms-auto" id="dbVisibleCount">—</span>
           </div>
+          <div class="d-flex align-items-center gap-2 mb-2" id="dbBulkBar" style="display:none !important;">
+            <span class="text-secondary small"><span id="dbSelCount">0</span> selected</span>
+            <button class="btn btn-sm btn-outline-secondary ms-auto" id="dbClearSelBtn"><i class="bi bi-x-lg"></i> Clear</button>
+            <button class="btn btn-sm btn-outline-danger" id="dbDelSelBtn"><i class="bi bi-trash3"></i> Delete selected</button>
+          </div>
           <div class="db-table-wrap">
             <table class="db-table">
               <thead>
                 <tr>
+                  <th style="width:34px"><input type="checkbox" id="dbSelectAllVisible" title="Select all visible"></th>
                   <th data-sort="ticker">Ticker</th>
                   <th data-sort="last_date">Last bar</th>
                   <th data-sort="trading_days_stale">Stale (td)</th>
                   <th data-sort="status">Status</th>
                   <th data-sort="file_size">Size</th>
+                  <th style="width:60px"></th>
                 </tr>
               </thead>
               <tbody id="dbTableBody">
-                <tr><td colspan="5" class="db-empty"><span class="spinner-tiny"></span> Loading…</td></tr>
+                <tr><td colspan="7" class="db-empty"><span class="spinner-tiny"></span> Loading…</td></tr>
               </tbody>
             </table>
           </div>
@@ -200,6 +207,27 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ DELETE CONFIRM MODAL ═══════ -->
+  <div class="modal fade" id="dbDelModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content" style="background:var(--bs-tertiary-bg);border:1px solid var(--bs-border-color)">
+        <div class="modal-header" style="border-color:var(--bs-border-color)">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Delete CSV files</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>You are about to permanently delete <strong id="dbDelCount">0</strong> CSV file(s) from disk. This cannot be undone.</p>
+          <div class="p-2 mb-2" style="background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.25);border-radius:6px;max-height:220px;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#f85149" id="dbDelList"></div>
+          <small class="text-secondary">The files are removed from <span class="font-mono" id="dbDelPathHint">stock_csv/</span>. The listing cache is invalidated so the UI refreshes right after.</small>
+        </div>
+        <div class="modal-footer" style="border-color:var(--bs-border-color)">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" id="dbDelConfirmBtn"><i class="bi bi-trash3 me-1"></i>Delete</button>
         </div>
       </div>
     </div>
@@ -232,6 +260,7 @@
       let sortKey = 'ticker';
       let sortDir = 1;  // 1 asc, -1 desc
       let selectedTicker = null;
+      const selectedForDelete = new Set();
 
       function fmtBytes(n){
         if (n == null) return '—';
@@ -242,6 +271,8 @@
 
       function renderStats(payload){
         document.getElementById('dbCsvDir').textContent = payload.csv_dir || 'stock_csv/';
+        const hint = document.getElementById('dbDelPathHint');
+        if (hint) hint.textContent = payload.csv_dir || 'stock_csv/';
         document.getElementById('dbTotal').textContent  = payload.total ?? 0;
         document.getElementById('dbLatest').textContent = payload.latest_date || '—';
         const bs = payload.by_status || {};
@@ -276,7 +307,7 @@
       function renderTable(){
         filtered = sortItems(allItems.filter(passesFilters));
         if (!filtered.length){
-          tbl.innerHTML = '<tr><td colspan="5" class="db-empty">No tickers match your search.</td></tr>';
+          tbl.innerHTML = '<tr><td colspan="7" class="db-empty">No tickers match your search.</td></tr>';
           visibleCountEl.textContent = '0 shown';
           return;
         }
@@ -290,25 +321,133 @@
         const rows = slice.map(it => {
           const sel = it.ticker === selectedTicker ? ' selected' : '';
           const tds = it.trading_days_stale >= 999 ? '∞' : it.trading_days_stale;
+          const checked = selectedForDelete.has(it.ticker) ? 'checked' : '';
           return `<tr class="${sel}" data-status="${it.status}" data-ticker="${it.ticker}">
+            <td><input type="checkbox" class="db-row-sel" data-ticker="${it.ticker}" ${checked}></td>
             <td class="db-ticker">${it.ticker}</td>
             <td>${it.last_date || '—'}</td>
             <td>${tds}</td>
             <td><span class="fresh-badge ${it.status}">${STATUS_LABEL[it.status] || it.status}</span></td>
             <td>${fmtBytes(it.file_size)}</td>
+            <td><button class="btn btn-sm btn-outline-danger py-0 px-1 db-row-del" data-ticker="${it.ticker}" title="Delete CSV"><i class="bi bi-trash3"></i></button></td>
           </tr>`;
         }).join('');
         tbl.innerHTML = rows;
+        updateBulkBar();
       }
 
-      // Click on a row → load detail
+      // Click on a row → load detail (but not when clicking the checkbox or delete btn)
       tbl.addEventListener('click', (e) => {
+        // Row-level delete
+        const delBtn = e.target.closest('.db-row-del');
+        if (delBtn) {
+          e.stopPropagation();
+          promptDelete([delBtn.dataset.ticker]);
+          return;
+        }
+        // Row-level checkbox toggle
+        const cb = e.target.closest('.db-row-sel');
+        if (cb) {
+          e.stopPropagation();
+          if (cb.checked) selectedForDelete.add(cb.dataset.ticker);
+          else            selectedForDelete.delete(cb.dataset.ticker);
+          updateBulkBar();
+          return;
+        }
         const tr = e.target.closest('tr[data-ticker]');
         if (!tr) return;
         selectedTicker = tr.dataset.ticker;
         document.querySelectorAll('#dbTableBody tr.selected').forEach(x => x.classList.remove('selected'));
         tr.classList.add('selected');
         loadDetail(selectedTicker);
+      });
+
+      function updateBulkBar(){
+        const bar = document.getElementById('dbBulkBar');
+        const cnt = document.getElementById('dbSelCount');
+        cnt.textContent = selectedForDelete.size;
+        bar.style.display = selectedForDelete.size ? '' : 'none';
+        // Sync header "select all visible" checkbox state
+        const selAll = document.getElementById('dbSelectAllVisible');
+        if (selAll) {
+          const cap = 500;
+          const visibleTickers = filtered.slice(0, cap).map(x => x.ticker);
+          const allChecked = visibleTickers.length > 0 && visibleTickers.every(t => selectedForDelete.has(t));
+          selAll.checked = allChecked;
+          selAll.indeterminate = !allChecked && visibleTickers.some(t => selectedForDelete.has(t));
+        }
+      }
+
+      document.getElementById('dbSelectAllVisible').addEventListener('change', (e) => {
+        const cap = 500;
+        const visibleTickers = filtered.slice(0, cap).map(x => x.ticker);
+        if (e.target.checked) visibleTickers.forEach(t => selectedForDelete.add(t));
+        else                  visibleTickers.forEach(t => selectedForDelete.delete(t));
+        renderTable();
+      });
+
+      document.getElementById('dbClearSelBtn').addEventListener('click', () => {
+        selectedForDelete.clear();
+        renderTable();
+      });
+
+      document.getElementById('dbDelSelBtn').addEventListener('click', () => {
+        if (!selectedForDelete.size) return;
+        promptDelete(Array.from(selectedForDelete));
+      });
+
+      function promptDelete(tickers){
+        const list = document.getElementById('dbDelList');
+        const cnt  = document.getElementById('dbDelCount');
+        cnt.textContent = tickers.length;
+        const preview = tickers.slice(0, 20).join(', ') + (tickers.length > 20 ? `, … (+${tickers.length - 20} more)` : '');
+        list.textContent = preview;
+        pendingDelete = tickers;
+        new bootstrap.Modal(document.getElementById('dbDelModal')).show();
+      }
+
+      let pendingDelete = [];
+
+      document.getElementById('dbDelConfirmBtn').addEventListener('click', async () => {
+        const tickers = pendingDelete;
+        pendingDelete = [];
+        const btn = document.getElementById('dbDelConfirmBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-tiny"></span> Deleting…';
+        try {
+          const r = await fetch('/api/data-browser/delete', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ tickers }),
+          });
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.error || 'delete failed');
+          // Purge from local state so UI reflects the file-system truth immediately.
+          const gone = new Set(j.deleted || []);
+          gone.forEach(t => selectedForDelete.delete(t));
+          allItems = allItems.filter(it => !gone.has(it.ticker));
+          if (selectedTicker && gone.has(selectedTicker)) {
+            selectedTicker = null;
+            ddTickerEl.textContent = '—';
+            ddBadge.className = 'fresh-badge missing';
+            ddBadge.textContent = 'no selection';
+            ddMeta.textContent = '';
+            ddAnalyzeBtn.style.display = 'none';
+            ddT.innerHTML = '<tr><td colspan="8" class="db-empty">No ticker selected</td></tr>';
+          }
+          // Refetch fresh headline stats (server cache was busted on delete).
+          fetch('/api/data-browser/list').then(r => r.json()).then(payload => {
+            allItems = payload.items || [];
+            renderStats(payload);
+            renderTable();
+          });
+        } catch (ex) {
+          alert('Delete failed: ' + (ex.message || ex));
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-trash3 me-1"></i>Delete';
+          bootstrap.Modal.getInstance(document.getElementById('dbDelModal')).hide();
+        }
       });
 
       // Sort on header click
@@ -422,7 +561,7 @@
           renderTable();
         })
         .catch(() => {
-          tbl.innerHTML = '<tr><td colspan="5" class="db-empty">Failed to load tickers.</td></tr>';
+          tbl.innerHTML = '<tr><td colspan="7" class="db-empty">Failed to load tickers.</td></tr>';
         });
     })();
   </script>

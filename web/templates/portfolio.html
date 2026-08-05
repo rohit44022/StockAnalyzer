@@ -8,6 +8,9 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<!-- Pan / zoom plugin for the daily unrealized P&L chart. Auto-registers on load. -->
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
 <style>
 :root {
@@ -182,15 +185,28 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   </div>
 
   <div class="card mb-3" id="dailyPnlCard">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer" onclick="toggleDailyPnl(event)">
       <span><i class="bi bi-graph-up-arrow me-1"></i>Per-Day Unrealized Profit (Line Chart)</span>
-      <span class="small text-secondary" id="dailyPnlMeta">Loading...</span>
-    </div>
-    <div class="card-body">
-      <div class="chart-container" style="max-height:280px">
-        <canvas id="dailyUnrealizedChart"></canvas>
+      <div class="d-flex align-items-center gap-2">
+        <span class="small text-secondary" id="dailyPnlMeta">Loading...</span>
+        <button class="btn btn-sm btn-outline-secondary py-0 px-2" id="dailyPnlResetZoom"
+                onclick="event.stopPropagation();resetDailyPnlZoom()" title="Reset zoom / pan" style="display:none">
+          <i class="bi bi-arrows-fullscreen"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-secondary py-0 px-2" id="dailyPnlToggle"
+                onclick="event.stopPropagation();toggleDailyPnl()" title="Collapse / expand">
+          <i class="bi bi-chevron-up" id="dailyPnlToggleIcon"></i>
+        </button>
       </div>
-      <div class="small text-secondary mt-2" id="dailyPnlHint">This chart shows your open portfolio unrealized P&L trend by day.</div>
+    </div>
+    <div class="card-body" id="dailyPnlBody">
+      <div class="chart-container" style="height:clamp(360px, 55vh, 620px);max-height:none">
+        <canvas id="dailyUnrealizedChart" style="max-height:none"></canvas>
+      </div>
+      <div class="small text-secondary mt-2" id="dailyPnlHint">
+        This chart shows your open portfolio unrealized P&L trend by day.
+        <span class="ms-2 text-muted">Drag to pan · scroll / pinch to zoom · double-click to reset.</span>
+      </div>
     </div>
   </div>
 
@@ -912,6 +928,21 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         </div>
         <div class="row g-2">
           <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Broker <span class="text-muted">(drives charges)</span></label>
+            <select class="form-select" id="addPlatform">
+              <option value="zerodha" selected>Zerodha</option>
+              <option value="groww">Groww</option>
+              <option value="dhan">Dhan</option>
+            </select>
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label small text-secondary">Account Owner <span class="text-muted">(who holds it)</span></label>
+            <input type="text" class="form-control" id="addOwner" list="ownerSuggestions" placeholder="Self / Wife / …" autocomplete="off">
+            <datalist id="ownerSuggestions"></datalist>
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6 mb-3">
             <label class="form-label small text-secondary">Buy Price (₹)</label>
             <input type="number" class="form-control font-mono" id="addPrice" step="0.05" min="0.01">
           </div>
@@ -1001,9 +1032,10 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         <div class="small fw-bold mb-2" style="color:var(--b)"><i class="bi bi-receipt me-1"></i>Trade Logging <span class="text-secondary fw-normal">(auto-adds to Trade History &amp; FY Tax Summary)</span></div>
         <div class="row g-2">
           <div class="col-4 mb-3">
-            <label class="form-label small text-secondary">Platform</label>
+            <label class="form-label small text-secondary">Broker</label>
             <select class="form-select" id="closePlatform">
               <option value="zerodha" selected>Zerodha</option>
+              <option value="groww">Groww</option>
               <option value="dhan">Dhan</option>
             </select>
           </div>
@@ -1020,6 +1052,10 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
               <option value="NSE" selected>NSE</option>
               <option value="BSE">BSE</option>
             </select>
+          </div>
+          <div class="col-12 mb-3">
+            <label class="form-label small text-secondary">Account Owner</label>
+            <input type="text" class="form-control" id="closeOwner" list="ownerSuggestions" placeholder="Self / Wife / …" autocomplete="off">
           </div>
         </div>
         <hr style="border-color:var(--card-border)">
@@ -1142,6 +1178,7 @@ function renderPositions() {
             <td>
                 <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation();promptBuyMore(${p.id})" title="Buy more — average into this position"><i class="bi bi-plus-lg"></i></button>
                 <button class="btn btn-sm btn-outline-warning ms-1" onclick="event.stopPropagation();promptEdit(${p.id})" title="Edit"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-info ms-1" onclick="event.stopPropagation();promptClosePosition(${p.id})" title="Close position — book a sell"><i class="bi bi-box-arrow-right"></i></button>
                 <button class="btn btn-sm btn-outline-danger ms-1" onclick="event.stopPropagation();confirmDelete(${p.id})" title="Delete"><i class="bi bi-trash3"></i></button>
             </td>
         `;
@@ -2207,6 +2244,37 @@ let vinceRadarInstance = null;
 // ═══════════════════════════════════════════════════════════════
 //  DAILY UNREALIZED P&L LINE CHART (Portfolio Level)
 // ═══════════════════════════════════════════════════════════════
+function toggleDailyPnl(ev) {
+  // Header-level clicks bubble here; ignore clicks on the reset button etc.
+  if (ev && ev.target && ev.target.closest('#dailyPnlResetZoom')) return;
+  const body = document.getElementById('dailyPnlBody');
+  const icon = document.getElementById('dailyPnlToggleIcon');
+  if (!body || !icon) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  icon.className = 'bi ' + (collapsed ? 'bi-chevron-up' : 'bi-chevron-down');
+  try { localStorage.setItem('dailyPnlCollapsed', collapsed ? '0' : '1'); } catch (_) {}
+  // Chart needs a resize when the container comes back into view.
+  if (collapsed && dailyUnrealizedInstance) {
+    setTimeout(() => dailyUnrealizedInstance.resize(), 60); } }
+
+function resetDailyPnlZoom() {
+  if (dailyUnrealizedInstance && dailyUnrealizedInstance.resetZoom) {
+    dailyUnrealizedInstance.resetZoom(); }
+  const b = document.getElementById('dailyPnlResetZoom');
+  if (b) b.style.display = 'none'; }
+
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    if (localStorage.getItem('dailyPnlCollapsed') === '1') {
+      const body = document.getElementById('dailyPnlBody');
+      const icon = document.getElementById('dailyPnlToggleIcon');
+      if (body) body.style.display = 'none';
+      if (icon) icon.className = 'bi bi-chevron-down';
+    }
+  } catch (_) {}
+});
+
 async function loadDailyUnrealizedChart() {
   const card = document.getElementById('dailyPnlCard');
   const meta = document.getElementById('dailyPnlMeta');
@@ -2254,8 +2322,8 @@ async function loadDailyUnrealizedChart() {
           borderWidth: 2,
           borderColor: palette[i % palette.length],
           backgroundColor: 'transparent',
-          pointRadius: 2.2,
-          pointHoverRadius: 4,
+          pointRadius: 2.8,
+          pointHoverRadius: 5.5,
           pointBackgroundColor: palette[i % palette.length],
           pointBorderWidth: 0,
           fill: false }); }); } else {
@@ -2276,12 +2344,19 @@ async function loadDailyUnrealizedChart() {
         data: pnl,
         tension: 0.25,
         borderWidth: 2.5,
-        pointRadius: 2.6,
-        pointHoverRadius: 4.5,
+        pointRadius: 3.2,
+        pointHoverRadius: 6,
         borderDash: [6, 4],
         borderColor: '#c9d1d9',
         pointBackgroundColor: '#c9d1d9',
         fill: false }); }
+
+    // Register the zoom plugin once (chartjs-plugin-zoom UMD attaches to window).
+    if (window.ChartZoom && !window.__chartZoomRegistered) {
+        try { Chart.register(window.ChartZoom); } catch (_) {}
+        window.__chartZoomRegistered = true;
+    }
+    const hasZoom = !!window.ChartZoom;
 
     dailyUnrealizedInstance = new Chart(canvas, {
       type: 'line',
@@ -2291,6 +2366,7 @@ async function loadDailyUnrealizedChart() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'nearest', intersect: false, axis: 'x' },
         plugins: {
           legend: {
             display: true,
@@ -2299,16 +2375,27 @@ async function loadDailyUnrealizedChart() {
             callbacks: {
               label: (ctx) => {
                 const v = Number(ctx.parsed.y || 0);
-                return `${ctx.dataset.label}: ${v >= 0 ? '+' : ''}${fmtINR2(v)}`; } } } },
+                return `${ctx.dataset.label}: ${v >= 0 ? '+' : ''}${fmtINR2(v)}`; } } },
+          zoom: hasZoom ? {
+            pan:  { enabled: true, mode: 'x', modifierKey: null,
+                    onPan: () => { const b = document.getElementById('dailyPnlResetZoom'); if (b) b.style.display = ''; } },
+            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x',
+                    onZoom: () => { const b = document.getElementById('dailyPnlResetZoom'); if (b) b.style.display = ''; } },
+            limits: { x: { minRange: 5 } }, // don't let user zoom below a 5-day window
+          } : undefined,
+        },
         scales: {
           x: {
-            ticks: { color: '#8b949e', maxTicksLimit: 10 },
+            ticks: { color: '#8b949e', maxTicksLimit: 12, autoSkip: true },
             grid: { color: 'rgba(255,255,255,.05)' } },
           y: {
             ticks: {
               color: '#8b949e',
               callback: (v) => fmtINR(v) },
-            grid: { color: 'rgba(255,255,255,.08)' } } } } }); } catch (e) {
+            grid: { color: 'rgba(255,255,255,.08)' } } } } });
+    // Double-click on the canvas resets zoom — matches most stock-chart UX.
+    canvas.ondblclick = () => resetDailyPnlZoom();
+    } catch (e) {
     if (dailyUnrealizedInstance) { dailyUnrealizedInstance.destroy(); dailyUnrealizedInstance = null; }
     meta.textContent = 'Chart unavailable';
     hint.textContent = 'Unable to load daily unrealized profit right now.'; } }
@@ -3339,6 +3426,17 @@ function renderTrailingStops(ts, holding) {
 // ═══════════════════════════════════════════════════════════════
 //  ADD POSITION
 // ═══════════════════════════════════════════════════════════════
+function refreshOwnerSuggestions() {
+    // Populate the shared <datalist> from unique owners across current positions.
+    // Cheap dedupe — allPositions is small.
+    const dl = document.getElementById('ownerSuggestions');
+    if (!dl) return;
+    const seen = new Set(['Self']);
+    (allPositions || []).forEach(p => {
+        const o = (p && p.owner || '').trim();
+        if (o) seen.add(o); });
+    dl.innerHTML = Array.from(seen).map(v => `<option value="${v}">`).join(''); }
+
 function showAddModal() {
     editingPid = null;
     document.getElementById('addTicker').value = '';
@@ -3350,6 +3448,9 @@ function showAddModal() {
     document.getElementById('addQty').value = '1';
     document.getElementById('addDate').value = new Date().toISOString().slice(0,10);
     document.getElementById('addNotes').value = '';
+    document.getElementById('addPlatform').value = 'zerodha';
+    document.getElementById('addOwner').value = 'Self';
+    refreshOwnerSuggestions();
     const titleEl = document.querySelector('#addModal .modal-title');
     if (titleEl) titleEl.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Add Position';
     new bootstrap.Modal(document.getElementById('addModal')).show(); }
@@ -3366,6 +3467,8 @@ function promptEdit(pid) {
         document.getElementById('addQty').value = pos.quantity;
         document.getElementById('addDate').value = pos.buy_date;
         document.getElementById('addNotes').value = pos.notes || '';
+        document.getElementById('addPlatform').value = (pos.platform || 'zerodha').toLowerCase();
+        document.getElementById('addOwner').value = pos.owner || 'Self';
         const titleEl = document.querySelector('#addModal .modal-title');
         if (titleEl) titleEl.innerHTML = '<i class="bi bi-pencil me-2"></i>Edit Position';
     }, 50); }
@@ -3377,6 +3480,8 @@ async function submitAdd() {
     const qty = parseInt(document.getElementById('addQty').value) || 1;
     const buyDate = document.getElementById('addDate').value;
     const notes = document.getElementById('addNotes').value.trim();
+    const platform = (document.getElementById('addPlatform').value || 'zerodha').toLowerCase();
+    const owner = (document.getElementById('addOwner').value || 'Self').trim() || 'Self';
 
     if (!ticker) return alert('Please enter a ticker symbol');
     if (!price || price <= 0) return alert('Please enter a valid buy price');
@@ -3395,7 +3500,8 @@ async function submitAdd() {
                 buy_price: price,
                 buy_date: buyDate,
                 quantity: qty,
-                notes: notes }) });
+                notes: notes,
+                platform: platform }) });
         const d = await r.json();
         if (d.status !== 'ok') return alert('Update failed: ' + (d.status || 'unknown'));
         bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
@@ -3420,7 +3526,9 @@ async function submitAdd() {
             buy_price: price,
             buy_date: buyDate,
             quantity: qty,
-            notes: notes }) });
+            notes: notes,
+            platform: platform,
+            owner: owner }) });
     const data = await res.json();
     if (data.error) return alert(data.error);
     if (data.merged) {
@@ -3448,10 +3556,14 @@ async function submitAdd() {
 // ═══════════════════════════════════════════════════════════════
 //  CLOSE POSITION
 // ═══════════════════════════════════════════════════════════════
-function promptClosePosition() {
-    if (!selectedPid) return;
-    const pos = allPositions.find(p => p.id === selectedPid);
+function promptClosePosition(pid) {
+    // Called two ways: from the row's close button (pid passed in) or from
+    // the expanded analysis panel (no arg → falls back to selectedPid).
+    const targetPid = pid || selectedPid;
+    if (!targetPid) return;
+    const pos = allPositions.find(p => p.id === targetPid);
     if (!pos) return;
+    selectedPid = targetPid;
 
     const holdingQty = parseInt(pos.quantity || 0);
     document.getElementById('closeTicker').textContent = pos.ticker.replace('.NS','');
@@ -3459,8 +3571,25 @@ function promptClosePosition() {
     document.getElementById('closeHoldingAvg').textContent = (pos.buy_price || 0).toFixed(2);
     document.getElementById('closeQty').value = holdingQty;
     document.getElementById('closeQty').max  = holdingQty;
-    document.getElementById('closePrice').value = currentAnalysis?.targets?.current_price || '';
+    // Prefer the analyzer's current price ONLY if it's for this same position;
+    // otherwise fall back to the live-quote already in the row cell.
+    let livePx = '';
+    if (currentAnalysis && currentAnalysis.holding && currentAnalysis.holding.id === targetPid) {
+        livePx = currentAnalysis?.targets?.current_price || '';
+    }
+    if (!livePx) {
+        const cell = document.getElementById('cur_' + targetPid);
+        const txt = (cell && cell.textContent || '').replace(/[₹,\s]/g, '');
+        const n = parseFloat(txt);
+        if (!isNaN(n) && n > 0) livePx = n;
+    }
+    document.getElementById('closePrice').value = livePx || '';
     document.getElementById('closeDate').value = new Date().toISOString().slice(0,10);
+    const pf = document.getElementById('closePlatform');
+    if (pf && pos.platform) pf.value = (pos.platform || 'zerodha').toLowerCase();
+    const ow = document.getElementById('closeOwner');
+    if (ow) ow.value = pos.owner || 'Self';
+    refreshOwnerSuggestions();
     updateClosePreview();
     new bootstrap.Modal(document.getElementById('closeModal')).show(); }
 
@@ -3499,6 +3628,7 @@ async function submitClose() {
     const date  = document.getElementById('closeDate').value;
     const reason = document.getElementById('closeReason').value;
     const platform = document.getElementById('closePlatform').value;
+    const owner = (document.getElementById('closeOwner').value || 'Self').trim() || 'Self';
     const tradeType = document.getElementById('closeTradeType').value;
     const exchange = document.getElementById('closeExchange').value;
     const psychSystem = document.getElementById('closePsychSystem').value;
@@ -3518,6 +3648,7 @@ async function submitClose() {
             sell_date: date,
             sell_reason: reason,
             platform: platform,
+            owner: owner,
             trade_type: tradeType,
             exchange: exchange,
         }) });

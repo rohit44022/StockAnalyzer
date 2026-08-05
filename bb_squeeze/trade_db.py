@@ -29,6 +29,7 @@ def init_db() -> None:
             user_id     INTEGER DEFAULT NULL,
             stock       TEXT    NOT NULL,
             platform    TEXT    NOT NULL DEFAULT 'zerodha',
+            owner       TEXT    DEFAULT 'Self',
             trade_type  TEXT    NOT NULL DEFAULT 'delivery',
             exchange    TEXT    NOT NULL DEFAULT 'NSE',
             quantity    INTEGER NOT NULL,
@@ -48,6 +49,8 @@ def init_db() -> None:
             c.execute("ALTER TABLE trades ADD COLUMN user_id INTEGER DEFAULT NULL")
         if "position_id" not in existing:
             c.execute("ALTER TABLE trades ADD COLUMN position_id INTEGER DEFAULT NULL")
+        if "owner" not in existing:
+            c.execute("ALTER TABLE trades ADD COLUMN owner TEXT DEFAULT 'Self'")
     except Exception:
         pass
     c.execute("CREATE INDEX IF NOT EXISTS idx_trades_user_id ON trades(user_id)")
@@ -57,9 +60,9 @@ def init_db() -> None:
 
 
 _INSERT = """INSERT INTO trades
-    (user_id, stock, platform, trade_type, exchange, quantity,
+    (user_id, stock, platform, owner, trade_type, exchange, quantity,
      buy_price, sell_price, buy_date, sell_date, notes, position_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"""
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"""
 
 
 def add_trade(d: dict, user_id: int = None) -> int:
@@ -69,6 +72,7 @@ def add_trade(d: dict, user_id: int = None) -> int:
         user_id,
         d["stock"].upper().strip(),
         d.get("platform", "zerodha"),
+        (d.get("owner") or "Self").strip(),
         d.get("trade_type", "delivery"),
         d.get("exchange", "NSE"),
         int(d["quantity"]),
@@ -138,16 +142,18 @@ def delete_trade(tid: int, user_id: int = None, is_admin: bool = False) -> bool:
 
 def update_trade(tid: int, d: dict, user_id: int = None, is_admin: bool = False) -> bool:
     c = _conn()
+    owner = (d.get("owner") or "Self").strip()
     if is_admin:
         n = c.execute("""
             UPDATE trades SET
-                stock=?, platform=?, trade_type=?, exchange=?,
+                stock=?, platform=?, owner=?, trade_type=?, exchange=?,
                 quantity=?, buy_price=?, sell_price=?,
                 buy_date=?, sell_date=?, notes=?
             WHERE id=?
         """, (
             d["stock"].upper().strip(),
             d.get("platform", "zerodha"),
+            owner,
             d.get("trade_type", "delivery"),
             d.get("exchange", "NSE"),
             int(d["quantity"]),
@@ -161,13 +167,14 @@ def update_trade(tid: int, d: dict, user_id: int = None, is_admin: bool = False)
     else:
         n = c.execute("""
             UPDATE trades SET
-                stock=?, platform=?, trade_type=?, exchange=?,
+                stock=?, platform=?, owner=?, trade_type=?, exchange=?,
                 quantity=?, buy_price=?, sell_price=?,
                 buy_date=?, sell_date=?, notes=?
             WHERE id=? AND user_id=?
         """, (
             d["stock"].upper().strip(),
             d.get("platform", "zerodha"),
+            owner,
             d.get("trade_type", "delivery"),
             d.get("exchange", "NSE"),
             int(d["quantity"]),

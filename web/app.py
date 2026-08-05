@@ -659,6 +659,54 @@ def api_data_browser_list():
     return jsonify(payload)
 
 
+@app.route("/api/data-browser/delete", methods=["POST"])
+def api_data_browser_delete():
+    """Delete one or more CSVs from CSV_DIR. Body: {"tickers": ["FOO.NS", ...]}.
+
+    Each ticker is normalised (adds .NS if missing) and the resolved path is
+    checked to be inside CSV_DIR before unlink (path-traversal guard). Returns
+    per-ticker outcome and busts the list cache so the next /list call is fresh.
+    """
+    from pathlib import Path
+    data = request.get_json(force=True) or {}
+    raw_tickers = data.get("tickers") or []
+    if not isinstance(raw_tickers, list) or not raw_tickers:
+        return jsonify({"error": "tickers must be a non-empty list"}), 400
+
+    csv_root = Path(CSV_DIR).resolve()
+    deleted, missing, errors = [], [], []
+    for raw in raw_tickers:
+        try:
+            ticker = normalise_ticker(str(raw))
+        except Exception as e:
+            errors.append({"ticker": raw, "error": f"invalid ticker: {e}"})
+            continue
+        target = (csv_root / f"{ticker}.csv").resolve()
+        # ponytail: guard vs path traversal — target must stay inside csv_root.
+        if not target.is_relative_to(csv_root):
+            errors.append({"ticker": ticker, "error": "path escapes csv_dir"})
+            continue
+        if not target.exists():
+            missing.append(ticker)
+            continue
+        try:
+            target.unlink()
+            deleted.append(ticker)
+        except Exception as e:
+            errors.append({"ticker": ticker, "error": f"{type(e).__name__}: {e}"})
+
+    # Bust cache so the next /list reflects reality.
+    _db_list_cache["data"] = None
+    _db_list_cache["ts"] = 0
+
+    return jsonify({
+        "deleted": deleted,
+        "missing": missing,
+        "errors":  errors,
+        "count":   len(deleted),
+    })
+
+
 @app.route("/api/data-browser/data/<ticker_raw>")
 def api_data_browser_data(ticker_raw):
     """Return last N rows of the raw CSV for a single ticker so the user can
@@ -1375,7 +1423,17 @@ def api_delete_trade(tid):
 
 @app.route("/api/trades/summary")
 def api_trades_summary():
-    """FY-wise tax summary with LTCG exemption applied."""
+    """FY-wise tax summary with LTCG exemption applied.
+
+    Response also carries a `by_account` list per FY: per (broker, owner)
+    trade count, gross, charges, and net (pre-tax). LTCG exemption &
+    loss set-off are per-PAN so tax stays at the FY level — the
+    breakdown is informational (which broker + whose account produced
+    how much of the FY's realised P&L).
+    """
+    from bb_squeeze.trade_calculator import _fy_label
+    from collections import defaultdict
+
     rows = get_all_trades(user_id=_uid(), is_admin=_is_admin())
     items = []
     for t in rows:
@@ -1386,8 +1444,52 @@ def api_trades_summary():
             sell_price=t["sell_price"], buy_date=t["buy_date"],
             sell_date=t["sell_date"],
         )
-        items.append({"sell_date": t["sell_date"], "pnl": pnl.to_dict()})
+        items.append({
+            "sell_date": t["sell_date"],
+            "platform":  (t.get("platform") or "zerodha").lower(),
+            "owner":     (t.get("owner")    or "Self"),
+            "pnl":       pnl.to_dict(),
+        })
     summary = calculate_fy_summary(items)
+
+    by_fy_acc = defaultdict(lambda: defaultdict(lambda: {
+        "trade_count": 0, "gross": 0.0, "charges": 0.0, "net": 0.0,
+    }))
+    for it in items:
+        fy = _fy_label(it["sell_date"])
+        key = (it["platform"], it["owner"])
+        b = by_fy_acc[fy][key]
+        b["trade_count"] += 1
+        b["gross"]       += it["pnl"]["gross_pnl"]
+        b["charges"]     += it["pnl"]["charges"]["total"]
+        b["net"]         += it["pnl"]["net_pnl"]
+    for f in summary:
+        rows_out = []
+        for (plat, owner), v in by_fy_acc.get(f["fy"], {}).items():
+            rows_out.append({
+                "platform":    plat,
+                "owner":       owner,
+                "trade_count": v["trade_count"],
+                "gross":       round(v["gross"], 2),
+                "charges":     round(v["charges"], 2),
+                "net":         round(v["net"], 2),
+            })
+        rows_out.sort(key=lambda x: -x["net"])
+        f["by_account"] = rows_out
+        # Back-compat: keep `by_platform` for older clients (owner-agnostic roll-up).
+        by_plat = defaultdict(lambda: {"trade_count":0,"gross":0.0,"charges":0.0,"net":0.0})
+        for r in rows_out:
+            b = by_plat[r["platform"]]
+            b["trade_count"] += r["trade_count"]
+            b["gross"]       += r["gross"]
+            b["charges"]     += r["charges"]
+            b["net"]         += r["net"]
+        f["by_platform"] = sorted(
+            [{"platform": k, **{kk: round(vv, 2) if isinstance(vv, float) else vv
+                                for kk, vv in v.items()}}
+             for k, v in by_plat.items()],
+            key=lambda x: -x["net"],
+        )
     return jsonify(summary)
 
 
@@ -1566,7 +1668,10 @@ def api_portfolio_close(pid):
         note_bits = [b for b in [f"Auto-closed from portfolio (#{pid})", strat, reason] if b]
         trade_payload = {
             "stock":      ticker_clean,
-            "platform":   (data.get("platform") or "zerodha").lower(),
+            # Prefer the account captured on the position; user override in
+            # the close modal takes precedence when supplied.
+            "platform":   (data.get("platform") or pos.get("platform") or "zerodha").lower(),
+            "owner":      (data.get("owner")    or pos.get("owner")    or "Self"),
             "trade_type": (data.get("trade_type") or "delivery").lower(),
             "exchange":   (data.get("exchange") or "NSE").upper(),
             "quantity":   int(pos.get("quantity") or 1),
@@ -1638,7 +1743,10 @@ def api_portfolio_sell_partial(pid):
         note_bits = [b for b in [f"{kind} from portfolio (#{pid})", strat, reason] if b]
         trade_payload = {
             "stock":      ticker_clean,
-            "platform":   (data.get("platform")   or "zerodha").lower(),
+            # Prefer the account captured on the position; user override in
+            # the close modal takes precedence when supplied.
+            "platform":   (data.get("platform")   or pos.get("platform") or "zerodha").lower(),
+            "owner":      (data.get("owner")      or pos.get("owner")    or "Self"),
             "trade_type": (data.get("trade_type") or "delivery").lower(),
             "exchange":   (data.get("exchange")   or "NSE").upper(),
             "quantity":   sell_qty,

@@ -353,6 +353,14 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
               <div class="chart-container" style="max-height:120px;max-width:200px;margin:0 auto"><canvas id="pnlGaugeChart"></canvas></div>
               <div class="small mt-1" id="holdExplain" style="color:var(--bs-body-color);line-height:1.6"></div>
             </div>
+            <!-- Position notes (from Add / Edit modal) -->
+            <div class="mt-3 pt-2" id="holdNotesWrap" style="display:none;border-top:1px solid var(--card-border)">
+              <div class="d-flex align-items-center mb-1">
+                <small class="text-secondary text-uppercase"><i class="bi bi-journal-text me-1"></i>Notes</small>
+                <button class="btn btn-sm btn-link ms-auto p-0" onclick="promptEdit(selectedPid)" title="Edit notes" style="font-size:.75rem"><i class="bi bi-pencil"></i></button>
+              </div>
+              <div class="small" id="holdNotes" style="white-space:pre-wrap;color:rgba(255,255,255,.75);line-height:1.5"></div>
+            </div>
           </div>
 
           <!-- ═══ FUNDAMENTAL HEALTH SNAPSHOT (50-year expert) ═══ -->
@@ -1060,6 +1068,7 @@ let allPositions = [];
 let currentAnalysis = null;
 let selectedPid = null;
 let allTickers = [];
+let editingPid = null;
 
 const STRATEGY_NAMES = {
     M1: 'Method I — Squeeze', M2: 'Method II — Trend',
@@ -1132,6 +1141,7 @@ function renderPositions() {
             <td id="sizing_${p.id}"><span class="badge badge-wait" style="font-size:.65rem">...</span></td>
             <td>
                 <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation();promptBuyMore(${p.id})" title="Buy more — average into this position"><i class="bi bi-plus-lg"></i></button>
+                <button class="btn btn-sm btn-outline-warning ms-1" onclick="event.stopPropagation();promptEdit(${p.id})" title="Edit"><i class="bi bi-pencil"></i></button>
                 <button class="btn btn-sm btn-outline-danger ms-1" onclick="event.stopPropagation();confirmDelete(${p.id})" title="Delete"><i class="bi bi-trash3"></i></button>
             </td>
         `;
@@ -1158,6 +1168,7 @@ function renderPositions() {
             <td class="small">${p.sell_reason||''}</td>
             <td>
                 <button class="btn btn-sm btn-outline-info" onclick="reopenPosition(${p.id})" title="Reopen"><i class="bi bi-arrow-counterclockwise"></i></button>
+                <button class="btn btn-sm btn-outline-warning ms-1" onclick="promptEdit(${p.id})" title="Edit"><i class="bi bi-pencil"></i></button>
                 <button class="btn btn-sm btn-outline-danger ms-1" onclick="confirmDelete(${p.id})" title="Delete"><i class="bi bi-trash3"></i></button>
             </td>
         `;
@@ -1736,6 +1747,14 @@ function renderAnalysis(data) {
     pnlEl.textContent = `${pnlSign(hold.pnl_amount)}${fmtINR(hold.pnl_amount)} (${pnlSign(hold.pnl_pct)}${fmt(hold.pnl_pct)}%)`;
     pnlEl.style.color = pnlColor(hold.pnl_amount);
     document.getElementById('holdDays').textContent = `${hold.days} days`;
+
+    // Notes (from Add / Edit modal) — read from the position row, not the analyzer payload.
+    const posRow = allPositions.find(p => p.id === selectedPid);
+    const notesTxt = ((posRow && posRow.notes) || '').trim();
+    const notesWrap = document.getElementById('holdNotesWrap');
+    if (notesWrap) {
+        notesWrap.style.display = notesTxt ? 'block' : 'none';
+        document.getElementById('holdNotes').textContent = notesTxt; }
 
     // P&L Gauge Chart
     renderPnlGauge(hold);
@@ -3321,6 +3340,7 @@ function renderTrailingStops(ts, holding) {
 //  ADD POSITION
 // ═══════════════════════════════════════════════════════════════
 function showAddModal() {
+    editingPid = null;
     document.getElementById('addTicker').value = '';
     const tEl = document.getElementById('addTicker');
     const sEl = document.getElementById('addStrategy');
@@ -3333,6 +3353,22 @@ function showAddModal() {
     const titleEl = document.querySelector('#addModal .modal-title');
     if (titleEl) titleEl.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Add Position';
     new bootstrap.Modal(document.getElementById('addModal')).show(); }
+
+function promptEdit(pid) {
+    const pos = allPositions.find(p => p.id === pid);
+    if (!pos) return;
+    showAddModal();
+    editingPid = pid;
+    setTimeout(() => {
+        document.getElementById('addTicker').value = pos.ticker.replace('.NS','');
+        document.getElementById('addStrategy').value = pos.strategy_code;
+        document.getElementById('addPrice').value = pos.buy_price;
+        document.getElementById('addQty').value = pos.quantity;
+        document.getElementById('addDate').value = pos.buy_date;
+        document.getElementById('addNotes').value = pos.notes || '';
+        const titleEl = document.querySelector('#addModal .modal-title');
+        if (titleEl) titleEl.innerHTML = '<i class="bi bi-pencil me-2"></i>Edit Position';
+    }, 50); }
 
 async function submitAdd() {
     const ticker = document.getElementById('addTicker').value.trim().toUpperCase();
@@ -3348,6 +3384,32 @@ async function submitAdd() {
 
     const psychEmotion = document.getElementById('addPsychEmotion').value;
     const psychScore = document.getElementById('addPsychScore').value;
+
+    if (editingPid) {
+        const r = await fetch(`/api/portfolio/${editingPid}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ticker: ticker.includes('.NS') ? ticker : ticker + '.NS',
+                strategy_code: strategy,
+                buy_price: price,
+                buy_date: buyDate,
+                quantity: qty,
+                notes: notes }) });
+        const d = await r.json();
+        if (d.status !== 'ok') return alert('Update failed: ' + (d.status || 'unknown'));
+        bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
+        const wasSelected = (selectedPid === editingPid);
+        editingPid = null;
+        await loadPositions();
+        if (wasSelected) {
+            const p = allPositions.find(x => x.id === selectedPid);
+            const wrap = document.getElementById('holdNotesWrap');
+            const n = ((p && p.notes) || '').trim();
+            if (wrap) {
+                wrap.style.display = n ? 'block' : 'none';
+                document.getElementById('holdNotes').textContent = n; } }
+        return; }
 
     const res = await fetch('/api/portfolio', {
         method: 'POST',

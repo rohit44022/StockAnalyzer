@@ -256,6 +256,13 @@ def top_picks_stream(method):
                 "total_scanned": len(scan_data),
             })
 
+            def _phase_callback(phase, message):
+                progress_queue.put({
+                    "type": "phase",
+                    "phase": phase,
+                    "message": message,
+                })
+
             # Phase 2: Deep analysis + scoring
             result = find_top_picks(
                 scan_results=scan_data,
@@ -263,6 +270,7 @@ def top_picks_stream(method):
                 signal_filter=signal_filter,
                 capital=capital,
                 progress_callback=_progress_callback,
+                phase_callback=_phase_callback,
             )
 
             # Phase 3: Done
@@ -284,9 +292,12 @@ def top_picks_stream(method):
         """SSE event generator."""
         while True:
             try:
-                msg = progress_queue.get(timeout=120)  # 2-minute timeout
+                # 3-minute idle timeout per message — covers the slowest
+                # stage (parallel yfinance fundamentals fetch when the
+                # IP is rate-limited) plus headroom.
+                msg = progress_queue.get(timeout=180)
             except queue.Empty:
-                yield "data: {\"type\":\"error\",\"message\":\"Analysis timed out after 2 minutes\"}\n\n"
+                yield "data: {\"type\":\"error\",\"message\":\"Analysis timed out after 3 minutes\"}\n\n"
                 break
 
             yield f"data: {json.dumps(msg)}\n\n"

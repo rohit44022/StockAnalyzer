@@ -2031,6 +2031,45 @@
                 ` : ''}
             </div>
 
+            <!-- FUNDAMENTALS — same score & verdict shown on the /analyze page -->
+            ${(function(){
+                const f = pick.fundamentals || {};
+                if (!f || (!f.available && !f.score && !f.verdict)) {
+                    const err = f.error ? ` <span style="color:#8b949e">(${f.error})</span>` : '';
+                    return `<div class="tp-verdicts" style="margin-top:10px"><div class="tp-verdict-item" style="opacity:0.8"><span class="tp-verdict-label">📊 Fundamentals:</span><span class="tp-verdict-value" style="color:#8b949e">Not available${err}</span></div></div>`;
+                }
+                const sig = (f.signal || '').toUpperCase();
+                const colorMap = { green:'#3fb950', yellow:'#d29922', red:'#f85149' };
+                const c = colorMap[(f.signal_color||'').toLowerCase()] || '#8b949e';
+                const labelMap = { BUY:'GOOD', HOLD:'HOLD', AVOID:'AVOID' };
+                const label = labelMap[sig] || sig || '—';
+                const strength = f.signal_strength ? f.signal_strength + ' ' : '';
+                const score = Number(f.score || 0);
+                const bar = (name, val) => {
+                    const v = Math.max(0, Math.min(100, Number(val||0)));
+                    const bc = v >= 70 ? '#3fb950' : v >= 50 ? '#58a6ff' : v >= 35 ? '#d29922' : '#f85149';
+                    return `<div style="flex:1;min-width:140px"><div style="display:flex;justify-content:space-between;font-size:0.66rem;color:#8b949e;margin-bottom:2px"><span>${name}</span><span style="color:${bc};font-weight:600">${v}/100</span></div><div style="height:5px;background:#21262d;border-radius:3px;overflow:hidden"><div style="height:100%;width:${v}%;background:${bc}"></div></div></div>`;
+                };
+                return `
+                <div style="border:1px solid ${c}44;border-radius:10px;padding:10px 14px;margin:10px 0;background:${c}0A">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:0.8rem;font-weight:700;color:var(--bs-body-color)">📊 Fundamentals</span>
+                            <span style="font-size:0.85rem;font-weight:800;padding:3px 12px;border-radius:6px;background:${c}22;color:${c};border:1px solid ${c}55">${strength}${label}</span>
+                        </div>
+                        <div style="font-size:0.7rem;color:#8b949e">Score: <strong style="color:${c};font-size:0.95rem">${score.toFixed(0)}</strong>/100</div>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+                        ${bar('Valuation', f.valuation_score)}
+                        ${bar('Profitability', f.profitability_score)}
+                        ${bar('Growth', f.growth_score)}
+                        ${bar('Stability', f.stability_score)}
+                    </div>
+                    ${f.verdict ? `<div style="font-size:0.72rem;color:#8b949e;line-height:1.5">${f.verdict}</div>` : ''}
+                </div>
+                `;
+            })()}
+
             <!-- BOLLINGER BAND DEEP DIVE — New book indicators + conditions -->
             ${(function(){
                 const ind = pick.bb_indicators || {};

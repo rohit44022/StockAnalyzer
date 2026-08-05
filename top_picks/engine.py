@@ -67,6 +67,7 @@ from bb_squeeze.indicators import compute_all_indicators as compute_bb_indicator
 from bb_squeeze.signals import analyze_signals as generate_bb_signal
 from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
 from bb_squeeze.config import CSV_DIR
+from bb_squeeze.fundamentals import fetch_fundamentals
 from hybrid_pa_engine import run_triple_analysis
 
 # ── Our own modules ──
@@ -88,6 +89,96 @@ def _safe(v, default=0):
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
         return default
     return v
+
+
+def _fundamentals_payload(ticker: str) -> dict:
+    """
+    Fetch the same fundamentals shown on the /analyze page and return a
+    JSON-safe dict for the Top 5 modal. fetch_fundamentals is cached for
+    4h, so repeated calls within a session are nearly free. On any
+    failure we return a minimal dict so the pick still renders.
+    """
+    try:
+        fd = fetch_fundamentals(ticker)
+        if fd is None:
+            return {"available": False, "error": "no data"}
+        return {
+            "available": not bool(fd.fetch_error),
+            "score":              _safe(fd.fundamental_score, 0),
+            "verdict":            fd.fundamental_verdict or "",
+            "signal":             fd.fundamental_signal or "",
+            "signal_strength":    fd.signal_strength or "",
+            "signal_color":       fd.signal_color or "",
+            "valuation_score":    _safe(fd.valuation_score, 0),
+            "profitability_score":_safe(fd.profitability_score, 0),
+            "growth_score":       _safe(fd.growth_score, 0),
+            "stability_score":    _safe(fd.stability_score, 0),
+            "error":              fd.fetch_error or "",
+        }
+    except Exception as e:
+        return {"available": False, "error": f"{type(e).__name__}: {e}"}
+
+
+# Total wall-clock budget for enriching all Top-N picks with fundamentals.
+# fetch_fundamentals makes ~10-20 yfinance API calls per stock (info,
+# financials, balance sheet, cashflow, dividends, shareholding, etc.),
+# each subject to a global 1.2s throttle in bb_squeeze/fundamentals.py.
+# When yfinance is rate-limiting the user's IP (the "Not Available"
+# header badge), per-ticker retries can add 30-60s. We give the parallel
+# fetch a generous-but-safe budget that still fits comfortably under the
+# 120s SSE timeout configured in top_picks_routes.
+_FUND_TOTAL_BUDGET_SEC = 75.0
+_FUND_MAX_WORKERS      = 10
+
+
+def _enrich_with_fundamentals(picks: list[dict],
+                              budget_seconds: float = _FUND_TOTAL_BUDGET_SEC) -> None:
+    """
+    Fetch fundamentals for the final picks in parallel under a shared
+    wall-clock budget. Any pick whose fetch doesn't return in time gets
+    a {"available": False, "error": "timeout"} payload so the modal
+    still renders and the SSE response stays under the 120s server-side
+    timeout configured in top_picks_routes.
+    """
+    if not picks:
+        return
+
+    timeout_payload = {"available": False, "error": "timeout"}
+
+    # Initialise every pick so the dict shape is consistent even on timeout.
+    for p in picks:
+        p["fundamentals"] = timeout_payload
+
+    # NOTE: we do NOT use `with ThreadPoolExecutor(...)` because the
+    # context manager's __exit__ waits for in-flight threads. We need
+    # the function to return as soon as the budget expires, even if a
+    # yfinance call is still mid-retry. The pool is shut down with
+    # wait=False so any leftover threads finish in the background and
+    # get garbage-collected by the time the app idles.
+    # Workers >= picks so every pick is truly concurrent (no queueing).
+    pool = ThreadPoolExecutor(
+        max_workers=max(len(picks), _FUND_MAX_WORKERS),
+        thread_name_prefix="tp-fund",
+    )
+    try:
+        future_map = {
+            pool.submit(_fundamentals_payload, p["ticker"]): p for p in picks
+        }
+        try:
+            for future in as_completed(future_map, timeout=budget_seconds):
+                pick = future_map[future]
+                try:
+                    pick["fundamentals"] = future.result()
+                except Exception as e:
+                    pick["fundamentals"] = {
+                        "available": False,
+                        "error": f"{type(e).__name__}: {e}",
+                    }
+        except TimeoutError:
+            # Any futures still pending stay with the default timeout payload.
+            pass
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -136,6 +227,7 @@ def find_top_picks(
     signal_filter: str = "BUY",
     capital: float = DEFAULT_CAPITAL,
     progress_callback=None,
+    phase_callback=None,
 ) -> dict:
     """
     The main function — Find the Top 5 Best Picks from a scan.
@@ -219,6 +311,18 @@ def find_top_picks(
 
     for i, pick in enumerate(top):
         pick["rank"] = i + 1
+
+    # ── Stage 7: Enrich top picks with the same fundamentals shown on
+    #            the /analyze page (score + BUY/HOLD/AVOID verdict).
+    #            Done after ranking so we only fetch for the final picks
+    #            instead of all 100 deep-analyzed candidates. Runs in
+    #            parallel under a hard wall-clock budget so a yfinance
+    #            stall can never block the SSE response.
+    if top:
+        if phase_callback:
+            phase_callback("enriching",
+                           f"Fetching fundamentals for {len(top)} top picks…")
+        _enrich_with_fundamentals(top)
 
     return {
         "method": method,

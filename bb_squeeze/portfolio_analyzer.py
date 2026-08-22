@@ -24,7 +24,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 
-from bb_squeeze.data_loader import load_stock_data, normalise_ticker
+from bb_squeeze.data_loader import load_stock_data, normalise_ticker, get_data_freshness
 from bb_squeeze.fundamentals import fetch_fundamentals
 from bb_squeeze.indicators import compute_all_indicators
 from bb_squeeze.signals import analyze_signals
@@ -364,6 +364,97 @@ def _compute_trailing_stops(df: pd.DataFrame, buy_price: float) -> dict:
     else:
         expert_note = "Wide risk zone. Consider whether this much downside is acceptable for your position size."
 
+    # ── Profit-Tier Trailing Stops ──
+    # As the trade moves in your favour, the stop ratchets up in tiers
+    # so you lock in progressively more profit while letting the winner run.
+    profit_atr = (price - buy_price) / atr_14 if atr_14 > 0 and buy_price > 0 else 0
+    r_multiple = round(profit_atr, 2)
+
+    _TIERS = [
+        (5.0, 3.0, "Tier 4 — Big Winner",
+         "Your trade is at +{pa:.1f} ATR profit (Tier 4 — Big Winner). "
+         "The trailing stop moves to entry + 3×ATR = ₹{stop:.2f}, locking in "
+         "₹{locked:.2f}/share ({locked_pct:.1f}%) profit. This is the 'let it run' zone — "
+         "you have already captured a substantial move and the trailing stop gives "
+         "the stock room for one more leg up. Only ~15% of trades reach this tier. "
+         "The wider trail avoids getting stopped out on normal pullbacks within a strong trend."),
+        (3.0, 2.0, "Tier 3 — Strong Winner",
+         "Your trade is at +{pa:.1f} ATR profit (Tier 3 — Strong Winner). "
+         "The trailing stop ratchets to entry + 2×ATR = ₹{stop:.2f}, locking in "
+         "₹{locked:.2f}/share ({locked_pct:.1f}%) profit. Most professional traders "
+         "would now treat this as a free trade — even if the stock reverses, you walk "
+         "away with a meaningful gain. Let the remaining position ride for the bigger move."),
+        (2.0, 1.0, "Tier 2 — Comfortable Profit",
+         "Your trade is at +{pa:.1f} ATR profit (Tier 2 — Comfortable Profit). "
+         "The trailing stop moves to entry + 1×ATR = ₹{stop:.2f}, locking in "
+         "₹{locked:.2f}/share ({locked_pct:.1f}%) profit while giving the stock "
+         "enough room to continue its trend. This is the sweet spot — you are "
+         "profitable and protected, but not so tight that normal volatility stops you out."),
+        (1.0, 0.0, "Tier 1 — Breakeven Lock",
+         "Your trade is at +{pa:.1f} ATR profit (Tier 1 — Breakeven Lock). "
+         "The trailing stop moves to your entry price ₹{stop:.2f} — this is now a "
+         "risk-free trade. Even if the stock reverses completely, you lose nothing. "
+         "This is the most important tier: it removes the fear of loss and lets you "
+         "hold with a clear mind for the bigger move."),
+    ]
+
+    tier_info = None
+    for threshold, trail_mult, label, tmpl in _TIERS:
+        if profit_atr >= threshold:
+            tier_stop = buy_price + trail_mult * atr_14
+            tier_locked = tier_stop - buy_price
+            tier_locked_pct = (tier_locked / buy_price * 100) if buy_price > 0 else 0
+            tier_info = {
+                "current_tier": label,
+                "tier_number": _TIERS.index((threshold, trail_mult, label, tmpl)) + 1,
+                "total_tiers": 4,
+                "profit_atr": round(profit_atr, 2),
+                "tier_stop": round(tier_stop, 2),
+                "tier_locked_profit": round(tier_locked, 2),
+                "tier_locked_pct": round(tier_locked_pct, 2),
+                "r_multiple": r_multiple,
+                "tier_explanation": tmpl.format(
+                    pa=profit_atr, stop=tier_stop,
+                    locked=tier_locked, locked_pct=tier_locked_pct,
+                ),
+            }
+            break
+
+    if tier_info is None:
+        if profit_atr > 0:
+            tier_info = {
+                "current_tier": "Pre-Tier — Building Profit",
+                "tier_number": 0,
+                "total_tiers": 4,
+                "profit_atr": round(profit_atr, 2),
+                "tier_stop": round(recommended, 2),
+                "tier_locked_profit": 0,
+                "tier_locked_pct": 0,
+                "r_multiple": r_multiple,
+                "tier_explanation": (
+                    f"Your trade is at +{profit_atr:.1f} ATR profit — not yet at Tier 1 "
+                    f"(requires +1.0 ATR). Keep the standard trailing stop at ₹{recommended:.2f}. "
+                    f"Once the stock moves another ₹{(1.0 - profit_atr) * atr_14:.2f}, the stop "
+                    f"will ratchet to breakeven (Tier 1) and you'll have a risk-free trade."
+                ),
+            }
+        else:
+            tier_info = {
+                "current_tier": "No Tier — Trade Underwater",
+                "tier_number": 0,
+                "total_tiers": 4,
+                "profit_atr": round(profit_atr, 2),
+                "tier_stop": round(recommended, 2),
+                "tier_locked_profit": 0,
+                "tier_locked_pct": 0,
+                "r_multiple": r_multiple,
+                "tier_explanation": (
+                    f"The trade is currently at {profit_atr:.1f} ATR — below your entry price. "
+                    f"Use the standard trailing stop at ₹{recommended:.2f} ({risk_pct:.1f}% below "
+                    f"current price). The tier system activates once you're +1 ATR in profit."
+                ),
+            }
+
     return {
         "available":         True,
         "atr_14":            round(atr_14, 2),
@@ -379,6 +470,7 @@ def _compute_trailing_stops(df: pd.DataFrame, buy_price: float) -> dict:
         "locked_pnl_pct":    round(locked_pnl_pct, 2) if profit_locked else 0,
         "expert_note":       expert_note,
         "highest_22d":       round(highest_22, 2),
+        "trailing_tiers":    tier_info,
     }
 
 
@@ -1114,6 +1206,10 @@ def _generate_recommendation(
         strength = "STRONG"
         reasons.append("Multiple strategies confirm sell signal")
 
+    # NOTE: Safety-override rules (Method I / Triple / Wyckoff / PA /
+    # stop-loss breach / data staleness) live in _apply_safety_overrides()
+    # and run AFTER this function so they can consult multi_sys.
+
     return {
         "action":          action,
         "strength":        strength,
@@ -1125,6 +1221,202 @@ def _generate_recommendation(
         "momentum":        momentum,
         "strategy_code":   strategy_code,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  SAFETY-OVERRIDE POST-PROCESSING (layered decision framework)
+# ═══════════════════════════════════════════════════════════════
+#
+# Design (senior-architect view):
+#   Runs AFTER _generate_recommendation and AFTER multi_sys is populated.
+#   Applies a 4-tier framework where higher tiers always win, and no rule
+#   can ever demote a SELL to something softer. Every rule that fires
+#   inserts its own reason + warning + trigger tagged with its rule ID
+#   (R1..R6) so the audit trail is preserved for the user.
+#
+#     TIER 1 — Portfolio Safety (absolute, always wins)
+#       R5. Stop-loss breached — price closed below the M1 target stop.
+#
+#     TIER 2 — Multi-System Consensus (escalate HOLD/ADD → SELL)
+#       R1. Method I sig.sell_signal fires (composite exit).
+#       R2. Triple STRONG SELL with STRONG alignment.
+#       R3. Wyckoff CONFIRMED MARKDOWN + bearish scoring bias.
+#       R4. Price Action SELL with MODERATE/STRONG strength.
+#
+#     TIER 4 — Warnings (never touch action)
+#       R6. Data staleness > 5 trading days → downgrade strength, warn.
+#
+# Rules that need multi_sys (R2, R3, R4) tolerate a missing/empty
+# multi_sys dict by silently skipping — so light-mode requests (which
+# don't compute the heavy engines) still get R1 + R5 + R6 protection.
+
+
+def _apply_safety_overrides(
+    rec: dict,
+    sig,
+    strats,            # [M2, M3, M4] StrategyResult list
+    multi_sys: dict,
+    targets: dict,
+    current_price: float,
+    freshness: dict,
+    strategy_code: str,
+) -> dict:
+    """Return a new `rec` dict with safety-tier overrides applied.
+
+    Never mutates the input rec. Never crashes on missing fields. Every
+    escalation is tagged with a rule ID so the user can audit which
+    system(s) triggered the change.
+    """
+    if not isinstance(rec, dict):
+        return rec
+
+    # Work on a local copy so nothing upstream sees partial state.
+    out = dict(rec)
+    out["reasons"] = list(rec.get("reasons") or [])
+    out["warnings"] = list(rec.get("warnings") or [])
+    out["action_triggers"] = list(rec.get("action_triggers") or [])
+    out["safety_overrides"] = []   # audit trail of which rules fired
+
+    action = out.get("action", "HOLD")
+    strength = out.get("strength", "MODERATE")
+
+    def _escalate_to_sell(rule_id, headline, evidence_line, trigger_line):
+        """Common escalation writer — never demotes; tracks fired rules."""
+        nonlocal action, strength
+        # Never demote a SELL. But ALWAYS record which rule agreed,
+        # so the user sees the full consensus even when action was
+        # already SELL from an earlier rule.
+        out["safety_overrides"].append({
+            "rule": rule_id,
+            "headline": headline,
+            "evidence": evidence_line,
+        })
+        out["reasons"].insert(0, f"[{rule_id}] {headline}: {evidence_line}")
+        out["warnings"].insert(0, f"[{rule_id}] {headline}: {evidence_line}")
+        out["action_triggers"].insert(0, f"[{rule_id}] {trigger_line}")
+        if action in ("HOLD", "ADD"):
+            action = "SELL"
+            strength = "STRONG"
+
+    # ── R5 (TIER 1) — Stop-loss breach: absolute, always wins ────
+    try:
+        stop = targets.get("stop_loss") if isinstance(targets, dict) else None
+        stop = float(stop) if stop is not None else None
+        px = float(current_price) if current_price is not None else None
+        if stop is not None and stop > 0 and px is not None and px < stop:
+            distance_pct = (stop - px) / stop * 100
+            _escalate_to_sell(
+                "R5",
+                "Stop-loss BREACHED",
+                f"price ₹{px:.2f} closed {distance_pct:.2f}% BELOW the "
+                f"stop-loss level ₹{stop:.2f} — thesis is broken",
+                f"EXIT NOW: stop-loss breached at ₹{stop:.2f}",
+            )
+    except (TypeError, ValueError):
+        pass
+
+    # ── R1 (TIER 2) — Method I composite exit ─────────────────────
+    # M1-bought positions get this via the M1 branch upstream; we skip
+    # here to avoid double-recording the same evidence for M1.
+    try:
+        if strategy_code != "M1" and getattr(sig, "sell_signal", False):
+            bits = []
+            if getattr(sig, "exit_sar_flip", False):
+                bits.append("SAR flipped bearish")
+            if getattr(sig, "exit_lower_band_tag", False):
+                bits.append("price tagged the lower Bollinger Band")
+            if getattr(sig, "exit_double_neg", False):
+                bits.append("CMF & MFI both negative (money outflow)")
+            why = "; ".join(bits) if bits else "Method I exit conditions triggered"
+            _escalate_to_sell(
+                "R1",
+                "Method I system-wide EXIT",
+                why,
+                f"EXIT NOW: {bits[0] if bits else 'Method I exit'}",
+            )
+    except Exception:
+        pass
+
+    # ── R2 (TIER 2) — Triple engine STRONG SELL + STRONG alignment ─
+    try:
+        triple = (multi_sys or {}).get("triple") or {}
+        verdict = str(triple.get("verdict") or "").upper()
+        alignment = str(triple.get("alignment") or "").upper()
+        confidence = float(triple.get("confidence") or 0)
+        # Bollinger Ch. 21: cross-validation across systems is the highest
+        # form of confirmation. Require ALL three systems in agreement
+        # ("STRONG" or "ALL_AGREE_BEARISH" alignment).
+        strong_agreement = alignment in ("STRONG", "ALL_AGREE_BEARISH")
+        if verdict.startswith("STRONG SELL") and strong_agreement:
+            _escalate_to_sell(
+                "R2",
+                "Triple engine STRONG SELL (BB+TA+PA agree)",
+                f"verdict={verdict}, alignment={alignment}, confidence={confidence:.0f}% "
+                "— all three independent systems point down",
+                "EXIT NOW: triple-system consensus is bearish",
+            )
+    except Exception:
+        pass
+
+    # ── R3 (TIER 2) — Wyckoff CONFIRMED MARKDOWN + bearish bias ────
+    try:
+        wyckoff = (multi_sys or {}).get("wyckoff") or {}
+        phase = str(wyckoff.get("phase") or "").upper()
+        bias = str(wyckoff.get("bias") or "").upper()
+        # Villahermosa: "In markdown, every rally is a selling opportunity."
+        # We only escalate on CONFIRMED markdown paired with a bearish
+        # scoring bias — early markdown alone (bias NEUTRAL) is too noisy.
+        if "MARKDOWN" in phase and bias == "BEARISH":
+            _escalate_to_sell(
+                "R3",
+                "Wyckoff CONFIRMED MARKDOWN",
+                f"phase={phase}, bias={bias} — smart money has left the party, "
+                "bounces are exit points not entries",
+                "EXIT NOW: Wyckoff markdown confirmed",
+            )
+    except Exception:
+        pass
+
+    # ── R4 (TIER 2) — Price Action MODERATE/STRONG SELL ────────────
+    try:
+        pa = (multi_sys or {}).get("price_action") or {}
+        pa_signal = str(pa.get("signal") or "").upper()
+        pa_strength = str(pa.get("strength") or "").upper()
+        # Al Brooks: weak PA sells are noise; moderate/strong sells with
+        # a valid setup are actionable. WEAK is intentionally excluded.
+        if pa_signal == "SELL" and pa_strength in ("MODERATE", "STRONG"):
+            setup = pa.get("setup") or ""
+            context = pa.get("context") or ""
+            _escalate_to_sell(
+                "R4",
+                f"Price Action {pa_strength} SELL",
+                f"setup={setup}"
+                + (f" — {context[:80]}" if context else ""),
+                f"EXIT NOW: PA {pa_strength} sell setup fires",
+            )
+    except Exception:
+        pass
+
+    # ── R6 (TIER 4) — Data staleness warning (never changes action) ─
+    try:
+        stale_td = int((freshness or {}).get("trading_days_stale") or 0)
+        if stale_td > 5:
+            severity = "STALE" if stale_td <= 10 else "VERY STALE"
+            out["warnings"].append(
+                f"[R6] {severity}: last trading-day of data is {stale_td} "
+                f"trading days behind. Signals may be unreliable — refresh "
+                f"data before acting on this recommendation."
+            )
+            # Weaken the strength label so the UI doesn't say STRONG on
+            # stale data (but never escalate to SELL from a stale gap).
+            if strength == "STRONG":
+                strength = "MODERATE"
+    except (TypeError, ValueError):
+        pass
+
+    out["action"] = action
+    out["strength"] = strength
+    return out
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1141,6 +1433,11 @@ def _run_multi_system(df_raw: pd.DataFrame, ticker: str, buy_price: float) -> di
     # 1. Triple Engine (BB + TA + PA) — replaces old hybrid engine
     try:
         triple = run_triple_analysis(df_raw, ticker=ticker)
+        # Stash the raw snapshot + volume block so analyze_position can build
+        # the layman regime cards without re-running the whole triple pipeline.
+        # These keys are consumed and popped in analyze_position before response.
+        results["_triple_snapshot"] = triple.get("snapshot") or {}
+        results["_triple_volume"]   = triple.get("volume") or {}
         tv = triple.get("triple_verdict", {})
         pa_d = triple.get("pa_data", {})
         pa_s = triple.get("pa_score", {})
@@ -1802,6 +2099,41 @@ def analyze_position(position: dict, light: bool = False) -> dict:
 
         expert_commentary = _generate_expert_commentary(df_with_ind, sig, multi_sys, buy_price)
 
+    # ── Safety-tier overrides ─────────────────────────────────────
+    # Apply the layered decision framework AFTER multi_sys is populated
+    # so R2 (Triple), R3 (Wyckoff), R4 (Price Action) can consult live
+    # engine verdicts. R1 (Method I), R5 (stop-loss breach), R6 (data
+    # staleness) don't need multi_sys and still apply in light-mode.
+    # Never mutates strategy signals, indicators, or any math.
+    try:
+        freshness_for_rec = get_data_freshness(df_with_ind)
+    except Exception:
+        freshness_for_rec = {}
+    rec = _apply_safety_overrides(
+        rec, sig, strats, multi_sys, targets,
+        current_price=current_price,
+        freshness=freshness_for_rec,
+        strategy_code=strategy_code,
+    )
+
+    # ── Layman regime cards (ADX / Squeeze / ATR / OBV) ──────────────
+    # Built from the triple snapshot we already stashed inside multi_sys.
+    # Pop the internal keys so they don't bloat the response.
+    regime_cards = None
+    try:
+        from web.regime_cards import build_regime_cards
+        snap = multi_sys.pop("_triple_snapshot", {}) if isinstance(multi_sys, dict) else {}
+        volb = multi_sys.pop("_triple_volume", {})    if isinstance(multi_sys, dict) else {}
+        if snap or volb:
+            regime_cards = build_regime_cards(
+                {"snapshot": snap, "volume": volb},
+                trailing_stops=trailing_stops,
+                buy_price=buy_price,
+            )
+    except Exception as _e:
+        _pa_logger.debug("regime_cards build failed: %s", _e)
+        regime_cards = None
+
     return {
         "position":                position,
         "indicators":              indicators,
@@ -1826,6 +2158,7 @@ def analyze_position(position: dict, light: bool = False) -> dict:
         "fundamental_snapshot": fund_snapshot,
         "benchmark":       benchmark,
         "trailing_stops":  trailing_stops,
+        "regime_cards":    regime_cards,
         "expert_commentary": expert_commentary,
         "holding": {
             "days":          days,

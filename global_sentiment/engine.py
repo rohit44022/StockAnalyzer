@@ -72,16 +72,16 @@ def _build_data_quality(summaries: dict, health: dict | None) -> dict:
 
     if not health or not health.get("ok"):
         quality_label = "DEGRADED"
-        quality_color = "#f85149"
+        quality_color = "#f06548"
     elif coverage_pct < 80:
         quality_label = "PARTIAL"
-        quality_color = "#d29922"
+        quality_color = "#f7b84b"
     elif stale_instruments:
         quality_label = "OK (some stale)"
-        quality_color = "#d29922"
+        quality_color = "#f7b84b"
     else:
         quality_label = "OK"
-        quality_color = "#3fb950"
+        quality_color = "#0ab39c"
 
     return {
         "label":              quality_label,

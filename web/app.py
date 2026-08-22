@@ -84,6 +84,7 @@ from auth.db import init_auth_db as _init_auth_db
 from auth.middleware import init_auth_middleware
 
 app = Flask(__name__)
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.json_provider_class = _NumpySafeJSONProvider
 app.json = _NumpySafeJSONProvider(app)
 app.register_blueprint(ta_bp)
@@ -132,7 +133,7 @@ def inject_user_context():
     """Make user info available in every template."""
     user = getattr(g, "user", None)
     if not user:
-        return {"current_user": None, "is_admin": False, "user_initials": "", "avatar_color": "#58a6ff"}
+        return {"current_user": None, "is_admin": False, "user_initials": "", "avatar_color": "#7c8aef"}
     fn = (user.get("first_name") or "")[:1].upper()
     ln = (user.get("last_name") or "")[:1].upper()
     initials = (fn + ln) or (user.get("username") or "U")[:2].upper()
@@ -194,25 +195,39 @@ def _build_chart_data(df):
     df = df.tail(250).copy()
     dates = [d.strftime("%Y-%m-%d") for d in df.index]
 
-    return {
+    def _s(series, dp=2):
+        return [round(float(v), dp) if not math.isnan(v) else None for v in series]
+
+    out = {
         "dates":    dates,
-        "open":     [round(float(v), 2) for v in df["Open"]],
-        "high":     [round(float(v), 2) for v in df["High"]],
-        "low":      [round(float(v), 2) for v in df["Low"]],
-        "close":    [round(float(v), 2) for v in df["Close"]],
+        "open":     _s(df["Open"]),
+        "high":     _s(df["High"]),
+        "low":      _s(df["Low"]),
+        "close":    _s(df["Close"]),
         "volume":   [int(v) for v in df["Volume"]],
-        "bb_upper": [round(float(v), 2) if not math.isnan(v) else None for v in df["BB_Upper"]],
-        "bb_mid":   [round(float(v), 2) if not math.isnan(v) else None for v in df["BB_Mid"]],
-        "bb_lower": [round(float(v), 2) if not math.isnan(v) else None for v in df["BB_Lower"]],
-        "sar":      [round(float(v), 2) if not math.isnan(v) else None for v in df["SAR"]],
+        "bb_upper": _s(df["BB_Upper"]),
+        "bb_mid":   _s(df["BB_Mid"]),
+        "bb_lower": _s(df["BB_Lower"]),
+        "sar":      _s(df["SAR"]),
         "sar_bull": [bool(v) for v in df["SAR_Bull"]],
-        "bbw":      [round(float(v), 6) if not math.isnan(v) else None for v in df["BBW"]],
-        "pctb":     [round(float(v), 4) if not math.isnan(v) else None for v in df["Percent_B"]],
-        "cmf":      [round(float(v), 4) if not math.isnan(v) else None for v in df["CMF"]],
-        "mfi":      [round(float(v), 2) if not math.isnan(v) else None for v in df["MFI"]],
-        "vol_sma":  [round(float(v), 0) if not math.isnan(v) else None for v in df["Vol_SMA50"]],
+        "bbw":      _s(df["BBW"], 6),
+        "pctb":     _s(df["Percent_B"], 4),
+        "cmf":      _s(df["CMF"], 4),
+        "mfi":      _s(df["MFI"]),
+        "vol_sma":  _s(df["Vol_SMA50"], 0),
         "squeeze":  [bool(v) for v in df["Squeeze_ON"]],
     }
+    if "RSI" in df.columns:
+        out["rsi"] = _s(df["RSI"])
+    if "VWMACD_Hist" in df.columns:
+        out["vwmacd_hist"] = _s(df["VWMACD_Hist"], 4)
+        out["vwmacd"]      = _s(df["VWMACD"], 4)
+        out["vwmacd_sig"]  = _s(df["VWMACD_Signal"], 4)
+    if "II_Pct" in df.columns:
+        out["ii_pct"] = _s(df["II_Pct"], 4)
+    if "AD_Pct" in df.columns:
+        out["ad_pct"] = _s(df["AD_Pct"], 4)
+    return out
 
 
 def _signal_dict(sig):
@@ -860,6 +875,40 @@ def api_analyze(ticker_raw):
     if fund_warnings and isinstance(fund_dict, dict) and "error" not in fund_dict:
         fund_dict["_warnings"] = fund_warnings
 
+    # Layman-friendly regime cards (ADX / Squeeze / ATR / OBV) — computed
+    # from the triple result we already have, so zero extra CPU.
+    try:
+        from web.regime_cards import build_regime_cards
+        regime_cards = build_regime_cards(triple)
+    except Exception:
+        regime_cards = None
+
+    # ── Pro Features (additive — no existing keys modified) ──
+    weekly = None
+    try:
+        from bb_squeeze.weekly_confirmation import compute_weekly_view
+        weekly = compute_weekly_view(df)
+    except Exception:
+        pass
+
+    sector_rs = None
+    try:
+        from bb_squeeze.sector_strength import compute_sector_rs
+        sector_name = fd.sector if fd and fd.sector != "N/A" else None
+        if sector_name:
+            sector_rs = compute_sector_rs(ticker, df, sector_name)
+    except Exception:
+        pass
+
+    earnings_warning = None
+    try:
+        from bb_squeeze.earnings_guard import check_earnings_proximity
+        upcoming = fd.upcoming_results_date if fd else None
+        hist = fd.earnings_dates_history if fd else None
+        earnings_warning = check_earnings_proximity(ticker, upcoming, hist)
+    except Exception:
+        pass
+
     return jsonify({
         "signal":       _signal_dict(sig),
         "strategies":   [strategy_result_to_dict(sr) for sr in strategies],
@@ -870,6 +919,10 @@ def api_analyze(ticker_raw):
         "triple":       triple,
         "pa":           pa,
         "data_freshness": freshness,
+        "regime_cards": regime_cards,
+        "weekly":       weekly,
+        "sector_rs":    sector_rs,
+        "earnings_warning": earnings_warning,
     })
 
 
@@ -1046,29 +1099,36 @@ _dl_lock = threading.Lock()
 
 
 def _download_worker(ticker, start, end, save_path, staleness_days):
-    """Download one ticker. Returns (ticker, status_str)."""
+    """Download one ticker with throttling. Returns (ticker, status_str)."""
     import yfinance as yf
     file_path = os.path.join(save_path, f"{ticker}.csv")
 
-    # Check if file exists and is fresh
+    # Weekend-aware staleness: weekdays always re-download, weekends skip if Friday data present
     if os.path.exists(file_path):
         try:
             existing = pd.read_csv(file_path)
             if existing.columns[0] == "Date" and len(existing) > 10:
-                last_date = pd.to_datetime(existing["Date"].iloc[-1])
+                last_date = pd.to_datetime(existing["Date"]).max()
                 today = pd.Timestamp.today().normalize()
-                if (today - last_date).days <= staleness_days:
+                days_old = (today - last_date).days
+                if staleness_days > 0 and today.weekday() >= 5:
+                    friday_age = today.weekday() - 4  # Sat→1, Sun→2
+                    if days_old <= friday_age:
+                        return (ticker, "skipped")
+                elif days_old <= 0:
                     return (ticker, "skipped")
         except Exception:
             pass  # corrupt → re-download
 
-    for attempt in range(2):
+    max_attempts = 3
+    for attempt in range(max_attempts):
         try:
+            _time.sleep(0.2)  # throttle to avoid Yahoo rate-limits
             t = yf.Ticker(ticker)
             raw = t.history(start=start, end=end, auto_adjust=False)
             if raw is None or raw.empty:
-                if attempt == 0:
-                    _time.sleep(1)
+                if attempt < max_attempts - 1:
+                    _time.sleep(2 + attempt * 3)
                     continue
                 return (ticker, "no_data")
 
@@ -1097,8 +1157,8 @@ def _download_worker(ticker, start, end, save_path, staleness_days):
             df.to_csv(file_path)
             return (ticker, "saved")
         except Exception:
-            if attempt == 0:
-                _time.sleep(2)
+            if attempt < max_attempts - 1:
+                _time.sleep(2 + attempt * 3)  # 2s, 5s backoff
             else:
                 return (ticker, "error")
     return (ticker, "error")
@@ -1125,6 +1185,7 @@ def _run_download_thread(tickers, save_path, start_date, end_date,
         _dl_state["start_time"] = _time.time()
 
     try:
+        failed_tickers = []
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(
@@ -1148,6 +1209,33 @@ def _run_download_thread(tickers, save_path, start_date, end_date,
                         _dl_state["skipped"] += 1
                     else:
                         _dl_state["failed"] += 1
+                        if status == "error":
+                            failed_tickers.append(ticker)
+
+        # Retry failed tickers (rate-limit recovery) with lower concurrency
+        if failed_tickers:
+            _time.sleep(5)  # cooldown before retry
+            retry_workers = max(2, max_workers // 2)
+            with _dl_lock:
+                _dl_state["current"] = f"retrying {len(failed_tickers)} failed..."
+            with ThreadPoolExecutor(max_workers=retry_workers) as executor:
+                futures = {
+                    executor.submit(
+                        _download_worker, t, start_date, end_date,
+                        save_path, 0
+                    ): t for t in failed_tickers
+                }
+                for future in as_completed(futures):
+                    ticker = futures[future]
+                    try:
+                        _, status = future.result()
+                    except Exception:
+                        status = "error"
+                    with _dl_lock:
+                        _dl_state["current"] = f"retry: {ticker}"
+                        if status == "saved":
+                            _dl_state["failed"] -= 1
+                            _dl_state["saved"] += 1
     except Exception as e:
         with _dl_lock:
             _dl_state["error"] = str(e)
@@ -1165,7 +1253,10 @@ def api_tickers_refresh():
     try:
         from historical_data import refresh_tickers_cache, TICKERS_CACHE_FILE
         body = request.get_json(silent=True) or {}
-        include_sme = body.get("include_sme", False)
+        # Default True — flag actually gates BE-series (Book Entry, e.g.
+        # INDOAMIN, WELINV), not SME. Excluding them silently drops legit
+        # NSE stocks the user might hold.
+        include_sme = body.get("include_sme", True)
         result = refresh_tickers_cache(include_sme=include_sme)
         return jsonify({
             "status": "ok",
@@ -1283,25 +1374,24 @@ def api_download_start():
     """Start historical data download in background."""
     global _dl_state
 
-    with _dl_lock:
-        if _dl_state["running"]:
-            return jsonify({"error": "Download already in progress"}), 409
-
     # Import config from historical_data.py; reload tickers fresh
     from historical_data import load_tickers, START_DATE, SAVE_PATH, STALENESS_DAYS
-    tickers = load_tickers()
 
     body = request.get_json(silent=True) or {}
     force = body.get("force", False)
-    max_workers = min(int(body.get("threads", 8)), 20)  # cap at 20
+    max_workers = min(int(body.get("threads", 4)), 12)  # 4 default, cap 12 — Yahoo rate-limits above this
 
     # yfinance 'end' is exclusive, so use tomorrow to include today's data
     end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
     staleness = 0 if force else STALENESS_DAYS
 
     with _dl_lock:
+        if _dl_state["running"]:
+            return jsonify({"error": "Download already in progress"}), 409
         _dl_state["running"] = True
         _dl_state["finished"] = False
+
+    tickers = load_tickers()
 
     thread = threading.Thread(
         target=_run_download_thread,
@@ -1356,6 +1446,36 @@ def api_download_state():
     elapsed = _time.time() - state["start_time"] if state["start_time"] else 0
     state["elapsed"] = round(elapsed, 1)
     return jsonify(state)
+
+
+# ─────────────────────────────────────────────────────────────────
+#  NSE BHAVCOPY DAILY UPDATE
+# ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/bhavcopy/update", methods=["POST"])
+def api_bhavcopy_update():
+    """Download NSE bhavcopy and append to stock CSVs.
+    Body: { "date": "YYYY-MM-DD" }  (optional, defaults to latest trading day)"""
+    with _dl_lock:
+        if _dl_state["running"]:
+            return jsonify({"ok": False, "error": "Yahoo download in progress — wait for it to finish"}), 409
+
+    from nse_bhavcopy import run, _last_trading_day, _parse_date
+    from historical_data import SAVE_PATH
+
+    body = request.get_json(silent=True) or {}
+    date_str = body.get("date")
+
+    try:
+        if date_str:
+            dates = [_parse_date(date_str)]
+        else:
+            dates = [_last_trading_day()]
+
+        results = run(dates, save_path=SAVE_PATH)
+        return jsonify({"ok": True, "results": results})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -2651,9 +2771,92 @@ def api_portfolio_export_pdf():
     )
 
 
+# ═══════════════════════════════════════════════════════════════
+#  PRO FEATURES — standalone routes (no existing routes modified)
+# ═══════════════════════════════════════════════════════════════
+
+@app.route("/api/fii-dii")
+def api_fii_dii():
+    """FII/DII institutional flow data from NSE."""
+    try:
+        from bb_squeeze.fii_dii_tracker import get_fii_dii_activity
+        data = get_fii_dii_activity()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"available": False, "error": str(e)}), 500
+
+
+@app.route("/api/portfolio/risk")
+def api_portfolio_risk():
+    """Portfolio-level correlation and concentration risk."""
+    try:
+        from bb_squeeze.portfolio_risk import analyze_portfolio_risk
+        from web.portfolio_db import get_all_open
+        positions_raw = get_all_open()
+        if not positions_raw:
+            return jsonify({"available": False, "explanation": "No open positions in portfolio."})
+
+        positions = []
+        for p in positions_raw:
+            sector = "N/A"
+            try:
+                fd = fetch_fundamentals(p.get("ticker", ""))
+                if fd and fd.sector and fd.sector != "N/A":
+                    sector = fd.sector
+            except Exception:
+                pass
+            positions.append({
+                "ticker": p.get("ticker", ""),
+                "sector": sector,
+                "current_price": p.get("current_price", p.get("buy_price", 0)),
+                "quantity": p.get("quantity", 0),
+                "buy_price": p.get("buy_price", 0),
+            })
+
+        result = analyze_portfolio_risk(positions, csv_dir=CSV_DIR)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"available": False, "error": str(e)}), 500
+
+
+@app.route("/backtest")
+def backtest_page():
+    """Backtest page — strategy backtesting UI."""
+    return render_template("backtest.html")
+
+
+@app.route("/api/backtest/run", methods=["POST"])
+def api_backtest_run():
+    """Run a backtest for a given method and universe."""
+    try:
+        from bb_squeeze.backtester import backtest_method
+        body = request.get_json(force=True)
+        method = body.get("method", "M1")
+        start_date = body.get("start_date", "2025-01-01")
+        end_date = body.get("end_date", date.today().strftime("%Y-%m-%d"))
+        universe = body.get("universe", "nifty50")
+
+        tickers = get_all_tickers_from_csv(CSV_DIR)
+        if universe == "nifty50":
+            tickers = tickers[:50]
+        elif universe == "nifty200":
+            tickers = tickers[:200]
+        elif universe == "nifty500":
+            tickers = tickers[:500]
+
+        result = backtest_method(
+            method=method, tickers=tickers,
+            start_date=start_date, end_date=end_date,
+            csv_dir=CSV_DIR,
+        )
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("\n  🚀  Bollinger Squeeze Web Dashboard")
     print(f"  📂  Data dir: {CSV_DIR}")
     print(f"  🌐  Open: http://127.0.0.1:5001\n")
-    app.run(debug=False, port=5001)
+    app.run(host="127.0.0.1", debug=True, port=5001)

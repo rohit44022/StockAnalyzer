@@ -1,0 +1,61 @@
+{% include "_command_palette.html" %}
+</div><!-- /.sc-main -->
+<script>
+/* ── Page enter animation (one-shot, removes stacking context after) ── */
+(function(){
+  var m = document.getElementById('scMain');
+  if(m){
+    m.classList.add('page-entering');
+    m.addEventListener('animationend', function(){ m.classList.remove('page-entering'); }, {once:true});
+  }
+})();
+
+/* ── Scroll Reveal + Animated Counters ── */
+(function(){
+  if(window.__scrollRevealInit) return;
+  window.__scrollRevealInit = true;
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('revealed'); obs.unobserve(e.target); }
+    });
+  }, {threshold:0.1, rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(function(el){ obs.observe(el); });
+
+  var counters = document.querySelectorAll('.counter');
+  if(counters.length){
+    var cobs = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(!e.isIntersecting) return;
+        var el = e.target, target = parseInt(el.dataset.target)||0, current = 0;
+        var step = Math.max(1, Math.ceil(target/40));
+        var timer = setInterval(function(){
+          current += step;
+          if(current >= target){ current = target; clearInterval(timer); }
+          el.textContent = current.toLocaleString('en-IN');
+        }, 30);
+        cobs.unobserve(el);
+      });
+    }, {threshold:0.3});
+    counters.forEach(function(c){ cobs.observe(c); });
+  }
+})();
+
+/* ── Button ripple effect ── */
+(function(){
+  if(window.__rippleInit) return;
+  window.__rippleInit = true;
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.btn');
+    if(!btn) return;
+    var r = btn.getBoundingClientRect();
+    var d = Math.max(r.width, r.height);
+    var span = document.createElement('span');
+    span.className = 'ripple';
+    span.style.width = span.style.height = d + 'px';
+    span.style.left = (e.clientX - r.left - d/2) + 'px';
+    span.style.top = (e.clientY - r.top - d/2) + 'px';
+    btn.appendChild(span);
+    setTimeout(function(){ span.remove(); }, 600);
+  });
+})();
+</script>

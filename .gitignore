@@ -57,3 +57,16 @@ get-pip.py
 
 # ── Tickers cache (generated on download) ──
 tickers_cache.json
+
+# ── AI tool / skills directories (local config, not source) ──
+.agents/
+.claude/
+.codex/
+.impeccable/
+.token-optimizer/
+skills-lock.json
+
+# ── Generated cache files ──
+bb_squeeze/cache/
+logs/*.pkl
+logs/backtest_*.csv

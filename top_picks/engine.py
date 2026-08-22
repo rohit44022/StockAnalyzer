@@ -53,6 +53,7 @@ THE OUTPUT:
 
 from __future__ import annotations
 import math
+import os
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
@@ -68,6 +69,7 @@ from bb_squeeze.signals import analyze_signals as generate_bb_signal
 from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
 from bb_squeeze.config import CSV_DIR
 from bb_squeeze.fundamentals import fetch_fundamentals
+from bb_squeeze.weekly_confirmation import compute_weekly_view
 from hybrid_pa_engine import run_triple_analysis
 
 # ── Our own modules ──
@@ -179,6 +181,42 @@ def _enrich_with_fundamentals(picks: list[dict],
             pass
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
+
+
+# ═══════════════════════════════════════════════════════════════
+# WEEKLY CONFIRMATION HELPERS
+# ═══════════════════════════════════════════════════════════════
+
+def _compute_weekly_confirmation(df: pd.DataFrame) -> dict:
+    """Run weekly BB confirmation on a stock's daily DataFrame.
+    Returns the full weekly_confirmation dict, or a safe fallback on error."""
+    try:
+        if not isinstance(df.index, pd.DatetimeIndex):
+            df = df.copy()
+            df.index = pd.to_datetime(df["Date"])
+        return compute_weekly_view(df)
+    except Exception:
+        return {"available": False, "confirms_daily": True, "weekly_trend": "UNKNOWN"}
+
+
+def pick_passes_weekly_filter(pick: dict, signal_filter: str) -> bool:
+    """
+    Post-checklist weekly confirmation gate — strict mode.
+
+    BUY picks pass ONLY if the weekly trend is BULLISH.
+    SELL picks pass ONLY if the weekly trend is BEARISH.
+    Both timeframes must point the same direction — no fence-sitters.
+    If weekly data is unavailable, the pick passes (benefit of the doubt).
+    """
+    wc = pick.get("weekly_confirmation", {})
+    if not wc.get("available", False):
+        return True
+    trend = wc.get("weekly_trend", "NEUTRAL")
+    if signal_filter == "BUY":
+        return trend == "BULLISH"
+    if signal_filter == "SELL":
+        return trend == "BEARISH"
+    return True
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -306,8 +344,17 @@ def find_top_picks(
         if pick_passes_strict_checklist(p, method, signal_filter)
     ]
 
+    # Weekly confirmation filter: skip for M3 (reversals enter before weekly confirms).
+    if method == "M3":
+        weekly_filtered = strict_picks
+    else:
+        weekly_filtered = [
+            p for p in strict_picks
+            if pick_passes_weekly_filter(p, signal_filter)
+        ]
+
     # ── Stage 6: Rank and select top N ──────────────────────────
-    top = strict_picks[:TOP_N]
+    top = weekly_filtered[:TOP_N]
 
     for i, pick in enumerate(top):
         pick["rank"] = i + 1
@@ -324,6 +371,8 @@ def find_top_picks(
                            f"Fetching fundamentals for {len(top)} top picks…")
         _enrich_with_fundamentals(top)
 
+    weekly_rejected = len(strict_picks) - len(weekly_filtered)
+
     return {
         "method": method,
         "signal_filter": signal_filter,
@@ -332,10 +381,16 @@ def find_top_picks(
         "total_qualified": total_qualified,
         "total_analyzed": len(scored),
         "total_strict": len(strict_picks),
+        "total_weekly_rejected": weekly_rejected,
         "picks": top,
-        "message": f"Showing {len(top)} stocks with ALL {method} {signal_filter} conditions strictly met."
-                   if top
-                   else f"No stocks met ALL {method} {signal_filter} conditions strictly. 0 out of {len(scored)} analyzed stocks passed.",
+        "message": (
+            f"Showing {len(top)} stocks with ALL {method} {signal_filter} "
+            f"conditions strictly met + weekly trend confirmed."
+            + (f" ({weekly_rejected} dropped by weekly filter.)" if weekly_rejected else "")
+        ) if top else (
+            f"No stocks met ALL {method} {signal_filter} conditions strictly. "
+            f"0 out of {len(scored)} analyzed stocks passed."
+        ),
     }
 
 
@@ -543,18 +598,17 @@ def _deep_analyze_stock(
         if df is None or len(df) < MIN_DATA_BARS:
             return None
 
-        # Step 2: Run Triple Conviction Engine (BB + TA + PA + Wyckoff)
-        # This is the HEAVY call — internally it runs:
-        #   - compute_bb_indicators() → BB bands, %b, BBW, CMF, MFI, SAR, etc.
-        #   - analyze_signals() → M1 squeeze detection
-        #   - run_all_strategies() → M2/M3/M4 pattern detection
-        #   - compute_all_ta_indicators() → 40+ TA indicators
-        #   - generate_ta_signal() → 6-category TA scoring
-        #   - Price Action (Al Brooks) → bar-by-bar analysis
-        #   - cross_validate() → BB vs TA vs PA agreement check
-        #   - Wyckoff/Villahermosa context layer
-        #   - risk report + target prices
-        triple = run_triple_analysis(df, ticker=ticker, capital=capital)
+        # Step 2: Run Triple Conviction Engine (BB + TA + PA + Wyckoff).
+        # Cached on (ticker, csv_mtime+size, capital, code_version). Any
+        # data or indicator-code change invalidates automatically; 24h TTL
+        # is a belt-and-braces. Cache is invisible to correctness — a miss
+        # falls straight through to the live call below.
+        from top_picks import cache as _triple_cache
+        csv_path = os.path.join(CSV_DIR, f"{ticker}.csv")
+        triple = _triple_cache.read(ticker, csv_path, capital)
+        if triple is None:
+            triple = run_triple_analysis(df, ticker=ticker, capital=capital)
+            _triple_cache.write(ticker, csv_path, capital, triple)
 
         if "error" in triple:
             return None
@@ -729,6 +783,9 @@ def _deep_analyze_stock(
 
             # ── Price Action (Al Brooks) Data ──
             "pa_data": pa_flat,
+
+            # ── Weekly Confirmation (multi-timeframe filter) ──
+            "weekly_confirmation": _compute_weekly_confirmation(df),
         }
 
     except Exception:

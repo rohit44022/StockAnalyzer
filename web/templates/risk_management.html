@@ -11,30 +11,16 @@
 <style>
 :root {
      
-    --card-bg:var(--bs-tertiary-bg); --card-border:var(--bs-border-color);
-    --g:#3fb950; --r:#f85149; --y:#d29922; --b:#58a6ff; --p:#bc8cff; --o:#f0883e; --c:#39d2c0; }
+    --card-bg:#282f36; --card-border:#2f3944;
+    --g:#0ab39c; --r:#f06548; --y:#f7b84b; --b:#7c8aef; --p:#c084fc; --o:#f0883e; --c:#39d2c0; }
 body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .font-mono{font-family:'JetBrains Mono',monospace}
-.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px}
 .card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
-
-/* ══ UNIFIED NAV ══ */
-.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
-.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
-.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
-@keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
-@keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
-.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
-.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
-.sc-nav .sc-link:hover{color:var(--bs-body-color);border-bottom-color:rgba(88,166,255,.3)}
-.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
-.sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
-.sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
-@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 
 /* Hero */
 .hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%,var(--bs-tertiary-bg));border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
-.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#f0883e,#bc8cff,#58a6ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#f0883e,#c084fc,#7c8aef);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 
 /* Summary cards */
 .sum-card{border-radius:14px;padding:1.2rem;transition:transform .15s}
@@ -43,7 +29,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .sum-label{font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
 
 /* Concept box */
-.concept-box{background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.15);border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem;font-size:.88rem;line-height:1.65;color:var(--bs-body-color)}
+.concept-box{background:rgba(124,138,239,.04);border:1px solid rgba(124,138,239,.15);border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem;font-size:.88rem;line-height:1.65;color:var(--bs-body-color)}
 .concept-box h6{color:var(--b);font-weight:700;margin-bottom:.5rem;font-size:.95rem}
 .concept-box .formula{font-family:'JetBrains Mono',monospace;color:var(--p);font-weight:500;display:block;margin:.5rem 0;font-size:.82rem}
 
@@ -55,10 +41,10 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .metric-explain{font-size:.78rem;color:#8b949e;margin-left:auto;max-width:340px;text-align:right}
 
 /* Status badges */
-.badge-ok{background:rgba(63,185,80,.15);color:#3fb950}
-.badge-warn{background:rgba(210,153,34,.15);color:#d29922}
-.badge-bad{background:rgba(248,81,73,.15);color:#f85149}
-.badge-info{background:rgba(88,166,255,.15);color:#58a6ff}
+.badge-ok{background:rgba(10,179,156,.15);color:#0ab39c}
+.badge-warn{background:rgba(247,184,75,.15);color:#f7b84b}
+.badge-bad{background:rgba(240,101,72,.15);color:#f06548}
+.badge-info{background:rgba(124,138,239,.15);color:#7c8aef}
 
 /* Chart box */
 .chart-box{position:relative;width:100%;max-height:300px}
@@ -66,13 +52,13 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 
 /* Form */
 .form-control,.form-select{background:var(--bs-body-bg);border-color:var(--card-border);color:var(--bs-body-color)}
-.form-control:focus,.form-select:focus{background:var(--bs-body-bg);border-color:var(--b);color:var(--bs-body-color);box-shadow:0 0 0 .2rem rgba(88,166,255,.15)}
+.form-control:focus,.form-select:focus{background:var(--bs-body-bg);border-color:var(--b);color:var(--bs-body-color);box-shadow:0 0 0 .2rem rgba(124,138,239,.15)}
 
 /* Autocomplete */
 .ac-wrap{position:relative}
 .ac-list{position:absolute;z-index:1060;background:var(--card-bg);border:1px solid var(--card-border);border-radius:0 0 10px 10px;max-height:220px;overflow-y:auto;width:100%;left:0;top:100%;display:none}
 .ac-item{padding:7px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--bs-body-color)}
-.ac-item:hover,.ac-item.active{background:rgba(88,166,255,.12);color:var(--b)}
+.ac-item:hover,.ac-item.active{background:rgba(124,138,239,.12);color:var(--b)}
 
 /* Tabs */
 .nav-tabs .nav-link{color:#8b949e;border-radius:8px 8px 0 0;border:1px solid transparent}
@@ -84,7 +70,6 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 /* Loading */
 .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--card-border);border-top:2px solid var(--b);border-radius:50%;animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color)}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color);text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
 </style>
 </head>
 <body>
@@ -371,7 +356,7 @@ let D = null;  // analysis result cache
 let charts = {};  // Chart.js instances
 
 // Colors from the existing system
-const C = {g:'#3fb950',r:'#f85149',y:'#d29922',b:'#58a6ff',p:'#bc8cff',o:'#f0883e',c:'#39d2c0'};
+const C = {g:'#0ab39c',r:'#f06548',y:'#f7b84b',b:'#7c8aef',p:'#c084fc',o:'#f0883e',c:'#39d2c0'};
 
 // ═══════════════════════════════════════════════════════════════════
 //  CLOCK
@@ -512,7 +497,7 @@ function renderFCurve() {
         label: 'TWR',
         data: fc.twr_values,
         borderColor: C.b,
-        backgroundColor: 'rgba(88,166,255,.1)',
+        backgroundColor: 'rgba(124,138,239,.1)',
         fill: true,
         tension: .3,
         pointRadius: fc.f_values.map((v,i) => i===optIdx ? 8 : 0),
@@ -557,7 +542,7 @@ function renderFracF() {
         {
           label: 'Geom Mean (FGHPR)',
           data: frac.fractions.map(f => f.fghpr),
-          backgroundColor: frac.fractions.map(f => f.fghpr >= 1 ? 'rgba(63,185,80,.5)' : 'rgba(248,81,73,.5)'),
+          backgroundColor: frac.fractions.map(f => f.fghpr >= 1 ? 'rgba(10,179,156,.5)' : 'rgba(240,101,72,.5)'),
           borderColor: frac.fractions.map(f => f.fghpr >= 1 ? C.g : C.r),
           borderWidth: 1,
           yAxisID: 'y', },
@@ -683,7 +668,7 @@ function renderDistChart() {
       labels: ['Losses', 'Wins'],
       datasets: [{
         data: [losses, wins],
-        backgroundColor: ['rgba(248,81,73,.5)', 'rgba(63,185,80,.5)'],
+        backgroundColor: ['rgba(240,101,72,.5)', 'rgba(10,179,156,.5)'],
         borderColor: [C.r, C.g],
         borderWidth: 1, }] },
     options: {
@@ -729,7 +714,7 @@ function renderDrawdown() {
         label: 'Drawdown %',
         data: dd.dd_series,
         borderColor: C.r,
-        backgroundColor: 'rgba(248,81,73,.1)',
+        backgroundColor: 'rgba(240,101,72,.1)',
         fill: true,
         tension: .1,
         pointRadius: 0, }] },
@@ -768,7 +753,7 @@ function renderVolatility() {
           label: v.period + '-day HV%',
           data: v.vol_series,
           borderColor: C.y,
-          backgroundColor: 'rgba(210,153,34,.08)',
+          backgroundColor: 'rgba(247,184,75,.08)',
           fill: true,
           tension: .2,
           pointRadius: 0, },
@@ -841,7 +826,7 @@ function renderFrontier(data) {
         {
           label: 'Portfolios',
           data: pts.map(p => ({ x: p.std*100, y: p.return*100 })),
-          backgroundColor: 'rgba(88,166,255,.3)',
+          backgroundColor: 'rgba(124,138,239,.3)',
           pointRadius: 3, },
         {
           label: 'Max Sharpe',
@@ -899,7 +884,7 @@ async function loadPortfolioRisk() {
       </tr>`; }).join(''); } catch(e) {
     body.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-3">${e.message}</td></tr>`; } }
 </script>
-<script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
 {% include "_theme_picker.html" %}
+{% include "_scroll_reveal.html" %}
 </body>
 </html>

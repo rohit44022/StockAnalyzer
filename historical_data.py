@@ -43,8 +43,7 @@ END_DATE    = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 SAVE_PATH   = "/Users/rttripathirttripathi/Rohit/coding/StockCode/ historical_data/stock_csv/"
 SKIP_EXISTING = True   # set False to re-download everything from scratch
 RETRY_ONCE    = True   # retry a failed ticker once before skipping
-STALENESS_DAYS = 4     # re-download if last CSV date is older than this many calendar days
-                       # (4 covers Mon/Tue when last trade was Fri; holidays/long weekends)
+STALENESS_DAYS = 4     # only used on weekends: skip if data ≤ this many days old
 
 _HD_DATA_DIR = os.environ.get("STOCK_APP_DATA", os.path.dirname(os.path.abspath(__file__)))
 TICKERS_CACHE_FILE = os.path.join(_HD_DATA_DIR, "tickers_cache.json")
@@ -57,15 +56,20 @@ TICKERS_CACHE_FILE = os.path.join(_HD_DATA_DIR, "tickers_cache.json")
 NSE_EQUITY_URL = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
 
 
-def fetch_nse_tickers(include_sme: bool = False) -> list[str]:
+def fetch_nse_tickers(include_sme: bool = True) -> list[str]:
     """
     Fetch the current list of NSE-listed equity symbols from
     the official NSE archives CSV.
 
     Parameters
     ----------
-    include_sme : if True, include BE-series (SME / book-entry) stocks
-                  in addition to EQ-series.
+    include_sme : legacy name — actually controls BE-series (Book Entry /
+                  trade-for-trade segment) inclusion. Kept as True by default
+                  because real BE-series stocks (e.g. INDOAMIN, WELINV) are
+                  legit NSE listings under surveillance; excluding them silently
+                  drops any portfolio position in that series from downloads.
+                  Actual SME listings live in a different archive (SME_L.csv)
+                  and are not covered here.
 
     Returns
     -------
@@ -97,7 +101,7 @@ def fetch_nse_tickers(include_sme: bool = False) -> list[str]:
     return sorted(set(symbols))
 
 
-def refresh_tickers_cache(include_sme: bool = False) -> dict:
+def refresh_tickers_cache(include_sme: bool = True) -> dict:
     """
     Fetch live tickers from NSE, save to local JSON cache, and return
     a summary dict with keys: count, fetched_at, tickers.
@@ -258,12 +262,12 @@ def _download_one(ticker: str, start: str, end: str,
                 last_date = pd.to_datetime(effective_last["Date"].iloc[-1])
                 today = pd.Timestamp.today().normalize()
                 days_old = (today - last_date).days
-                # days_old == 0 means file already has a bar for today, but
-                # that bar may be a partial intraday snapshot if the script
-                # was run before EOD. Always refresh today's row.
-                if 0 < days_old <= STALENESS_DAYS:
-                    return "skipped"
-                # else: stale file OR today's bar may be partial → re-download
+                # Weekdays (Mon-Fri): always re-download to get latest EOD
+                # Weekends: skip if file already has Friday's data
+                if today.weekday() >= 5:  # Sat=5, Sun=6
+                    friday_age = today.weekday() - 4  # Sat→1, Sun→2
+                    if days_old <= friday_age:
+                        return "skipped"
         except Exception:
             pass  # corrupt file → re-download
 

@@ -14,64 +14,85 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
 <style>
 :root {
-     
-    --card-bg:var(--bs-tertiary-bg); --card-border:var(--bs-border-color);
-    --g:#3fb950; --r:#f85149; --y:#d29922; --b:#58a6ff; --p:#bc8cff; --o:#f0883e; --c:#39d2c0;
-    --m1-color:#58a6ff; --m2-color:#3fb950; --m3-color:#bc8cff; --m4-color:#f0883e; }
+    --card-bg:#282f36; --card-border:#2f3944;
+    --g:#0ab39c; --r:#f06548; --y:#f7b84b; --b:#7c8aef; --p:#c084fc; --o:#f0883e; --c:#39d2c0;
+    --m1-color:#7c8aef; --m2-color:#0ab39c; --m3-color:#c084fc; --m4-color:#f0883e; }
 body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .font-mono{font-family:'JetBrains Mono',monospace}
-.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
-.card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
-
-/* ══ UNIFIED NAV ══ */
-.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
-.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
-.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
-@keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
-@keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
-.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
-.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
-.sc-nav .sc-link:hover{color:var(--bs-body-color);border-bottom-color:rgba(88,166,255,.3)}
-.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
-.sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
-.sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
-@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px}
+.card-header{background:rgba(255,255,255,.02);border-bottom:1px solid var(--card-border);font-weight:600}
 
 /* Hero */
-.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%,var(--bs-tertiary-bg));border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
-.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#f0883e,#bc8cff,#58a6ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero{background:linear-gradient(135deg, #22282e 0%, #282f36 50%, #2a3140 100%);border-bottom:1px solid rgba(255,255,255,.06);padding:2.5rem 0 1.8rem;position:relative}
+.hero h1{font-size:2.2rem;font-weight:800;color:var(--bs-body-color);letter-spacing:-0.02em}
+.hero h1 i{color:#f0883e}
 
 /* Summary cards */
-.sum-card{border-radius:14px;padding:1.2rem;transition:transform .15s}
-.sum-card:hover{transform:translateY(-2px)}
+.sum-card{border-radius:16px;padding:1.3rem;transition:transform .2s cubic-bezier(.4,0,.2,1),box-shadow .2s}
+.sum-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,0.2)}
 .sum-val{font-size:1.6rem;font-weight:700;font-family:'JetBrains Mono',monospace}
-.sum-label{font-size:.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.sum-label{font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:.6px;margin-top:4px}
 
 /* Strategy badges */
-.badge-m1{background:rgba(88,166,255,.15);color:#58a6ff}
-.badge-m2{background:rgba(63,185,80,.15);color:#3fb950}
-.badge-m3{background:rgba(188,140,255,.15);color:#bc8cff}
+.badge-m1{background:rgba(124,138,239,.15);color:#7c8aef}
+.badge-m2{background:rgba(10,179,156,.15);color:#0ab39c}
+.badge-m3{background:rgba(192,132,252,.15);color:#c084fc}
 .badge-m4{background:rgba(240,136,62,.15);color:#f0883e}
-.badge-open{background:rgba(63,185,80,.15);color:#3fb950}
+.badge-open{background:rgba(10,179,156,.15);color:#0ab39c}
 .badge-closed{background:rgba(139,148,158,.15);color:#8b949e}
-.badge-buy{background:rgba(63,185,80,.15);color:#3fb950}
-.badge-sell{background:rgba(248,81,73,.15);color:#f85149}
-.badge-hold{background:rgba(88,166,255,.15);color:#58a6ff}
-.badge-add{background:rgba(210,153,34,.15);color:#d29922}
+.badge-buy{background:rgba(10,179,156,.15);color:#0ab39c}
+.badge-sell{background:rgba(240,101,72,.15);color:#f06548}
+.badge-hold{background:rgba(124,138,239,.15);color:#7c8aef}
+.badge-add{background:rgba(247,184,75,.15);color:#f7b84b}
 .badge-wait{background:rgba(139,148,158,.15);color:#8b949e}
 
 /* Table */
-.port-tbl th{color:#8b949e;font-weight:500;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.port-tbl th{color:#8b949e;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
 .port-tbl td{vertical-align:middle;font-size:.88rem}
-.port-tbl tbody tr{cursor:pointer;transition:background .15s}
-.port-tbl tbody tr:hover{background:rgba(88,166,255,.06)}
+.port-tbl tbody tr{cursor:pointer;transition:background .12s cubic-bezier(.4,0,.2,1)}
+.port-tbl tbody tr:hover{background:rgba(124,138,239,.06)}
+
+/* Sortable headers */
+.port-tbl th[data-sort]{cursor:pointer;user-select:none;position:relative;padding-right:1.3rem;transition:color .15s}
+.port-tbl th[data-sort]:hover{color:#e1e6eb}
+.port-tbl th[data-sort]::after{content:'⇅';position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:.6rem;opacity:.35;transition:opacity .15s}
+.port-tbl th[data-sort].asc::after{content:'▲';opacity:.85;color:#7c8aef}
+.port-tbl th[data-sort].desc::after{content:'▼';opacity:.85;color:#7c8aef}
+
+/* Search bar */
+.port-search-wrap{position:relative;max-width:420px}
+.port-search-wrap .bi-search{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#8b949e}
+.port-search{background:var(--card-bg);border:2px solid var(--card-border);color:#aab8c5;font-size:.92rem;padding:.6rem 1rem .6rem 38px;border-radius:12px;width:100%;transition:border-color .15s,box-shadow .15s}
+.port-search:focus{outline:none;border-color:#7c8aef;box-shadow:0 0 0 .2rem rgba(124,138,239,.15)}
+.port-search::placeholder{color:#596275}
+
+/* Filter chips */
+.port-filters{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+.port-chip{cursor:pointer;user-select:none;padding:.3rem .7rem;border-radius:999px;font-size:.72rem;font-weight:600;letter-spacing:.3px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:#8b949e;transition:all .15s}
+.port-chip:hover{color:#fff;border-color:#8b949e}
+.port-chip.active{background:rgba(124,138,239,.15);color:#9ec5ff;border-color:#7c8aef}
+
+/* Pagination */
+.port-pager{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.75rem 1rem;border-top:1px solid var(--card-border)}
+.port-pager .pg-btn{background:rgba(255,255,255,.04);border:1px solid var(--card-border);color:#8b949e;border-radius:8px;padding:.3rem .65rem;font-size:.78rem;cursor:pointer;transition:all .15s;font-family:'JetBrains Mono',monospace}
+.port-pager .pg-btn:hover:not(:disabled){background:rgba(124,138,239,.12);color:#9ec5ff;border-color:#7c8aef}
+.port-pager .pg-btn.active{background:rgba(124,138,239,.18);color:#fff;border-color:#7c8aef}
+.port-pager .pg-btn:disabled{opacity:.3;cursor:default}
+.port-pager .pg-info{font-size:.75rem;color:#8b949e;margin:0 .5rem}
+
+/* Row animation */
+@keyframes portRowIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.port-tbl tbody tr{animation:portRowIn .25s var(--ease) both}
+
+/* Frosted card */
+.card{backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5)}
 
 /* Form */
-.form-control,.form-select{background:var(--bs-body-bg);border-color:var(--card-border);color:var(--bs-body-color)}
-.form-control:focus,.form-select:focus{background:var(--bs-body-bg);border-color:var(--b);color:var(--bs-body-color);box-shadow:0 0 0 .2rem rgba(88,166,255,.15)}
+.form-control,.form-select{background:#2f3943;border-color:var(--card-border);color:#aab8c5}
+.form-control:focus,.form-select:focus{background:#2f3943;border-color:var(--b);color:#aab8c5;box-shadow:0 0 0 3px rgba(124,138,239,.12)}
 
 /* Analysis panel */
-.analysis-panel{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:1.5rem}
+.analysis-panel{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .rec-action{font-size:1.8rem;font-weight:800;letter-spacing:1px}
 .rec-action.SELL{color:var(--r)}.rec-action.BUY,.rec-action.ADD{color:var(--g)}.rec-action.HOLD{color:var(--b)}.rec-action.WAIT{color:var(--y)}
 .target-bar{height:6px;border-radius:3px;background:var(--card-border);position:relative;overflow:visible}
@@ -84,21 +105,21 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 
 /* Confirm/warning items */
 .confirm-item{padding:6px 10px;border-radius:8px;font-size:.85rem;margin-bottom:4px}
-.confirm-item.green{background:rgba(63,185,80,.08);border-left:3px solid var(--g)}
-.confirm-item.red{background:rgba(248,81,73,.08);border-left:3px solid var(--r)}
-.confirm-item.blue{background:rgba(88,166,255,.08);border-left:3px solid var(--b)}
-.confirm-item.yellow{background:rgba(210,153,34,.08);border-left:3px solid var(--y)}
+.confirm-item.green{background:rgba(10,179,156,.08);border-left:3px solid var(--g)}
+.confirm-item.red{background:rgba(240,101,72,.08);border-left:3px solid var(--r)}
+.confirm-item.blue{background:rgba(124,138,239,.08);border-left:3px solid var(--b)}
+.confirm-item.yellow{background:rgba(247,184,75,.08);border-left:3px solid var(--y)}
 
 /* Autocomplete */
 .ac-wrap{position:relative}
-.ac-list{position:absolute;z-index:1060;background:var(--card-bg);border:1px solid var(--card-border);border-radius:0 0 10px 10px;max-height:220px;overflow-y:auto;width:100%;left:0;top:100%;display:none}
+.ac-list{position:absolute;z-index:1060;background:var(--card-bg);border:1px solid var(--card-border);border-radius:0 0 12px 12px;max-height:240px;overflow-y:auto;width:100%;left:0;top:100%;display:none;box-shadow:0 12px 32px rgba(0,0,0,0.3)}
 .ac-item{padding:7px 14px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:.88rem;color:var(--bs-body-color)}
-.ac-item:hover,.ac-item.active{background:rgba(88,166,255,.12);color:var(--b)}
+.ac-item:hover,.ac-item.active{background:rgba(124,138,239,.12);color:var(--b)}
 .ac-item .ac-match{color:var(--b);font-weight:600}
 
 /* Tabs */
 .nav-pills .nav-link{color:#8b949e;border-radius:8px}
-.nav-pills .nav-link.active{background:rgba(88,166,255,.15);color:var(--b)}
+.nav-pills .nav-link.active{background:rgba(124,138,239,.15);color:var(--b)}
 
 /* Chart containers */
 .chart-container{position:relative;width:100%;max-height:220px}
@@ -114,7 +135,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   border:6px solid transparent;border-top-color:var(--bs-secondary-bg)}
 
 /* Visual ruler */
-.price-ruler{position:relative;height:36px;background:linear-gradient(90deg,rgba(248,81,73,.12),rgba(210,153,34,.08),rgba(63,185,80,.12));border-radius:6px;overflow:visible;margin:8px 0}
+.price-ruler{position:relative;height:36px;background:linear-gradient(90deg,rgba(240,101,72,.12),rgba(247,184,75,.08),rgba(10,179,156,.12));border-radius:6px;overflow:visible;margin:8px 0}
 .ruler-mark{position:absolute;top:0;bottom:0;width:2px;border-radius:1px}
 .ruler-mark .ruler-label{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:.6rem;white-space:nowrap}
 .ruler-mark .ruler-price{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font-size:.6rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
@@ -133,13 +154,13 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .health-gauge{position:relative;width:140px;height:70px;overflow:hidden;margin:0 auto}
 
 /* Risk badges */
-.badge-optimal{background:rgba(63,185,80,.15);color:#3fb950}
-.badge-oversized{background:rgba(248,81,73,.15);color:#f85149}
-.badge-undersized{background:rgba(210,153,34,.15);color:#d29922}
-.badge-low-risk{background:rgba(63,185,80,.15);color:#3fb950}
-.badge-moderate-risk{background:rgba(210,153,34,.15);color:#d29922}
-.badge-high-risk{background:rgba(248,81,73,.15);color:#f85149}
-.badge-very-high-risk{background:rgba(248,81,73,.25);color:#ff4444}
+.badge-optimal{background:rgba(10,179,156,.15);color:#0ab39c}
+.badge-oversized{background:rgba(240,101,72,.15);color:#f06548}
+.badge-undersized{background:rgba(247,184,75,.15);color:#f7b84b}
+.badge-low-risk{background:rgba(10,179,156,.15);color:#0ab39c}
+.badge-moderate-risk{background:rgba(247,184,75,.15);color:#f7b84b}
+.badge-high-risk{background:rgba(240,101,72,.15);color:#f06548}
+.badge-very-high-risk{background:rgba(240,101,72,.25);color:#ff4444}
 
 /* Risk panel */
 .risk-metric{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
@@ -151,7 +172,6 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 /* Risk gauge arc */
 .risk-gauge-wrap{position:relative;width:150px;height:85px;margin:0 auto}
 .risk-score-text{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);font-size:1.1rem;font-weight:700;font-family:'JetBrains Mono',monospace}
-.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color)}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color);text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
 </style>
 </head>
 <body>
@@ -182,6 +202,15 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
     <div class="col-6 col-md-3"><div class="sum-card card" style="border-left:3px solid var(--c)"><div class="sum-val" style="color:var(--c)" id="sumAvgOptF">—</div><div class="sum-label"><i class="bi bi-bullseye me-1"></i>Avg Optimal f</div></div></div>
     <div class="col-6 col-md-3"><div class="sum-card card" style="border-left:3px solid var(--o)"><div class="sum-val" style="color:var(--o)" id="sumSizingHealth">—</div><div class="sum-label"><i class="bi bi-bar-chart me-1"></i>Sizing Health</div></div></div>
     <div class="col-6 col-md-3"><div class="sum-card card" style="border-left:3px solid var(--b)"><div class="sum-val" style="color:var(--b)" id="sumMaxDD">—</div><div class="sum-label"><i class="bi bi-graph-down-arrow me-1"></i>Worst Max Drawdown</div></div></div>
+  </div>
+
+  <!-- ═══════ PORTFOLIO RISK — Correlation & Concentration ═══════ -->
+  <div class="card mb-3" id="portfolioRiskCard" style="display:none;">
+    <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer" onclick="document.getElementById('portfolioRiskBody').style.display=document.getElementById('portfolioRiskBody').style.display==='none'?'block':'none'">
+      <span><i class="bi bi-shield-exclamation me-1"></i> Portfolio Risk — Concentration & Correlation</span>
+      <span id="portfolioRiskBadge" class="badge rounded-pill"></span>
+    </div>
+    <div class="card-body" id="portfolioRiskBody"></div>
   </div>
 
   <div class="card mb-3" id="dailyPnlCard">
@@ -221,6 +250,24 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
     </li>
   </ul>
 
+  <!-- Search + Filters -->
+  <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
+    <div class="port-search-wrap flex-grow-1">
+      <i class="bi bi-search"></i>
+      <input type="text" class="port-search" id="portSearch" placeholder="Search ticker, strategy, action...">
+    </div>
+    <div class="port-filters" id="portFilters">
+      <span class="port-chip active" data-filter="all">All</span>
+      <span class="port-chip" data-filter="M1">M1</span>
+      <span class="port-chip" data-filter="M2">M2</span>
+      <span class="port-chip" data-filter="M3">M3</span>
+      <span class="port-chip" data-filter="M4">M4</span>
+      <span class="port-chip" data-filter="profit" style="border-color:rgba(10,179,156,.3)">● Profit</span>
+      <span class="port-chip" data-filter="loss" style="border-color:rgba(240,101,72,.3)">● Loss</span>
+    </div>
+    <span class="text-secondary" style="font-size:.75rem" id="portCount"></span>
+  </div>
+
   <div class="tab-content">
     <!-- ── OPEN POSITIONS ── -->
     <div class="tab-pane fade show active" id="tabOpen">
@@ -229,14 +276,15 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
           <table class="table table-dark table-hover port-tbl mb-0" id="openTable">
             <thead>
               <tr>
-                <th>Ticker</th><th>Strategy</th><th>Buy Price</th><th>Buy Date</th>
-                <th>Qty</th><th>Current</th><th>P&L</th><th>P&L %</th>
-                <th>Days</th><th>Action</th><th>Risk</th><th>Sizing</th><th></th>
+                <th data-sort="ticker">Ticker</th><th data-sort="strategy_code">Strategy</th><th data-sort="buy_price">Buy Price</th><th data-sort="buy_date">Buy Date</th>
+                <th data-sort="quantity">Qty</th><th>Current</th><th>P&L</th><th>P&L %</th>
+                <th data-sort="days">Days</th><th>Action</th><th>Risk</th><th>Sizing</th><th></th>
               </tr>
             </thead>
             <tbody id="openBody"></tbody>
           </table>
         </div>
+        <div id="openPager" class="port-pager" style="display:none"></div>
         <div class="text-center py-4 text-secondary" id="openEmpty" style="display:none;">
           <i class="bi bi-inbox fs-1 d-block mb-2"></i>No open positions yet. Click <strong>Add Position</strong> to get started.
         </div>
@@ -249,13 +297,14 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
           <table class="table table-dark table-hover port-tbl mb-0" id="closedTable">
             <thead>
               <tr>
-                <th>Ticker</th><th>Strategy</th><th>Buy</th><th>Sell</th>
-                <th>Qty</th><th>P&L</th><th>P&L %</th><th>Reason</th><th></th>
+                <th data-sort="ticker">Ticker</th><th data-sort="strategy_code">Strategy</th><th data-sort="buy_price">Buy</th><th data-sort="sell_price">Sell</th>
+                <th data-sort="quantity">Qty</th><th data-sort="pnl">P&L</th><th data-sort="pnl_pct">P&L %</th><th>Reason</th><th></th>
               </tr>
             </thead>
             <tbody id="closedBody"></tbody>
           </table>
         </div>
+        <div id="closedPager" class="port-pager" style="display:none"></div>
         <div class="text-center py-4 text-secondary" id="closedEmpty" style="display:none;">
           No closed positions yet.
         </div>
@@ -272,7 +321,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
     </div>
 
     <!-- Educational Intro -->
-    <div class="p-3 rounded mb-3" style="background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.12)">
+    <div class="p-3 rounded mb-3" style="background:rgba(124,138,239,.04);border:1px solid rgba(124,138,239,.12)">
       <div class="d-flex align-items-center gap-2 mb-1">
         <i class="bi bi-mortarboard-fill" style="color:var(--b);font-size:1rem"></i>
         <strong style="color:var(--b);font-size:.82rem">📖 HOW TO READ THIS ANALYSIS</strong>
@@ -309,16 +358,25 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         <div class="p-2 rounded mt-2" id="commentaryExpertBox" style="border-radius:8px;font-size:.85rem;line-height:1.7"></div>
       </div>
 
-      <div class="row g-3">
+      <!-- ═══ MARKET REGIME — AT A GLANCE (layman cards) ═══ -->
+      <div class="analysis-panel mb-3" id="regimeCardsPanel" style="display:none;">
+        <div class="d-flex align-items-center mb-2">
+          <i class="bi bi-compass me-2" style="color:var(--b);font-size:1.1rem"></i>
+          <span class="fw-semibold" style="color:var(--b)">Market Regime — At a Glance</span>
+        </div>
+        <div id="regimeCardsContainer"></div>
+      </div>
 
-        <!-- LEFT: Recommendation + Targets -->
-        <div class="col-lg-5">
+      {% include "_regime_cards.html" %}
+
+      <!-- ═══ ROW 1: Recommendation + Targets | Indicators + Strategy ═══ -->
+      <div class="row g-3">
+        <div class="col-lg-6">
           <!-- Recommendation card -->
           <div class="analysis-panel mb-3">
             <div class="text-secondary small text-uppercase mb-1">Recommendation</div>
             <div class="rec-action" id="recAction"></div>
             <div id="recExplain" class="small mt-2 mb-2" style="line-height:1.6;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,.03)"></div>
-            <!-- Plain-English deep explanation (data-driven, strictly derived from engine output) -->
             <div id="recLayman" class="small mt-2 mb-2" style="display:none"></div>
             <div class="text-secondary small mt-1">Strength: <span class="font-mono fw-bold" id="recStrength"></span></div>
             <div class="text-secondary small">Strategy: <span class="font-mono" id="recStrategy"></span></div>
@@ -347,97 +405,16 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
               <span>Risk:Reward <span class="font-mono fw-bold text-info" id="rrRatio"></span></span>
               <span>52W High <span class="font-mono fw-bold" id="high52w"></span></span>
             </div>
-            <!-- Visual Ruler: Where is my price right now? -->
             <div class="mt-3">
               <div class="small text-secondary mb-1"><i class="bi bi-rulers me-1"></i>Price Position — Where is your stock right now?</div>
               <div id="targetRuler"></div>
               <div class="small text-secondary mt-1" id="rulerExplain"></div>
             </div>
           </div>
-
-          <!-- Holding Info with P&L Gauge -->
-          <div class="analysis-panel">
-            <div class="text-secondary small text-uppercase mb-2">Holding Summary</div>
-            <div class="row g-2">
-              <div class="col-6"><small class="text-secondary">Invested</small><div class="font-mono fw-bold" id="holdInvested"></div></div>
-              <div class="col-6"><small class="text-secondary">Current Value</small><div class="font-mono fw-bold" id="holdCurrent"></div></div>
-              <div class="col-6"><small class="text-secondary">P&L</small><div class="font-mono fw-bold" id="holdPnl"></div></div>
-              <div class="col-6"><small class="text-secondary">Holding Days</small><div class="font-mono fw-bold" id="holdDays"></div></div>
-            </div>
-            <!-- P&L Gauge -->
-            <div class="mt-3 text-center">
-              <div class="chart-container" style="max-height:120px;max-width:200px;margin:0 auto"><canvas id="pnlGaugeChart"></canvas></div>
-              <div class="small mt-1" id="holdExplain" style="color:var(--bs-body-color);line-height:1.6"></div>
-            </div>
-            <!-- Position notes (from Add / Edit modal) -->
-            <div class="mt-3 pt-2" id="holdNotesWrap" style="display:none;border-top:1px solid var(--card-border)">
-              <div class="d-flex align-items-center mb-1">
-                <small class="text-secondary text-uppercase"><i class="bi bi-journal-text me-1"></i>Notes</small>
-                <button class="btn btn-sm btn-link ms-auto p-0" onclick="promptEdit(selectedPid)" title="Edit notes" style="font-size:.75rem"><i class="bi bi-pencil"></i></button>
-              </div>
-              <div class="small" id="holdNotes" style="white-space:pre-wrap;color:rgba(255,255,255,.75);line-height:1.5"></div>
-            </div>
-          </div>
-
-          <!-- ═══ FUNDAMENTAL HEALTH SNAPSHOT (50-year expert) ═══ -->
-          <div class="analysis-panel mb-3" id="fundHealthPanel" style="display:none;">
-            <div class="d-flex align-items-center mb-2">
-              <i class="bi bi-heart-pulse me-2" style="color:var(--g);font-size:1.1rem"></i>
-              <span class="text-secondary small text-uppercase">Fundamental Health Check</span>
-              <span class="badge ms-auto font-mono" id="fundHealthBadge" style="font-size:.7rem"></span>
-            </div>
-            <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.5;margin-bottom:8px">
-              A 50-year market veteran never holds a position without knowing: <strong>Is the company behind this stock financially healthy?</strong> Technicals tell you WHEN to act — fundamentals tell you WHETHER the company deserves your capital.
-            </div>
-            <div id="fundHealthSector" class="small mb-2" style="color:#8b949e"></div>
-            <div class="row g-2 mb-2" id="fundHealthMetrics"></div>
-            <!-- Score bars -->
-            <div id="fundHealthScoreBars" class="mb-2"></div>
-            <!-- Expert assessment -->
-            <div id="fundHealthFlags" class="mb-2"></div>
-            <div class="p-2 rounded" id="fundHealthExpert" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);font-size:.8rem;line-height:1.6"></div>
-          </div>
-
-          <!-- ═══ BENCHMARK ALPHA (50-year expert: are you beating the market?) ═══ -->
-          <div class="analysis-panel mb-3" id="benchmarkPanel" style="display:none;">
-            <div class="d-flex align-items-center mb-2">
-              <i class="bi bi-graph-up-arrow me-2" style="color:var(--b);font-size:1.1rem"></i>
-              <span class="text-secondary small text-uppercase">Alpha vs Nifty 50 — Are You Beating the Market?</span>
-              <span class="badge ms-auto font-mono" id="benchmarkBadge" style="font-size:.7rem"></span>
-            </div>
-            <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.5;margin-bottom:8px">
-              A veteran always asks: <strong>"Am I generating alpha or just riding the market wave?"</strong> If Nifty rose 15% and your stock rose 12%, you actually LOST value relative to a simple index fund.
-            </div>
-            <div class="row g-2 mb-2" id="benchmarkBars"></div>
-            <div class="chart-container mb-2" style="max-height:100px"><canvas id="benchmarkBarChart"></canvas></div>
-            <div class="p-2 rounded" id="benchmarkExpert" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);font-size:.8rem;line-height:1.6"></div>
-          </div>
-
-          <!-- ═══ TRAILING STOPS (50-year expert: protect profits dynamically) ═══ -->
-          <div class="analysis-panel" id="trailingStopPanel" style="display:none;">
-            <div class="d-flex align-items-center mb-2">
-              <i class="bi bi-shield-lock me-2" style="color:var(--o);font-size:1.1rem"></i>
-              <span class="text-secondary small text-uppercase">Dynamic Trailing Stops (ATR-Based)</span>
-              <span class="badge ms-1" id="trailProfitBadge" style="font-size:.65rem;display:none"></span>
-            </div>
-            <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.5;margin-bottom:8px">
-              <strong>Static stops get you stopped out.</strong> Professional traders use ATR-based (Average True Range) stops that adapt to the stock's actual volatility. Volatile stock? Wider stop. Calm stock? Tighter stop. Like a seatbelt that adjusts to road conditions.
-            </div>
-            <table class="table table-sm table-dark mb-0" style="font-size:.85rem">
-              <thead><tr><th>Stop Type</th><th>Price</th><th>Risk</th></tr></thead>
-              <tbody id="trailingStopBody"></tbody>
-            </table>
-            <div class="mt-2 d-flex justify-content-between small text-secondary">
-              <span>ATR(14): <span class="font-mono fw-bold text-info" id="trailATR14"></span></span>
-              <span>Daily Vol: <span class="font-mono fw-bold" id="trailDailyVol"></span></span>
-            </div>
-            <div class="p-2 rounded mt-2" id="trailingExpert" style="background:rgba(255,165,0,.04);border:1px solid rgba(255,165,0,.12);font-size:.8rem;line-height:1.6"></div>
-          </div>
         </div>
 
-        <!-- RIGHT: Indicators + Cross-Strategy -->
-        <div class="col-lg-7">
-          <!-- Current Indicators (hover any pill for explanation) -->
+        <div class="col-lg-6">
+          <!-- Current Indicators -->
           <div class="analysis-panel mb-3">
             <div class="text-secondary small text-uppercase mb-1">Current Technical Indicators (Daily)</div>
             <div class="small mb-2" style="color:#8b949e">Hover over any indicator below to see what it means in plain English.</div>
@@ -461,46 +438,139 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
             <div class="text-secondary small text-uppercase mb-2">All Strategies — Current Signals</div>
             <div class="row g-2" id="allStratsRow"></div>
           </div>
+        </div>
+      </div>
 
-          <!-- ═══ NEW: Strategy Signals Bar Chart ═══ -->
+      <!-- ═══ ROW 2: Holding + Charts (full-width panels) ═══ -->
+      <div class="row g-3 mt-1">
+        <div class="col-lg-4">
+          <!-- Holding Info with P&L Gauge -->
+          <div class="analysis-panel mb-3">
+            <div class="text-secondary small text-uppercase mb-2">Holding Summary</div>
+            <div class="row g-2">
+              <div class="col-6"><small class="text-secondary">Invested</small><div class="font-mono fw-bold" id="holdInvested"></div></div>
+              <div class="col-6"><small class="text-secondary">Current Value</small><div class="font-mono fw-bold" id="holdCurrent"></div></div>
+              <div class="col-6"><small class="text-secondary">P&L</small><div class="font-mono fw-bold" id="holdPnl"></div></div>
+              <div class="col-6"><small class="text-secondary">Holding Days</small><div class="font-mono fw-bold" id="holdDays"></div></div>
+            </div>
+            <div class="mt-3 text-center">
+              <div class="chart-container" style="max-height:120px;max-width:200px;margin:0 auto"><canvas id="pnlGaugeChart"></canvas></div>
+              <div class="small mt-1" id="holdExplain" style="color:var(--bs-body-color);line-height:1.6"></div>
+            </div>
+            <div class="mt-3 pt-2" id="holdNotesWrap" style="display:none;border-top:1px solid var(--card-border)">
+              <div class="d-flex align-items-center mb-1">
+                <small class="text-secondary text-uppercase"><i class="bi bi-journal-text me-1"></i>Notes</small>
+                <button class="btn btn-sm btn-link ms-auto p-0" onclick="promptEdit(selectedPid)" title="Edit notes" style="font-size:.75rem"><i class="bi bi-pencil"></i></button>
+              </div>
+              <div class="small" id="holdNotes" style="white-space:pre-wrap;color:rgba(255,255,255,.75);line-height:1.5"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <!-- Strategy Signals Bar Chart -->
           <div class="analysis-panel mb-3">
             <div class="d-flex align-items-center mb-1">
               <i class="bi bi-bar-chart-fill me-2" style="color:var(--b)"></i>
-              <span class="text-secondary small text-uppercase">Strategy Signals — Visual Comparison</span>
-            </div>
-            <div style="font-size:.73rem;color:rgba(255,255,255,.45);line-height:1.5;margin-bottom:6px">
-              Each bar shows how confident each strategy is. <strong style="color:var(--g)">Green bars</strong> = BUY/ADD signal, <strong style="color:var(--r)">Red bars</strong> = SELL signal, <strong style="color:var(--b)">Blue bars</strong> = HOLD, <strong style="color:var(--y)">Yellow bars</strong> = WAIT. Taller bars = more confidence.
+              <span class="text-secondary small text-uppercase">Strategy Signals</span>
             </div>
             <div class="chart-container" style="max-height:160px"><canvas id="strategyBarChart"></canvas></div>
           </div>
-
-          <!-- ═══ NEW: Confirmation Donut Chart ═══ -->
+          <!-- Confirmation Donut -->
           <div class="analysis-panel mb-3">
             <div class="d-flex align-items-center mb-1">
               <i class="bi bi-pie-chart-fill me-2" style="color:var(--p)"></i>
-              <span class="text-secondary small text-uppercase">Confirmation Breakdown — How Many Systems Agree?</span>
-            </div>
-            <div style="font-size:.73rem;color:rgba(255,255,255,.45);line-height:1.5;margin-bottom:6px">
-              This donut shows how many confirmation signals are <strong style="color:var(--g)">bullish</strong> vs <strong style="color:var(--r)">bearish</strong> vs <strong style="color:var(--y)">neutral</strong>. A chart that's mostly green = strong buy conviction. Mostly red = strong sell conviction. Mixed = wait for clarity.
+              <span class="text-secondary small text-uppercase">Confirmation Breakdown</span>
             </div>
             <div class="row g-2 align-items-center">
               <div class="col-5"><div class="chart-container" style="max-height:130px"><canvas id="confirmDonutChart"></canvas></div></div>
               <div class="col-7" id="confirmDonutLegend" style="font-size:.78rem;line-height:1.8"></div>
             </div>
           </div>
-
-          <!-- ═══ NEW: Risk/Reward Visual Chart ═══ -->
-          <div class="analysis-panel">
+        </div>
+        <div class="col-lg-4">
+          <!-- Risk/Reward Visual -->
+          <div class="analysis-panel mb-3">
             <div class="d-flex align-items-center mb-1">
               <i class="bi bi-bullseye me-2" style="color:var(--o)"></i>
-              <span class="text-secondary small text-uppercase">Risk vs Reward — Is This Trade Worth It?</span>
-            </div>
-            <div style="font-size:.73rem;color:rgba(255,255,255,.45);line-height:1.5;margin-bottom:6px">
-              The green bar shows your potential <strong>profit</strong> (distance to target). The red bar shows your potential <strong>loss</strong> (distance to stop loss). A good trade has the green bar <strong>at least 2× longer</strong> than the red bar. If red is longer, the trade is not worth the risk.
+              <span class="text-secondary small text-uppercase">Risk vs Reward</span>
             </div>
             <div class="chart-container" style="max-height:120px"><canvas id="rrBarChart"></canvas></div>
             <div id="rrVerdict" class="small mt-2" style="line-height:1.6"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- ═══ FULL-WIDTH: Fundamentals + Alpha + Trailing Stops ═══ -->
+      <div class="row g-3 mt-1">
+        <div class="col-lg-6">
+          <!-- Fundamental Health -->
+          <div class="analysis-panel mb-3" id="fundHealthPanel" style="display:none;">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-heart-pulse me-2" style="color:var(--g);font-size:1.1rem"></i>
+              <span class="text-secondary small text-uppercase">Fundamental Health Check</span>
+              <span class="badge ms-auto font-mono" id="fundHealthBadge" style="font-size:.7rem"></span>
+            </div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.5;margin-bottom:8px">
+              A 50-year market veteran never holds a position without knowing: <strong>Is the company behind this stock financially healthy?</strong> Technicals tell you WHEN to act — fundamentals tell you WHETHER the company deserves your capital.
+            </div>
+            <div id="fundHealthSector" class="small mb-2" style="color:#8b949e"></div>
+            <div class="row g-2 mb-2" id="fundHealthMetrics"></div>
+            <div id="fundHealthScoreBars" class="mb-2"></div>
+            <div id="fundHealthFlags" class="mb-2"></div>
+            <div class="p-2 rounded" id="fundHealthExpert" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);font-size:.8rem;line-height:1.6"></div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <!-- Benchmark Alpha -->
+          <div class="analysis-panel mb-3" id="benchmarkPanel" style="display:none;">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-graph-up-arrow me-2" style="color:var(--b);font-size:1.1rem"></i>
+              <span class="text-secondary small text-uppercase">Alpha vs Nifty 50 — Are You Beating the Market?</span>
+              <span class="badge ms-auto font-mono" id="benchmarkBadge" style="font-size:.7rem"></span>
+            </div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.5;margin-bottom:8px">
+              A veteran always asks: <strong>"Am I generating alpha or just riding the market wave?"</strong> If Nifty rose 15% and your stock rose 12%, you actually LOST value relative to a simple index fund.
+            </div>
+            <div class="row g-2 mb-2" id="benchmarkBars"></div>
+            <div class="chart-container mb-2" style="max-height:100px"><canvas id="benchmarkBarChart"></canvas></div>
+            <div class="p-2 rounded" id="benchmarkExpert" style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);font-size:.8rem;line-height:1.6"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trailing Stops (full-width) -->
+      <div class="analysis-panel mb-3" id="trailingStopPanel" style="display:none;">
+        <div class="d-flex align-items-center mb-2">
+          <i class="bi bi-shield-lock me-2" style="color:var(--o);font-size:1.1rem"></i>
+          <span class="text-secondary small text-uppercase">Dynamic Trailing Stops (ATR-Based)</span>
+          <span class="badge ms-1" id="trailProfitBadge" style="font-size:.65rem;display:none"></span>
+        </div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.4);line-height:1.5;margin-bottom:8px">
+          <strong>Static stops get you stopped out.</strong> Professional traders use ATR-based (Average True Range) stops that adapt to the stock's actual volatility. Volatile stock? Wider stop. Calm stock? Tighter stop. Like a seatbelt that adjusts to road conditions.
+        </div>
+        <table class="table table-sm table-dark mb-0" style="font-size:.85rem">
+          <thead><tr><th>Stop Type</th><th>Price</th><th>Risk</th></tr></thead>
+          <tbody id="trailingStopBody"></tbody>
+        </table>
+        <div class="mt-2 d-flex justify-content-between small text-secondary">
+          <span>ATR(14): <span class="font-mono fw-bold text-info" id="trailATR14"></span></span>
+          <span>Daily Vol: <span class="font-mono fw-bold" id="trailDailyVol"></span></span>
+        </div>
+        <div class="p-2 rounded mt-2" id="trailingExpert" style="background:rgba(255,165,0,.04);border:1px solid rgba(255,165,0,.12);font-size:.8rem;line-height:1.6"></div>
+        <!-- Profit Tier Trailing Stop -->
+        <div id="trailingTierPanel" style="display:none" class="mt-3">
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-trophy me-2" style="color:var(--g);font-size:1rem"></i>
+            <span class="text-secondary small text-uppercase fw-bold">Profit-Tier Trailing Stop</span>
+            <span class="badge ms-2" id="tierBadge" style="font-size:.65rem"></span>
+          </div>
+          <div class="d-flex gap-1 mb-2" id="tierProgressBar"></div>
+          <div class="row g-2 mb-2">
+            <div class="col-4 text-center"><div class="small text-secondary">R-Multiple</div><div class="fw-bold font-mono" id="tierR"></div></div>
+            <div class="col-4 text-center"><div class="small text-secondary">Tier Stop</div><div class="fw-bold font-mono" id="tierStop"></div></div>
+            <div class="col-4 text-center"><div class="small text-secondary">Locked Profit</div><div class="fw-bold font-mono" id="tierLocked"></div></div>
+          </div>
+          <div class="p-2 rounded" id="tierExplanation" style="background:rgba(25,135,84,.04);border:1px solid rgba(25,135,84,.12);font-size:.8rem;line-height:1.6"></div>
         </div>
       </div>
 
@@ -524,7 +594,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 
         <div class="row g-3">
           <!-- LEFT: System Verdicts -->
-          <div class="col-lg-5">
+          <div class="col-lg-4">
             <!-- All Systems at a Glance -->
             <div class="analysis-panel mb-3">
               <div class="text-secondary small text-uppercase mb-2"><i class="bi bi-diagram-3 me-1"></i>Multi-System Verdicts</div>
@@ -546,7 +616,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
           </div>
 
           <!-- RIGHT: Price Action Detail + Triple Score -->
-          <div class="col-lg-7">
+          <div class="col-lg-8">
             <!-- Price Action (Al Brooks) -->
             <div class="analysis-panel mb-3">
               <div class="text-secondary small text-uppercase mb-2"><i class="bi bi-bar-chart-steps me-1"></i>Price Action Analysis (Al Brooks Method)</div>
@@ -699,12 +769,12 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         <div class="analysis-panel" style="border-left:3px solid var(--p)">
           <div class="d-flex align-items-center mb-3">
             <h6 class="mb-0" style="color:var(--p)"><i class="bi bi-shield-check me-2"></i>Risk & Money Management (Ralph Vince)</h6>
-            <span class="badge ms-2" style="background:rgba(188,140,255,.15);color:var(--p);font-size:.65rem">[VINCE]</span>
+            <span class="badge ms-2" style="background:rgba(192,132,252,.15);color:var(--p);font-size:.65rem">[VINCE]</span>
             <span class="badge ms-1 font-mono" id="vinceRiskBadge" style="font-size:.65rem"></span>
           </div>
 
           <!-- Educational Intro -->
-          <div class="p-3 rounded mb-3" style="background:rgba(188,140,255,.04);border:1px solid rgba(188,140,255,.12)">
+          <div class="p-3 rounded mb-3" style="background:rgba(192,132,252,.04);border:1px solid rgba(192,132,252,.12)">
             <div class="d-flex align-items-center gap-2 mb-1">
               <i class="bi bi-mortarboard-fill" style="color:var(--p);font-size:1rem"></i>
               <strong style="color:var(--p);font-size:.82rem">📖 WHAT IS THIS SECTION?</strong>
@@ -780,7 +850,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
           <!-- ═══ NEW: Vince Metrics Radar Chart ═══ -->
           <div class="row g-3 mb-3">
             <div class="col-md-6">
-              <div class="p-3 rounded" style="border:1px solid rgba(188,140,255,.12);background:rgba(188,140,255,.02)">
+              <div class="p-3 rounded" style="border:1px solid rgba(192,132,252,.12);background:rgba(192,132,252,.02)">
                 <div class="d-flex align-items-center mb-1">
                   <i class="bi bi-radar me-2" style="color:var(--p)"></i>
                   <span class="text-secondary small text-uppercase">Risk Health Radar</span>
@@ -790,7 +860,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
               </div>
             </div>
             <div class="col-md-6">
-              <div class="p-3 rounded" style="border:1px solid rgba(188,140,255,.12);background:rgba(188,140,255,.02)">
+              <div class="p-3 rounded" style="border:1px solid rgba(192,132,252,.12);background:rgba(192,132,252,.02)">
                 <div class="d-flex align-items-center mb-1">
                   <i class="bi bi-bar-chart-fill me-2" style="color:var(--p)"></i>
                   <span class="text-secondary small text-uppercase">Key Metrics — Visual Bars</span>
@@ -802,7 +872,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
           </div>
 
           <!-- Position Sizing Card -->
-          <div class="p-3 rounded mb-3" style="border:1px solid rgba(188,140,255,.15);background:rgba(188,140,255,.03)">
+          <div class="p-3 rounded mb-3" style="border:1px solid rgba(192,132,252,.15);background:rgba(192,132,252,.03)">
             <div class="d-flex align-items-center mb-2">
               <i class="bi bi-bar-chart-steps me-2" style="color:var(--p);font-size:1.1rem"></i>
               <strong class="small text-uppercase text-secondary">Position Sizing (50% of Optimal f — Conservative)</strong>
@@ -875,7 +945,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
           </div>
 
           <!-- Plain English Summary -->
-          <div class="p-3 rounded mb-3" style="border:1px solid rgba(188,140,255,.15);background:rgba(188,140,255,.04)">
+          <div class="p-3 rounded mb-3" style="border:1px solid rgba(192,132,252,.15);background:rgba(192,132,252,.04)">
             <div class="d-flex align-items-center mb-2">
               <i class="bi bi-lightbulb me-2" style="color:var(--p);font-size:1.1rem"></i>
               <strong class="small text-uppercase" style="color:var(--p)">What This Means For Your Position</strong>
@@ -884,7 +954,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
           </div>
 
           <!-- ═══ NEW: VINCE VERDICT — Decision Box ═══ -->
-          <div class="p-3 rounded" id="vinceVerdictBox" style="border:2px solid rgba(188,140,255,.2);background:rgba(188,140,255,.06);display:none">
+          <div class="p-3 rounded" id="vinceVerdictBox" style="border:2px solid rgba(192,132,252,.2);background:rgba(192,132,252,.06);display:none">
             <div class="d-flex align-items-center mb-2">
               <i class="bi bi-clipboard2-check me-2" style="color:var(--p);font-size:1.2rem"></i>
               <strong style="color:var(--p);font-size:.9rem">⚖️ VINCE VERDICT — What Should You Do?</strong>
@@ -1101,6 +1171,10 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 //  STATE
 // ═══════════════════════════════════════════════════════════════
 let allPositions = [];
+let portSearch = '', portFilter = 'all';
+let portSortKey = '', portSortDir = 1;
+let portPageOpen = 1, portPageClosed = 1;
+const PORT_PAGE_SIZE = 25;
 let currentAnalysis = null;
 let selectedPid = null;
 let allTickers = [];
@@ -1109,7 +1183,7 @@ let editingPid = null;
 const STRATEGY_NAMES = {
     M1: 'Method I — Squeeze', M2: 'Method II — Trend',
     M3: 'Method III — Reversals', M4: 'Method IV — Band Walk' };
-const STRATEGY_COLORS = { M1:'#58a6ff', M2:'#3fb950', M3:'#bc8cff', M4:'#f0883e' };
+const STRATEGY_COLORS = { M1:'#7c8aef', M2:'#0ab39c', M3:'#c084fc', M4:'#f0883e' };
 
 // ═══════════════════════════════════════════════════════════════
 //  HELPERS
@@ -1144,24 +1218,99 @@ async function loadPositions() {
     const res = await fetch('/api/portfolio');
     allPositions = await res.json();
     renderPositions();
-    loadDailyUnrealizedChart(); }
+    loadDailyUnrealizedChart();
+    loadPortfolioRisk(); }
+
+function portPassesFilter(p) {
+    if (portSearch) {
+        const s = portSearch.toUpperCase();
+        const haystack = `${p.ticker} ${p.strategy_code} ${p.buy_date||''} ${p.sell_date||''} ${p.sell_reason||''}`.toUpperCase();
+        if (!haystack.includes(s)) return false;
+    }
+    if (portFilter === 'all') return true;
+    if (['M1','M2','M3','M4'].includes(portFilter)) return p.strategy_code === portFilter;
+    if (portFilter === 'profit') {
+        const pnl = p.status === 'CLOSED' ? (p.sell_price - p.buy_price) * p.quantity : (p._live_pnl || 0);
+        return pnl > 0;
+    }
+    if (portFilter === 'loss') {
+        const pnl = p.status === 'CLOSED' ? (p.sell_price - p.buy_price) * p.quantity : (p._live_pnl || 0);
+        return pnl < 0;
+    }
+    return true;
+}
+
+function portSortItems(arr) {
+    if (!portSortKey) return arr;
+    const k = portSortKey, d = portSortDir;
+    return arr.slice().sort((a, b) => {
+        let av, bv;
+        if (k === 'days') { av = daysBetween(a.buy_date, null); bv = daysBetween(b.buy_date, null); }
+        else if (k === 'pnl') { av = (a.sell_price-a.buy_price)*a.quantity; bv = (b.sell_price-b.buy_price)*b.quantity; }
+        else if (k === 'pnl_pct') { av = a.buy_price ? (a.sell_price-a.buy_price)/a.buy_price*100 : 0; bv = b.buy_price ? (b.sell_price-b.buy_price)/b.buy_price*100 : 0; }
+        else { av = a[k]; bv = b[k]; }
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * d;
+        return String(av).localeCompare(String(bv)) * d;
+    });
+}
+
+function renderPager(items, page, pageSize, containerEl, onPageChange) {
+    const total = items.length;
+    const pages = Math.ceil(total / pageSize) || 1;
+    if (pages <= 1) { containerEl.style.display = 'none'; return; }
+    containerEl.style.display = 'flex';
+    const start = (page - 1) * pageSize + 1;
+    const end = Math.min(page * pageSize, total);
+    let html = `<button class="pg-btn" ${page<=1?'disabled':''} onclick="this.dataset.dir='prev'">&laquo;</button>`;
+    for (let i = 1; i <= pages; i++) {
+        if (pages > 7 && i > 2 && i < pages - 1 && Math.abs(i - page) > 1) {
+            if (i === 3 || i === pages - 2) html += `<span class="pg-info">…</span>`;
+            continue;
+        }
+        html += `<button class="pg-btn ${i===page?'active':''}" data-page="${i}">${i}</button>`;
+    }
+    html += `<button class="pg-btn" ${page>=pages?'disabled':''} onclick="this.dataset.dir='next'">&raquo;</button>`;
+    html += `<span class="pg-info">${start}–${end} of ${total}</span>`;
+    containerEl.innerHTML = html;
+    containerEl.querySelectorAll('.pg-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.disabled) return;
+            if (btn.dataset.dir === 'prev') onPageChange(page - 1);
+            else if (btn.dataset.dir === 'next') onPageChange(page + 1);
+            else if (btn.dataset.page) onPageChange(parseInt(btn.dataset.page));
+        });
+    });
+}
 
 function renderPositions() {
-    const open = allPositions.filter(p => p.status === 'OPEN');
-    const closed = allPositions.filter(p => p.status === 'CLOSED');
+    const allOpen = allPositions.filter(p => p.status === 'OPEN');
+    const allClosed = allPositions.filter(p => p.status === 'CLOSED');
+    const open = portSortItems(allOpen.filter(portPassesFilter));
+    const closed = portSortItems(allClosed.filter(portPassesFilter));
 
-    // Summary (estimated — will be updated by analysis)
-    document.getElementById('sumOpen').textContent = open.length;
+    document.getElementById('sumOpen').textContent = allOpen.length;
+
+    // Count label
+    const activeTab = document.querySelector('#tabOpenBtn.active') ? 'open' : 'closed';
+    const shown = activeTab === 'open' ? open.length : closed.length;
+    const total = activeTab === 'open' ? allOpen.length : allClosed.length;
+    const countEl = document.getElementById('portCount');
+    countEl.textContent = shown < total ? `${shown} of ${total}` : `${total} positions`;
 
     // Open table
     const ob = document.getElementById('openBody');
     ob.innerHTML = '';
     document.getElementById('openEmpty').style.display = open.length ? 'none' : 'block';
 
-    open.forEach(p => {
+    const openSlice = open.slice((portPageOpen-1)*PORT_PAGE_SIZE, portPageOpen*PORT_PAGE_SIZE);
+    openSlice.forEach((p, i) => {
         const days = daysBetween(p.buy_date, null);
         const tr = document.createElement('tr');
         tr.dataset.pid = p.id;
+        tr.style.animationDelay = `${i * 20}ms`;
         tr.innerHTML = `
             <td class="font-mono fw-bold">${p.ticker.replace('.NS','')}</td>
             <td>${stratBadge(p.strategy_code)}</td>
@@ -1185,15 +1334,19 @@ function renderPositions() {
         tr.addEventListener('click', () => analyzePosition(p.id));
         ob.appendChild(tr); });
 
+    renderPager(open, portPageOpen, PORT_PAGE_SIZE, document.getElementById('openPager'), pg => { portPageOpen = pg; renderPositions(); });
+
     // Closed table
     const cb = document.getElementById('closedBody');
     cb.innerHTML = '';
     document.getElementById('closedEmpty').style.display = closed.length ? 'none' : 'block';
 
-    closed.forEach(p => {
+    const closedSlice = closed.slice((portPageClosed-1)*PORT_PAGE_SIZE, portPageClosed*PORT_PAGE_SIZE);
+    closedSlice.forEach((p, i) => {
         const pnl = p.sell_price && p.buy_price ? (p.sell_price - p.buy_price) * p.quantity : 0;
         const pnlPct = p.buy_price ? ((p.sell_price - p.buy_price) / p.buy_price * 100) : 0;
         const tr = document.createElement('tr');
+        tr.style.animationDelay = `${i * 20}ms`;
         tr.innerHTML = `
             <td class="font-mono fw-bold">${p.ticker.replace('.NS','')}</td>
             <td>${stratBadge(p.strategy_code)}</td>
@@ -1211,12 +1364,12 @@ function renderPositions() {
         `;
         cb.appendChild(tr); });
 
+    renderPager(closed, portPageClosed, PORT_PAGE_SIZE, document.getElementById('closedPager'), pg => { portPageClosed = pg; renderPositions(); });
+
     // Auto-analyze open positions for live data
-    if (open.length) {
-        // Phase 1: fast quotes — populate prices, P&L, summary cards immediately.
-        fetchQuickQuotes(open);
-        // Phase 2: full analysis — fills action / risk / sizing badges in background.
-        fetchLiveUpdates(open); } }
+    if (allOpen.length) {
+        fetchQuickQuotes(allOpen);
+        fetchLiveUpdates(allOpen); } }
 
 async function fetchQuickQuotes(openPositions) {
     try {
@@ -1630,7 +1783,7 @@ function renderLaymanExplain(rec, ind, hold, tgt, pos) {
 
     el.style.display = 'block';
     el.innerHTML = `
-      <div style="border:1px solid var(--card-border);border-radius:8px;padding:10px 12px;background:rgba(88,166,255,.04);line-height:1.6">
+      <div style="border:1px solid var(--card-border);border-radius:8px;padding:10px 12px;background:rgba(124,138,239,.04);line-height:1.6">
         <div class="text-secondary small text-uppercase mb-2" style="letter-spacing:.5px"><i class="bi bi-mortarboard-fill me-1 text-info"></i>Plain English Explanation</div>
 
         <div class="mb-2">
@@ -1672,6 +1825,20 @@ function renderAnalysis(data) {
     document.getElementById('analysisLoading').style.display = 'none';
     document.getElementById('analysisContent').style.display = 'block';
     document.getElementById('btnExportPDF').style.display = '';
+
+    // Layman regime cards (ADX / Squeeze / ATR / OBV). Panel hides itself if
+    // the analyzer couldn't build cards (e.g. light-mode call).
+    try {
+        const panel = document.getElementById('regimeCardsPanel');
+        if (panel) {
+            if (data.regime_cards && window.renderRegimeCards) {
+                panel.style.display = '';
+                renderRegimeCards('regimeCardsContainer', data.regime_cards);
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+    } catch (e) { console.error('regime cards render error:', e); }
 
     const rec = data.recommendation;
     const tgt = data.targets;
@@ -1928,7 +2095,7 @@ function renderMultiSystem(ms) {
         const isBull = bullKw.some(w => ll.includes(w));
         const isBear = bearKw.some(w => ll.includes(w));
         const borderClr = isBull ? 'var(--g)' : isBear ? 'var(--r)' : 'transparent';
-        const bg = isBull ? 'rgba(63,185,80,.04)' : isBear ? 'rgba(248,81,73,.04)' : 'transparent';
+        const bg = isBull ? 'rgba(10,179,156,.04)' : isBear ? 'rgba(240,101,72,.04)' : 'transparent';
         return `<p class="mb-1 ps-2" style="color:var(--bs-body-color);border-left:2px solid ${borderClr};background:${bg};border-radius:2px">${line}</p>`; }).join('');
 
     // System Verdicts Cards
@@ -1982,15 +2149,15 @@ function renderMultiSystem(ms) {
     // PA Badges
     const paBadges = document.getElementById('paBadges');
     const sigClr = pa.signal==='BUY'?'buy':pa.signal==='SELL'?'sell':'hold';
-    const trendBg = pa.trend==='BULL'?'rgba(63,185,80,.15)':pa.trend==='BEAR'?'rgba(248,81,73,.15)':'rgba(255,255,255,.08)';
+    const trendBg = pa.trend==='BULL'?'rgba(10,179,156,.15)':pa.trend==='BEAR'?'rgba(240,101,72,.15)':'rgba(255,255,255,.08)';
     const trendFg = pa.trend==='BULL'?'var(--g)':pa.trend==='BEAR'?'var(--r)':'inherit';
-    const strBg = pa.strength==='STRONG'?'rgba(63,185,80,.15)':pa.strength==='WEAK'?'rgba(248,81,73,.15)':'rgba(210,153,34,.15)';
+    const strBg = pa.strength==='STRONG'?'rgba(10,179,156,.15)':pa.strength==='WEAK'?'rgba(240,101,72,.15)':'rgba(247,184,75,.15)';
     const strFg = pa.strength==='STRONG'?'var(--g)':pa.strength==='WEAK'?'var(--r)':'var(--y)';
-    const aiBg = (pa.always_in==='LONG'||pa.always_in==='BULLISH')?'rgba(63,185,80,.15)':(pa.always_in==='SHORT'||pa.always_in==='BEARISH')?'rgba(248,81,73,.15)':'rgba(255,255,255,.08)';
+    const aiBg = (pa.always_in==='LONG'||pa.always_in==='BULLISH')?'rgba(10,179,156,.15)':(pa.always_in==='SHORT'||pa.always_in==='BEARISH')?'rgba(240,101,72,.15)':'rgba(255,255,255,.08)';
     const aiFg = (pa.always_in==='LONG'||pa.always_in==='BULLISH')?'var(--g)':(pa.always_in==='SHORT'||pa.always_in==='BEARISH')?'var(--r)':'inherit';
     paBadges.innerHTML = `
         <span class="badge badge-${sigClr}">${pa.signal||'N/A'}</span>
-        <span class="badge" style="background:rgba(188,140,255,.15);color:#bc8cff">${pa.setup||'N/A'}</span>
+        <span class="badge" style="background:rgba(192,132,252,.15);color:#c084fc">${pa.setup||'N/A'}</span>
         <span class="badge" style="background:${strBg};color:${strFg}">Strength: ${pa.strength||'N/A'}</span>
         <span class="badge" style="background:rgba(255,255,255,.08)">Bar: ${pa.bar_type||'N/A'}</span>
         <span class="badge" style="background:${trendBg};color:${trendFg}">Trend: ${pa.trend||'N/A'}</span>
@@ -2007,7 +2174,7 @@ function renderMultiSystem(ms) {
     const patDiv = document.getElementById('paPatterns');
     if (pa.patterns && pa.patterns.length) {
         patDiv.innerHTML = '<span class="small text-secondary me-1">Patterns:</span>' +
-            pa.patterns.map(p => `<span class="badge ms-1" style="background:rgba(188,140,255,.15);color:#bc8cff;font-size:.7rem">${p}</span>`).join(''); } else {
+            pa.patterns.map(p => `<span class="badge ms-1" style="background:rgba(192,132,252,.15);color:#c084fc;font-size:.7rem">${p}</span>`).join(''); } else {
         patDiv.innerHTML = ''; }
 
     // PA Reasons
@@ -2025,9 +2192,9 @@ function renderMultiSystem(ms) {
     // Triple Score Breakdown Bars
     const tsb = document.getElementById('tripleScoreBars');
     const components = [
-        { label: 'Bollinger Bands', score: triple.bb_score||0, max: 100, color: '#58a6ff' },
-        { label: 'Technical Analysis', score: triple.ta_score||0, max: 100, color: '#3fb950' },
-        { label: 'Price Action', score: triple.pa_score||0, max: 100, color: '#bc8cff' },
+        { label: 'Bollinger Bands', score: triple.bb_score||0, max: 100, color: '#7c8aef' },
+        { label: 'Technical Analysis', score: triple.ta_score||0, max: 100, color: '#0ab39c' },
+        { label: 'Price Action', score: triple.pa_score||0, max: 100, color: '#c084fc' },
     ];
     tsb.innerHTML = components.map(c => {
         const pct = c.max ? Math.abs(c.score)/c.max*100 : 0;
@@ -2068,13 +2235,13 @@ function renderMultiSystem(ms) {
         wkPanel.style.display = 'block';
 
         // Color maps
-        const phClrMap = {'ACCUMULATION':'var(--g)','MARKUP':'#58a6ff','DISTRIBUTION':'var(--r)','MARKDOWN':'#ff6b6b','RANGING':'var(--y)'};
+        const phClrMap = {'ACCUMULATION':'var(--g)','MARKUP':'#7c8aef','DISTRIBUTION':'var(--r)','MARKDOWN':'#ff6b6b','RANGING':'var(--y)'};
         const phClr = phClrMap[wk.phase] || 'var(--y)';
         const biasClr = wk.bias==='BULLISH'?'var(--g)':wk.bias==='BEARISH'?'var(--r)':'var(--y)';
 
         // ── Bonus badge ──
         const bonusBadge = document.getElementById('wkBonusBadge');
-        bonusBadge.style.background = wk.bonus>0?'rgba(63,185,80,.15)':wk.bonus<0?'rgba(248,81,73,.15)':'rgba(255,255,255,.08)';
+        bonusBadge.style.background = wk.bonus>0?'rgba(10,179,156,.15)':wk.bonus<0?'rgba(240,101,72,.15)':'rgba(255,255,255,.08)';
         bonusBadge.style.color = wk.bonus>0?'var(--g)':wk.bonus<0?'var(--r)':'var(--y)';
         bonusBadge.textContent = `Conviction Bonus: ${wk.bonus>0?'+':''}${wk.bonus||0} pts`;
 
@@ -2117,8 +2284,8 @@ function renderMultiSystem(ms) {
         const phaseActions = {
             'ACCUMULATION': `<span style="color:var(--g)"><i class="bi bi-check-circle me-1"></i><strong>Action:</strong> This is a potential buying zone. Look for Springs (shakeout traps) and tests on low volume as entry signals. The lower the risk, the higher the reward from this phase.</span>`,
             'MARKUP': {
-                'EARLY': `<span style="color:#58a6ff"><i class="bi bi-eye me-1"></i><strong>Action:</strong> Watch closely. If the next rally comes on increasing volume, the markup is likely real — consider buying. If volume stays flat, be cautious — this could be a false start.</span>`,
-                'MIDDLE': `<span style="color:#58a6ff"><i class="bi bi-hand-thumbs-up me-1"></i><strong>Action:</strong> Hold existing positions. Look for volume to pick up on the NEXT rally to confirm the move is strengthening.</span>`,
+                'EARLY': `<span style="color:#7c8aef"><i class="bi bi-eye me-1"></i><strong>Action:</strong> Watch closely. If the next rally comes on increasing volume, the markup is likely real — consider buying. If volume stays flat, be cautious — this could be a false start.</span>`,
+                'MIDDLE': `<span style="color:#7c8aef"><i class="bi bi-hand-thumbs-up me-1"></i><strong>Action:</strong> Hold existing positions. Look for volume to pick up on the NEXT rally to confirm the move is strengthening.</span>`,
                 'CONFIRMED': `<span style="color:var(--g)"><i class="bi bi-trophy me-1"></i><strong>Action:</strong> HOLD with confidence! Small dips on low volume (LPS = Last Point of Support) are buying opportunities, not reasons to panic. If a dip happens on HIGH volume, that's a warning.</span>`,
                 'LATE': `<span style="color:var(--y)"><i class="bi bi-exclamation-triangle me-1"></i><strong>Action:</strong> DO NOT add new buys. Tighten stops on existing positions. The uptrend is mature — protect your profits. Watch for transition into Distribution (sideways range).</span>`, },
             'DISTRIBUTION': `<span style="color:var(--r)"><i class="bi bi-shield-exclamation me-1"></i><strong>Action:</strong> Be on high alert. Consider taking profits or tightening stops. Any breakout above resistance without volume is likely a TRAP (Upthrust).</span>`,
@@ -2199,7 +2366,7 @@ function renderMultiSystem(ms) {
             evSection.style.display = 'block';
             evDiv.innerHTML = events.map(e => {
                 const eClr = e.bullish ? 'var(--g)' : 'var(--r)';
-                const eBg = e.bullish ? 'rgba(63,185,80,.06)' : 'rgba(248,81,73,.06)';
+                const eBg = e.bullish ? 'rgba(10,179,156,.06)' : 'rgba(240,101,72,.06)';
                 const eventNames = {
                     'SC': '🔻 Selling Climax', 'BC': '🔺 Buying Climax',
                     'SPRING': '🟢 Spring (Shakeout)', 'UPTHRUST': '🔴 Upthrust (Trap)',
@@ -2275,6 +2442,72 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (_) {}
 });
 
+async function loadPortfolioRisk() {
+  try {
+    const res = await fetch('/api/portfolio/risk');
+    const d = await res.json();
+    if (!d || !d.available) return;
+
+    const card = document.getElementById('portfolioRiskCard');
+    const badge = document.getElementById('portfolioRiskBadge');
+    const body = document.getElementById('portfolioRiskBody');
+    card.style.display = 'block';
+
+    const colorMap = { WELL_DIVERSIFIED: ['#198754','bg-success'], MODERATELY_CONCENTRATED: ['#ffc107','bg-warning text-dark'], HIGHLY_CONCENTRATED: ['#dc3545','bg-danger'] };
+    const [bc, badgeCls] = colorMap[d.risk_level] || ['#0d6efd','bg-primary'];
+    card.style.borderLeft = `4px solid ${bc}`;
+    badge.className = `badge rounded-pill ${badgeCls}`;
+    badge.textContent = `Score: ${d.diversification_score}/100 — ${d.risk_level.replace(/_/g,' ')}`;
+
+    // Sector breakdown bars
+    let sectorHtml = '';
+    if (d.sector_breakdown && d.sector_breakdown.length) {
+      sectorHtml = '<div class="mb-3">';
+      d.sector_breakdown.forEach(s => {
+        const barColor = s.weight_pct > 30 ? '#dc3545' : s.weight_pct > 20 ? '#ffc107' : '#198754';
+        sectorHtml += `<div class="d-flex align-items-center mb-1" style="font-size:.82rem">
+          <span style="width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.sector}</span>
+          <div class="flex-grow-1 mx-2" style="height:16px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden">
+            <div style="width:${Math.min(s.weight_pct,100)}%;height:100%;background:${barColor};border-radius:4px;transition:width .5s"></div>
+          </div>
+          <span class="font-mono fw-bold" style="width:50px;text-align:right;color:${barColor}">${s.weight_pct.toFixed(1)}%</span>
+          <span class="text-secondary ms-2" style="font-size:.72rem">(${s.count})</span>
+        </div>`;
+      });
+      sectorHtml += '</div>';
+    }
+
+    // High correlations
+    let corrHtml = '';
+    if (d.high_correlations && d.high_correlations.length) {
+      corrHtml = '<div class="mb-3"><div class="small text-secondary mb-1 fw-bold">High Correlations (> 0.75)</div>';
+      d.high_correlations.forEach(p => {
+        corrHtml += `<span class="badge bg-danger bg-opacity-10 text-danger me-1 mb-1" style="font-size:.75rem">
+          ${p.stock_a.replace('.NS','')} ↔ ${p.stock_b.replace('.NS','')} = ${p.correlation.toFixed(2)}
+        </span>`;
+      });
+      corrHtml += '</div>';
+    }
+
+    // Warnings
+    let warnHtml = '';
+    if (d.concentration_warnings && d.concentration_warnings.length) {
+      warnHtml = d.concentration_warnings.map(w => `<div class="alert alert-warning py-1 px-2 mb-1" style="font-size:.8rem"><i class="bi bi-exclamation-triangle me-1"></i>${w}</div>`).join('');
+    }
+
+    body.innerHTML = `
+      <div class="row g-3 mb-3">
+        <div class="col-md-3 text-center"><div class="sum-val" style="color:${bc}">${d.diversification_score}</div><div class="sum-label">Diversification Score</div></div>
+        <div class="col-md-3 text-center"><div class="sum-val">${d.total_positions}</div><div class="sum-label">Positions</div></div>
+        <div class="col-md-3 text-center"><div class="sum-val ${d.max_position_pct > 20 ? 'text-danger' : ''}">${d.max_position_pct.toFixed(1)}%</div><div class="sum-label">Max Position Wt</div></div>
+        <div class="col-md-3 text-center"><div class="sum-val">${d.avg_correlation != null ? d.avg_correlation.toFixed(2) : 'N/A'}</div><div class="sum-label">Avg Correlation</div></div>
+      </div>
+      ${warnHtml}${sectorHtml}${corrHtml}
+      <div style="background:rgba(${d.risk_level==='WELL_DIVERSIFIED'?'25,135,84':d.risk_level==='HIGHLY_CONCENTRATED'?'220,53,69':'255,193,7'},.06);border-radius:8px;padding:1rem;font-size:.85rem;line-height:1.65">${d.explanation}</div>
+    `;
+  } catch(e) { console.error('Portfolio risk load failed:', e); }
+}
+
 async function loadDailyUnrealizedChart() {
   const card = document.getElementById('dailyPnlCard');
   const meta = document.getElementById('dailyPnlMeta');
@@ -2305,12 +2538,12 @@ async function loadDailyUnrealizedChart() {
     if (dailyUnrealizedInstance) { dailyUnrealizedInstance.destroy(); dailyUnrealizedInstance = null; }
 
     const latest = pnl[pnl.length - 1] || 0;
-    const latestColor = latest >= 0 ? '#3fb950' : '#f85149';
+    const latestColor = latest >= 0 ? '#0ab39c' : '#f06548';
     const stockCount = stockSeries.length || 1;
     meta.textContent = `${dates.length} trading days | ${stockCount} stock lines`;
     hint.innerHTML = `Latest total unrealized P&L: <strong style="color:${latestColor}">${latest >= 0 ? '+' : ''}${fmtINR2(latest)}</strong> &nbsp;|&nbsp; Dots show each day's unrealized P&L.`;
 
-    const palette = ['#58a6ff', '#3fb950', '#bc8cff', '#f0883e', '#39d2c0', '#d29922', '#ff7b72', '#79c0ff'];
+    const palette = ['#7c8aef', '#0ab39c', '#c084fc', '#f0883e', '#39d2c0', '#f7b84b', '#ff7b72', '#79c0ff'];
     const datasets = [];
 
     if (stockSeries.length) {
@@ -2335,8 +2568,8 @@ async function loadDailyUnrealizedChart() {
         pointRadius: 2.2,
         pointHoverRadius: 4,
         fill: false,
-        borderColor: '#58a6ff',
-        pointBackgroundColor: '#58a6ff', }); }
+        borderColor: '#7c8aef',
+        pointBackgroundColor: '#7c8aef', }); }
 
     if (datasets.length > 1) {
       datasets.push({
@@ -2347,8 +2580,8 @@ async function loadDailyUnrealizedChart() {
         pointRadius: 3.2,
         pointHoverRadius: 6,
         borderDash: [6, 4],
-        borderColor: '#c9d1d9',
-        pointBackgroundColor: '#c9d1d9',
+        borderColor: '#aab8c5',
+        pointBackgroundColor: '#aab8c5',
         fill: false }); }
 
     // Register the zoom plugin once (chartjs-plugin-zoom UMD attaches to window).
@@ -2454,7 +2687,7 @@ function renderPnlGauge(hold) {
 
     const pnlPct = hold.pnl_pct || 0;
     const absP = Math.min(Math.abs(pnlPct), 50); // cap at 50% for gauge
-    const clr = pnlPct >= 0 ? '#3fb950' : '#f85149';
+    const clr = pnlPct >= 0 ? '#0ab39c' : '#f06548';
     const remaining = 50 - absP;
 
     pnlGaugeInstance = new Chart(canvas, {
@@ -2517,10 +2750,10 @@ function renderScoreRadar(triple) {
             datasets: [{
                 label: 'Score',
                 data: [bb, ta, pa],
-                backgroundColor: 'rgba(88,166,255,.15)',
-                borderColor: '#58a6ff',
+                backgroundColor: 'rgba(124,138,239,.15)',
+                borderColor: '#7c8aef',
                 borderWidth: 2,
-                pointBackgroundColor: ['#58a6ff', '#3fb950', '#bc8cff'],
+                pointBackgroundColor: ['#7c8aef', '#0ab39c', '#c084fc'],
                 pointBorderColor: '#fff',
                 pointBorderWidth: 1,
                 pointRadius: 5, }] },
@@ -2567,10 +2800,10 @@ function renderStrategyBarChart(m1, allStrats) {
     const labels = signals.map(s => (STRATEGY_NAMES[s.code]||s.code).replace(/\s*\(.*\)/,''));
     const data = signals.map(s => s.conf);
     const colors = signals.map(s => {
-        if (s.type==='BUY'||s.type==='ADD') return '#3fb950';
-        if (s.type==='SELL') return '#f85149';
-        if (s.type==='HOLD') return '#58a6ff';
-        return '#d29922'; });
+        if (s.type==='BUY'||s.type==='ADD') return '#0ab39c';
+        if (s.type==='SELL') return '#f06548';
+        if (s.type==='HOLD') return '#7c8aef';
+        return '#f7b84b'; });
 
     strategyBarInstance = new Chart(canvas, {
         type: 'bar',
@@ -2602,7 +2835,7 @@ function renderConfirmDonut(confirms) {
         type: 'doughnut',
         data: {
             labels: ['Bullish', 'Bearish', 'Neutral'],
-            datasets: [{ data: [bull, bear, neutral], backgroundColor: ['#3fb950','#f85149','#d29922'], borderWidth: 0 }] },
+            datasets: [{ data: [bull, bear, neutral], backgroundColor: ['#0ab39c','#f06548','#f7b84b'], borderWidth: 0 }] },
         options: {
             responsive: true, maintainAspectRatio: false, cutout: '65%',
             plugins: {
@@ -2616,7 +2849,7 @@ function renderConfirmDonut(confirms) {
                 ctx.save();
                 ctx.textAlign = 'center';
                 ctx.font = 'bold 18px JetBrains Mono, monospace';
-                ctx.fillStyle = bull > bear ? '#3fb950' : bear > bull ? '#f85149' : '#d29922';
+                ctx.fillStyle = bull > bear ? '#0ab39c' : bear > bull ? '#f06548' : '#f7b84b';
                 ctx.fillText(`${total}`, cx, cy - 2);
                 ctx.font = '10px Inter, sans-serif';
                 ctx.fillStyle = '#8b949e';
@@ -2627,9 +2860,9 @@ function renderConfirmDonut(confirms) {
         const verdict = bull > bear ? (bull >= bear*2 ? 'Strong bullish consensus!' : 'Leaning bullish') : bear > bull ? (bear >= bull*2 ? 'Strong bearish warning!' : 'Leaning bearish') : 'Mixed — no clear direction';
         const vClr = bull > bear ? 'var(--g)' : bear > bull ? 'var(--r)' : 'var(--y)';
         legend.innerHTML = `
-            <div><span style="color:#3fb950">● Bullish: ${bull}</span> — signals say the stock looks good</div>
-            <div><span style="color:#f85149">● Bearish: ${bear}</span> — signals warn of weakness</div>
-            <div><span style="color:#d29922">● Neutral: ${neutral}</span> — no strong opinion</div>
+            <div><span style="color:#0ab39c">● Bullish: ${bull}</span> — signals say the stock looks good</div>
+            <div><span style="color:#f06548">● Bearish: ${bear}</span> — signals warn of weakness</div>
+            <div><span style="color:#f7b84b">● Neutral: ${neutral}</span> — no strong opinion</div>
             <div class="mt-1 fw-bold" style="color:${vClr}">→ ${verdict}</div>
         `; } }
 
@@ -2654,8 +2887,8 @@ function renderRiskRewardChart(tgt, currentPrice) {
             labels: ['Potential Loss (Risk)', 'Potential Profit (Reward)'],
             datasets: [{
                 data: [Math.abs(risk), reward > 0 ? reward : 0],
-                backgroundColor: ['rgba(248,81,73,.7)', 'rgba(63,185,80,.7)'],
-                borderColor: ['#f85149', '#3fb950'],
+                backgroundColor: ['rgba(240,101,72,.7)', 'rgba(10,179,156,.7)'],
+                borderColor: ['#f06548', '#0ab39c'],
                 borderWidth: 1, borderRadius: 4 }] },
         options: {
             indexAxis: 'y', responsive: true, maintainAspectRatio: false,
@@ -2693,10 +2926,10 @@ function renderVinceCharts(vr) {
                 labels: ['Optimal f Strength', 'Drawdown Safety', 'Low Volatility', 'Growth Rate', 'Position Sizing'],
                 datasets: [{
                     data: [optFScore, ddScore, volScore, Math.max(0, gmScore), sizScore],
-                    backgroundColor: 'rgba(188,140,255,.15)',
-                    borderColor: '#bc8cff',
+                    backgroundColor: 'rgba(192,132,252,.15)',
+                    borderColor: '#c084fc',
                     borderWidth: 2,
-                    pointBackgroundColor: '#bc8cff',
+                    pointBackgroundColor: '#c084fc',
                     pointRadius: 4, }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
@@ -2707,10 +2940,10 @@ function renderVinceCharts(vr) {
     const barsEl = document.getElementById('vinceMetricBars');
     if (barsEl && vr) {
         const metrics = [
-            { label: 'Risk Score', val:vr.risk_score||0, max:100, clr:vr.risk_score>=75?'#3fb950':vr.risk_score>=50?'#d29922':'#f85149', suffix:'/100' },
-            { label: 'Optimal f', val:Math.round((vr.optimal_f||0)*100), max:100, clr:vr.optimal_f>0.3?'#3fb950':vr.optimal_f>0.15?'#d29922':'#f85149', suffix:'%' },
-            { label: 'Max DD', val:Math.abs(Math.round(vr.max_drawdown_pct||0)), max:50, clr:vr.max_drawdown_pct>-15?'#3fb950':vr.max_drawdown_pct>-30?'#d29922':'#f85149', suffix:'%', invert:true },
-            { label: 'Volatility', val:Math.round(vr.volatility_pct||0), max:80, clr:vr.volatility_pct<25?'#3fb950':vr.volatility_pct<40?'#d29922':'#f85149', suffix:'%', invert:true },
+            { label: 'Risk Score', val:vr.risk_score||0, max:100, clr:vr.risk_score>=75?'#0ab39c':vr.risk_score>=50?'#f7b84b':'#f06548', suffix:'/100' },
+            { label: 'Optimal f', val:Math.round((vr.optimal_f||0)*100), max:100, clr:vr.optimal_f>0.3?'#0ab39c':vr.optimal_f>0.15?'#f7b84b':'#f06548', suffix:'%' },
+            { label: 'Max DD', val:Math.abs(Math.round(vr.max_drawdown_pct||0)), max:50, clr:vr.max_drawdown_pct>-15?'#0ab39c':vr.max_drawdown_pct>-30?'#f7b84b':'#f06548', suffix:'%', invert:true },
+            { label: 'Volatility', val:Math.round(vr.volatility_pct||0), max:80, clr:vr.volatility_pct<25?'#0ab39c':vr.volatility_pct<40?'#f7b84b':'#f06548', suffix:'%', invert:true },
         ];
         barsEl.innerHTML = metrics.map(m => {
             const pct = Math.min((m.val / m.max) * 100, 100);
@@ -2736,7 +2969,7 @@ function renderVinceRisk(vr, holding) {
     const rg = vr.risk_grade || 'N/A';
     const rgClr = rg === 'LOW RISK' ? 'var(--g)' : rg === 'MODERATE RISK' ? 'var(--y)' : 'var(--r)';
     riskBadge.textContent = rg;
-    riskBadge.style.background = rg === 'LOW RISK' ? 'rgba(63,185,80,.15)' : rg === 'MODERATE RISK' ? 'rgba(210,153,34,.15)' : 'rgba(248,81,73,.15)';
+    riskBadge.style.background = rg === 'LOW RISK' ? 'rgba(10,179,156,.15)' : rg === 'MODERATE RISK' ? 'rgba(247,184,75,.15)' : 'rgba(240,101,72,.15)';
     riskBadge.style.color = rgClr;
 
     // Risk score gauge
@@ -2752,7 +2985,7 @@ function renderVinceRisk(vr, holding) {
     ctx.stroke();
     // Draw arc foreground (score/100)
     const angle = Math.PI + (score / 100) * Math.PI;
-    const gaugeClr = score >= 75 ? '#3fb950' : score >= 50 ? '#d29922' : score >= 25 ? '#f0883e' : '#f85149';
+    const gaugeClr = score >= 75 ? '#0ab39c' : score >= 50 ? '#f7b84b' : score >= 25 ? '#f0883e' : '#f06548';
     ctx.beginPath();
     ctx.arc(75, 75, 60, Math.PI, angle);
     ctx.lineWidth = 12;
@@ -2802,7 +3035,7 @@ function renderVinceRisk(vr, holding) {
     const ss = vr.sizing_status || 'N/A';
     const sizBadge = document.getElementById('vrSizingBadge');
     sizBadge.textContent = ss;
-    sizBadge.style.background = ss === 'OPTIMAL' ? 'rgba(63,185,80,.15)' : ss === 'OVERSIZED' ? 'rgba(248,81,73,.15)' : ss === 'UNDERSIZED' ? 'rgba(210,153,34,.15)' : 'rgba(255,255,255,.08)';
+    sizBadge.style.background = ss === 'OPTIMAL' ? 'rgba(10,179,156,.15)' : ss === 'OVERSIZED' ? 'rgba(240,101,72,.15)' : ss === 'UNDERSIZED' ? 'rgba(247,184,75,.15)' : 'rgba(255,255,255,.08)';
     sizBadge.style.color = ss === 'OPTIMAL' ? 'var(--g)' : ss === 'OVERSIZED' ? 'var(--r)' : ss === 'UNDERSIZED' ? 'var(--y)' : 'inherit';
 
     // Sizing bar
@@ -2833,16 +3066,16 @@ function renderVinceRisk(vr, holding) {
     const lines = [];
     // Sizing
     if (ss === 'OVERSIZED') {
-        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--r);background:rgba(248,81,73,.04);border-radius:2px"><strong style="color:var(--r)">You are holding more shares than recommended.</strong> You hold ${qty} shares but Vince's math says ${recQty} at 50% f. This means you're taking on more risk than optimal — a bad run could hurt more than necessary. Consider reducing your position.</p>`); } else if (ss === 'UNDERSIZED') {
-        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--y);background:rgba(210,153,34,.04);border-radius:2px"><strong style="color:var(--y)">Your position is smaller than recommended.</strong> You hold ${qty} shares but could hold up to ${recQty} at 50% f. You're leaving potential growth on the table, but you have a safety margin.</p>`); } else if (ss === 'OPTIMAL') {
-        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--g);background:rgba(63,185,80,.04);border-radius:2px"><strong style="color:var(--g)">Your position size is mathematically optimal!</strong> You hold ${qty} shares, which is right in line with the ${recQty} recommended by Vince's optimal f at 50% fraction. Well done.</p>`); }
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--r);background:rgba(240,101,72,.04);border-radius:2px"><strong style="color:var(--r)">You are holding more shares than recommended.</strong> You hold ${qty} shares but Vince's math says ${recQty} at 50% f. This means you're taking on more risk than optimal — a bad run could hurt more than necessary. Consider reducing your position.</p>`); } else if (ss === 'UNDERSIZED') {
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--y);background:rgba(247,184,75,.04);border-radius:2px"><strong style="color:var(--y)">Your position is smaller than recommended.</strong> You hold ${qty} shares but could hold up to ${recQty} at 50% f. You're leaving potential growth on the table, but you have a safety margin.</p>`); } else if (ss === 'OPTIMAL') {
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--g);background:rgba(10,179,156,.04);border-radius:2px"><strong style="color:var(--g)">Your position size is mathematically optimal!</strong> You hold ${qty} shares, which is right in line with the ${recQty} recommended by Vince's optimal f at 50% fraction. Well done.</p>`); }
     // Geometric mean
     if (gm && gm > 1) {
-        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--g);background:rgba(63,185,80,.04);border-radius:2px">The geometric mean HPR is <strong>${gm.toFixed(4)}</strong> (>1.0), meaning this stock's daily trades are <strong style="color:var(--g)">net profitable</strong> over the analysis period. ${vr.time_to_double ? `At this rate, it would take ~<strong>${Math.round(vr.time_to_double)} trading days</strong> to double.` : ''}</p>`); } else if (gm && gm < 1) {
-        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--r);background:rgba(248,81,73,.04);border-radius:2px">The geometric mean HPR is <strong>${gm.toFixed(4)}</strong> (<1.0), meaning the daily trade system is currently <strong style="color:var(--r)">net losing</strong>. Trading at optimal f would still lose money — consider exiting.</p>`); }
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--g);background:rgba(10,179,156,.04);border-radius:2px">The geometric mean HPR is <strong>${gm.toFixed(4)}</strong> (>1.0), meaning this stock's daily trades are <strong style="color:var(--g)">net profitable</strong> over the analysis period. ${vr.time_to_double ? `At this rate, it would take ~<strong>${Math.round(vr.time_to_double)} trading days</strong> to double.` : ''}</p>`); } else if (gm && gm < 1) {
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--r);background:rgba(240,101,72,.04);border-radius:2px">The geometric mean HPR is <strong>${gm.toFixed(4)}</strong> (<1.0), meaning the daily trade system is currently <strong style="color:var(--r)">net losing</strong>. Trading at optimal f would still lose money — consider exiting.</p>`); }
     // Drawdown
     if (vr.max_drawdown_pct && vr.max_drawdown_pct < -20) {
-        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--r);background:rgba(248,81,73,.04);border-radius:2px"><strong style="color:var(--r)">Severe historical drawdown</strong> of ${fmt(vr.max_drawdown_pct, 1)}% detected. This is expected at optimal f per Vince — but it means you should use fractional f (50% or less) to keep drawdowns manageable.</p>`); }
+        lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--r);background:rgba(240,101,72,.04);border-radius:2px"><strong style="color:var(--r)">Severe historical drawdown</strong> of ${fmt(vr.max_drawdown_pct, 1)}% detected. This is expected at optimal f per Vince — but it means you should use fractional f (50% or less) to keep drawdowns manageable.</p>`); }
     // Volatility
     if (vr.volatility_label === 'HIGH') {
         lines.push(`<p class="mb-1 ps-2" style="border-left:2px solid var(--o);background:rgba(240,136,62,.04);border-radius:2px"><strong style="color:var(--o)">Elevated volatility</strong> (${fmt(vr.volatility_pct, 1)}% annualized). Consider using a smaller fraction of optimal f to reduce position swings.</p>`); }
@@ -2860,20 +3093,20 @@ function renderVinceRisk(vr, holding) {
         const vLines = [];
         // Decision 1: Position sizing action
         if (ss === 'OVERSIZED') {
-            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--r);background:rgba(248,81,73,.06)"><strong style="color:var(--r)">📉 REDUCE YOUR POSITION.</strong> You hold ${qty} shares but the math says ${recQty} is safer. Consider selling ${qty - recQty} shares to bring your risk within optimal bounds. This protects you from catastrophic drawdowns.</div>`); } else if (ss === 'UNDERSIZED') {
-            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--y);background:rgba(210,153,34,.06)"><strong style="color:var(--y)">📈 YOU CAN ADD MORE.</strong> You hold ${qty} shares but could safely hold ${recQty}. You have room to increase your position by ${recQty - qty} shares. This would maximize your growth potential without excessive risk.</div>`); } else {
-            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--g);background:rgba(63,185,80,.06)"><strong style="color:var(--g)">✅ POSITION SIZE IS PERFECT.</strong> Your ${qty} shares are right in line with the recommended ${recQty}. No action needed on sizing. Well done!</div>`); }
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--r);background:rgba(240,101,72,.06)"><strong style="color:var(--r)">📉 REDUCE YOUR POSITION.</strong> You hold ${qty} shares but the math says ${recQty} is safer. Consider selling ${qty - recQty} shares to bring your risk within optimal bounds. This protects you from catastrophic drawdowns.</div>`); } else if (ss === 'UNDERSIZED') {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--y);background:rgba(247,184,75,.06)"><strong style="color:var(--y)">📈 YOU CAN ADD MORE.</strong> You hold ${qty} shares but could safely hold ${recQty}. You have room to increase your position by ${recQty - qty} shares. This would maximize your growth potential without excessive risk.</div>`); } else {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--g);background:rgba(10,179,156,.06)"><strong style="color:var(--g)">✅ POSITION SIZE IS PERFECT.</strong> Your ${qty} shares are right in line with the recommended ${recQty}. No action needed on sizing. Well done!</div>`); }
         // Decision 2: Profitability
         if (gm && gm > 1.0005) {
-            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--g);background:rgba(63,185,80,.06)"><strong style="color:var(--g)">💰 PROFITABLE SYSTEM.</strong> This stock's geometric mean (${gm.toFixed(4)}) is well above 1.0. The strategy is making money on average. Continue holding.</div>`); } else if (gm && gm > 1) {
-            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--y);background:rgba(210,153,34,.06)"><strong style="color:var(--y)">💰 MARGINALLY PROFITABLE.</strong> Geometric mean (${gm.toFixed(4)}) is just above 1.0. The edge is slim. Proceed with caution and keep position sizes conservative.</div>`); } else if (gm && gm < 1) {
-            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--r);background:rgba(248,81,73,.06)"><strong style="color:var(--r)">🚫 LOSING SYSTEM.</strong> Geometric mean (${gm.toFixed(4)}) is below 1.0. Historically, this stock LOSES money at optimal f. Consider exiting this position entirely.</div>`); }
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--g);background:rgba(10,179,156,.06)"><strong style="color:var(--g)">💰 PROFITABLE SYSTEM.</strong> This stock's geometric mean (${gm.toFixed(4)}) is well above 1.0. The strategy is making money on average. Continue holding.</div>`); } else if (gm && gm > 1) {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--y);background:rgba(247,184,75,.06)"><strong style="color:var(--y)">💰 MARGINALLY PROFITABLE.</strong> Geometric mean (${gm.toFixed(4)}) is just above 1.0. The edge is slim. Proceed with caution and keep position sizes conservative.</div>`); } else if (gm && gm < 1) {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--r);background:rgba(240,101,72,.06)"><strong style="color:var(--r)">🚫 LOSING SYSTEM.</strong> Geometric mean (${gm.toFixed(4)}) is below 1.0. Historically, this stock LOSES money at optimal f. Consider exiting this position entirely.</div>`); }
         // Decision 3: Risk level
         const rScore = vr.risk_score || 0;
         if (rScore >= 75) {
-            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--g);background:rgba(63,185,80,.06)"><strong style="color:var(--g)">🛡️ LOW RISK.</strong> Risk score is ${rScore}/100. This is a well-behaved stock with manageable drawdowns and volatility. You can trade with confidence.</div>`); } else if (rScore >= 50) {
-            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--y);background:rgba(210,153,34,.06)"><strong style="color:var(--y)">⚠️ MODERATE RISK.</strong> Risk score is ${rScore}/100. Some metrics need attention. Use 50% of optimal f (which we already do) and monitor closely.</div>`); } else {
-            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--r);background:rgba(248,81,73,.06)"><strong style="color:var(--r)">🚨 HIGH RISK.</strong> Risk score is only ${rScore}/100. High drawdowns, volatile price action, or poor profitability detected. Consider reducing to 25% of optimal f or exiting entirely.</div>`); }
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--g);background:rgba(10,179,156,.06)"><strong style="color:var(--g)">🛡️ LOW RISK.</strong> Risk score is ${rScore}/100. This is a well-behaved stock with manageable drawdowns and volatility. You can trade with confidence.</div>`); } else if (rScore >= 50) {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--y);background:rgba(247,184,75,.06)"><strong style="color:var(--y)">⚠️ MODERATE RISK.</strong> Risk score is ${rScore}/100. Some metrics need attention. Use 50% of optimal f (which we already do) and monitor closely.</div>`); } else {
+            vLines.push(`<div class="p-2 rounded mb-2" style="border-left:3px solid var(--r);background:rgba(240,101,72,.06)"><strong style="color:var(--r)">🚨 HIGH RISK.</strong> Risk score is only ${rScore}/100. High drawdowns, volatile price action, or poor profitability detected. Consider reducing to 25% of optimal f or exiting entirely.</div>`); }
         // Final aggregate verdict
         const bullCount = (ss==='OPTIMAL'?1:0) + (gm>1?1:0) + (rScore>=50?1:0);
         const finalClr = bullCount >= 3 ? 'var(--g)' : bullCount >= 2 ? 'var(--y)' : 'var(--r)';
@@ -2894,7 +3127,7 @@ function renderDaltonProfile(ms) {
     // Bonus badge
     const bonus = d.scoring?.cv_bonus || 0;
     const bb = document.getElementById('daltonBonusBadge');
-    bb.style.background = bonus>0?'rgba(63,185,80,.15)':bonus<0?'rgba(248,81,73,.15)':'rgba(255,255,255,.08)';
+    bb.style.background = bonus>0?'rgba(10,179,156,.15)':bonus<0?'rgba(240,101,72,.15)':'rgba(255,255,255,.08)';
     bb.style.color = bonus>0?'var(--g)':bonus<0?'var(--r)':'var(--y)';
     bb.textContent = `CV Bonus: ${bonus>0?'+':''}${bonus} pts`;
 
@@ -2910,7 +3143,7 @@ function renderDaltonProfile(ms) {
             <span class="font-mono fw-bold" style="color:var(--g)">₹${fmt(va.va_high)}</span>
             <span class="small text-secondary">VA High</span>
         </div>
-        <div style="height:14px;border-radius:7px;background:linear-gradient(90deg,rgba(248,81,73,.15),rgba(57,210,192,.2),rgba(63,185,80,.15));position:relative;overflow:visible">
+        <div style="height:14px;border-radius:7px;background:linear-gradient(90deg,rgba(240,101,72,.15),rgba(57,210,192,.2),rgba(10,179,156,.15));position:relative;overflow:visible">
             <div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:3px;background:var(--c);border-radius:2px;transform:translateX(-50%)" title="POC (Fair Price)"></div>
         </div>
         <div class="text-center mt-1 small"><span style="color:var(--c)">POC (Fair Price): <strong class="font-mono">₹${fmt(va.poc)}</strong></span></div>
@@ -3166,11 +3399,11 @@ function renderExpertCommentary(ec) {
     // Tone badge
     const badge = document.getElementById('commentaryToneBadge');
     const toneColors = {
-        'STRONGLY BULLISH': {bg:'rgba(63,185,80,.15)',fg:'var(--g)',icon:'bi-arrow-up-circle-fill'},
-        'MILDLY BULLISH':   {bg:'rgba(63,185,80,.08)',fg:'var(--g)',icon:'bi-arrow-up-circle'},
-        'NEUTRAL':          {bg:'rgba(210,153,34,.12)',fg:'var(--y)',icon:'bi-dash-circle'},
-        'MILDLY BEARISH':   {bg:'rgba(248,81,73,.08)',fg:'var(--r)',icon:'bi-arrow-down-circle'},
-        'STRONGLY BEARISH': {bg:'rgba(248,81,73,.15)',fg:'var(--r)',icon:'bi-arrow-down-circle-fill'},
+        'STRONGLY BULLISH': {bg:'rgba(10,179,156,.15)',fg:'var(--g)',icon:'bi-arrow-up-circle-fill'},
+        'MILDLY BULLISH':   {bg:'rgba(10,179,156,.08)',fg:'var(--g)',icon:'bi-arrow-up-circle'},
+        'NEUTRAL':          {bg:'rgba(247,184,75,.12)',fg:'var(--y)',icon:'bi-dash-circle'},
+        'MILDLY BEARISH':   {bg:'rgba(240,101,72,.08)',fg:'var(--r)',icon:'bi-arrow-down-circle'},
+        'STRONGLY BEARISH': {bg:'rgba(240,101,72,.15)',fg:'var(--r)',icon:'bi-arrow-down-circle-fill'},
     };
     const tc = toneColors[ec.tone] || toneColors['NEUTRAL'];
     badge.innerHTML = `<i class="bi ${tc.icon} me-1"></i>${ec.tone}`;
@@ -3215,9 +3448,9 @@ function renderExpertCommentary(ec) {
     const body = document.getElementById('commentaryBody');
     let html = '';
     if (ec.para_price) html += `<p class="mb-2" style="border-left:3px solid rgba(57,210,192,.3);padding-left:10px">${ec.para_price}</p>`;
-    if (ec.para_volume) html += `<p class="mb-2" style="border-left:3px solid rgba(210,153,34,.3);padding-left:10px">${ec.para_volume}</p>`;
-    if (ec.para_bollinger) html += `<p class="mb-2" style="border-left:3px solid rgba(88,166,255,.3);padding-left:10px">${ec.para_bollinger}</p>`;
-    if (ec.para_systems) html += `<p class="mb-2" style="border-left:3px solid rgba(188,140,255,.3);padding-left:10px">${ec.para_systems}</p>`;
+    if (ec.para_volume) html += `<p class="mb-2" style="border-left:3px solid rgba(247,184,75,.3);padding-left:10px">${ec.para_volume}</p>`;
+    if (ec.para_bollinger) html += `<p class="mb-2" style="border-left:3px solid rgba(124,138,239,.3);padding-left:10px">${ec.para_bollinger}</p>`;
+    if (ec.para_systems) html += `<p class="mb-2" style="border-left:3px solid rgba(192,132,252,.3);padding-left:10px">${ec.para_systems}</p>`;
     body.innerHTML = html;
 
     // Expert verdict box
@@ -3237,8 +3470,8 @@ function renderFundamentalHealth(fs) {
 
     // Expert view badge
     const badge = document.getElementById('fundHealthBadge');
-    const viewClr = {STRONG:'var(--g)',GOOD:'rgba(63,185,80,.8)',NEUTRAL:'var(--y)',CAUTION:'var(--o)',WEAK:'var(--r)'}[fs.expert_view]||'var(--y)';
-    const viewBg = {STRONG:'rgba(63,185,80,.15)',GOOD:'rgba(63,185,80,.10)',NEUTRAL:'rgba(210,153,34,.15)',CAUTION:'rgba(240,136,62,.15)',WEAK:'rgba(248,81,73,.15)'}[fs.expert_view]||'rgba(255,255,255,.08)';
+    const viewClr = {STRONG:'var(--g)',GOOD:'rgba(10,179,156,.8)',NEUTRAL:'var(--y)',CAUTION:'var(--o)',WEAK:'var(--r)'}[fs.expert_view]||'var(--y)';
+    const viewBg = {STRONG:'rgba(10,179,156,.15)',GOOD:'rgba(10,179,156,.10)',NEUTRAL:'rgba(247,184,75,.15)',CAUTION:'rgba(240,136,62,.15)',WEAK:'rgba(240,101,72,.15)'}[fs.expert_view]||'rgba(255,255,255,.08)';
     badge.textContent = fs.fundamental_signal ? `${fs.fundamental_signal} (${fs.fundamental_score}/100)` : fs.expert_view;
     badge.style.background = viewBg;
     badge.style.color = viewClr;
@@ -3313,8 +3546,8 @@ function renderBenchmarkAlpha(bm) {
 
     // Verdict badge
     const badge = document.getElementById('benchmarkBadge');
-    const vClr = {EXCELLENT:'var(--g)',GOOD:'rgba(63,185,80,.8)',NEUTRAL:'var(--y)',LAGGING:'var(--o)',POOR:'var(--r)'}[bm.verdict]||'var(--y)';
-    const vBg = {EXCELLENT:'rgba(63,185,80,.15)',GOOD:'rgba(63,185,80,.10)',NEUTRAL:'rgba(210,153,34,.15)',LAGGING:'rgba(240,136,62,.15)',POOR:'rgba(248,81,73,.15)'}[bm.verdict]||'rgba(255,255,255,.08)';
+    const vClr = {EXCELLENT:'var(--g)',GOOD:'rgba(10,179,156,.8)',NEUTRAL:'var(--y)',LAGGING:'var(--o)',POOR:'var(--r)'}[bm.verdict]||'var(--y)';
+    const vBg = {EXCELLENT:'rgba(10,179,156,.15)',GOOD:'rgba(10,179,156,.10)',NEUTRAL:'rgba(247,184,75,.15)',LAGGING:'rgba(240,136,62,.15)',POOR:'rgba(240,101,72,.15)'}[bm.verdict]||'rgba(255,255,255,.08)';
     badge.textContent = `Alpha: ${bm.alpha_pct>0?'+':''}${bm.alpha_pct}%`;
     badge.style.background = vBg;
     badge.style.color = vClr;
@@ -3342,14 +3575,14 @@ function renderBenchmarkAlpha(bm) {
             datasets: [{
                 data: [bm.position_return_pct, bm.nifty_return_pct, bm.alpha_pct],
                 backgroundColor: [
-                    bm.position_return_pct >= 0 ? 'rgba(63,185,80,.6)' : 'rgba(248,81,73,.6)',
-                    bm.nifty_return_pct >= 0 ? 'rgba(57,210,192,.6)' : 'rgba(248,81,73,.6)',
-                    bm.alpha_pct >= 0 ? 'rgba(63,185,80,.8)' : 'rgba(248,81,73,.8)',
+                    bm.position_return_pct >= 0 ? 'rgba(10,179,156,.6)' : 'rgba(240,101,72,.6)',
+                    bm.nifty_return_pct >= 0 ? 'rgba(57,210,192,.6)' : 'rgba(240,101,72,.6)',
+                    bm.alpha_pct >= 0 ? 'rgba(10,179,156,.8)' : 'rgba(240,101,72,.8)',
                 ],
                 borderColor: [
-                    bm.position_return_pct >= 0 ? '#3fb950' : '#f85149',
-                    bm.nifty_return_pct >= 0 ? '#39d2c0' : '#f85149',
-                    bm.alpha_pct >= 0 ? '#3fb950' : '#f85149',
+                    bm.position_return_pct >= 0 ? '#0ab39c' : '#f06548',
+                    bm.nifty_return_pct >= 0 ? '#39d2c0' : '#f06548',
+                    bm.alpha_pct >= 0 ? '#0ab39c' : '#f06548',
                 ],
                 borderWidth: 1, borderRadius: 4 }]
         },
@@ -3384,7 +3617,7 @@ function renderTrailingStops(ts, holding) {
     if (ts.profit_locked) {
         profitBadge.style.display = '';
         profitBadge.textContent = `🔒 +${ts.locked_pnl_pct}% Locked`;
-        profitBadge.style.background = 'rgba(63,185,80,.15)';
+        profitBadge.style.background = 'rgba(10,179,156,.15)';
         profitBadge.style.color = 'var(--g)';
         profitBadge.style.border = '1px solid var(--g)';
         profitBadge.style.borderRadius = '6px';
@@ -3421,6 +3654,42 @@ function renderTrailingStops(ts, holding) {
     const expert = document.getElementById('trailingExpert');
     expert.innerHTML = `<i class="bi bi-shield-lock me-1" style="color:var(--o)"></i><strong>Expert:</strong> <span style="color:rgba(255,255,255,.7)">${ts.expert_note}</span>
         <br><span class="small" style="color:rgba(255,255,255,.35)">Recommended stop: <strong class="font-mono">₹${ts.recommended_stop}</strong> (${ts.risk_pct}% risk from current price). ATR(14) = ₹${ts.atr_14} means the stock moves ~₹${ts.atr_14}/day on average — your stop should respect this breathing room.</span>`;
+
+    // Profit-tier trailing stop
+    const tierPanel = document.getElementById('trailingTierPanel');
+    const t = ts.trailing_tiers;
+    if (!t) { tierPanel.style.display = 'none'; return; }
+    tierPanel.style.display = 'block';
+
+    const tierBadge = document.getElementById('tierBadge');
+    const tierNum = t.tier_number || 0;
+    const tierColors = ['#8b949e','#0d6efd','#198754','#ffc107','#dc3545'];
+    const tc = tierColors[Math.min(tierNum, 4)];
+    tierBadge.textContent = t.current_tier;
+    tierBadge.style.background = tc + '20';
+    tierBadge.style.color = tc;
+    tierBadge.style.border = `1px solid ${tc}`;
+    tierBadge.style.borderRadius = '6px';
+    tierBadge.style.padding = '2px 8px';
+
+    // Progress bar — 4 tier steps
+    const bar = document.getElementById('tierProgressBar');
+    bar.innerHTML = [1,2,3,4].map(i => {
+        const active = tierNum >= i;
+        const labels = ['Breakeven','Profit','Strong','Big Winner'];
+        return `<div style="flex:1;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:600;
+            background:${active?tc+'25':'rgba(255,255,255,.04)'};color:${active?tc:'#596275'};
+            border:1px solid ${active?tc+'50':'rgba(255,255,255,.06)'}">
+            ${labels[i-1]}
+        </div>`;
+    }).join('');
+
+    document.getElementById('tierR').innerHTML = `<span style="color:${t.r_multiple>0?'var(--g)':'var(--r)'}">${t.r_multiple>0?'+':''}${t.r_multiple}R</span>`;
+    document.getElementById('tierStop').innerHTML = `₹${t.tier_stop}`;
+    document.getElementById('tierLocked').innerHTML = t.tier_locked_pct > 0
+        ? `<span style="color:var(--g)">+${t.tier_locked_pct}%</span>`
+        : '<span class="text-secondary">—</span>';
+    document.getElementById('tierExplanation').innerHTML = `<i class="bi bi-trophy me-1" style="color:${tc}"></i>${t.tier_explanation}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3839,11 +4108,47 @@ async function exportAnalysisPDF() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  SEARCH, FILTER, SORT WIRING
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('portSearch').addEventListener('input', e => {
+    portSearch = e.target.value.trim();
+    portPageOpen = 1; portPageClosed = 1;
+    renderPositions();
+});
+
+document.getElementById('portFilters').addEventListener('click', e => {
+    const chip = e.target.closest('.port-chip');
+    if (!chip) return;
+    document.querySelectorAll('#portFilters .port-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    portFilter = chip.dataset.filter;
+    portPageOpen = 1; portPageClosed = 1;
+    renderPositions();
+});
+
+document.querySelectorAll('.port-tbl th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        if (portSortKey === key) portSortDir *= -1;
+        else { portSortKey = key; portSortDir = 1; }
+        document.querySelectorAll('.port-tbl th[data-sort]').forEach(h => h.classList.remove('asc','desc'));
+        th.classList.add(portSortDir === 1 ? 'asc' : 'desc');
+        portPageOpen = 1; portPageClosed = 1;
+        renderPositions();
+    });
+});
+
+// Update count label when switching tabs
+document.querySelectorAll('#tabOpenBtn, #tabClosedBtn').forEach(btn => {
+    btn.addEventListener('shown.bs.tab', () => renderPositions());
+});
+
+// ═══════════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════════
 loadPositions();
 </script>
-<script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
 {% include "_theme_picker.html" %}
+{% include "_scroll_reveal.html" %}
 </body>
 </html>

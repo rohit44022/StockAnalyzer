@@ -257,11 +257,11 @@ def label_score(score: float, buckets: dict) -> tuple:
     Apply calibrated buckets to a score → (label, color).
     """
     if score >= buckets.get("strong_risk_on", 50):
-        return ("STRONG RISK-ON", "#3fb950")
+        return ("STRONG RISK-ON", "#0ab39c")
     if score >= buckets.get("risk_on", 20):
-        return ("RISK-ON", "#56d364")
+        return ("RISK-ON", "#6ee7b7")
     if score >= buckets.get("neutral_low", -20):
         return ("NEUTRAL", "#8b949e")
     if score >= buckets.get("strong_risk_off", -50):
         return ("RISK-OFF", "#ff7b72")
-    return ("STRONG RISK-OFF", "#f85149")
+    return ("STRONG RISK-OFF", "#f06548")

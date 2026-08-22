@@ -200,6 +200,19 @@ def load_from_csv(ticker: str, csv_dir: str = CSV_DIR) -> pd.DataFrame | None:
         # Drop rows with zero/negative close prices
         df = df[df["Close"] > 0]
 
+        # Use Adj Close for technical analysis (accounts for dividends/splits)
+        if "Adj Close" in df.columns:
+            adj = pd.to_numeric(df["Adj Close"], errors="coerce")
+            valid = adj.notna() & (adj > 0)
+            if valid.sum() > len(df) * 0.9:
+                ratio = adj[valid] / df.loc[valid, "Close"]
+                df.loc[valid, "Open"]  = df.loc[valid, "Open"] * ratio
+                df.loc[valid, "High"]  = df.loc[valid, "High"] * ratio
+                df.loc[valid, "Low"]   = df.loc[valid, "Low"] * ratio
+                df.loc[valid, "Close"] = adj[valid]
+                # drop rows where Adj Close was bad (avoid unadjusted data mixed in)
+                df = df[valid]
+
         if len(df) < MIN_DATA_DAYS:
             return None
 

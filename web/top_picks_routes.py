@@ -292,12 +292,13 @@ def top_picks_stream(method):
         """SSE event generator."""
         while True:
             try:
-                # 3-minute idle timeout per message — covers the slowest
-                # stage (parallel yfinance fundamentals fetch when the
-                # IP is rate-limited) plus headroom.
-                msg = progress_queue.get(timeout=180)
+                # 5-minute idle timeout per message — covers the widened
+                # deep-analysis pool (MAX_DEEP_ANALYSIS=1500 with 16 threads
+                # can take ~2-3 min on ultra-wide market days) plus the
+                # ~75s fundamentals stage plus rate-limit headroom.
+                msg = progress_queue.get(timeout=300)
             except queue.Empty:
-                yield "data: {\"type\":\"error\",\"message\":\"Analysis timed out after 3 minutes\"}\n\n"
+                yield "data: {\"type\":\"error\",\"message\":\"Analysis timed out after 5 minutes\"}\n\n"
                 break
 
             yield f"data: {json.dumps(msg)}\n\n"
@@ -314,6 +315,26 @@ def top_picks_stream(method):
             "Connection": "keep-alive",
         },
     )
+
+
+# ═══════════════════════════════════════════════════════════════
+# ROUTES: analysis cache stats + manual clear
+# ═══════════════════════════════════════════════════════════════
+
+@top_picks_bp.route("/api/top-picks/cache/stats", methods=["GET"])
+def top_picks_cache_stats():
+    """Snapshot for the UI: how many entries, total bytes, oldest age."""
+    from top_picks import cache as _triple_cache
+    return jsonify(_triple_cache.stats())
+
+
+@top_picks_bp.route("/api/top-picks/cache/clear", methods=["POST"])
+def top_picks_cache_clear():
+    """Wipe every cached triple-analysis result. Next Top Picks run
+    recomputes from scratch — no stale data risk."""
+    from top_picks import cache as _triple_cache
+    removed = _triple_cache.clear_all()
+    return jsonify({"status": "ok", "removed": removed})
 
 
 # ═══════════════════════════════════════════════════════════════

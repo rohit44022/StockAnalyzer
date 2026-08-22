@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backtest — Strategy Performance</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root { --card-bg:#282f36; --card-border:#2f3944;
+    --g:#0ab39c; --r:#f06548; --y:#f7b84b; --b:#7c8aef; }
+body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px}
+.card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
+.hero{border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero h1{font-size:2rem;font-weight:800;color:var(--bs-body-color)}
+.sum-card{border-radius:14px;padding:1.2rem;background:var(--card-bg);border:1px solid var(--card-border)}
+.sum-val{font-size:1.5rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sum-label{font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.trade-row{font-size:.82rem;border-bottom:1px solid var(--card-border)}
+.trade-row:last-child{border-bottom:none}
+.month-cell{display:inline-block;width:42px;height:42px;line-height:42px;text-align:center;border-radius:8px;font-size:.72rem;font-weight:600;margin:2px}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+{% include "_command_palette.html" %}
+
+<div class="hero">
+<div class="container-fluid px-4">
+    <h1><i class="bi bi-clock-history me-2"></i>Strategy Backtester</h1>
+    <p class="text-secondary mb-0">Test how Bollinger Band methods performed on historical data — your dress rehearsal before risking real capital.</p>
+</div>
+</div>
+
+<div class="container-fluid px-4 py-4">
+
+<!-- ═══════════ BACKTEST FORM ═══════════ -->
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-sliders me-1"></i> Configure Backtest</div>
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Method</label>
+                <select id="btMethod" class="form-select form-select-sm">
+                    <option value="M1" selected>M1 — Squeeze Breakout</option>
+                    <option value="M2">M2 — Trend Following</option>
+                    <option value="M3">M3 — Mean Reversion</option>
+                    <option value="M4">M4 — Band Walking</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Universe</label>
+                <select id="btUniverse" class="form-select form-select-sm">
+                    <option value="nifty50" selected>Top 50 stocks</option>
+                    <option value="nifty200">Top 200 stocks</option>
+                    <option value="nifty500">Top 500 stocks</option>
+                    <option value="all">All stocks</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Start Date</label>
+                <input type="date" id="btStart" class="form-control form-control-sm" value="2025-01-01">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">End Date</label>
+                <input type="date" id="btEnd" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3">
+                <button id="btRunBtn" class="btn btn-primary w-100" onclick="runBacktest()">
+                    <i class="bi bi-play-fill me-1"></i>Run Backtest
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════ RESULTS (hidden until run) ═══════════ -->
+<div id="btResults" style="display:none">
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4" id="btSummaryRow"></div>
+
+    <!-- Explanation -->
+    <div class="card mb-4" id="btExplCard">
+        <div class="card-header"><i class="bi bi-info-circle me-1"></i> What This Means — Plain English</div>
+        <div class="card-body" id="btExplBody" style="font-size:.88rem;line-height:1.65"></div>
+    </div>
+
+    <!-- Monthly Heatmap -->
+    <div class="card mb-4">
+        <div class="card-header"><i class="bi bi-calendar3 me-1"></i> Monthly Performance Heatmap</div>
+        <div class="card-body" id="btMonthlyBody"></div>
+    </div>
+
+    <!-- Trade Log -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-list-ul me-1"></i> Trade Log</span>
+            <span class="badge bg-secondary" id="btTradeCount"></span>
+        </div>
+        <div class="card-body p-0" style="max-height:500px;overflow-y:auto">
+            <table class="table table-sm mb-0" style="font-size:.8rem">
+                <thead><tr>
+                    <th>Ticker</th><th>Entry</th><th>Exit</th><th>Entry ₹</th><th>Exit ₹</th>
+                    <th>R-Multiple</th><th>Result</th><th>Days</th>
+                </tr></thead>
+                <tbody id="btTradeBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Loading spinner -->
+<div id="btLoading" style="display:none" class="text-center py-5">
+    <div class="spinner-border text-primary" style="width:3rem;height:3rem"></div>
+    <p class="text-secondary mt-3">Running backtest — this may take 30-120 seconds for large universes...</p>
+</div>
+
+</div><!-- /container -->
+
+<script>
+document.getElementById('btEnd').value = new Date().toISOString().slice(0,10);
+
+function runBacktest() {
+    const btn = document.getElementById('btRunBtn');
+    const loading = document.getElementById('btLoading');
+    const results = document.getElementById('btResults');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Running...';
+    loading.style.display = 'block';
+    results.style.display = 'none';
+
+    fetch('/api/backtest/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            method: document.getElementById('btMethod').value,
+            universe: document.getElementById('btUniverse').value,
+            start_date: document.getElementById('btStart').value,
+            end_date: document.getElementById('btEnd').value,
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        loading.style.display = 'none';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Run Backtest';
+
+        if (data.error) {
+            alert('Backtest failed: ' + data.error);
+            return;
+        }
+        renderBacktestResults(data);
+    })
+    .catch(err => {
+        loading.style.display = 'none';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Run Backtest';
+        alert('Backtest failed: ' + err.message);
+    });
+}
+
+function renderBacktestResults(d) {
+    document.getElementById('btResults').style.display = 'block';
+
+    // Summary cards
+    const wr = d.win_rate != null ? (d.win_rate * 100).toFixed(1) : 'N/A';
+    const wrColor = d.win_rate >= 0.55 ? 'var(--g)' : d.win_rate >= 0.45 ? 'var(--y)' : 'var(--r)';
+    const pf = d.profit_factor != null ? d.profit_factor.toFixed(2) : 'N/A';
+    const pfColor = d.profit_factor >= 1.5 ? 'var(--g)' : d.profit_factor >= 1.0 ? 'var(--y)' : 'var(--r)';
+    const exp = d.expectancy_r != null ? d.expectancy_r.toFixed(2) + 'R' : 'N/A';
+    const expColor = d.expectancy_r > 0 ? 'var(--g)' : 'var(--r)';
+
+    document.getElementById('btSummaryRow').innerHTML = `
+        <div class="col-6 col-md-2"><div class="sum-card text-center">
+            <div class="sum-val">${d.total_trades}</div><div class="sum-label">Total Trades</div>
+        </div></div>
+        <div class="col-6 col-md-2"><div class="sum-card text-center">
+            <div class="sum-val" style="color:var(--g)">${d.wins}</div><div class="sum-label">Wins</div>
+        </div></div>
+        <div class="col-6 col-md-2"><div class="sum-card text-center">
+            <div class="sum-val" style="color:var(--r)">${d.losses}</div><div class="sum-label">Losses</div>
+        </div></div>
+        <div class="col-6 col-md-2"><div class="sum-card text-center">
+            <div class="sum-val" style="color:${wrColor}">${wr}%</div><div class="sum-label">Win Rate</div>
+        </div></div>
+        <div class="col-6 col-md-2"><div class="sum-card text-center">
+            <div class="sum-val" style="color:${pfColor}">${pf}</div><div class="sum-label">Profit Factor</div>
+        </div></div>
+        <div class="col-6 col-md-2"><div class="sum-card text-center">
+            <div class="sum-val" style="color:${expColor}">${exp}</div><div class="sum-label">Expectancy</div>
+        </div></div>
+    `;
+
+    // Explanation
+    document.getElementById('btExplBody').innerHTML = d.explanation || '';
+
+    // Monthly heatmap
+    const mb = document.getElementById('btMonthlyBody');
+    if (d.monthly_breakdown && d.monthly_breakdown.length) {
+        let html = '<div class="d-flex flex-wrap gap-1">';
+        d.monthly_breakdown.forEach(m => {
+            const wr = m.trades > 0 ? (m.wins / m.trades * 100) : 0;
+            const bg = wr >= 60 ? 'rgba(25,135,84,.25)' : wr >= 45 ? 'rgba(255,193,7,.2)' : m.trades > 0 ? 'rgba(220,53,69,.2)' : 'rgba(255,255,255,.03)';
+            const fg = wr >= 60 ? '#198754' : wr >= 45 ? '#ffc107' : m.trades > 0 ? '#dc3545' : '#8b949e';
+            html += `<div class="month-cell" style="background:${bg};color:${fg}" title="${m.month}: ${m.trades} trades, ${wr.toFixed(0)}% win rate">
+                ${m.month.slice(5)}<br>${m.trades > 0 ? wr.toFixed(0) + '%' : '-'}
+            </div>`;
+        });
+        html += '</div>';
+        mb.innerHTML = html;
+    } else {
+        mb.innerHTML = '<div class="text-secondary">No monthly data</div>';
+    }
+
+    // Trade log
+    document.getElementById('btTradeCount').textContent = `${d.total_trades} trades`;
+    const tbody = document.getElementById('btTradeBody');
+    if (d.all_trades && d.all_trades.length) {
+        tbody.innerHTML = d.all_trades.slice(0, 200).map(t => {
+            const rc = t.result === 'WIN' ? 'text-success' : t.result === 'LOSS' ? 'text-danger' : 'text-secondary';
+            const rBadge = t.result === 'WIN' ? 'bg-success' : t.result === 'LOSS' ? 'bg-danger' : 'bg-secondary';
+            return `<tr class="trade-row">
+                <td class="fw-bold">${t.ticker.replace('.NS','')}</td>
+                <td>${t.entry_date}</td>
+                <td>${t.exit_date || '-'}</td>
+                <td class="font-mono">₹${t.entry_price.toFixed(2)}</td>
+                <td class="font-mono">${t.exit_price ? '₹' + t.exit_price.toFixed(2) : '-'}</td>
+                <td class="font-mono ${rc}">${t.r_multiple != null ? t.r_multiple.toFixed(2) + 'R' : '-'}</td>
+                <td><span class="badge ${rBadge}" style="font-size:.7rem">${t.result}</span></td>
+                <td>${t.holding_days || '-'}</td>
+            </tr>`;
+        }).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary py-3">No trades generated</td></tr>';
+    }
+}
+</script>
+
+{% include "_theme_picker.html" %}
+{% include "_scroll_reveal.html" %}
+</body>
+</html>

@@ -140,7 +140,7 @@ def detect_regime(summaries: dict) -> dict:
 
     # Build rationale + drivers
     if label == "Risk-Off / Flight to Safety":
-        emoji, color = "🛡️", "#f85149"
+        emoji, color = "🛡️", "#f06548"
         rationale = (f"Markets defensive: VIX at {vix_last:.1f}, S&P {sp500_5d:+.1f}% over 5d, "
                      f"gold {gold_5d:+.1f}%, DXY {dxy_5d:+.1f}%. Capital fleeing risk into safer assets.")
         drivers.append(f"VIX (fear) at {vix_last:.1f} — {'elevated' if vix_last > 20 else 'normal'}")
@@ -157,7 +157,7 @@ def detect_regime(summaries: dict) -> dict:
         if gold_5d > 0:  drivers.append(f"Gold up {gold_5d:+.1f}% — inflation hedge bid")
 
     elif label == "Recession Watch":
-        emoji, color = "⚠️", "#d29922"
+        emoji, color = "⚠️", "#f7b84b"
         rationale = (f"Recession warning lights: " +
                      ("inverted yield curve, " if yc_inverted else "") +
                      f"copper {copper_5d:+.1f}%, oil {brent_5d:+.1f}%. "
@@ -165,7 +165,7 @@ def detect_regime(summaries: dict) -> dict:
         if copper_5d < 0: drivers.append(f"Dr. Copper down {copper_5d:+.1f}% — industrial demand softening")
 
     elif label == "Risk-On Growth":
-        emoji, color = "🚀", "#3fb950"
+        emoji, color = "🚀", "#0ab39c"
         rationale = (f"Risk appetite strong: S&P {sp500_5d:+.1f}%, Nasdaq {nasdaq_5d:+.1f}%, "
                      f"VIX low at {vix_last:.1f}, BTC {btc_5d:+.1f}%. Capital chasing growth.")
         if nasdaq_5d > 0: drivers.append(f"Nasdaq up {nasdaq_5d:+.1f}% — high-beta tech leading")
@@ -305,10 +305,10 @@ def compute_composite_score(summaries: dict) -> dict:
 
     if normalized >= 50:
         label = "STRONG RISK-ON"
-        color = "#3fb950"
+        color = "#0ab39c"
     elif normalized >= 20:
         label = "RISK-ON"
-        color = "#56d364"
+        color = "#6ee7b7"
     elif normalized >= -20:
         label = "NEUTRAL"
         color = "#8b949e"
@@ -317,7 +317,7 @@ def compute_composite_score(summaries: dict) -> dict:
         color = "#ff7b72"
     else:
         label = "STRONG RISK-OFF"
-        color = "#f85149"
+        color = "#f06548"
 
     contributors.sort(key=lambda c: abs(c["contribution"]), reverse=True)
 

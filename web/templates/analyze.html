@@ -12,29 +12,38 @@
     <style>
         :root {
              
-            --card-bg:var(--bs-tertiary-bg); --card-border:var(--bs-border-color);
-            --g: #3fb950; --r: #f85149; --y: #d29922; --b: #58a6ff; --p: #bc8cff; }
+            --card-bg:#282f36; --card-border:#2f3944;
+            --g: #0ab39c; --r: #f06548; --y: #f7b84b; --b: #7c8aef; --p: #c084fc; }
         body { font-family: var(--bs-body-font-family); background: var(--bs-body-bg); }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
-        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; }
-        .card-header { background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--card-border); font-weight: 600; }
+        .card { background: var(--card-bg); backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5); border: 1px solid var(--card-border); border-radius: 16px; }
+        .card-header { background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--card-border); font-weight: 600; }
         .text-green { color: var(--g) !important; } .text-red { color: var(--r) !important; }
         .text-yellow { color: var(--y) !important; } .text-blue { color: var(--b) !important; }
         .text-purple { color: var(--p) !important; }
         .score-bar { height: 8px; border-radius: 4px; background: var(--bs-border-color); overflow: hidden; }
         .score-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+        /* Split-window indicator panels */
+        #indicatorStack { background: var(--card-bg); display:flex; flex-direction:column; }
+        .ind-panel { padding: 0; flex: 1 1 0; min-height: 0; position: relative; }
+        .ind-panel-hdr { display: flex; justify-content: space-between; align-items: center; padding: 2px 8px 0; position:absolute; top:0; left:0; right:0; z-index:2; pointer-events:none; }
+        .ind-panel-title { font-size: .68rem; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: .5px; }
+        .ind-panel-badge { font-size: .65rem; font-family: 'JetBrains Mono', monospace; padding: 1px 6px; border-radius: 4px; }
+        @media(max-width:991.98px){ #splitChartRow { flex-direction: column; }
+            #indicatorStack { height: 500px; border-top: 1px solid var(--card-border); }
+            .col-lg-7 { border-right: none !important; } }
         .ratio-row td { padding: 6px 10px !important; }
         .ratio-desc { font-size: 0.75rem; color: #8b949e; font-style: italic; }
         .cond-icon { font-size: 1.1rem; }
         .action-banner { border-radius: 12px; padding: 1.2rem 1.5rem; }
-        .action-buy { background: linear-gradient(135deg, #238636, #1a7f37); border: 1px solid #3fb950; }
-        .action-sell { background: linear-gradient(135deg, #8b1a1a, #da3633); border: 1px solid #f85149; }
-        .action-hold { background: linear-gradient(135deg, #1a3a5c, #1f6feb); border: 1px solid #58a6ff; }
-        .action-wait { background: linear-gradient(135deg, #6e4b00, #9a6700); border: 1px solid #d29922; }
+        .action-buy { background: linear-gradient(135deg, #238636, #1a7f37); border: 1px solid #0ab39c; }
+        .action-sell { background: linear-gradient(135deg, #8b1a1a, #da3633); border: 1px solid #f06548; }
+        .action-hold { background: linear-gradient(135deg, #1a3a5c, #1f6feb); border: 1px solid #7c8aef; }
+        .action-wait { background: linear-gradient(135deg, #6e4b00, #9a6700); border: 1px solid #f7b84b; }
         .action-fake { background: linear-gradient(135deg, #6e3a00, #d47616); border: 1px solid #f0883e; }
         .action-monitor { background: linear-gradient(135deg, var(--bs-border-color), var(--bs-border-color)); border: 1px solid #484f58; }
         .nav-pills .nav-link { color: #8b949e; border-radius: 8px; }
-        .nav-pills .nav-link.active { background: rgba(88,166,255,0.15); color: var(--b); }
+        .nav-pills .nav-link.active { background: rgba(124,138,239,0.15); color: var(--b); }
         .table-dark { --bs-table-bg: transparent; }
         .table-dark th { color: #8b949e; font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
         #loadingOverlay {
@@ -45,39 +54,25 @@
         .analysis-text li { margin-bottom: 0.3rem; }
         a.back-link { color: var(--b); text-decoration: none; }
         a.back-link:hover { text-decoration: underline; }
-        /* ══ UNIFIED NAV ══ */
-        .sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
-        .sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
-        .sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
-        @keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
-        @keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
-        .sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
-        .sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
-        .sc-nav .sc-link:hover{color:var(--bs-body-color);border-bottom-color:rgba(88,166,255,.3)}
-        .sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
-        .sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
-        .sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
-        .sc-nav .sc-ticker{color:#3fb950;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:.85rem}
-        @media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 
         /* ── Strategy Explainer ── */
         .strategy-header {
-            background: linear-gradient(135deg, rgba(210,153,34,0.08), rgba(88,166,255,0.06));
-            border: 1px solid rgba(210,153,34,0.25);
+            background: linear-gradient(135deg, rgba(247,184,75,0.08), rgba(124,138,239,0.06));
+            border: 1px solid rgba(247,184,75,0.25);
             border-radius: 12px; padding: 1.2rem 1.5rem; margin-bottom: 1rem; }
         .strategy-header h5 { color: var(--y); }
 
         /* ── Phase panel ── */
         .phase-panel { border-radius: 12px; padding: 1rem 1.3rem; }
-        .phase-compression { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.3); }
-        .phase-direction   { background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.3); }
-        .phase-explosion   { background: rgba(248,81,73,0.08);  border: 1px solid rgba(248,81,73,0.3); }
+        .phase-compression { background: rgba(124,138,239,0.08); border: 1px solid rgba(124,138,239,0.3); }
+        .phase-direction   { background: rgba(247,184,75,0.08); border: 1px solid rgba(247,184,75,0.3); }
+        .phase-explosion   { background: rgba(240,101,72,0.08);  border: 1px solid rgba(240,101,72,0.3); }
         .phase-normal      { background: rgba(139,148,158,0.06); border: 1px solid var(--card-border); }
-        .phase-postbreakout{ background: rgba(63,185,80,0.08);  border: 1px solid rgba(63,185,80,0.3); }
+        .phase-postbreakout{ background: rgba(10,179,156,0.08);  border: 1px solid rgba(10,179,156,0.3); }
 
         /* ── Head-fake alert ── */
         .headfake-alert {
-            background: rgba(248,81,73,0.1);
+            background: rgba(240,101,72,0.1);
             border: 1px solid var(--r); border-radius: 12px;
             padding: 1rem 1.3rem; }
 
@@ -88,7 +83,7 @@
         .ind-explain { font-size: 0.77rem; color: #6e7681; font-style: italic; }
 
         /* ── Exit signals ── */
-        .exit-badge { font-size: 0.78rem; padding: 3px 8px; border-radius: 6px; background: rgba(248,81,73,0.15); color: var(--r); }
+        .exit-badge { font-size: 0.78rem; padding: 3px 8px; border-radius: 6px; background: rgba(240,101,72,0.15); color: var(--r); }
 
         /* ── Accordion tweaks ── */
         .accordion-button { background: var(--card-bg) !important; color: var(--bs-body-color); box-shadow: none !important; padding: 0.6rem 1rem; }
@@ -102,20 +97,20 @@
 
         /* ── Strategies Section (Methods II, III, IV) ── */
         .strat-card { border-radius: 12px; padding: 1.2rem 1.4rem; margin-bottom: 1rem; }
-        .strat-m2 { background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.2); }
-        .strat-m3 { background: rgba(188,140,255,0.06); border: 1px solid rgba(188,140,255,0.2); }
-        .strat-m4 { background: rgba(210,153,34,0.06); border: 1px solid rgba(210,153,34,0.2); }
+        .strat-m2 { background: rgba(124,138,239,0.06); border: 1px solid rgba(124,138,239,0.2); }
+        .strat-m3 { background: rgba(192,132,252,0.06); border: 1px solid rgba(192,132,252,0.2); }
+        .strat-m4 { background: rgba(247,184,75,0.06); border: 1px solid rgba(247,184,75,0.2); }
         .strat-signal-badge {
             display: inline-block; padding: 4px 12px; border-radius: 8px;
             font-weight: 700; font-size: 0.85rem; letter-spacing: 0.03em; }
-        .strat-signal-BUY  { background: rgba(63,185,80,0.2); color: var(--g); }
-        .strat-signal-SELL { background: rgba(248,81,73,0.2); color: var(--r); }
-        .strat-signal-HOLD { background: rgba(88,166,255,0.2); color: var(--b); }
-        .strat-signal-WATCH { background: rgba(210,153,34,0.2); color: var(--y); }
+        .strat-signal-BUY  { background: rgba(10,179,156,0.2); color: var(--g); }
+        .strat-signal-SELL { background: rgba(240,101,72,0.2); color: var(--r); }
+        .strat-signal-HOLD { background: rgba(124,138,239,0.2); color: var(--b); }
+        .strat-signal-WATCH { background: rgba(247,184,75,0.2); color: var(--y); }
         .strat-signal-NONE { background: rgba(139,148,158,0.1); color: #8b949e; }
         .strat-strength { font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; margin-left: 6px; }
-        .strat-strength-STRONG { background: rgba(63,185,80,0.15); color: var(--g); }
-        .strat-strength-MODERATE { background: rgba(210,153,34,0.15); color: var(--y); }
+        .strat-strength-STRONG { background: rgba(10,179,156,0.15); color: var(--g); }
+        .strat-strength-MODERATE { background: rgba(247,184,75,0.15); color: var(--y); }
         .strat-strength-WEAK { background: rgba(139,148,158,0.1); color: #8b949e; }
         .strat-details { font-size: 0.85rem; line-height: 1.7; color: #8b949e; white-space: pre-line; margin-top: 0.5rem; }
         .strat-indicators { font-size: 0.78rem; color: #6e7681; }
@@ -153,7 +148,7 @@
             background: rgba(255,255,255,0.025); border: 1px solid var(--card-border);
             border-radius: 10px; cursor: pointer; user-select: none;
             transition: background 0.2s, border-color 0.2s; }
-        .section-toggle:hover { background: rgba(88,166,255,0.05); border-color: rgba(88,166,255,0.25); }
+        .section-toggle:hover { background: rgba(124,138,239,0.05); border-color: rgba(124,138,239,0.25); }
         .section-toggle .sec-title { font-weight: 600; font-size: 0.9rem; color: #e6edf3; }
         .section-toggle .sec-title i { margin-right: 6px; }
         .section-toggle .sec-chevron {
@@ -172,8 +167,7 @@
             font-size: 0.75rem; padding: 3px 10px; border-radius: 6px;
             background: rgba(255,255,255,0.04); border: 1px solid var(--card-border);
             color: #8b949e; cursor: pointer; transition: all 0.2s; }
-        .expand-collapse-bar button:hover { background: rgba(88,166,255,0.08); color: var(--b); border-color: rgba(88,166,255,0.3); }
-    .sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color)}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color);text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
+        .expand-collapse-bar button:hover { background: rgba(124,138,239,0.08); color: var(--b); border-color: rgba(124,138,239,0.3); }
 </style>
 </head>
 <body>
@@ -188,6 +182,21 @@
 
     <!-- ═══════════ UNIFIED NAVBAR ═══════════ -->
     {% include "_nav.html" %}
+
+    <!-- ── Quick Search Bar ── -->
+    <div class="container-fluid px-3 px-lg-4 mt-3 mb-2">
+        <form class="d-flex position-relative mx-auto" id="analyzeSearchForm" autocomplete="off" style="max-width:520px">
+            <div class="flex-grow-1 position-relative">
+                <input type="text" class="form-control" id="analyzeTickerInput"
+                       placeholder="Search any NSE ticker — RELIANCE, TCS, HDFC ..."
+                       style="background:var(--card-bg);border:1px solid var(--card-border);color:#e1e6eb;padding:.75rem 1.2rem;border-radius:8px 0 0 8px;font-size:.9rem">
+                <div id="analyzeAutocompleteList" style="display:none;position:absolute;z-index:1000;background:#282f36;border:1px solid rgba(255,255,255,.08);border-radius:0 0 8px 8px;max-height:300px;overflow-y:auto;width:100%;left:0;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
+            </div>
+            <button class="btn btn-primary" type="submit" style="border-radius:0 8px 8px 0;font-weight:600;padding:.75rem 1.5rem;font-size:.9rem;background:#7c8aef;border-color:#7c8aef">
+                <i class="bi bi-search me-1"></i> Analyze
+            </button>
+        </form>
+    </div>
 
     <div class="container-fluid px-3 px-lg-4 mt-3" id="mainContent" style="display:none;">
 
@@ -331,90 +340,114 @@
         </div></div>
         </div><!-- /secChecklist collapse -->
 
-        <!-- ═══════════ CHART ═══════════ -->
+        <!-- ═══════════ SPLIT-WINDOW CHART — Professional Trading View ═══════════ -->
         <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secChart" aria-expanded="true">
-            <span class="sec-title"><i class="bi bi-graph-up text-blue"></i> Price Chart — Bollinger Bands + SAR</span>
+            <span class="sec-title"><i class="bi bi-graph-up text-blue"></i> Chart — Price + Indicators (Split View)</span>
             <i class="bi bi-chevron-down sec-chevron"></i>
         </div>
         <div class="collapse show" id="secChart">
-        <div class="section-body mb-3"><div class="section-inner">
-        <div class="card mb-0" style="border:none;">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-graph-up"></i> Price Chart — Bollinger Bands + SAR</span>
-                <div class="d-flex gap-2 flex-wrap">
-                    <div class="btn-group btn-group-sm" id="chartInterval">
-                        <button class="btn btn-outline-info" data-interval="15m" title="15-minute candles (last 5 days)">15m</button>
-                        <button class="btn btn-outline-info active" data-interval="daily" title="Daily candles">Daily</button>
-                        <button class="btn btn-outline-info" data-interval="weekly" title="Weekly candles (20-week BB)">Weekly</button>
-                    </div>
-                    <div class="btn-group btn-group-sm" id="chartRange">
-                        <button class="btn btn-outline-secondary active" data-days="60">3M</button>
-                        <button class="btn btn-outline-secondary" data-days="126">6M</button>
-                        <button class="btn btn-outline-secondary" data-days="250">1Y</button>
+        <div class="section-body mb-3"><div class="section-inner" style="padding:0;">
+
+        <!-- Controls bar -->
+        <div class="d-flex justify-content-between align-items-center px-3 py-2" style="border-bottom:1px solid var(--card-border)">
+            <div class="d-flex gap-2 flex-wrap">
+                <div class="btn-group btn-group-sm" id="chartInterval">
+                    <button class="btn btn-outline-info" data-interval="15m" title="15-minute candles (last 5 days)">15m</button>
+                    <button class="btn btn-outline-info active" data-interval="daily" title="Daily candles">Daily</button>
+                    <button class="btn btn-outline-info" data-interval="weekly" title="Weekly candles (20-week BB)">Weekly</button>
+                </div>
+                <div class="btn-group btn-group-sm" id="chartRange">
+                    <button class="btn btn-outline-secondary active" data-days="60">3M</button>
+                    <button class="btn btn-outline-secondary" data-days="126">6M</button>
+                    <button class="btn btn-outline-secondary" data-days="250">1Y</button>
+                </div>
+            </div>
+            <div class="small text-secondary d-none d-md-block"><i class="bi bi-layout-split me-1"></i>Left: Price + BB + SAR + Volume &nbsp;|&nbsp; Right: Oscillators</div>
+        </div>
+
+        <!-- Split-window container -->
+        <div class="row g-0" id="splitChartRow">
+            <!-- ── LEFT WINDOW: Candlestick + BB + SAR + Volume + CMF ── -->
+            <div class="col-lg-7" style="border-right:1px solid var(--card-border)">
+                <div id="priceChart" style="height:480px;"></div>
+                <div id="cmfChart" style="height:90px; border-top:1px solid var(--card-border); position:relative;">
+                    <div class="ind-panel-hdr" style="position:absolute;top:0;left:0;right:0;z-index:2;pointer-events:none;padding:2px 8px 0;">
+                        <span class="ind-panel-title">CMF (20)</span>
+                        <span id="badgeCmf" class="ind-panel-badge"></span>
                     </div>
                 </div>
             </div>
-            <div class="card-body p-0">
-                <div id="priceChart" style="height:420px;"></div>
-            </div>
-            <div class="card-footer small" style="color:#6e7681;">
-                <i class="bi bi-info-circle"></i>
-                <strong>How to read:</strong> Blue lines = Bollinger Bands (upper &amp; lower). When bands squeeze together → low volatility → breakout imminent.
-                Green/Red dots = Parabolic SAR (trailing stop). Green dots below candles = uptrend. Red dots above = downtrend.
+
+            <!-- ── RIGHT WINDOW: Stacked Indicator Panels ── -->
+            <div class="col-lg-5" id="indicatorStack" style="height:570px;">
+                <!-- %B -->
+                <div class="ind-panel" style="border-bottom:1px solid var(--card-border)">
+                    <div class="ind-panel-hdr">
+                        <span class="ind-panel-title">%B (20, 2)</span>
+                        <span id="badgePctb" class="ind-panel-badge"></span>
+                    </div>
+                    <div id="pctbChart" style="width:100%;height:100%;"></div>
+                </div>
+                <!-- MFI -->
+                <div class="ind-panel" style="border-bottom:1px solid var(--card-border)">
+                    <div class="ind-panel-hdr">
+                        <span class="ind-panel-title">MFI (10)</span>
+                        <span id="badgeMfi" class="ind-panel-badge"></span>
+                    </div>
+                    <div id="mfiChart" style="width:100%;height:100%;"></div>
+                </div>
+                <!-- BBW -->
+                <div class="ind-panel" style="border-bottom:1px solid var(--card-border)">
+                    <div class="ind-panel-hdr">
+                        <span class="ind-panel-title">BBW (20, 2)</span>
+                        <span id="badgeBbw" class="ind-panel-badge"></span>
+                    </div>
+                    <div id="bbwChart" style="width:100%;height:100%;"></div>
+                </div>
+                <!-- RSI -->
+                <div class="ind-panel" style="border-bottom:1px solid var(--card-border)">
+                    <div class="ind-panel-hdr">
+                        <span class="ind-panel-title">RSI (14)</span>
+                        <span id="badgeRsi" class="ind-panel-badge"></span>
+                    </div>
+                    <div id="rsiChart" style="width:100%;height:100%;"></div>
+                </div>
+                <!-- VWMACD -->
+                <div class="ind-panel">
+                    <div class="ind-panel-hdr">
+                        <span class="ind-panel-title">VWMACD</span>
+                        <span id="badgeVwmacd" class="ind-panel-badge"></span>
+                    </div>
+                    <div id="vwmacdChart" style="width:100%;height:100%;"></div>
+                </div>
             </div>
         </div>
+
+        <!-- Indicator legend (collapsed) -->
+        <div class="px-3 py-2" style="border-top:1px solid var(--card-border)">
+            <details class="small" style="color:#6e7681">
+                <summary style="cursor:pointer"><i class="bi bi-info-circle me-1"></i><strong>How to read these indicators</strong></summary>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-4"><strong class="text-info">RSI</strong> — Momentum. >70 = overbought, <30 = oversold. Confirms breakout strength.</div>
+                    <div class="col-md-4"><strong style="color:#c084fc">%B</strong> — Position within bands. >0.80 = bullish, <0.20 = bearish, 0.50 = midline.</div>
+                    <div class="col-md-4"><strong class="text-warning">MFI</strong> — RSI with volume. >80 = max fuel, <20 = oversold. Validates money behind the move.</div>
+                    <div class="col-md-4"><strong class="text-success">CMF</strong> — Money flow direction. >0 = accumulation (big players buying), <0 = distribution.</div>
+                    <div class="col-md-4"><strong style="color:#e040fb">BBW</strong> — Band width. Below 0.08 = squeeze is ON (coiled spring). Lower = bigger potential breakout.</div>
+                    <div class="col-md-4"><strong style="color:#39d2c0">VWMACD</strong> — Volume-weighted MACD. Green bars = bullish momentum, red = bearish. Confirms trend.</div>
+                </div>
+            </details>
+        </div>
+
         </div></div>
         </div><!-- /secChart collapse -->
 
-        <!-- ═══════════ INDICATOR PANELS — Zerodha-style Sub-Charts ═══════════ -->
+        <!-- ═══════════ 7 INDICATOR READINGS TABLE ═══════════ -->
         <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secIndicators" aria-expanded="false">
-            <span class="sec-title"><i class="bi bi-speedometer2 text-purple"></i> Indicator Panels & Readings</span>
+            <span class="sec-title"><i class="bi bi-speedometer2 text-purple"></i> Indicator Readings Table</span>
             <i class="bi bi-chevron-down sec-chevron"></i>
         </div>
         <div class="collapse" id="secIndicators">
         <div class="section-body mb-3"><div class="section-inner px-3 pt-3">
-        <div class="row g-3 mb-3">
-            <div class="col-lg-6">
-                <!-- Volume + SMA -->
-                <div class="card mb-3">
-                    <div class="card-header py-1 small d-flex justify-content-between align-items-center"><span><i class="bi bi-bar-chart-fill"></i> Volume &amp; SMA-50</span><span id="badgeVolume" class="badge rounded-pill font-mono" style="background:rgba(88,166,255,0.15);color:#58a6ff;font-size:0.75rem"></span></div>
-                    <div class="card-body p-0"><canvas id="volumeChart" height="160"></canvas></div>
-                </div>
-                <!-- CMF -->
-                <div class="card mb-3">
-                    <div class="card-header py-1 small d-flex justify-content-between align-items-center"><span><i class="bi bi-water"></i> CMF (Chaikin Money Flow, 20)</span><span id="badgeCmf" class="badge rounded-pill font-mono" style="font-size:0.75rem"></span></div>
-                    <div class="card-body p-0"><canvas id="cmfChart" height="130"></canvas></div>
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <!-- BB %B -->
-                <div class="card mb-3">
-                    <div class="card-header py-1 small d-flex justify-content-between align-items-center"><span><i class="bi bi-percent"></i> BB %B (20, 2)</span><span id="badgePctb" class="badge rounded-pill font-mono" style="font-size:0.75rem"></span></div>
-                    <div class="card-body p-0"><canvas id="pctbChart" height="130"></canvas></div>
-                </div>
-                <!-- MFI -->
-                <div class="card mb-3">
-                    <div class="card-header py-1 small d-flex justify-content-between align-items-center"><span><i class="bi bi-fuel-pump"></i> MFI (Money Flow Index, 10)</span><span id="badgeMfi" class="badge rounded-pill font-mono" style="font-size:0.75rem"></span></div>
-                    <div class="card-body p-0"><canvas id="mfiChart" height="130"></canvas></div>
-                </div>
-                <!-- BBW -->
-                <div class="card">
-                    <div class="card-header py-1 small d-flex justify-content-between align-items-center"><span><i class="bi bi-arrows-expand"></i> BBW (BandWidth, 20, 2)</span><span id="badgeBbw" class="badge rounded-pill font-mono" style="font-size:0.75rem"></span></div>
-                    <div class="card-body p-0"><canvas id="bbwChart" height="130"></canvas></div>
-                </div>
-            </div>
-        </div>
-        <div class="alert mb-3 small" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.12);border-radius:10px;color:#8b949e;">
-            <i class="bi bi-info-circle text-blue"></i>
-            <strong>Reading these panels (like Zerodha):</strong>
-            <strong>Volume</strong> — Green/red bars + yellow SMA-50 line. Volume above yellow = conviction.
-            <strong>CMF</strong> — Above 0 (green zone) = accumulation; below 0 (red zone) = distribution.
-            <strong>%B</strong> — 0.50 line = midpoint. Above 0.80 = bullish. Below 0.20 = bearish.
-            <strong>MFI</strong> — Above 80 (green) = overbought/max fuel. Below 20 (red) = oversold.
-            <strong>BBW</strong> — Purple line below 0.08 (red dashed) = squeeze is ON.
-        </div>
-
-        <!-- ═══════════ 7 INDICATOR READINGS TABLE ═══════════ -->
         <div class="card mb-3">
             <div class="card-header"><i class="bi bi-speedometer2"></i> 7 Indicator Readings — 3 Groups</div>
             <div class="card-body p-0">
@@ -425,43 +458,51 @@
                     </table>
                 </div>
             </div>
-            <div class="card-footer p-2">
-                <div class="accordion accordion-flush" id="indicatorGuide">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed small" type="button" data-bs-toggle="collapse" data-bs-target="#guideBody">
-                                <i class="bi bi-question-circle me-2"></i> What do these indicators mean? (Click to expand)
-                            </button>
-                        </h2>
-                        <div id="guideBody" class="accordion-collapse collapse" data-bs-parent="#indicatorGuide">
-                            <div class="accordion-body">
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <h6 class="text-blue">Group A — Price &amp; Trend</h6>
-                                        <p><strong>Bollinger Bands</strong> — Two lines (upper &amp; lower) drawn 2 standard deviations from a 20-day moving average. When price breaks above the upper band, it's a breakout signal.</p>
-                                        <p><strong>Parabolic SAR</strong> — Dots that follow price. Green dots below = uptrend (hold). Red dots above = downtrend (exit). Acts as a trailing stop-loss.</p>
-                                        <p><strong>Volume + SMA-50</strong> — Volume is the number of shares traded. The 50-day average (yellow line) is the "normal" level. Volume above it = conviction.</p>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <h6 class="text-purple">Group B — Volatility</h6>
-                                        <p><strong>BandWidth (BBW)</strong> — Measures how wide the Bollinger Bands are. Low BBW (below 0.08 or near 6-month minimum) = squeeze is ON. Think of it as a coiled spring.</p>
-                                        <p><strong>%b (Percent B)</strong> — Shows where price sits within the bands. 0 = at lower band, 0.5 = middle, 1.0 = at upper band. Above 0.80 = bullish zone.</p>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <h6 class="text-yellow">Group C — Money Flow</h6>
-                                        <p><strong>CMF (Chaikin Money Flow)</strong> — Tracks whether money is flowing INTO the stock (+) or OUT (−). Above +0.10 = strong accumulation by big players. Below −0.10 = big players are selling.</p>
-                                        <p><strong>MFI (Money Flow Index)</strong> — Like RSI but includes volume. Above 50 = sufficient buying fuel. Above 80 = maximum fuel. Below 20 = oversold.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        </div>
+        </div></div>
+        </div><!-- /secIndicators collapse -->
+
+        <!-- ═══════════ MARKET REGIME — AT A GLANCE (layman cards) ═══════════ -->
+        <div class="section-toggle mb-sec" data-bs-toggle="collapse" data-bs-target="#secRegimeCards" aria-expanded="true">
+            <span class="sec-title"><i class="bi bi-compass text-blue"></i> Market Regime — At a Glance</span>
+            <i class="bi bi-chevron-down sec-chevron"></i>
+        </div>
+        <div class="collapse show" id="secRegimeCards">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div id="regimeCardsContainer"></div>
                 </div>
             </div>
         </div>
 
-        </div></div>
-        </div><!-- /secIndicators collapse -->
+        {% include "_regime_cards.html" %}
+
+        <!-- ═══════════ PRO: WEEKLY CONFIRMATION ═══════════ -->
+        <div class="card mb-3" id="weeklyCard" style="display:none;">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-calendar-week"></i> Weekly Timeframe Confirmation</span>
+                <span id="weeklyBadge" class="badge rounded-pill"></span>
+            </div>
+            <div class="card-body" id="weeklyBody"></div>
+        </div>
+
+        <!-- ═══════════ PRO: SECTOR RELATIVE STRENGTH ═══════════ -->
+        <div class="card mb-3" id="sectorRsCard" style="display:none;">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-pie-chart"></i> Sector Relative Strength</span>
+                <span id="sectorRsBadge" class="badge rounded-pill"></span>
+            </div>
+            <div class="card-body" id="sectorRsBody"></div>
+        </div>
+
+        <!-- ═══════════ PRO: EARNINGS WARNING ═══════════ -->
+        <div class="card mb-3" id="earningsCard" style="display:none;">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-exclamation-triangle"></i> Earnings Calendar Warning</span>
+                <span id="earningsBadge" class="badge rounded-pill"></span>
+            </div>
+            <div class="card-body" id="earningsBody"></div>
+        </div>
 
         <!-- ═══════════ STRATEGY SUMMARY ═══════════ -->
         <div class="card mb-3" id="summaryCard" style="display:none;">
@@ -751,10 +792,10 @@
 
     <!-- ═══════════ QUANTITATIVE TRADING STRATEGY (Separate System) ═══════════ -->
     <div class="container-fluid px-3 px-lg-4 mb-4" id="quantSection" style="display:none;">
-        <div class="card" style="border:1px solid rgba(188,140,255,0.25);">
-            <div class="card-header d-flex justify-content-between align-items-center" style="background:rgba(188,140,255,0.08);">
-                <span><i class="bi bi-cpu me-1" style="color:#bc8cff;"></i> <strong>Quantitative Trading Strategy</strong> — Bollinger Band System</span>
-                <span class="badge" style="background:rgba(188,140,255,0.2);color:#bc8cff;">AI Quant Engine</span>
+        <div class="card" style="border:1px solid rgba(192,132,252,0.25);">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background:rgba(192,132,252,0.08);">
+                <span><i class="bi bi-cpu me-1" style="color:#c084fc;"></i> <strong>Quantitative Trading Strategy</strong> — Bollinger Band System</span>
+                <span class="badge" style="background:rgba(192,132,252,0.2);color:#c084fc;">AI Quant Engine</span>
             </div>
             <div class="card-body" id="quantContent">
                 <div class="text-center text-secondary py-3"><div class="spinner-border spinner-border-sm me-2"></div>Running quant analysis…</div>
@@ -766,6 +807,42 @@
     <script>
     const TICKER = "{{ ticker }}";
     let DATA = null;
+
+    // ── Analyze-page search bar ──
+    (function(){
+        let tickers = [];
+        fetch('/api/tickers').then(r=>r.json()).then(d => { tickers = d; });
+        const inp = document.getElementById('analyzeTickerInput');
+        const acl = document.getElementById('analyzeAutocompleteList');
+        inp.addEventListener('input', () => {
+            const q = inp.value.trim().toUpperCase();
+            acl.innerHTML = '';
+            if (q.length < 1) { acl.style.display='none'; return; }
+            const m = tickers.filter(t=>t.toUpperCase().startsWith(q)).slice(0,10);
+            if (!m.length) { acl.style.display='none'; return; }
+            m.forEach(t => {
+                const d = document.createElement('div');
+                d.textContent = t;
+                d.style.cssText = 'padding:10px 18px;cursor:pointer;color:#8b949e;font-size:.88rem;border-left:2px solid transparent;transition:all .12s';
+                d.onmouseenter = () => { d.style.background='rgba(124,138,239,.08)'; d.style.color='#7c8aef'; };
+                d.onmouseleave = () => { d.style.background=''; d.style.color='#8b949e'; };
+                d.onclick = () => { goSearch(t); };
+                acl.appendChild(d);
+            });
+            acl.style.display = 'block';
+        });
+        document.addEventListener('click', e => { if (!e.target.closest('#analyzeSearchForm')) acl.style.display='none'; });
+        document.getElementById('analyzeSearchForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const t = inp.value.trim();
+            if (t) goSearch(t);
+        });
+        function goSearch(ticker) {
+            ticker = ticker.trim().toUpperCase();
+            if (!ticker.includes('.')) ticker += '.NS';
+            window.location.href = '/analyze/' + encodeURIComponent(ticker);
+        }
+    })();
 
     // ── Helpers ──
     const v = (x, d=2) => x==null ? 'N/A' : (typeof x==='number' ? x.toFixed(d) : x);
@@ -833,14 +910,22 @@
         renderHeadFake(s);
         renderConditions(s);
         renderExitSignals(s);
+        _syncCharts.length = 0; // reset chart sync pool
         try { renderPriceChart(c, 60); } catch(e) { console.error('renderPriceChart error:', e); }
-        try { renderVolumeChart(c); } catch(e) { console.error('renderVolumeChart error:', e); }
         try { renderCmfChart(c); } catch(e) { console.error('renderCmfChart error:', e); }
         try { renderPctbChart(c); } catch(e) { console.error('renderPctbChart error:', e); }
         try { renderMfiChart(c); } catch(e) { console.error('renderMfiChart error:', e); }
         try { renderBbwChart(c); } catch(e) { console.error('renderBbwChart error:', e); }
+        try { renderRsiChart(c); } catch(e) { console.error('renderRsiChart error:', e); }
+        try { renderVwmacdChart(c); } catch(e) { console.error('renderVwmacdChart error:', e); }
         try { renderIndicatorBadges(s, c); } catch(e) { console.error('renderIndicatorBadges error:', e); }
         renderIndicatorTable(s);
+        // Layman regime cards (ADX / Squeeze / ATR / OBV)
+        try { if (window.renderRegimeCards) renderRegimeCards('regimeCardsContainer', DATA.regime_cards); } catch(e) { console.error('renderRegimeCards error:', e); }
+        // Pro features: weekly, sector RS, earnings
+        try { renderWeeklyCard(DATA.weekly); } catch(e) { console.error('renderWeeklyCard error:', e); }
+        try { renderSectorRsCard(DATA.sector_rs); } catch(e) { console.error('renderSectorRsCard error:', e); }
+        try { renderEarningsCard(DATA.earnings_warning); } catch(e) { console.error('renderEarningsCard error:', e); }
         renderSummary(s);
         // Determine which method was scanned (from URL ?method=)
         const urlMethod = new URLSearchParams(window.location.search).get('method');
@@ -867,7 +952,7 @@
             setTimeout(() => {
                 const card = document.querySelector(`.strat-card[data-method="${urlMethod}"]`);
                 if (card) {
-                    card.style.boxShadow = '0 0 0 2px var(--accent), 0 0 20px rgba(88,166,255,0.3)';
+                    card.style.boxShadow = '0 0 0 2px var(--accent), 0 0 20px rgba(124,138,239,0.3)';
                     card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, 300); } else {
             // No specific method (direct search) — show all strategies
             try { renderStrategies(DATA.strategies, null); } catch(e) { console.error('renderStrategies error:', e); } }
@@ -880,7 +965,7 @@
             const sig = f.fundamental_signal || '';
             if(sig) {
                 const badgeColor = sig==='BUY'?'var(--g)':sig==='HOLD'?'var(--y)':'var(--r)';
-                const badgeBg = sig==='BUY'?'rgba(63,185,80,0.15)':sig==='HOLD'?'rgba(210,153,34,0.15)':'rgba(248,81,73,0.15)';
+                const badgeBg = sig==='BUY'?'rgba(10,179,156,0.15)':sig==='HOLD'?'rgba(247,184,75,0.15)':'rgba(240,101,72,0.15)';
                 const icon = sig==='BUY'?'bi-arrow-up-circle-fill':sig==='HOLD'?'bi-pause-circle-fill':'bi-exclamation-triangle-fill';
                 document.getElementById('fundSignalBadge').innerHTML =
                     `<span class="badge rounded-pill px-3 py-2" style="background:${badgeBg};color:${badgeColor};border:1px solid ${badgeColor};font-size:0.85rem">
@@ -908,44 +993,8 @@
         /* ─── Cross-System Scores (TA + Triple + PA) ─── */
         try { renderCrossSystemScores(); } catch(e) { console.error('renderCrossSystemScores error:', e); } }
 
-    // ═══════════ INDICATOR BADGES — Live values on sub-chart headers ═══════════
-    function renderIndicatorBadges(s, c) {
-        // Volume badge
-        const volBadge = document.getElementById('badgeVolume');
-        if(s.volume != null) {
-            const volRatio = s.vol_sma50 > 0 ? s.volume / s.vol_sma50 : 0;
-            const volColor = volRatio >= 1.0 ? '#3fb950' : '#f85149';
-            volBadge.style.background = volColor.replace(')', ',0.15)').replace('rgb','rgba').replace('#3fb950','rgba(63,185,80,0.15)').replace('#f85149','rgba(248,81,73,0.15)');
-            volBadge.style.color = volColor;
-            volBadge.textContent = `${(s.volume/1000).toFixed(0)}K (${volRatio.toFixed(1)}x SMA)`; }
-        // CMF badge
-        const cmfBadge = document.getElementById('badgeCmf');
-        if(s.cmf != null) {
-            const cmfColor = s.cmf > 0 ? '#3fb950' : '#f85149';
-            cmfBadge.style.background = s.cmf > 0 ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)';
-            cmfBadge.style.color = cmfColor;
-            cmfBadge.textContent = `${s.cmf >= 0 ? '+' : ''}${s.cmf.toFixed(4)} ${s.cmf > 0.1 ? '(Strong Buy)' : s.cmf > 0 ? '(Accumulation)' : s.cmf < -0.1 ? '(Strong Sell)' : '(Distribution)'}`; }
-        // %B badge
-        const pctbBadge = document.getElementById('badgePctb');
-        if(s.percent_b != null) {
-            const pbColor = s.percent_b > 0.8 ? '#3fb950' : s.percent_b < 0.2 ? '#f85149' : '#d29922';
-            pctbBadge.style.background = s.percent_b > 0.8 ? 'rgba(63,185,80,0.15)' : s.percent_b < 0.2 ? 'rgba(248,81,73,0.15)' : 'rgba(210,153,34,0.15)';
-            pctbBadge.style.color = pbColor;
-            pctbBadge.textContent = `${s.percent_b.toFixed(3)} ${s.percent_b > 1.0 ? '(Breakout!)' : s.percent_b > 0.8 ? '(Bullish)' : s.percent_b < 0.2 ? '(Bearish)' : s.percent_b > 0.5 ? '(Lean Bull)' : '(Lean Bear)'}`; }
-        // MFI badge
-        const mfiBadge = document.getElementById('badgeMfi');
-        if(s.mfi != null) {
-            const mfiColor = s.mfi > 50 ? '#3fb950' : '#f85149';
-            mfiBadge.style.background = s.mfi > 50 ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)';
-            mfiBadge.style.color = mfiColor;
-            mfiBadge.textContent = `${s.mfi.toFixed(1)} ${s.mfi > 80 ? '(Max Fuel)' : s.mfi > 50 ? '(Sufficient)' : s.mfi < 20 ? '(Oversold)' : '(Weak)'}`; }
-        // BBW badge
-        const bbwBadge = document.getElementById('badgeBbw');
-        if(s.bbw != null) {
-            const bbwColor = s.cond1 ? '#f85149' : s.bbw < 0.096 ? '#d29922' : '#8b949e';
-            bbwBadge.style.background = s.cond1 ? 'rgba(248,81,73,0.15)' : s.bbw < 0.096 ? 'rgba(210,153,34,0.15)' : 'rgba(139,148,158,0.15)';
-            bbwBadge.style.color = bbwColor;
-            bbwBadge.textContent = `${s.bbw.toFixed(6)} ${s.cond1 ? '(SQUEEZE!)' : s.bbw < 0.096 ? '(Near Squeeze)' : '(Normal)'}`; } }
+    // Badges are now set by individual lightweight-charts render functions above
+    function renderIndicatorBadges(s, c) { /* no-op — badges updated by each renderXxxChart */ }
 
     // ═══════════ KEY METRICS DASHBOARD — Quick visual snapshot ═══════════
     function renderKeyMetricsDash(f) {
@@ -954,11 +1003,11 @@
         dash.style.display = 'block';
 
         function metricCard(label, val, unit, color, icon, tipTitle, tipDesc, ranges) {
-            const bg = color === 'g' ? 'rgba(63,185,80,0.08)' : color === 'r' ? 'rgba(248,81,73,0.08)' : 'rgba(210,153,34,0.08)';
-            const border = color === 'g' ? 'rgba(63,185,80,0.25)' : color === 'r' ? 'rgba(248,81,73,0.25)' : 'rgba(210,153,34,0.25)';
+            const bg = color === 'g' ? 'rgba(10,179,156,0.08)' : color === 'r' ? 'rgba(240,101,72,0.08)' : 'rgba(247,184,75,0.08)';
+            const border = color === 'g' ? 'rgba(10,179,156,0.25)' : color === 'r' ? 'rgba(240,101,72,0.25)' : 'rgba(247,184,75,0.25)';
             const textColor = color === 'g' ? 'var(--g)' : color === 'r' ? 'var(--r)' : 'var(--y)';
-            const tipBg = color === 'g' ? 'rgba(63,185,80,0.15)' : color === 'r' ? 'rgba(248,81,73,0.15)' : 'rgba(210,153,34,0.15)';
-            const tipClr = color === 'g' ? '#3fb950' : color === 'r' ? '#f85149' : '#d29922';
+            const tipBg = color === 'g' ? 'rgba(10,179,156,0.15)' : color === 'r' ? 'rgba(240,101,72,0.15)' : 'rgba(247,184,75,0.15)';
+            const tipClr = color === 'g' ? '#0ab39c' : color === 'r' ? '#f06548' : '#f7b84b';
             const verdictWord = color === 'g' ? 'Good' : color === 'r' ? 'Weak' : 'Fair';
             let rangeHtml = '';
             if(ranges) {
@@ -983,7 +1032,7 @@
             html += metricCard('P/E', f.pe_ratio <= 0 ? 'Loss' : v(f.pe_ratio), 'x', c, 'bi-currency-rupee',
                 'Price-to-Earnings (P/E) Ratio',
                 'How many years of current profit you\'re paying for. A P/E of 20 means you pay ₹20 for every ₹1 the company earns per year. <b>Lower P/E = cheaper stock</b>, but very low may signal trouble.',
-                [['< 22 Good','rgba(63,185,80,0.5)'],['22-35 Fair','rgba(210,153,34,0.5)'],['> 35 Pricey','rgba(248,81,73,0.5)']]
+                [['< 22 Good','rgba(10,179,156,0.5)'],['22-35 Fair','rgba(247,184,75,0.5)'],['> 35 Pricey','rgba(240,101,72,0.5)']]
             ); }
         // ROE
         if(f.roe != null) {
@@ -991,7 +1040,7 @@
             html += metricCard('ROE', v(f.roe), '%', c, 'bi-graph-up',
                 'Return on Equity (ROE)',
                 'Shows how much profit the company generates from shareholders\' money. If ROE is 20%, the company makes ₹20 profit for every ₹100 invested. <b>Higher = better management.</b>',
-                [['> 15% Great','rgba(63,185,80,0.5)'],['8-15% OK','rgba(210,153,34,0.5)'],['< 8% Weak','rgba(248,81,73,0.5)']]
+                [['> 15% Great','rgba(10,179,156,0.5)'],['8-15% OK','rgba(247,184,75,0.5)'],['< 8% Weak','rgba(240,101,72,0.5)']]
             ); }
         // D/E
         if(f.debt_to_equity != null) {
@@ -999,7 +1048,7 @@
             html += metricCard('D/E', v(f.debt_to_equity), '', c, 'bi-shield-check',
                 'Debt-to-Equity (D/E) Ratio',
                 'How much the company has borrowed vs its own capital. A D/E of 1.0 means equal debt and equity. <b>Lower = safer</b> — the company is not drowning in debt.',
-                [['< 0.5 Safe','rgba(63,185,80,0.5)'],['0.5-1.5 OK','rgba(210,153,34,0.5)'],['> 1.5 Risky','rgba(248,81,73,0.5)']]
+                [['< 0.5 Safe','rgba(10,179,156,0.5)'],['0.5-1.5 OK','rgba(247,184,75,0.5)'],['> 1.5 Risky','rgba(240,101,72,0.5)']]
             ); }
         // Net Margin
         if(f.profit_margin != null) {
@@ -1007,7 +1056,7 @@
             html += metricCard('Net Margin', v(f.profit_margin), '%', c, 'bi-percent',
                 'Net Profit Margin',
                 'Out of every ₹100 of revenue, how much is actual profit after all expenses. A margin of 15% means ₹15 profit per ₹100 revenue. <b>Higher = more efficient business.</b>',
-                [['> 10% Strong','rgba(63,185,80,0.5)'],['5-10% Average','rgba(210,153,34,0.5)'],['< 5% Thin','rgba(248,81,73,0.5)']]
+                [['> 10% Strong','rgba(10,179,156,0.5)'],['5-10% Average','rgba(247,184,75,0.5)'],['< 5% Thin','rgba(240,101,72,0.5)']]
             ); }
         // Revenue Growth
         if(f.revenue_growth != null) {
@@ -1015,7 +1064,7 @@
             html += metricCard('Rev Growth', v(f.revenue_growth), '%', c, 'bi-arrow-up-right',
                 'Revenue Growth (Year-over-Year)',
                 'How fast the company\'s sales are growing compared to last year. Positive growth means the business is expanding. <b>Higher = faster growing company.</b>',
-                [['> 10% Fast','rgba(63,185,80,0.5)'],['0-10% Slow','rgba(210,153,34,0.5)'],['Negative Shrinking','rgba(248,81,73,0.5)']]
+                [['> 10% Fast','rgba(10,179,156,0.5)'],['0-10% Slow','rgba(247,184,75,0.5)'],['Negative Shrinking','rgba(240,101,72,0.5)']]
             ); }
         // Altman Z
         if(f.altman_z_score != null) {
@@ -1023,7 +1072,7 @@
             html += metricCard('Z-Score', v(f.altman_z_score), '', c, 'bi-heart-pulse',
                 'Altman Z-Score (Bankruptcy Risk)',
                 'A formula that predicts whether a company could go bankrupt in 2 years. Think of it as a \'financial health check\'. <b>Higher = safer from bankruptcy.</b>',
-                [['>2.6 Safe Zone','rgba(63,185,80,0.5)'],['1.8-2.6 Grey Zone','rgba(210,153,34,0.5)'],['<1.8 Danger','rgba(248,81,73,0.5)']]
+                [['>2.6 Safe Zone','rgba(10,179,156,0.5)'],['1.8-2.6 Grey Zone','rgba(247,184,75,0.5)'],['<1.8 Danger','rgba(240,101,72,0.5)']]
             ); }
         // EV/EBITDA
         if(f.ev_ebitda != null) {
@@ -1031,7 +1080,7 @@
             html += metricCard('EV/EBITDA', v(f.ev_ebitda), 'x', c, 'bi-building',
                 'Enterprise Value / EBITDA',
                 'How expensive the entire company is relative to its operating profit. Like P/E, but also includes debt. <b>Lower = better value</b> — you\'re paying less for each rupee of profit.',
-                [['< 12 Cheap','rgba(63,185,80,0.5)'],['12-20 Fair','rgba(210,153,34,0.5)'],['> 20 Expensive','rgba(248,81,73,0.5)']]
+                [['< 12 Cheap','rgba(10,179,156,0.5)'],['12-20 Fair','rgba(247,184,75,0.5)'],['> 20 Expensive','rgba(240,101,72,0.5)']]
             ); }
         // Graham verdict
         if(f.price_to_intrinsic != null) {
@@ -1040,7 +1089,7 @@
             html += metricCard('Graham', label, '', c, 'bi-calculator',
                 'Graham Number (Intrinsic Value)',
                 `Compares the stock price to its \'true value\' based on Benjamin Graham\'s formula (using earnings + book value). Current price is <b>${v(f.price_to_intrinsic,2)}x</b> the Graham value. <b>Below 1x means it\'s undervalued</b> — you\'re getting a bargain.`,
-                [['< 1x Bargain','rgba(63,185,80,0.5)'],['1-2x Fair','rgba(210,153,34,0.5)'],['> 2x Overpriced','rgba(248,81,73,0.5)']]
+                [['< 1x Bargain','rgba(10,179,156,0.5)'],['1-2x Fair','rgba(247,184,75,0.5)'],['> 2x Overpriced','rgba(240,101,72,0.5)']]
             ); }
         // FCF
         if(f.free_cash_flow != null) {
@@ -1048,7 +1097,7 @@
             html += metricCard('FCF', f.free_cash_flow > 0 ? '✅ +ve' : '❌ −ve', '', c, 'bi-cash-stack',
                 'Free Cash Flow (FCF)',
                 'Cash left after the company pays for its operations and investments. Think of it as \'money in the pocket\'. <b>Positive = company generates real cash</b>. Negative means it\'s spending more than it earns.',
-                [['+ve Healthy','rgba(63,185,80,0.5)'],['-ve Burning Cash','rgba(248,81,73,0.5)']]
+                [['+ve Healthy','rgba(10,179,156,0.5)'],['-ve Burning Cash','rgba(240,101,72,0.5)']]
             ); }
         // Dividend Yield
         if(f.dividend_yield != null && f.dividend_yield > 0) {
@@ -1056,7 +1105,7 @@
             html += metricCard('Div Yield', v(f.dividend_yield), '%', c, 'bi-piggy-bank',
                 'Dividend Yield',
                 'Annual dividend as a % of the stock price. If you invest ₹10,000 in a stock with 3% yield, you get ₹300/year in dividends. <b>Higher = more passive income.</b>',
-                [['> 2% Good Income','rgba(63,185,80,0.5)'],['0-2% Low','rgba(210,153,34,0.5)']]
+                [['> 2% Good Income','rgba(10,179,156,0.5)'],['0-2% Low','rgba(247,184,75,0.5)']]
             ); }
         // Current Ratio
         if(f.current_ratio != null) {
@@ -1064,7 +1113,7 @@
             html += metricCard('Curr Ratio', v(f.current_ratio), '', c, 'bi-droplet',
                 'Current Ratio (Liquidity)',
                 'Can the company pay its short-term bills? A ratio of 2.0 means it has ₹2 in assets for every ₹1 it owes. <b>> 1.5 is comfortable</b>. Below 1 means it may struggle to pay bills.',
-                [['>1.5 Comfortable','rgba(63,185,80,0.5)'],['1-1.5 Tight','rgba(210,153,34,0.5)'],['<1 Risky','rgba(248,81,73,0.5)']]
+                [['>1.5 Comfortable','rgba(10,179,156,0.5)'],['1-1.5 Tight','rgba(247,184,75,0.5)'],['<1 Risky','rgba(240,101,72,0.5)']]
             ); }
         // Interest Coverage
         if(f.interest_coverage != null) {
@@ -1072,7 +1121,7 @@
             html += metricCard('Int. Cover', v(f.interest_coverage), 'x', c, 'bi-shield-exclamation',
                 'Interest Coverage Ratio',
                 'How easily the company can pay interest on its loans. A value of 5x means it earns 5 times more than its interest payments. <b>Higher = easily handles debt.</b> Below 1.5x is a red flag.',
-                [['>3x Comfortable','rgba(63,185,80,0.5)'],['1.5-3x Tight','rgba(210,153,34,0.5)'],['<1.5x Danger','rgba(248,81,73,0.5)']]
+                [['>3x Comfortable','rgba(10,179,156,0.5)'],['1.5-3x Tight','rgba(247,184,75,0.5)'],['<1.5x Danger','rgba(240,101,72,0.5)']]
             ); }
 
         grid.innerHTML = html; }
@@ -1177,7 +1226,7 @@
                 <h5 class="text-red fw-bold mb-2"><i class="bi bi-exclamation-triangle-fill"></i> HEAD FAKE DETECTED</h5>
                 <p class="small mb-2">The breakout looks <strong>suspicious</strong>. Price broke above the upper band, but CMF, MFI, and/or volume are <strong>NOT confirming</strong> the move.</p>
                 <p class="small mb-2">Wait <strong>2-3 days</strong>. The <strong>REAL move will come in the OPPOSITE direction</strong>.</p>
-                <div class="small p-2 rounded" style="background:rgba(248,81,73,0.1);">
+                <div class="small p-2 rounded" style="background:rgba(240,101,72,0.1);">
                     <strong>Golden Rule:</strong> Never buy a breakout without volume above the yellow line (50-day SMA).
                 </div>
             </div>`; }
@@ -1224,7 +1273,7 @@
                     </div>
                 </div>`).join('')}
             <div class="text-center mt-3 py-2 rounded fw-bold ${met===5?'text-green':'text-yellow'}"
-                 style="background:${met===5?'rgba(63,185,80,0.1)':'rgba(210,153,34,0.1)'};">
+                 style="background:${met===5?'rgba(10,179,156,0.1)':'rgba(247,184,75,0.1)'};">
                 ${met===5 ? '🚀 ALL 5 CONDITIONS MET — BUY SIGNAL ACTIVE!' :
                   met>=3  ? `⏳ ${met}/5 conditions met — Getting close. Watch for remaining conditions.` :
                             `❌ Only ${met}/5 conditions met — No buy signal. Wait for setup.`}
@@ -1241,7 +1290,7 @@
             ];
             const shortMet = shortConds.filter(c => c.ok).length;
             el.innerHTML += `
-                <div class="mt-4 p-3 rounded" style="background:rgba(248,81,73,0.05); border:1px solid rgba(248,81,73,0.15);">
+                <div class="mt-4 p-3 rounded" style="background:rgba(240,101,72,0.05); border:1px solid rgba(240,101,72,0.15);">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="fw-bold text-red"><i class="bi bi-arrow-down-circle me-1"></i> Short-Side Bearish Conditions (Book Ch.16)</span>
                         <span class="badge ${shortMet===5?'bg-danger':'bg-warning text-dark'} font-mono">${shortMet}/5</span>
@@ -1256,7 +1305,7 @@
                             </div>
                         </div>`).join('')}
                     <div class="text-center mt-2 py-2 rounded fw-bold small ${shortMet===5?'text-red':'text-secondary'}"
-                         style="background:${shortMet===5?'rgba(248,81,73,0.1)':'rgba(139,148,158,0.05)'};">
+                         style="background:${shortMet===5?'rgba(240,101,72,0.1)':'rgba(139,148,158,0.05)'};">
                         ${shortMet===5 ? '🔻 ALL 5 SHORT CONDITIONS MET — BEARISH BREAKOUT!'
                           : shortMet>=3 ? `⚠️ ${shortMet}/5 bearish conditions — watch for downside breakout.`
                           : `${shortMet}/5 bearish conditions — no short signal.`}
@@ -1351,7 +1400,7 @@
                     const buyMet = ind.buy_checklist.filter(c => c.ok).length;
                     const buyTotal = ind.buy_checklist.length;
                     const buyBadgeClass = buyMet === buyTotal ? 'bg-success' : 'bg-warning text-dark';
-                    html += `<div class="mb-3 p-3 rounded" style="background:rgba(63,185,80,0.05);border:1px solid rgba(63,185,80,0.15);">`;
+                    html += `<div class="mb-3 p-3 rounded" style="background:rgba(10,179,156,0.05);border:1px solid rgba(10,179,156,0.15);">`;
                     html += `  <div class="d-flex justify-content-between align-items-center mb-2">`;
                     html += `    <span class="fw-bold text-green"><i class="bi bi-cart-check me-1"></i> Buy Checklist</span>`;
                     html += `    <span class="badge ${buyBadgeClass} font-mono">${buyMet}/${buyTotal} Met</span>`;
@@ -1367,7 +1416,7 @@
                         html += `  </div>`;
                         html += `</div>`; });
                     html += `  <div class="text-center mt-2 py-2 rounded fw-bold small ${buyMet === buyTotal ? 'text-green' : 'text-yellow'}" `;
-                    html += `       style="background:${buyMet === buyTotal ? 'rgba(63,185,80,0.1)' : 'rgba(210,153,34,0.1)'};">`;
+                    html += `       style="background:${buyMet === buyTotal ? 'rgba(10,179,156,0.1)' : 'rgba(247,184,75,0.1)'};">`;
                     html += buyMet === buyTotal ? `🚀 ALL ${buyTotal} BUY CONDITIONS MET!`
                           : buyMet >= Math.ceil(buyTotal * 0.6) ? `⏳ ${buyMet}/${buyTotal} conditions met — Getting close. Watch for remaining.`
                           : `❌ Only ${buyMet}/${buyTotal} conditions met — No buy signal.`;
@@ -1379,7 +1428,7 @@
                     const sellMet = ind.sell_checklist.filter(c => c.ok).length;
                     const sellTotal = ind.sell_checklist.length;
                     const sellBadgeClass = sellMet === sellTotal ? 'bg-danger' : 'bg-warning text-dark';
-                    html += `<div class="mb-3 p-3 rounded" style="background:rgba(248,81,73,0.05);border:1px solid rgba(248,81,73,0.15);">`;
+                    html += `<div class="mb-3 p-3 rounded" style="background:rgba(240,101,72,0.05);border:1px solid rgba(240,101,72,0.15);">`;
                     html += `  <div class="d-flex justify-content-between align-items-center mb-2">`;
                     html += `    <span class="fw-bold text-red"><i class="bi bi-exclamation-triangle me-1"></i> Sell Checklist</span>`;
                     html += `    <span class="badge ${sellBadgeClass} font-mono">${sellMet}/${sellTotal} Met</span>`;
@@ -1395,7 +1444,7 @@
                         html += `  </div>`;
                         html += `</div>`; });
                     html += `  <div class="text-center mt-2 py-2 rounded fw-bold small ${sellMet === sellTotal ? 'text-red' : 'text-yellow'}" `;
-                    html += `       style="background:${sellMet === sellTotal ? 'rgba(248,81,73,0.1)' : 'rgba(210,153,34,0.1)'};">`;
+                    html += `       style="background:${sellMet === sellTotal ? 'rgba(240,101,72,0.1)' : 'rgba(247,184,75,0.1)'};">`;
                     html += sellMet === sellTotal ? `🔴 ALL ${sellTotal} SELL CONDITIONS MET — EXIT SIGNAL!`
                           : sellMet >= Math.ceil(sellTotal * 0.6) ? `⚠️ ${sellMet}/${sellTotal} sell conditions met — Watch closely.`
                           : `✅ Only ${sellMet}/${sellTotal} sell conditions — No sell signal.`;
@@ -1556,39 +1605,39 @@
         /* ── colour helpers ── */
         const signalBadge = (sig) => {
             const m = {
-                'STRONG_BUY':  ['#3fb950','▲▲ STRONG BUY'],
-                'BUY':         ['#3fb950','▲ BUY'],
-                'STRONG_SELL': ['#f85149','▼▼ STRONG SELL'],
-                'SELL':        ['#f85149','▼ SELL'],
-                'NEUTRAL':     ['#d29922','● NEUTRAL'],
-                'BULLISH':     ['#3fb950','▲ BULLISH'],
-                'BEARISH':     ['#f85149','▼ BEARISH'],
-                'STRONG_BULLISH': ['#3fb950','▲▲ STRONG BULLISH'],
-                'STRONG_BEARISH': ['#f85149','▼▼ STRONG BEARISH'], };
+                'STRONG_BUY':  ['#0ab39c','▲▲ STRONG BUY'],
+                'BUY':         ['#0ab39c','▲ BUY'],
+                'STRONG_SELL': ['#f06548','▼▼ STRONG SELL'],
+                'SELL':        ['#f06548','▼ SELL'],
+                'NEUTRAL':     ['#f7b84b','● NEUTRAL'],
+                'BULLISH':     ['#0ab39c','▲ BULLISH'],
+                'BEARISH':     ['#f06548','▼ BEARISH'],
+                'STRONG_BULLISH': ['#0ab39c','▲▲ STRONG BULLISH'],
+                'STRONG_BEARISH': ['#f06548','▼▼ STRONG BEARISH'], };
             const [c, t] = m[sig] || ['#8b949e', sig];
             return `<span class="badge" style="background:${c}22;color:${c};font-size:.85rem;padding:.35em .7em;">${t}</span>`; };
 
         const regimeBadge = (r) => {
             const m = {
-                'TRENDING_UP':    ['#3fb950','↗ Trending Up'],
-                'TRENDING_DOWN':  ['#f85149','↘ Trending Down'],
-                'MEAN_REVERTING': ['#58a6ff','↔ Mean-Reverting'],
-                'VOLATILE_CHOPPY':['#d29922','⚡ Volatile / Choppy'], };
+                'TRENDING_UP':    ['#0ab39c','↗ Trending Up'],
+                'TRENDING_DOWN':  ['#f06548','↘ Trending Down'],
+                'MEAN_REVERTING': ['#7c8aef','↔ Mean-Reverting'],
+                'VOLATILE_CHOPPY':['#f7b84b','⚡ Volatile / Choppy'], };
             const [c, t] = m[r] || ['#8b949e', r];
             return `<span class="badge" style="background:${c}22;color:${c};font-size:.82rem;padding:.35em .7em;">${t}</span>`; };
 
         const riskBadge = (r) => {
-            const m = {'LOW':['#3fb950','Low Risk'],'MEDIUM':['#d29922','Medium Risk'],'HIGH':['#f85149','High Risk'],'VERY_HIGH':['#f85149','Very High Risk']};
+            const m = {'LOW':['#0ab39c','Low Risk'],'MEDIUM':['#f7b84b','Medium Risk'],'HIGH':['#f06548','High Risk'],'VERY_HIGH':['#f06548','Very High Risk']};
             const [c,t] = m[r] || ['#8b949e', r];
             return `<span class="badge" style="background:${c}22;color:${c}">${t}</span>`; };
 
         const stratBadge = (s) => {
-            const m = {'MEAN_REVERSION':['#58a6ff','Mean-Reversion'],'MOMENTUM':['#bc8cff','Momentum'],'WAIT':['#d29922','Wait'],'AVOID':['#f85149','Avoid']};
+            const m = {'MEAN_REVERSION':['#7c8aef','Mean-Reversion'],'MOMENTUM':['#c084fc','Momentum'],'WAIT':['#f7b84b','Wait'],'AVOID':['#f06548','Avoid']};
             const [c,t] = m[s] || ['#8b949e', s];
             return `<span class="badge" style="background:${c}22;color:${c}">${t}</span>`; };
 
         const volBadge = (v) => {
-            const m = {'LOW':['#3fb950','Low'],'MEDIUM':['#d29922','Medium'],'HIGH':['#f85149','High'],'EXTREME':['#f85149','Extreme']};
+            const m = {'LOW':['#0ab39c','Low'],'MEDIUM':['#f7b84b','Medium'],'HIGH':['#f06548','High'],'EXTREME':['#f06548','Extreme']};
             const [c,t] = m[v] || ['#8b949e', v];
             return `<span class="badge" style="background:${c}22;color:${c}">${t}</span>`; };
 
@@ -1598,7 +1647,7 @@
         const fmtINR = (v) => v != null ? '₹' + Number(v).toFixed(2) : '—';
         const nl2br = (s) => s ? s.replace(/\n/g,'<br>') : '';
 
-        const scoreColor = (s) => s >= 70 ? '#3fb950' : s >= 55 ? '#58a6ff' : s >= 45 ? '#d29922' : '#f85149';
+        const scoreColor = (s) => s >= 70 ? '#0ab39c' : s >= 55 ? '#7c8aef' : s >= 45 ? '#f7b84b' : '#f06548';
 
         const v = q.verdict || {};
         const reg = q.regime || {};
@@ -1626,7 +1675,7 @@
         /* ── Section helper ── */
         const secHead = (icon, title, rightHTML='') => `
             <div class="d-flex justify-content-between align-items-center mb-2 mt-4 pb-1" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-                <span style="font-size:.95rem;"><i class="bi ${icon} me-1" style="color:#bc8cff;"></i> <strong>${title}</strong></span>
+                <span style="font-size:.95rem;"><i class="bi ${icon} me-1" style="color:#c084fc;"></i> <strong>${title}</strong></span>
                 ${rightHTML}
             </div>`;
 
@@ -1637,12 +1686,12 @@
             </div>`;
 
         const explainBox = (text) => text ? `
-            <div style="background:rgba(188,140,255,0.04);border-left:3px solid rgba(188,140,255,0.3);padding:.7rem .9rem;margin-top:.5rem;border-radius:4px;font-size:.82rem;line-height:1.6;color:var(--bs-body-color);">
-                <i class="bi bi-lightbulb me-1" style="color:#d29922;"></i> ${nl2br(text)}
+            <div style="background:rgba(192,132,252,0.04);border-left:3px solid rgba(192,132,252,0.3);padding:.7rem .9rem;margin-top:.5rem;border-radius:4px;font-size:.82rem;line-height:1.6;color:var(--bs-body-color);">
+                <i class="bi bi-lightbulb me-1" style="color:#f7b84b;"></i> ${nl2br(text)}
             </div>` : '';
 
         const eduBox = (html) => `
-            <div class="mt-2 p-2" style="background:rgba(88,166,255,0.04);border-radius:6px;font-size:.78rem;color:#8b949e;line-height:1.65;">
+            <div class="mt-2 p-2" style="background:rgba(124,138,239,0.04);border-radius:6px;font-size:.78rem;color:#8b949e;line-height:1.65;">
                 ${html}
             </div>`;
 
@@ -1650,10 +1699,10 @@
         let h = '';
 
         /* ─── 0. WHAT IS QUANTITATIVE TRADING? (Intro section) ─── */
-        h += `<div style="background:rgba(88,166,255,0.05);border:1px solid rgba(88,166,255,0.12);border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.2rem;">
+        h += `<div style="background:rgba(124,138,239,0.05);border:1px solid rgba(124,138,239,0.12);border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.2rem;">
             <div class="d-flex align-items-center gap-2 mb-2">
-                <i class="bi bi-book" style="color:#58a6ff;font-size:1.1rem;"></i>
-                <strong style="color:#58a6ff;font-size:.95rem;">What is Quantitative Trading Strategy?</strong>
+                <i class="bi bi-book" style="color:#7c8aef;font-size:1.1rem;"></i>
+                <strong style="color:#7c8aef;font-size:.95rem;">What is Quantitative Trading Strategy?</strong>
             </div>
             <div style="font-size:.82rem;color:var(--bs-body-color);line-height:1.7;">
                 <strong>Quantitative Trading</strong> (or "Quant Trading") is a method of making buy/sell decisions using
@@ -1667,13 +1716,13 @@
                 continue or reverse. It then gives you a clear, data-backed recommendation.<br><br>
 
                 <strong>Why is it useful?</strong><br>
-                <span style="color:#3fb950;">▸</span> <strong>Removes emotion</strong> — Fear and greed cause most investing mistakes.
+                <span style="color:#0ab39c;">▸</span> <strong>Removes emotion</strong> — Fear and greed cause most investing mistakes.
                 A quant system gives objective signals regardless of how you "feel" about a stock.<br>
-                <span style="color:#3fb950;">▸</span> <strong>Consistent and repeatable</strong> — The same data always produces the same signal,
+                <span style="color:#0ab39c;">▸</span> <strong>Consistent and repeatable</strong> — The same data always produces the same signal,
                 so you can test the strategy on past data (called "backtesting") before risking real money.<br>
-                <span style="color:#3fb950;">▸</span> <strong>Risk management built-in</strong> — The system calculates exactly how much to buy
+                <span style="color:#0ab39c;">▸</span> <strong>Risk management built-in</strong> — The system calculates exactly how much to buy
                 and where to place stop-losses, so you never risk more than a small % of your capital on any trade.<br>
-                <span style="color:#3fb950;">▸</span> <strong>Works in all market conditions</strong> — Different strategies for trending markets,
+                <span style="color:#0ab39c;">▸</span> <strong>Works in all market conditions</strong> — Different strategies for trending markets,
                 range-bound markets, and volatile markets. The system first detects the market "mode" and then applies
                 the right approach.<br><br>
 
@@ -1684,12 +1733,12 @@
                 the lower, it may be oversold. But the real power comes from <em>combining</em> Bollinger Bands with
                 other indicators. This system runs <strong>6 separate analyses</strong>:<br><br>
 
-                <span style="color:#bc8cff;">①</span> <strong>Market Regime Detection</strong> — Is the stock trending, range-bound, or choppy?<br>
-                <span style="color:#bc8cff;">②</span> <strong>Mean-Reversion Signal</strong> — Is the price stretched too far from average and likely to snap back?<br>
-                <span style="color:#bc8cff;">③</span> <strong>Momentum / Breakout Signal</strong> — Is the price breaking out of its range with conviction?<br>
-                <span style="color:#bc8cff;">④</span> <strong>Volatility & Position Sizing</strong> — How much risk is in this stock and how many shares should you buy?<br>
-                <span style="color:#bc8cff;">⑤</span> <strong>Bollinger Band Walk</strong> — Is price "hugging" one band (a sign of very strong trend)?<br>
-                <span style="color:#bc8cff;">⑥</span> <strong>Composite Verdict</strong> — All 5 analyses combined into one score (0–100) with a clear recommendation.<br><br>
+                <span style="color:#c084fc;">①</span> <strong>Market Regime Detection</strong> — Is the stock trending, range-bound, or choppy?<br>
+                <span style="color:#c084fc;">②</span> <strong>Mean-Reversion Signal</strong> — Is the price stretched too far from average and likely to snap back?<br>
+                <span style="color:#c084fc;">③</span> <strong>Momentum / Breakout Signal</strong> — Is the price breaking out of its range with conviction?<br>
+                <span style="color:#c084fc;">④</span> <strong>Volatility & Position Sizing</strong> — How much risk is in this stock and how many shares should you buy?<br>
+                <span style="color:#c084fc;">⑤</span> <strong>Bollinger Band Walk</strong> — Is price "hugging" one band (a sign of very strong trend)?<br>
+                <span style="color:#c084fc;">⑥</span> <strong>Composite Verdict</strong> — All 5 analyses combined into one score (0–100) with a clear recommendation.<br><br>
 
                 <em style="color:#8b949e;">Based on research from: John Bollinger's "Bollinger on Bollinger Bands," Ernie Chan's
                 "Quantitative Trading," Van Tharp's "Trade Your Way to Financial Freedom," and Perry Kaufman's
@@ -1724,15 +1773,15 @@
         h += `${explainBox(v.explanation)}</div></div></div>`;
 
         h += eduBox(`
-            <strong style="color:#58a6ff;">📖 Understanding the Composite Score</strong><br>
+            <strong style="color:#7c8aef;">📖 Understanding the Composite Score</strong><br>
             The <strong>Composite Score</strong> (0–100) is the final output of the entire quant engine. It combines all
             the sub-analyses into a single number so you can quickly gauge the overall picture.<br><br>
             <strong>How to read it:</strong><br>
-            <span style="color:#3fb950;">▸ 75–100 = STRONG BUY</span> — Multiple indicators strongly agree the stock looks bullish. High confidence.<br>
-            <span style="color:#3fb950;">▸ 60–74 = BUY</span> — Moderately bullish. Most indicators lean positive, worth considering.<br>
-            <span style="color:#d29922;">▸ 41–59 = NEUTRAL</span> — Mixed signals. No clear edge — best to wait for clarity.<br>
-            <span style="color:#f85149;">▸ 26–40 = SELL</span> — Moderately bearish. More indicators lean negative, consider reducing exposure.<br>
-            <span style="color:#f85149;">▸ 0–25 = STRONG SELL</span> — Multiple indicators strongly agree the stock looks bearish. Avoid or exit.<br><br>
+            <span style="color:#0ab39c;">▸ 75–100 = STRONG BUY</span> — Multiple indicators strongly agree the stock looks bullish. High confidence.<br>
+            <span style="color:#0ab39c;">▸ 60–74 = BUY</span> — Moderately bullish. Most indicators lean positive, worth considering.<br>
+            <span style="color:#f7b84b;">▸ 41–59 = NEUTRAL</span> — Mixed signals. No clear edge — best to wait for clarity.<br>
+            <span style="color:#f06548;">▸ 26–40 = SELL</span> — Moderately bearish. More indicators lean negative, consider reducing exposure.<br>
+            <span style="color:#f06548;">▸ 0–25 = STRONG SELL</span> — Multiple indicators strongly agree the stock looks bearish. Avoid or exit.<br><br>
             <strong>Recommended Strategy</strong> tells you <em>which type</em> of approach suits the current conditions:<br>
             ▸ <strong>Mean-Reversion</strong> = Buy low at the lower band, sell high at the upper band (works in range-bound markets).<br>
             ▸ <strong>Momentum</strong> = Follow the trend direction (works in trending markets).<br>
@@ -1746,8 +1795,8 @@
         h += secHead('bi-globe2', 'Market Regime Detection', regimeBadge(reg.regime||''));
         h += `<div class="row g-2"><div class="col-md-6">`;
         h += metricRow('ADX (Trend Strength)', fmt(reg.adx));
-        h += metricRow('Bollinger Squeeze', reg.bb_squeeze ? '<span style="color:#d29922;">ON</span>' : '<span style="color:#3fb950;">OFF</span>');
-        h += metricRow('Keltner Squeeze', reg.keltner_squeeze ? '<span style="color:#d29922;">Yes</span>' : 'No');
+        h += metricRow('Bollinger Squeeze', reg.bb_squeeze ? '<span style="color:#f7b84b;">ON</span>' : '<span style="color:#0ab39c;">OFF</span>');
+        h += metricRow('Keltner Squeeze', reg.keltner_squeeze ? '<span style="color:#f7b84b;">Yes</span>' : 'No');
         h += metricRow('BBW Percentile (6M)', fmt(reg.bbw_percentile, 1), '%');
         h += `</div><div class="col-md-6">`;
         h += metricRow('Trend Slope (20-SMA)', fmt(reg.trend_slope, 2), '%/10d');
@@ -1757,21 +1806,21 @@
         h += explainBox(reg.explanation);
 
         h += eduBox(`
-            <strong style="color:#58a6ff;">📖 What is Market Regime? — Why it Matters</strong><br>
+            <strong style="color:#7c8aef;">📖 What is Market Regime? — Why it Matters</strong><br>
             Markets move in different "modes" or "regimes" — just like weather has sunny, rainy, and stormy seasons.
             Using the wrong trading strategy in the wrong regime is like wearing a raincoat on a sunny day —
             it won't hurt you, but it won't help either. Using a wrong strategy in the wrong regime, however, CAN hurt.<br><br>
 
             <strong>The 4 Regimes:</strong><br>
-            <span style="color:#3fb950;">▸ Trending Up</span> — Stock is consistently rising. Like a ball rolling downhill — momentum carries it forward.
+            <span style="color:#0ab39c;">▸ Trending Up</span> — Stock is consistently rising. Like a ball rolling downhill — momentum carries it forward.
             <em>Best strategy: Momentum — buy breakouts, ride the trend, use trailing stops.</em>
             Trying to "buy the dip" in a strong uptrend often means missing the move entirely.<br>
-            <span style="color:#f85149;">▸ Trending Down</span> — Stock is consistently falling. Each bounce fails lower than the previous one.
+            <span style="color:#f06548;">▸ Trending Down</span> — Stock is consistently falling. Each bounce fails lower than the previous one.
             <em>Best strategy: Stay away or follow the downtrend. Do NOT try to catch a falling knife.</em><br>
-            <span style="color:#58a6ff;">▸ Mean-Reverting (Range-Bound)</span> — Stock oscillates between a ceiling and a floor like a ping-pong ball.
+            <span style="color:#7c8aef;">▸ Mean-Reverting (Range-Bound)</span> — Stock oscillates between a ceiling and a floor like a ping-pong ball.
             <em>Best strategy: Mean-reversion — buy at the lower Bollinger Band, sell at the upper band.</em>
             This is the "bread and butter" of Bollinger Band strategies — it works beautifully when the stock is range-bound.<br>
-            <span style="color:#d29922;">▸ Volatile / Choppy</span> — No clear pattern. Random, whipsaw moves that stop out both buyers and sellers.
+            <span style="color:#f7b84b;">▸ Volatile / Choppy</span> — No clear pattern. Random, whipsaw moves that stop out both buyers and sellers.
             <em>Best strategy: Stay in cash. Wait for a clear regime to develop. Protect your capital.</em><br><br>
 
             <strong>Key Metrics Explained:</strong><br>
@@ -1808,7 +1857,7 @@
         h += explainBox(mr.explanation);
 
         h += eduBox(`
-            <strong style="color:#58a6ff;">📖 What is Mean-Reversion? — The Rubber Band Effect</strong><br>
+            <strong style="color:#7c8aef;">📖 What is Mean-Reversion? — The Rubber Band Effect</strong><br>
             Imagine stretching a rubber band — the further you pull, the harder it snaps back.
             Stock prices behave similarly: when they move too far from their average, they tend to
             revert (come back) to the average. This is one of the most well-studied phenomena in
@@ -1865,18 +1914,18 @@
         /* ─── 4. MOMENTUM / BREAKOUT SIGNAL ─── */
         h += secHead('bi-rocket-takeoff', 'Momentum / Breakout Signal', signalBadge(mom.signal||'NEUTRAL'));
         h += `<div class="row g-2"><div class="col-md-6">`;
-        h += metricRow('BB Breakout', mom.bb_breakout=='UPPER_BREAKOUT' ? '<span style="color:#3fb950;">Upper Breakout ▲</span>' : mom.bb_breakout=='LOWER_BREAKDOWN' ? '<span style="color:#f85149;">Lower Breakdown ▼</span>' : 'None');
-        h += metricRow('Volume Surge', mom.volume_surge ? '<span style="color:#3fb950;">Yes ⚡</span>' : 'No');
-        h += metricRow('Price vs VWAP', mom.price_vs_vwap=='ABOVE' ? '<span style="color:#3fb950;">Above VWAP</span>' : mom.price_vs_vwap=='BELOW' ? '<span style="color:#f85149;">Below VWAP</span>' : 'At VWAP');
+        h += metricRow('BB Breakout', mom.bb_breakout=='UPPER_BREAKOUT' ? '<span style="color:#0ab39c;">Upper Breakout ▲</span>' : mom.bb_breakout=='LOWER_BREAKDOWN' ? '<span style="color:#f06548;">Lower Breakdown ▼</span>' : 'None');
+        h += metricRow('Volume Surge', mom.volume_surge ? '<span style="color:#0ab39c;">Yes ⚡</span>' : 'No');
+        h += metricRow('Price vs VWAP', mom.price_vs_vwap=='ABOVE' ? '<span style="color:#0ab39c;">Above VWAP</span>' : mom.price_vs_vwap=='BELOW' ? '<span style="color:#f06548;">Below VWAP</span>' : 'At VWAP');
         h += `</div><div class="col-md-6">`;
-        h += metricRow('SAR Direction', mom.sar_direction=='BULLISH' ? '<span style="color:#3fb950;">Bullish ▲</span>' : '<span style="color:#f85149;">Bearish ▼</span>');
+        h += metricRow('SAR Direction', mom.sar_direction=='BULLISH' ? '<span style="color:#0ab39c;">Bullish ▲</span>' : '<span style="color:#f06548;">Bearish ▼</span>');
         h += metricRow('Trend Strength (ADX)', fmt(mom.trend_strength, 1));
-        h += metricRow('Consecutive Closes', mom.consecutive_closes != null ? (mom.consecutive_closes > 0 ? '<span style="color:#3fb950;">'+mom.consecutive_closes+' above mid</span>' : mom.consecutive_closes < 0 ? '<span style="color:#f85149;">'+Math.abs(mom.consecutive_closes)+' below mid</span>' : '0') : '—');
+        h += metricRow('Consecutive Closes', mom.consecutive_closes != null ? (mom.consecutive_closes > 0 ? '<span style="color:#0ab39c;">'+mom.consecutive_closes+' above mid</span>' : mom.consecutive_closes < 0 ? '<span style="color:#f06548;">'+Math.abs(mom.consecutive_closes)+' below mid</span>' : '0') : '—');
         h += `</div></div>`;
         h += explainBox(mom.explanation);
 
         h += eduBox(`
-            <strong style="color:#58a6ff;">📖 What is Momentum / Breakout? — Riding the Wave</strong><br>
+            <strong style="color:#7c8aef;">📖 What is Momentum / Breakout? — Riding the Wave</strong><br>
             While mean-reversion says "what goes up must come down," <strong>momentum</strong> says "what goes up
             tends to KEEP going up" — at least for a while. These are two opposite philosophies, and the market
             regime determines which one works better at any given time.<br><br>
@@ -1938,7 +1987,7 @@
         h += explainBox(vol.explanation);
 
         h += eduBox(`
-            <strong style="color:#58a6ff;">📖 Volatility & Position Sizing — Protecting Your Capital</strong><br>
+            <strong style="color:#7c8aef;">📖 Volatility & Position Sizing — Protecting Your Capital</strong><br>
             <em>"The most important thing in trading is not how much you make when you're right,
             but how much you DON'T lose when you're wrong."</em> — Van Tharp<br><br>
 
@@ -1996,22 +2045,22 @@
 
         /* ─── 6. BOLLINGER BAND WALK ─── */
         h += secHead('bi-signpost-split', 'Bollinger Band Walk Analysis');
-        const walkStatus = bbw.walking_upper ? '<span class="badge" style="background:rgba(63,185,80,0.15);color:#3fb950;">Walking Upper Band ▲</span>'
-                         : bbw.walking_lower ? '<span class="badge" style="background:rgba(248,81,73,0.15);color:#f85149;">Walking Lower Band ▼</span>'
+        const walkStatus = bbw.walking_upper ? '<span class="badge" style="background:rgba(10,179,156,0.15);color:#0ab39c;">Walking Upper Band ▲</span>'
+                         : bbw.walking_lower ? '<span class="badge" style="background:rgba(240,101,72,0.15);color:#f06548;">Walking Lower Band ▼</span>'
                          : '<span class="badge" style="background:rgba(139,148,158,0.15);color:#8b949e;">No Band Walk</span>';
         h += `<div class="mb-2">${walkStatus}</div>`;
         h += `<div class="row g-2"><div class="col-md-6">`;
         h += metricRow('Walk Duration', bbw.walk_duration != null ? bbw.walk_duration + ' days' : '—');
         h += metricRow('Band Touches (20d)', bbw.band_touches != null ? bbw.band_touches : '—');
         h += `</div><div class="col-md-6">`;
-        const tqCol = {'STRONG':'#3fb950','MODERATE':'#d29922','WEAK':'#f85149','NONE':'#8b949e'}[bbw.trend_quality] || '#8b949e';
+        const tqCol = {'STRONG':'#0ab39c','MODERATE':'#f7b84b','WEAK':'#f06548','NONE':'#8b949e'}[bbw.trend_quality] || '#8b949e';
         h += metricRow('Trend Quality', `<span style="color:${tqCol};font-weight:600;">${bbw.trend_quality||'—'}</span>`);
-        h += metricRow('Price vs Bands', bbw.price_vs_bands=='UPPER_HALF' ? '<span style="color:#3fb950;">Upper Half</span>' : bbw.price_vs_bands=='LOWER_HALF' ? '<span style="color:#f85149;">Lower Half</span>' : 'Middle Zone');
+        h += metricRow('Price vs Bands', bbw.price_vs_bands=='UPPER_HALF' ? '<span style="color:#0ab39c;">Upper Half</span>' : bbw.price_vs_bands=='LOWER_HALF' ? '<span style="color:#f06548;">Lower Half</span>' : 'Middle Zone');
         h += `</div></div>`;
         h += explainBox(bbw.explanation);
 
         h += eduBox(`
-            <strong style="color:#58a6ff;">📖 What is a Bollinger Band Walk? — The John Bollinger Classic</strong><br>
+            <strong style="color:#7c8aef;">📖 What is a Bollinger Band Walk? — The John Bollinger Classic</strong><br>
             In his landmark book <em>"Bollinger on Bollinger Bands"</em> (2001), John Bollinger describes one of
             the most misunderstood patterns in technical analysis: <strong>"Walking the Band."</strong><br><br>
 
@@ -2060,9 +2109,26 @@
 
         el.innerHTML = h; }
 
+    // ═══════════ CROSSHAIR SYNC INFRA ═══════════
+    const _syncCharts = []; // [{chart, series}]
+    let _syncing = false;
+    function _onCrosshairMove(source, param) {
+        if (_syncing) return;
+        _syncing = true;
+        _syncCharts.forEach(({chart, series}) => {
+            if (chart === source) return;
+            try {
+                if (param.time) chart.setCrosshairPosition(NaN, param.time, series);
+                else chart.clearCrosshairPosition();
+            } catch(e) {}
+        });
+        _syncing = false;
+    }
+
     // ═══════════ PRICE CHART (Lightweight Charts) ═══════════
     let mainChart = null;
     let currentInterval = 'daily';
+    let _chartSlice = 0; // track slice for indicator sync
 
     function renderPriceChart(c, days) {
         const isIntraday = c.interval === '15m';
@@ -2079,39 +2145,48 @@
         mainChart = chart;
 
         const slice = Math.max(0, c.dates.length - days);
+        _chartSlice = slice;
         const dates = c.dates.slice(slice);
 
         // Candlestick
         const candle = chart.addCandlestickSeries({
-            upColor: '#3fb950', downColor: '#f85149',
-            borderUpColor: '#3fb950', borderDownColor: '#f85149',
-            wickUpColor: '#3fb950', wickDownColor: '#f85149', });
+            upColor: '#0ab39c', downColor: '#f06548',
+            borderUpColor: '#0ab39c', borderDownColor: '#f06548',
+            wickUpColor: '#0ab39c', wickDownColor: '#f06548', });
         candle.setData(dates.map((d,i) => ({
             time: d,
             open: c.open[slice+i], high: c.high[slice+i],
             low: c.low[slice+i], close: c.close[slice+i] })));
 
-        // BB overlays (if available)
-        if (c.bb_upper) {
-            const bbUp = chart.addLineSeries({ color: 'rgba(88,166,255,0.5)', lineWidth: 1 });
-            bbUp.setData(dates.map((d,i)=>({time:d, value:c.bb_upper[slice+i]})).filter(p=>p.value!=null)); }
-        if (c.bb_mid) {
-            const bbMid = chart.addLineSeries({ color: 'rgba(139,148,158,0.4)', lineWidth: 1, lineStyle: 2 });
-            bbMid.setData(dates.map((d,i)=>({time:d, value:c.bb_mid[slice+i]})).filter(p=>p.value!=null)); }
-        if (c.bb_lower) {
-            const bbLow = chart.addLineSeries({ color: 'rgba(88,166,255,0.5)', lineWidth: 1 });
-            bbLow.setData(dates.map((d,i)=>({time:d, value:c.bb_lower[slice+i]})).filter(p=>p.value!=null)); }
+        // Volume overlay at bottom of price chart
+        if (c.volume) {
+            const volSeries = chart.addHistogramSeries({
+                priceFormat: { type: 'volume' },
+                priceScaleId: 'vol',
+                lastValueVisible: false, priceLineVisible: false,
+            });
+            chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+            volSeries.setData(dates.map((d,i) => ({
+                time: d, value: c.volume[slice+i],
+                color: c.close[slice+i] >= c.open[slice+i] ? 'rgba(10,179,156,0.35)' : 'rgba(240,101,72,0.35)',
+            })));
+        }
 
-        // SAR dots (if available)
+        // BB overlays — Groww/TradingView style (cyan bands + filled area)
+        if (c.bb_upper && c.bb_lower) {
+            const bbFillUp = chart.addAreaSeries({ lineColor:'#33c5ab', topColor:'rgba(51,197,171,0.12)', bottomColor:'rgba(51,197,171,0.0)', lineWidth:1, priceLineVisible:false, lastValueVisible:false, crosshairMarkerVisible:false });
+            bbFillUp.setData(dates.map((d,i)=>({time:d, value:c.bb_upper[slice+i]})).filter(p=>p.value!=null));
+            const bbFillLo = chart.addAreaSeries({ lineColor:'#33c5ab', topColor:'rgba(51,197,171,0.0)', bottomColor:'rgba(51,197,171,0.12)', lineWidth:1, priceLineVisible:false, lastValueVisible:false, crosshairMarkerVisible:false, invertFilledArea:true });
+            bbFillLo.setData(dates.map((d,i)=>({time:d, value:c.bb_lower[slice+i]})).filter(p=>p.value!=null));
+        }
+        if (c.bb_mid) {
+            const bbMid = chart.addLineSeries({ color:'#f7b84b', lineWidth:1, lineStyle:2, priceLineVisible:false, lastValueVisible:false, crosshairMarkerVisible:false });
+            bbMid.setData(dates.map((d,i)=>({time:d, value:c.bb_mid[slice+i]})).filter(p=>p.value!=null)); }
+
+        // SAR dots
         if (c.sar) {
-            const sarUp = chart.addLineSeries({
-                color: '#3fb950', lineWidth: 0,
-                lastValueVisible: false, priceLineVisible: false,
-                pointMarkersVisible: true, pointMarkersRadius: 2, });
-            const sarDown = chart.addLineSeries({
-                color: '#f85149', lineWidth: 0,
-                lastValueVisible: false, priceLineVisible: false,
-                pointMarkersVisible: true, pointMarkersRadius: 2, });
+            const sarUp = chart.addLineSeries({ color: '#0ab39c', lineWidth: 0, lastValueVisible: false, priceLineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 2, });
+            const sarDown = chart.addLineSeries({ color: '#f06548', lineWidth: 0, lastValueVisible: false, priceLineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 2, });
             const sarUpData = [], sarDownData = [];
             dates.forEach((d,i) => {
                 const idx = slice+i;
@@ -2123,12 +2198,24 @@
 
         chart.timeScale().fitContent();
 
-        // Range buttons (only for daily)
+        // Register for crosshair sync
+        _syncCharts.push({chart, series: candle});
+        chart.subscribeCrosshairMove(param => _onCrosshairMove(chart, param));
+
+        // Range buttons
         document.querySelectorAll('#chartRange button').forEach(btn => {
             btn.onclick = () => {
                 document.querySelectorAll('#chartRange button').forEach(b=>b.classList.remove('active'));
                 btn.classList.add('active');
-                renderPriceChart(c, parseInt(btn.dataset.days)); }; }); }
+                _syncCharts.length = 0;
+                renderPriceChart(DATA.chart, parseInt(btn.dataset.days));
+                renderCmfChart(DATA.chart);
+                renderPctbChart(DATA.chart);
+                renderMfiChart(DATA.chart);
+                renderBbwChart(DATA.chart);
+                renderRsiChart(DATA.chart);
+                renderVwmacdChart(DATA.chart);
+            }; }); }
 
     // ── Interval switching ──
     function updateRangeButtons(interval) {
@@ -2155,7 +2242,10 @@
         updateRangeButtons(interval);
 
         if (interval === 'daily') {
+            _syncCharts.length = 0;
             renderPriceChart(DATA.chart, 60);
+            renderCmfChart(DATA.chart); renderPctbChart(DATA.chart); renderMfiChart(DATA.chart);
+            renderBbwChart(DATA.chart); renderRsiChart(DATA.chart); renderVwmacdChart(DATA.chart);
             return; }
 
         // Show loading
@@ -2177,240 +2267,105 @@
         document.querySelectorAll('#chartInterval button').forEach(btn => {
             btn.addEventListener('click', () => switchChartInterval(btn.dataset.interval)); }); });
 
-    // ═══════════ VOLUME CHART (standalone) ═══════════
-    let volChartInstance = null;
-    function renderVolumeChart(c) {
-        if(volChartInstance) volChartInstance.destroy();
-        const last = 120;
-        const sl = Math.max(0, c.dates.length - last);
-        const dates = c.dates.slice(sl);
-        const ctx = document.getElementById('volumeChart').getContext('2d');
-        volChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: dates,
-                datasets: [
-                    {
-                        label: 'Volume',
-                        data: c.volume.slice(sl),
-                        backgroundColor: c.close.slice(sl).map((cl,i) =>
-                            i===0 ? 'rgba(88,166,255,0.4)' :
-                            cl >= c.close[sl+i-1] ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)'),
-                        yAxisID: 'y',
-                        order: 2, },
-                    {
-                        label: 'SMA-50',
-                        data: c.vol_sma.slice(sl),
-                        type: 'line',
-                        borderColor: '#d29922',
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        yAxisID: 'y',
-                        order: 1, }
-                ] },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 } } } },
-                scales: {
-                    x: { display: false },
-                    y: { position: 'left', grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 9 } } }, } } }); }
+    // ═══════════ INDICATOR CHARTS (Lightweight Charts — synced crosshair) ═══════════
+    const _LC = LightweightCharts;
+    const _chartOpts = { layout:{background:{color:'#161b22'},textColor:'#8b949e'}, grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
+        crosshair:{mode:_LC.CrosshairMode.Normal}, rightPriceScale:{borderColor:'#30363d'}, handleScroll:false, handleScale:false };
 
-    // ═══════════ CMF CHART (standalone — Zerodha style) ═══════════
-    let cmfChartInstance = null;
+    function _makeIndChart(id, dates, vals, color, refLines, opts) {
+        const el = document.getElementById(id); el.innerHTML = '';
+        const tAxis = Object.assign({borderColor:'#30363d', visible:false}, opts?.timeScale||{});
+        const chart = _LC.createChart(el, Object.assign({}, _chartOpts, {timeScale: tAxis}));
+        const isHist = opts?.histogram;
+        let series;
+        if (isHist) {
+            series = chart.addHistogramSeries({ lastValueVisible:false, priceLineVisible:false });
+            series.setData(dates.map((t,i) => { const v=vals[i]; return v!=null ? {time:t, value:v, color:v>=0?'rgba(10,179,156,.55)':'rgba(240,101,72,.55)'} : null; }).filter(Boolean));
+        } else {
+            series = chart.addLineSeries({ color, lineWidth:1.5, priceLineVisible:false, lastValueVisible:true, crosshairMarkerRadius:3 });
+            series.setData(dates.map((t,i) => vals[i]!=null ? {time:t, value:vals[i]} : null).filter(Boolean));
+        }
+        (refLines||[]).forEach(rl => series.createPriceLine({price:rl.v, color:rl.c, lineWidth:1, lineStyle:_LC.LineStyle.Dashed, axisLabelVisible:false}));
+        if (opts?.minValue!=null) chart.priceScale('right').applyOptions({autoScale:false});
+        chart.timeScale().fitContent();
+        _syncCharts.push({chart, series});
+        chart.subscribeCrosshairMove(param => _onCrosshairMove(chart, param));
+        return {chart, series};
+    }
+
+    function _updateBadge(id, val, colorFn) {
+        const b = document.getElementById(id); if(!b || val==null) return;
+        const {text, fg, bg} = colorFn(val);
+        b.textContent = text; b.style.color = fg; b.style.background = bg;
+    }
+
+    // ── CMF (left panel, below price chart) ──
     function renderCmfChart(c) {
-        if(cmfChartInstance) cmfChartInstance.destroy();
-        const last = 120;
-        const sl = Math.max(0, c.dates.length - last);
-        const dates = c.dates.slice(sl);
-        const ctx = document.getElementById('cmfChart').getContext('2d');
-        cmfChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: dates,
-                datasets: [{
-                    label: 'CMF (20)',
-                    data: c.cmf.slice(sl),
-                    borderColor: '#58a6ff',
-                    backgroundColor: c.cmf.slice(sl).map(v => v!=null && v>0 ? 'rgba(63,185,80,0.12)' : 'rgba(248,81,73,0.12)'),
-                    fill: true,
-                    borderWidth: 2, pointRadius: 0,
-                    segment: {
-                        borderColor: ctx2 => {
-                            const v = ctx2.p1.parsed.y;
-                            return v >= 0 ? '#3fb950' : '#f85149'; } } }] },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { display: false },
-                    annotation: undefined, },
-                scales: {
-                    x: { display: false },
-                    y: {
-                        grid: { color: '#21262d' },
-                        ticks: { color: '#58a6ff', font: { size: 9 } }, }, } },
-            plugins: [{
-                id: 'cmfZeroLine',
-                afterDraw(chart) {
-                    const yScale = chart.scales.y;
-                    const ctx = chart.ctx;
-                    const y = yScale.getPixelForValue(0);
-                    if(y >= yScale.top && y <= yScale.bottom) {
-                        ctx.save();
-                        ctx.strokeStyle = 'rgba(139,148,158,0.6)';
-                        ctx.lineWidth = 1;
-                        ctx.setLineDash([4,4]);
-                        ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
-                        ctx.restore(); } } }] }); }
+        const sl = _chartSlice, dates = c.dates.slice(sl), d = c.cmf.slice(sl);
+        const last = d.filter(v=>v!=null).pop();
+        _updateBadge('badgeCmf', last, v => ({
+            text: (v>=0?'+':'') + v.toFixed(3), fg: v>0?'var(--g)':'var(--r)',
+            bg: v>0?'rgba(10,179,156,.12)':'rgba(240,101,72,.12)' }));
+        _makeIndChart('cmfChart', dates, d, '#7c8aef', [{v:0,c:'rgba(139,148,158,.5)'}], {timeScale:{visible:true}});
+    }
 
-    // ═══════════ %B CHART (Zerodha style) ═══════════
-    let pctbChartInstance = null;
+    // ── %B ──
     function renderPctbChart(c) {
-        if(pctbChartInstance) pctbChartInstance.destroy();
-        const last = 120;
-        const sl = Math.max(0, c.dates.length - last);
-        const dates = c.dates.slice(sl);
-        const ctx = document.getElementById('pctbChart').getContext('2d');
-        pctbChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: dates,
-                datasets: [{
-                    label: '%B (20,2)',
-                    data: c.pctb.slice(sl),
-                    borderColor: '#bc8cff',
-                    borderWidth: 2, pointRadius: 0,
-                    fill: false, }] },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { display: false },
-                    y: {
-                        grid: { color: '#21262d' },
-                        ticks: { color: '#bc8cff', font: { size: 9 } },
-                        suggestedMin: -0.1, suggestedMax: 1.2, }, } },
-            plugins: [{
-                id: 'pctbRefLines',
-                afterDraw(chart) {
-                    const yScale = chart.scales.y;
-                    const ctx = chart.ctx;
-                    const lines = [
-                        { val: 0.50, color: 'rgba(139,148,158,0.5)', dash: [4,4], label: '0.50' },
-                        { val: 0.80, color: 'rgba(63,185,80,0.5)', dash: [3,3], label: '0.80' },
-                        { val: 0.20, color: 'rgba(248,81,73,0.5)', dash: [3,3], label: '0.20' },
-                        { val: 1.00, color: 'rgba(63,185,80,0.3)', dash: [2,2], label: '1.00' },
-                    ];
-                    ctx.save();
-                    lines.forEach(l => {
-                        const y = yScale.getPixelForValue(l.val);
-                        if(y >= yScale.top && y <= yScale.bottom) {
-                            ctx.strokeStyle = l.color;
-                            ctx.lineWidth = 1;
-                            ctx.setLineDash(l.dash);
-                            ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
-                            ctx.fillStyle = l.color;
-                            ctx.font = '9px JetBrains Mono, monospace';
-                            ctx.fillText(l.label, chart.chartArea.right + 4, y + 3); } });
-                    ctx.restore(); } }] }); }
+        const sl = _chartSlice, dates = c.dates.slice(sl), d = c.pctb.slice(sl);
+        const last = d.filter(v=>v!=null).pop();
+        _updateBadge('badgePctb', last, v => ({
+            text: v.toFixed(2), fg: v>0.8?'var(--g)':v<0.2?'var(--r)':'#c084fc',
+            bg: v>0.8?'rgba(10,179,156,.12)':v<0.2?'rgba(240,101,72,.12)':'rgba(192,132,252,.1)' }));
+        _makeIndChart('pctbChart', dates, d, '#c084fc',
+            [{v:0.80,c:'rgba(10,179,156,.4)'},{v:0.50,c:'rgba(139,148,158,.3)'},{v:0.20,c:'rgba(240,101,72,.4)'}]);
+    }
 
-    // ═══════════ MFI CHART (Zerodha style) ═══════════
-    let mfiChartInstance = null;
+    // ── MFI ──
     function renderMfiChart(c) {
-        if(mfiChartInstance) mfiChartInstance.destroy();
-        const last = 120;
-        const sl = Math.max(0, c.dates.length - last);
-        const dates = c.dates.slice(sl);
-        const ctx = document.getElementById('mfiChart').getContext('2d');
-        mfiChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: dates,
-                datasets: [{
-                    label: 'MFI (10)',
-                    data: c.mfi.slice(sl),
-                    borderColor: '#f0883e',
-                    borderWidth: 2, pointRadius: 0,
-                    fill: false, }] },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { display: false },
-                    y: {
-                        grid: { color: '#21262d' },
-                        ticks: { color: '#f0883e', font: { size: 9 } },
-                        min: 0, max: 100, }, } },
-            plugins: [{
-                id: 'mfiRefLines',
-                afterDraw(chart) {
-                    const yScale = chart.scales.y;
-                    const ctx = chart.ctx;
-                    const lines = [
-                        { val: 80, color: 'rgba(63,185,80,0.6)', dash: [4,4], label: '80' },
-                        { val: 50, color: 'rgba(139,148,158,0.4)', dash: [4,4], label: '50' },
-                        { val: 20, color: 'rgba(248,81,73,0.6)', dash: [4,4], label: '20' },
-                    ];
-                    ctx.save();
-                    lines.forEach(l => {
-                        const y = yScale.getPixelForValue(l.val);
-                        if(y >= yScale.top && y <= yScale.bottom) {
-                            ctx.strokeStyle = l.color;
-                            ctx.lineWidth = 1;
-                            ctx.setLineDash(l.dash);
-                            ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
-                            ctx.fillStyle = l.color;
-                            ctx.font = '9px JetBrains Mono, monospace';
-                            ctx.fillText(l.label, chart.chartArea.right + 4, y + 3); } });
-                    ctx.restore(); } }] }); }
+        const sl = _chartSlice, dates = c.dates.slice(sl), d = c.mfi.slice(sl);
+        const last = d.filter(v=>v!=null).pop();
+        _updateBadge('badgeMfi', last, v => ({
+            text: v.toFixed(0), fg: v>80?'var(--g)':v<20?'var(--r)':'#f0883e',
+            bg: v>80?'rgba(10,179,156,.12)':v<20?'rgba(240,101,72,.12)':'rgba(240,136,62,.1)' }));
+        _makeIndChart('mfiChart', dates, d, '#f0883e',
+            [{v:80,c:'rgba(10,179,156,.5)'},{v:50,c:'rgba(139,148,158,.3)'},{v:20,c:'rgba(240,101,72,.5)'}]);
+    }
 
-    // ═══════════ BBW CHART (Zerodha style) ═══════════
-    let bbwChartInstance = null;
+    // ── BBW ──
     function renderBbwChart(c) {
-        if(bbwChartInstance) bbwChartInstance.destroy();
-        const last = 120;
-        const sl = Math.max(0, c.dates.length - last);
-        const dates = c.dates.slice(sl);
-        const ctx = document.getElementById('bbwChart').getContext('2d');
-        bbwChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: dates,
-                datasets: [{
-                    label: 'BBW (20,2)',
-                    data: c.bbw.slice(sl),
-                    borderColor: '#bc8cff',
-                    backgroundColor: 'rgba(188,140,255,0.08)',
-                    fill: true,
-                    borderWidth: 2, pointRadius: 0, }] },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { display: false },
-                    y: {
-                        grid: { color: '#21262d' },
-                        ticks: { color: '#bc8cff', font: { size: 9 } }, }, } },
-            plugins: [{
-                id: 'bbwSqueezeLine',
-                afterDraw(chart) {
-                    const yScale = chart.scales.y;
-                    const ctx = chart.ctx;
-                    const y = yScale.getPixelForValue(0.08);
-                    if(y >= yScale.top && y <= yScale.bottom) {
-                        ctx.save();
-                        ctx.strokeStyle = 'rgba(248,81,73,0.7)';
-                        ctx.lineWidth = 1.5;
-                        ctx.setLineDash([5,3]);
-                        ctx.beginPath(); ctx.moveTo(chart.chartArea.left, y); ctx.lineTo(chart.chartArea.right, y); ctx.stroke();
-                        ctx.fillStyle = 'rgba(248,81,73,0.7)';
-                        ctx.font = '9px JetBrains Mono, monospace';
-                        ctx.fillText('0.08 squeeze', chart.chartArea.right + 4, y + 3);
-                        ctx.restore(); } } }] }); }
+        const sl = _chartSlice, dates = c.dates.slice(sl), d = c.bbw.slice(sl);
+        const last = d.filter(v=>v!=null).pop();
+        _updateBadge('badgeBbw', last, v => {
+            const sq = v<0.08;
+            return { text: sq?'SQUEEZE':v.toFixed(3), fg: sq?'var(--r)':'#e040fb',
+                bg: sq?'rgba(240,101,72,.12)':'rgba(224,64,251,.1)' };
+        });
+        _makeIndChart('bbwChart', dates, d, '#e040fb', [{v:0.08,c:'rgba(240,101,72,.6)'}]);
+    }
+
+    // ── RSI ──
+    function renderRsiChart(c) {
+        if(!c.rsi) return;
+        const sl = _chartSlice, dates = c.dates.slice(sl), d = c.rsi.slice(sl);
+        const last = d.filter(v=>v!=null).pop();
+        _updateBadge('badgeRsi', last, v => ({
+            text: v.toFixed(1), fg: v>70?'var(--r)':v<30?'var(--g)':'#38bdf8',
+            bg: v>70?'rgba(240,101,72,.12)':v<30?'rgba(10,179,156,.12)':'rgba(56,189,248,.1)' }));
+        _makeIndChart('rsiChart', dates, d, '#38bdf8',
+            [{v:70,c:'rgba(240,101,72,.5)'},{v:30,c:'rgba(10,179,156,.5)'},{v:50,c:'rgba(139,148,158,.3)'}]);
+    }
+
+    // ── VWMACD ──
+    function renderVwmacdChart(c) {
+        if(!c.vwmacd_hist) return;
+        const sl = _chartSlice, dates = c.dates.slice(sl), d = c.vwmacd_hist.slice(sl);
+        const last = d.filter(v=>v!=null).pop();
+        _updateBadge('badgeVwmacd', last, v => ({
+            text: (v>=0?'+':'') + v.toFixed(3), fg: v>0?'var(--g)':'var(--r)',
+            bg: v>0?'rgba(10,179,156,.12)':'rgba(240,101,72,.12)' }));
+        _makeIndChart('vwmacdChart', dates, d, '#39d2c0', [{v:0,c:'rgba(139,148,158,.4)'}],
+            {histogram:true, timeScale:{visible:true}});
+    }
 
     // ═══════════ INDICATOR TABLE ═══════════
     function renderIndicatorTable(s) {
@@ -2555,7 +2510,7 @@
 
     function analysisToHtml(text) {
         if(!text) return '';
-        return `<div class="alert mb-3" style="background:rgba(88,166,255,0.05);border:1px solid rgba(88,166,255,0.15);border-radius:10px;">
+        return `<div class="alert mb-3" style="background:rgba(124,138,239,0.05);border:1px solid rgba(124,138,239,0.15);border-radius:10px;">
             <ul class="analysis-text list-unstyled mb-0">` +
             text.split('\n').filter(l=>l.trim()).map(l => {
                 let h = l.trim()
@@ -2609,8 +2564,8 @@
         return `<div class="mb-2"><small class="text-secondary"><i class="bi bi-info-circle"></i> ${desc}</small></div>`; }
 
     function keyTakeaway(icon, color, text) {
-        const bg = color === 'green' ? 'rgba(63,185,80,0.08)' : color === 'red' ? 'rgba(248,81,73,0.08)' : 'rgba(210,153,34,0.08)';
-        const border = color === 'green' ? 'rgba(63,185,80,0.3)' : color === 'red' ? 'rgba(248,81,73,0.3)' : 'rgba(210,153,34,0.3)';
+        const bg = color === 'green' ? 'rgba(10,179,156,0.08)' : color === 'red' ? 'rgba(240,101,72,0.08)' : 'rgba(247,184,75,0.08)';
+        const border = color === 'green' ? 'rgba(10,179,156,0.3)' : color === 'red' ? 'rgba(240,101,72,0.3)' : 'rgba(247,184,75,0.3)';
         const tc = color === 'green' ? 'var(--g)' : color === 'red' ? 'var(--r)' : 'var(--y)';
         return `<div class="mb-3 p-3 rounded-3" style="background:${bg};border:1px solid ${border}">
             <div class="d-flex align-items-start gap-2">
@@ -2752,14 +2707,14 @@
             return (neg?'-':'')+'₹'+s; };
         const marginBadge = (v, label) => {
             if(v==null) return '';
-            const col = v >= 20 ? '#3fb950' : v >= 10 ? '#d29922' : '#f85149';
+            const col = v >= 20 ? '#0ab39c' : v >= 10 ? '#f7b84b' : '#f06548';
             return `<span class="badge me-2" style="background:${col}22;color:${col};border:1px solid ${col}44">${label}: ${v.toFixed(1)}%</span>`; };
 
         let html = '';
 
         // ── What are Quarterly Results? (Layman intro)
-        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.12);">
-            <h6 class="mb-2" style="color:#58a6ff"><i class="bi bi-info-circle-fill me-1"></i> What are Quarterly Results?</h6>
+        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(124,138,239,0.04);border:1px solid rgba(124,138,239,0.12);">
+            <h6 class="mb-2" style="color:#7c8aef"><i class="bi bi-info-circle-fill me-1"></i> What are Quarterly Results?</h6>
             <p class="small mb-1" style="color:var(--bs-body-color)">Companies report their financial performance <strong>every 3 months</strong> (called a "quarter"). This is like a report card showing how much money the company earned and spent. In India, the fiscal year runs <strong>April to March</strong>, split into 4 quarters:</p>
             <div class="d-flex flex-wrap gap-2 small mt-2">
                 <span class="badge bg-dark border border-secondary px-2 py-1"><strong>Q1</strong> Apr–Jun</span>
@@ -2771,9 +2726,9 @@
         </div>`;
 
         // ── Latest Quarter Snapshot Card
-        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(63,185,80,0.04);border:1px solid rgba(63,185,80,0.15);">
+        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(10,179,156,0.04);border:1px solid rgba(10,179,156,0.15);">
             <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
-                <h6 class="mb-0"><i class="bi bi-lightning-charge-fill me-1" style="color:#d29922"></i> Latest Quarter: <strong style="color:#58a6ff">${latest.period}</strong></h6>
+                <h6 class="mb-0"><i class="bi bi-lightning-charge-fill me-1" style="color:#f7b84b"></i> Latest Quarter: <strong style="color:#7c8aef">${latest.period}</strong></h6>
                 <div>${marginBadge(latest.gross_margin,'Gross')}${marginBadge(latest.operating_margin,'Operating')}${marginBadge(latest.net_margin,'Net')}</div>
             </div>
             <div class="row g-2">
@@ -2784,12 +2739,12 @@
                 </div></div>
                 <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Net Profit</small>
-                    <strong class="font-mono" style="color:${latest.net_income!=null&&latest.net_income>=0?'#3fb950':'#f85149'}">${latest.net_income_str||'N/A'}</strong>
+                    <strong class="font-mono" style="color:${latest.net_income!=null&&latest.net_income>=0?'#0ab39c':'#f06548'}">${latest.net_income_str||'N/A'}</strong>
                     <small class="d-block text-secondary">Actual profit after all costs & taxes</small>
                 </div></div>
                 <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">EPS</small>
-                    <strong class="font-mono" style="color:${latest.eps!=null&&latest.eps>=0?'#3fb950':'#f85149'}">${latest.eps!=null?'₹'+latest.eps.toFixed(2):'N/A'}</strong>
+                    <strong class="font-mono" style="color:${latest.eps!=null&&latest.eps>=0?'#0ab39c':'#f06548'}">${latest.eps!=null?'₹'+latest.eps.toFixed(2):'N/A'}</strong>
                     <small class="d-block text-secondary">Profit per share you own</small>
                 </div></div>
                 <div class="col-6 col-md-3"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
@@ -2812,11 +2767,11 @@
                 if(latest.revenue&&yoyQ.revenue&&yoyQ.revenue>0){ const c=(latest.revenue-yoyQ.revenue)/Math.abs(yoyQ.revenue)*100; insights.push({metric:'Revenue',chg:c,dir:c>0?'grew':'declined',type:'YoY'}); }
                 if(latest.net_income&&yoyQ.net_income&&yoyQ.net_income>0){ const c=(latest.net_income-yoyQ.net_income)/Math.abs(yoyQ.net_income)*100; insights.push({metric:'Net Profit',chg:c,dir:c>0?'rose':'fell',type:'YoY'}); } }
             if(insights.length){
-                html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(210,153,34,0.06);border:1px solid rgba(210,153,34,0.15);">
-                    <h6 class="mb-2"><i class="bi bi-graph-up-arrow me-1" style="color:#d29922"></i> Key Changes This Quarter</h6>
+                html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(247,184,75,0.06);border:1px solid rgba(247,184,75,0.15);">
+                    <h6 class="mb-2"><i class="bi bi-graph-up-arrow me-1" style="color:#f7b84b"></i> Key Changes This Quarter</h6>
                     <div class="row g-2">`;
                 insights.forEach(i => {
-                    const col = i.chg>=0?'#3fb950':'#f85149';
+                    const col = i.chg>=0?'#0ab39c':'#f06548';
                     const icon = i.chg>=0?'bi-arrow-up-right':'bi-arrow-down-right';
                     const absChg = Math.abs(i.chg).toFixed(1);
                     html += `<div class="col-6 col-md-4">
@@ -2854,9 +2809,9 @@
             const yoyQ = yoyIdx >= 0 ? reversed[yoyIdx] : null;
             const yoyRev = yoyQ ? pctChg(q.revenue, yoyQ.revenue) : '<span class="text-secondary">—</span>';
             const yoyNI = yoyQ ? pctChg(q.net_income, yoyQ.net_income) : '<span class="text-secondary">—</span>';
-            const nmCol = q.net_margin!=null ? (q.net_margin>=15?'#3fb950':q.net_margin>=5?'#d29922':'#f85149') : '#8b949e';
+            const nmCol = q.net_margin!=null ? (q.net_margin>=15?'#0ab39c':q.net_margin>=5?'#f7b84b':'#f06548') : '#8b949e';
             const isLatest = idx === reversed.length - 1;
-            html += `<tr${isLatest?' style="background:rgba(88,166,255,0.08)"':''}>
+            html += `<tr${isLatest?' style="background:rgba(124,138,239,0.08)"':''}>
                 <td class="fw-bold text-nowrap">${q.period}${isLatest?' <span class="badge bg-info text-dark" style="font-size:.6rem">LATEST</span>':''}</td>
                 <td class="text-end font-mono">${q.revenue_str||'—'}</td><td class="text-end">${pctChg(q.revenue,pRev)}</td><td class="text-end">${yoyRev}</td>
                 <td class="text-end font-mono">${q.gross_profit!=null?fmtCr(q.gross_profit):'—'}</td>
@@ -2870,26 +2825,26 @@
         html += '</tbody></table></div>';
 
         // ── How to Read This Table (layman box)
-        html += `<div class="p-3 rounded-3 mb-3" style="background:rgba(188,140,255,0.04);border:1px solid rgba(188,140,255,0.12);">
-            <h6 class="mb-2"><i class="bi bi-book me-1" style="color:#bc8cff"></i> How to Read This Table (Simple Guide)</h6>
+        html += `<div class="p-3 rounded-3 mb-3" style="background:rgba(192,132,252,0.04);border:1px solid rgba(192,132,252,0.12);">
+            <h6 class="mb-2"><i class="bi bi-book me-1" style="color:#c084fc"></i> How to Read This Table (Simple Guide)</h6>
             <div class="row g-2 small" style="color:var(--bs-body-color)">
                 <div class="col-md-6">
-                    <p class="mb-1"><strong style="color:#58a6ff">Revenue</strong> — Total money the company earned from selling products/services. Think of it as the "top line" — the bigger, the better.</p>
-                    <p class="mb-1"><strong style="color:#3fb950">Gross Profit</strong> — Revenue minus the direct cost of making products. Shows how much the company keeps before paying rent, salaries, etc.</p>
-                    <p class="mb-1"><strong style="color:#d29922">Operating Profit</strong> — What's left after paying ALL business expenses (but before loans and taxes). This shows how well the core business runs.</p>
+                    <p class="mb-1"><strong style="color:#7c8aef">Revenue</strong> — Total money the company earned from selling products/services. Think of it as the "top line" — the bigger, the better.</p>
+                    <p class="mb-1"><strong style="color:#0ab39c">Gross Profit</strong> — Revenue minus the direct cost of making products. Shows how much the company keeps before paying rent, salaries, etc.</p>
+                    <p class="mb-1"><strong style="color:#f7b84b">Operating Profit</strong> — What's left after paying ALL business expenses (but before loans and taxes). This shows how well the core business runs.</p>
                 </div>
                 <div class="col-md-6">
-                    <p class="mb-1"><strong style="color:#3fb950">Net Profit</strong> — The final profit after everything (costs, interest, taxes). This is what actually belongs to shareholders like you!</p>
-                    <p class="mb-1"><strong style="color:#58a6ff">EPS (Earnings Per Share)</strong> — Net Profit ÷ Total Shares. If EPS is ₹10, the company earned ₹10 for each share you own.</p>
-                    <p class="mb-1"><strong style="color:#d29922">EBITDA</strong> — Profit before interest, taxes, depreciation. Useful to compare companies regardless of their debt structure.</p>
-                    <p class="mb-0"><strong style="color:#bc8cff">Net Margin</strong> — Net Profit as % of Revenue. If 15%, the company keeps ₹15 out of every ₹100 earned. Higher = more profitable.</p>
+                    <p class="mb-1"><strong style="color:#0ab39c">Net Profit</strong> — The final profit after everything (costs, interest, taxes). This is what actually belongs to shareholders like you!</p>
+                    <p class="mb-1"><strong style="color:#7c8aef">EPS (Earnings Per Share)</strong> — Net Profit ÷ Total Shares. If EPS is ₹10, the company earned ₹10 for each share you own.</p>
+                    <p class="mb-1"><strong style="color:#f7b84b">EBITDA</strong> — Profit before interest, taxes, depreciation. Useful to compare companies regardless of their debt structure.</p>
+                    <p class="mb-0"><strong style="color:#c084fc">Net Margin</strong> — Net Profit as % of Revenue. If 15%, the company keeps ₹15 out of every ₹100 earned. Higher = more profitable.</p>
                 </div>
             </div>
         </div>`;
 
         // ── Backend analysis text
         if(f.quarterly_analysis){
-            html += `<div class="p-3 rounded-3" style="background:rgba(63,185,80,0.04);border:1px solid rgba(63,185,80,0.1);">
+            html += `<div class="p-3 rounded-3" style="background:rgba(10,179,156,0.04);border:1px solid rgba(10,179,156,0.1);">
                 <h6 class="mb-1"><i class="bi bi-robot me-1 text-success"></i> AI Analysis</h6>
                 <p class="small mb-0" style="color:var(--bs-body-color)">${f.quarterly_analysis}</p>
             </div>`; }
@@ -2908,8 +2863,8 @@
                     type:'bar',
                     data:{ labels,
                         datasets:[
-                            {label:'Revenue',data:reversed.map(q=>q.revenue),backgroundColor:'rgba(88,166,255,0.5)',borderColor:'#58a6ff',borderWidth:1,borderRadius:4},
-                            {label:'Net Profit',data:reversed.map(q=>q.net_income),backgroundColor:'rgba(63,185,80,0.5)',borderColor:'#3fb950',borderWidth:1,borderRadius:4},
+                            {label:'Revenue',data:reversed.map(q=>q.revenue),backgroundColor:'rgba(124,138,239,0.5)',borderColor:'#7c8aef',borderWidth:1,borderRadius:4},
+                            {label:'Net Profit',data:reversed.map(q=>q.net_income),backgroundColor:'rgba(10,179,156,0.5)',borderColor:'#0ab39c',borderWidth:1,borderRadius:4},
                         ] },
                     options:{responsive:true,maintainAspectRatio:false,
                         plugins:{legend:{labels:{color:'#8b949e',font:{size:10},usePointStyle:true}},title:{display:true,text:'Revenue & Net Profit by Quarter',color:'#e6edf3',font:{size:12}}},
@@ -2922,9 +2877,9 @@
                     type:'line',
                     data:{ labels,
                         datasets:[
-                            {label:'Gross %',data:reversed.map(q=>q.gross_margin),borderColor:'#58a6ff',fill:false,tension:0.3,pointRadius:5,borderWidth:2.5,pointBackgroundColor:'#58a6ff'},
-                            {label:'Operating %',data:reversed.map(q=>q.operating_margin),borderColor:'#d29922',fill:false,tension:0.3,pointRadius:5,borderWidth:2,pointBackgroundColor:'#d29922'},
-                            {label:'Net %',data:reversed.map(q=>q.net_margin),borderColor:'#3fb950',fill:false,tension:0.3,pointRadius:5,borderWidth:2,pointBackgroundColor:'#3fb950'},
+                            {label:'Gross %',data:reversed.map(q=>q.gross_margin),borderColor:'#7c8aef',fill:false,tension:0.3,pointRadius:5,borderWidth:2.5,pointBackgroundColor:'#7c8aef'},
+                            {label:'Operating %',data:reversed.map(q=>q.operating_margin),borderColor:'#f7b84b',fill:false,tension:0.3,pointRadius:5,borderWidth:2,pointBackgroundColor:'#f7b84b'},
+                            {label:'Net %',data:reversed.map(q=>q.net_margin),borderColor:'#0ab39c',fill:false,tension:0.3,pointRadius:5,borderWidth:2,pointBackgroundColor:'#0ab39c'},
                         ] },
                     options:{responsive:true,maintainAspectRatio:false,
                         plugins:{legend:{labels:{color:'#8b949e',font:{size:10},usePointStyle:true}},title:{display:true,text:'Profit Margins Trend (%)',color:'#e6edf3',font:{size:12}}},
@@ -2938,7 +2893,7 @@
 
         /* ─── COMPANY OVERVIEW ─── */
         if(f.description) {
-            html += `<div class="mb-4 p-3 rounded" style="background:rgba(88,166,255,0.05);border:1px solid rgba(88,166,255,0.15);">
+            html += `<div class="mb-4 p-3 rounded" style="background:rgba(124,138,239,0.05);border:1px solid rgba(124,138,239,0.15);">
                 <h6 class="mb-2"><i class="bi bi-building me-1 text-blue"></i> About ${f.company_name||'Company'}</h6>
                 <p class="mb-2 small">${f.description}</p>
                 <div class="d-flex flex-wrap gap-3 small">
@@ -2955,8 +2910,8 @@
             const today = new Date();
             const daysLeft = Math.ceil((rd - today) / (1000*60*60*24));
             const isPast = daysLeft < 0;
-            const urgency = !isPast && daysLeft <= 7 ? 'rgba(248,81,73,0.1)' : !isPast && daysLeft <= 30 ? 'rgba(210,153,34,0.1)' : 'rgba(63,185,80,0.06)';
-            const urgBorder = !isPast && daysLeft <= 7 ? 'rgba(248,81,73,0.3)' : !isPast && daysLeft <= 30 ? 'rgba(210,153,34,0.3)' : 'rgba(63,185,80,0.2)';
+            const urgency = !isPast && daysLeft <= 7 ? 'rgba(240,101,72,0.1)' : !isPast && daysLeft <= 30 ? 'rgba(247,184,75,0.1)' : 'rgba(10,179,156,0.06)';
+            const urgBorder = !isPast && daysLeft <= 7 ? 'rgba(240,101,72,0.3)' : !isPast && daysLeft <= 30 ? 'rgba(247,184,75,0.3)' : 'rgba(10,179,156,0.2)';
             html += `<div class="mb-4 p-3 rounded" style="background:${urgency};border:1px solid ${urgBorder};">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
@@ -2987,10 +2942,10 @@
 
             // Determine color based on delivery %
             const dp = f.delivery_pct;
-            const dpColor = dp >= 50 ? '#3fb950' : dp >= 35 ? '#d29922' : '#f85149';
+            const dpColor = dp >= 50 ? '#0ab39c' : dp >= 35 ? '#f7b84b' : '#f06548';
             const dpLabel = dp >= 70 ? 'Exceptional' : dp >= 50 ? 'High' : dp >= 35 ? 'Moderate' : dp >= 20 ? 'Low' : 'Very Low';
-            const dpBg    = dp >= 50 ? 'rgba(63,185,80,0.06)' : dp >= 35 ? 'rgba(210,153,34,0.06)' : 'rgba(248,81,73,0.06)';
-            const dpBorder= dp >= 50 ? 'rgba(63,185,80,0.2)' : dp >= 35 ? 'rgba(210,153,34,0.2)' : 'rgba(248,81,73,0.2)';
+            const dpBg    = dp >= 50 ? 'rgba(10,179,156,0.06)' : dp >= 35 ? 'rgba(247,184,75,0.06)' : 'rgba(240,101,72,0.06)';
+            const dpBorder= dp >= 50 ? 'rgba(10,179,156,0.2)' : dp >= 35 ? 'rgba(247,184,75,0.2)' : 'rgba(240,101,72,0.2)';
 
             const fmtNum = (n) => { if(n==null) return 'N/A'; return n.toLocaleString('en-IN'); };
 
@@ -3028,12 +2983,12 @@
             html += `<h5 class="mb-3"><i class="bi bi-graph-up-arrow me-2 text-info"></i> Historical Delivery Trend <span class="badge bg-secondary fw-normal ms-2 small">${dHist.length} days</span></h5>`;
 
             // ── Explainer box
-            html += `<div class="alert mb-3" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.15);border-radius:10px;">
-                <div class="small" style="color:var(--bs-body-color);"><i class="bi bi-lightbulb me-1" style="color:#d29922;"></i><b>What is Delivery %?</b> — When someone buys shares on the stock exchange, they can either <b>take delivery</b> (keep the shares long-term) or <b>trade intraday</b> (buy and sell the same day). Delivery % tells you what fraction of total trades were genuine long-term purchases.</div>
+            html += `<div class="alert mb-3" style="background:rgba(124,138,239,0.04);border:1px solid rgba(124,138,239,0.15);border-radius:10px;">
+                <div class="small" style="color:var(--bs-body-color);"><i class="bi bi-lightbulb me-1" style="color:#f7b84b;"></i><b>What is Delivery %?</b> — When someone buys shares on the stock exchange, they can either <b>take delivery</b> (keep the shares long-term) or <b>trade intraday</b> (buy and sell the same day). Delivery % tells you what fraction of total trades were genuine long-term purchases.</div>
                 <div class="d-flex flex-wrap gap-3 mt-2 small">
-                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3fb950;margin-right:4px;"></span><b style="color:#3fb950;">≥ 50%</b> — Strong: Investors are buying to hold. Bullish sign.</span>
-                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#d29922;margin-right:4px;"></span><b style="color:#d29922;">35-50%</b> — Mixed: Some investors, some traders.</span>
-                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f85149;margin-right:4px;"></span><b style="color:#f85149;">< 35%</b> — Speculative: Mostly day-traders. Risky.</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#0ab39c;margin-right:4px;"></span><b style="color:#0ab39c;">≥ 50%</b> — Strong: Investors are buying to hold. Bullish sign.</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f7b84b;margin-right:4px;"></span><b style="color:#f7b84b;">35-50%</b> — Mixed: Some investors, some traders.</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f06548;margin-right:4px;"></span><b style="color:#f06548;">< 35%</b> — Speculative: Mostly day-traders. Risky.</span>
                 </div>
             </div>`;
 
@@ -3043,7 +2998,7 @@
                     <div class="p-3 rounded-3" style="background:var(--card-bg);border:1px solid var(--card-border);">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h6 class="mb-0" style="color:#e6edf3;"><i class="bi bi-bar-chart-fill me-1 text-info"></i> Delivery % by Day</h6>
-                            <div class="small" style="color:#8b949e;"><span style="color:#3fb950;">Green</span> = Strong · <span style="color:#d29922;">Yellow</span> = Mixed · <span style="color:#f85149;">Red</span> = Speculative</div>
+                            <div class="small" style="color:#8b949e;"><span style="color:#0ab39c;">Green</span> = Strong · <span style="color:#f7b84b;">Yellow</span> = Mixed · <span style="color:#f06548;">Red</span> = Speculative</div>
                         </div>
                         <div style="position:relative;height:240px;"><canvas id="delivPctChart"></canvas></div>
                     </div>
@@ -3051,8 +3006,8 @@
                 <div class="col-12">
                     <div class="p-3 rounded-3" style="background:var(--card-bg);border:1px solid var(--card-border);">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="mb-0" style="color:#e6edf3;"><i class="bi bi-graph-up me-1" style="color:#d29922;"></i> Price & Volume</h6>
-                            <div class="small" style="color:#8b949e;"><span style="color:#d29922;">Orange line</span> = Price · <span style="color:#3fb950;">Green bars</span> = Price up · <span style="color:#f85149;">Red bars</span> = Price down</div>
+                            <h6 class="mb-0" style="color:#e6edf3;"><i class="bi bi-graph-up me-1" style="color:#f7b84b;"></i> Price & Volume</h6>
+                            <div class="small" style="color:#8b949e;"><span style="color:#f7b84b;">Orange line</span> = Price · <span style="color:#0ab39c;">Green bars</span> = Price up · <span style="color:#f06548;">Red bars</span> = Price down</div>
                         </div>
                         <div style="position:relative;height:200px;"><canvas id="delivPriceVolChart"></canvas></div>
                     </div>
@@ -3071,7 +3026,7 @@
             const dhAvg = dhPcts.length ? (dhPcts.reduce((a,b)=>a+b,0)/dhPcts.length) : 0;
             const dhMax = dhPcts.length ? Math.max(...dhPcts) : 0;
             const dhMin = dhPcts.length ? Math.min(...dhPcts) : 0;
-            const avgCol = dhAvg >= 50 ? '#3fb950' : dhAvg >= 35 ? '#d29922' : '#f85149';
+            const avgCol = dhAvg >= 50 ? '#0ab39c' : dhAvg >= 35 ? '#f7b84b' : '#f06548';
             const avgLabel = dhAvg >= 50 ? 'Strong — institutional buying' : dhAvg >= 35 ? 'Mixed — traders + investors' : 'Speculative — mostly day-traders';
             const trend = dhPcts.length >= 6 ? (() => {
                 const recent = dhPcts.slice(-5).reduce((a,b)=>a+b,0)/5;
@@ -3110,7 +3065,7 @@
 
             // Deals analysis text
             if(f.deals_analysis) {
-                html += `<div class="alert mb-3" style="background:rgba(210,153,34,0.06);border:1px solid rgba(210,153,34,0.2);border-radius:10px;">
+                html += `<div class="alert mb-3" style="background:rgba(247,184,75,0.06);border:1px solid rgba(247,184,75,0.2);border-radius:10px;">
                     <h6 class="mb-1"><i class="bi bi-info-circle me-1 text-yellow"></i> Activity Analysis</h6>
                     <p class="mb-0 small">${f.deals_analysis}</p>
                 </div>`; }
@@ -3175,11 +3130,11 @@
                 const totalSellVal = iSells.reduce((s,t) => s + (t.value||0), 0);
                 const fmtV = (v) => { if(!v) return '\u20b90'; if(v >= 1e7) return '\u20b9' + (v/1e7).toFixed(2) + ' Cr'; if(v >= 1e5) return '\u20b9' + (v/1e5).toFixed(2) + ' L'; return '\u20b9' + Math.round(v).toLocaleString('en-IN'); };
                 html += `<div class="row g-2 mb-3">
-                    <div class="col-sm-4"><div class="p-2 rounded text-center" style="background:rgba(63,185,80,0.06);border:1px solid rgba(63,185,80,0.2);">
+                    <div class="col-sm-4"><div class="p-2 rounded text-center" style="background:rgba(10,179,156,0.06);border:1px solid rgba(10,179,156,0.2);">
                         <div class="fw-bold text-green">${fmtV(totalBuyVal)}</div>
                         <div class="small text-secondary">Insider Buying (${iBuys.length} txn)</div>
                     </div></div>
-                    <div class="col-sm-4"><div class="p-2 rounded text-center" style="background:rgba(248,81,73,0.06);border:1px solid rgba(248,81,73,0.2);">
+                    <div class="col-sm-4"><div class="p-2 rounded text-center" style="background:rgba(240,101,72,0.06);border:1px solid rgba(240,101,72,0.2);">
                         <div class="fw-bold text-red">${fmtV(totalSellVal)}</div>
                         <div class="small text-secondary">Insider Selling (${iSells.length} txn)</div>
                     </div></div>
@@ -3191,7 +3146,7 @@
 
         /* ─── SHAREHOLDING VERDICT (Textual Analysis) ─── */
         if(f.shareholding_verdict) {
-            html += `<div class="alert mb-3" style="background:rgba(210,153,34,0.06);border:1px solid rgba(210,153,34,0.2);border-radius:10px;">
+            html += `<div class="alert mb-3" style="background:rgba(247,184,75,0.06);border:1px solid rgba(247,184,75,0.2);border-radius:10px;">
                 <h6 class="mb-1"><i class="bi bi-clipboard-data me-1 text-yellow"></i> Shareholding Analysis</h6>
                 <p class="mb-0 small">${f.shareholding_verdict}</p>
             </div>`; }
@@ -3219,7 +3174,7 @@
         html += `<h5 class="mb-3"><i class="bi bi-cash-coin me-2 text-green"></i> Dividends</h5>`;
 
         if(f.dividend_summary) {
-            html += `<div class="alert mb-3" style="background:rgba(63,185,80,0.06);border:1px solid rgba(63,185,80,0.2);border-radius:10px;">
+            html += `<div class="alert mb-3" style="background:rgba(10,179,156,0.06);border:1px solid rgba(10,179,156,0.2);border-radius:10px;">
                 <p class="mb-0 small">${f.dividend_summary}</p>
             </div>`; }
 
@@ -3266,7 +3221,7 @@
         if(f.quarterly_analysis) {
             html += `<hr class="my-4 border-secondary">`;
             html += `<h5 class="mb-3"><i class="bi bi-journal-text me-2 text-yellow"></i> Quarterly Results Analysis</h5>`;
-            html += `<div class="alert" style="background:rgba(210,153,34,0.06);border:1px solid rgba(210,153,34,0.2);border-radius:10px;">
+            html += `<div class="alert" style="background:rgba(247,184,75,0.06);border:1px solid rgba(247,184,75,0.2);border-radius:10px;">
                 <p class="mb-0 small">${f.quarterly_analysis}</p>
             </div>`; }
 
@@ -3281,7 +3236,7 @@
                     type: 'doughnut',
                     data: {
                         labels: ['Promoter','Institutional (FII+DII)','Public'],
-                        datasets: [{ data: [prom, inst, pub], backgroundColor: ['#d29922','#58a6ff','#8b949e'], borderWidth: 0 }] },
+                        datasets: [{ data: [prom, inst, pub], backgroundColor: ['#f7b84b','#7c8aef','#8b949e'], borderWidth: 0 }] },
                     options: {
                         responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { position: 'bottom', labels: { color: '#8b949e', padding: 12 } } },
@@ -3297,8 +3252,8 @@
                         data: {
                             labels: rev.map(s => s.period),
                             datasets: [
-                                { label: 'Promoter', data: rev.map(s => s.promoter||0), backgroundColor: '#d29922', borderRadius: 2 },
-                                { label: 'Institutional', data: rev.map(s => s.fii||0), backgroundColor: '#58a6ff', borderRadius: 2 },
+                                { label: 'Promoter', data: rev.map(s => s.promoter||0), backgroundColor: '#f7b84b', borderRadius: 2 },
+                                { label: 'Institutional', data: rev.map(s => s.fii||0), backgroundColor: '#7c8aef', borderRadius: 2 },
                                 { label: 'Public', data: rev.map(s => s.public||0), backgroundColor: '#8b949e', borderRadius: 2 },
                             ] },
                         options: {
@@ -3318,7 +3273,7 @@
                         type: 'bar',
                         data: {
                             labels: revDiv.map(d => d.date),
-                            datasets: [{ label: 'Dividend (\u20b9)', data: revDiv.map(d => d.amount), backgroundColor: 'rgba(63,185,80,0.6)', borderRadius: 3 }] },
+                            datasets: [{ label: 'Dividend (\u20b9)', data: revDiv.map(d => d.amount), backgroundColor: 'rgba(10,179,156,0.6)', borderRadius: 3 }] },
                         options: {
                             responsive: true, maintainAspectRatio: false,
                             plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `\u20b9${ctx.parsed.y}` } } },
@@ -3336,8 +3291,8 @@
                         data: {
                             labels: revEd.map(e => e.date),
                             datasets: [
-                                { label: 'EPS Estimate', data: revEd.map(e => e.eps_estimate), backgroundColor: 'rgba(88,166,255,0.4)', borderRadius: 3 },
-                                { label: 'EPS Reported', data: revEd.map(e => e.eps_reported), backgroundColor: 'rgba(63,185,80,0.6)', borderRadius: 3 },
+                                { label: 'EPS Estimate', data: revEd.map(e => e.eps_estimate), backgroundColor: 'rgba(124,138,239,0.4)', borderRadius: 3 },
+                                { label: 'EPS Reported', data: revEd.map(e => e.eps_reported), backgroundColor: 'rgba(10,179,156,0.6)', borderRadius: 3 },
                             ] },
                         options: {
                             responsive: true, maintainAspectRatio: false,
@@ -3359,8 +3314,8 @@
                 const delivQtys = dHistData.map(d => d.delivery_qty);
 
                 // Color each bar by delivery quality
-                const barBg = delivPcts.map(p => p >= 50 ? 'rgba(63,185,80,0.65)' : p >= 35 ? 'rgba(210,153,34,0.55)' : 'rgba(248,81,73,0.50)');
-                const barBdr = delivPcts.map(p => p >= 50 ? '#3fb950' : p >= 35 ? '#d29922' : '#f85149');
+                const barBg = delivPcts.map(p => p >= 50 ? 'rgba(10,179,156,0.65)' : p >= 35 ? 'rgba(247,184,75,0.55)' : 'rgba(240,101,72,0.50)');
+                const barBdr = delivPcts.map(p => p >= 50 ? '#0ab39c' : p >= 35 ? '#f7b84b' : '#f06548');
 
                 // Average line data
                 const dhAvgVal = delivPcts.reduce((a,b)=>a+b,0)/delivPcts.length;
@@ -3385,7 +3340,7 @@
                                 label: `Average (${dhAvgVal.toFixed(1)}%)`,
                                 data: avgLine,
                                 type: 'line',
-                                borderColor: 'rgba(88,166,255,0.8)',
+                                borderColor: 'rgba(124,138,239,0.8)',
                                 borderDash: [6, 4],
                                 borderWidth: 2,
                                 pointRadius: 0,
@@ -3396,16 +3351,16 @@
                         interaction: { mode: 'index', intersect: false },
                         plugins: {
                             legend: {
-                                labels: { color: '#c9d1d9', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle',
+                                labels: { color: '#aab8c5', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle',
                                     generateLabels: function(chart) {
                                         return [
-                                            { text: 'Strong (≥50%)', fillStyle: 'rgba(63,185,80,0.65)', strokeStyle: '#3fb950', lineWidth: 1, pointStyle: 'rect', fontColor: '#c9d1d9' },
-                                            { text: 'Mixed (35-50%)', fillStyle: 'rgba(210,153,34,0.55)', strokeStyle: '#d29922', lineWidth: 1, pointStyle: 'rect', fontColor: '#c9d1d9' },
-                                            { text: 'Speculative (<35%)', fillStyle: 'rgba(248,81,73,0.50)', strokeStyle: '#f85149', lineWidth: 1, pointStyle: 'rect', fontColor: '#c9d1d9' },
-                                            { text: `Avg ${dhAvgVal.toFixed(1)}%`, fillStyle: 'transparent', strokeStyle: 'rgba(88,166,255,0.8)', lineWidth: 2, lineDash: [6,4], pointStyle: 'line', fontColor: '#8b949e' }
+                                            { text: 'Strong (≥50%)', fillStyle: 'rgba(10,179,156,0.65)', strokeStyle: '#0ab39c', lineWidth: 1, pointStyle: 'rect', fontColor: '#aab8c5' },
+                                            { text: 'Mixed (35-50%)', fillStyle: 'rgba(247,184,75,0.55)', strokeStyle: '#f7b84b', lineWidth: 1, pointStyle: 'rect', fontColor: '#aab8c5' },
+                                            { text: 'Speculative (<35%)', fillStyle: 'rgba(240,101,72,0.50)', strokeStyle: '#f06548', lineWidth: 1, pointStyle: 'rect', fontColor: '#aab8c5' },
+                                            { text: `Avg ${dhAvgVal.toFixed(1)}%`, fillStyle: 'transparent', strokeStyle: 'rgba(124,138,239,0.8)', lineWidth: 2, lineDash: [6,4], pointStyle: 'line', fontColor: '#8b949e' }
                                         ]; } } },
                             tooltip: {
-                                backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#c9d1d9',
+                                backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#aab8c5',
                                 callbacks: {
                                     title: (items) => dHistData[items[0].dataIndex]?.date || '',
                                     label: function(ctx) {
@@ -3417,8 +3372,8 @@
                         scales: {
                             x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 45 } },
                             y: {
-                                title: { display: true, text: 'Delivery %', color: '#58a6ff', font: { size: 11 } },
-                                grid: { color: 'rgba(88,166,255,0.06)' },
+                                title: { display: true, text: 'Delivery %', color: '#7c8aef', font: { size: 11 } },
+                                grid: { color: 'rgba(124,138,239,0.06)' },
                                 ticks: { color: '#8b949e', font: { size: 10 }, callback: v => v + '%', stepSize: 10 },
                                 min: 0, max: 100, } },
                         animation: { duration: 800, easing: 'easeOutQuart' } } });
@@ -3428,11 +3383,11 @@
                 if(pvCtx) {
                     // Color volume bars by price change direction
                     const volColors = prices.map((p, i) => {
-                        if(i === 0) return 'rgba(88,166,255,0.3)';
-                        return p >= prices[i-1] ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.30)'; });
+                        if(i === 0) return 'rgba(124,138,239,0.3)';
+                        return p >= prices[i-1] ? 'rgba(10,179,156,0.35)' : 'rgba(240,101,72,0.30)'; });
                     const volBorders = prices.map((p, i) => {
-                        if(i === 0) return 'rgba(88,166,255,0.6)';
-                        return p >= prices[i-1] ? 'rgba(63,185,80,0.7)' : 'rgba(248,81,73,0.6)'; });
+                        if(i === 0) return 'rgba(124,138,239,0.6)';
+                        return p >= prices[i-1] ? 'rgba(10,179,156,0.7)' : 'rgba(240,101,72,0.6)'; });
                     new Chart(pvCtx, {
                         type: 'bar',
                         data: {
@@ -3442,12 +3397,12 @@
                                     label: 'Close Price ₹',
                                     data: prices,
                                     type: 'line',
-                                    borderColor: '#d29922',
-                                    backgroundColor: 'rgba(210,153,34,0.08)',
+                                    borderColor: '#f7b84b',
+                                    backgroundColor: 'rgba(247,184,75,0.08)',
                                     fill: true,
                                     tension: 0.35,
                                     pointRadius: 4,
-                                    pointBackgroundColor: '#d29922',
+                                    pointBackgroundColor: '#f7b84b',
                                     pointBorderColor: '#161b22',
                                     pointBorderWidth: 1.5,
                                     pointHoverRadius: 6,
@@ -3470,9 +3425,9 @@
                             responsive: true, maintainAspectRatio: false,
                             interaction: { mode: 'index', intersect: false },
                             plugins: {
-                                legend: { labels: { color: '#c9d1d9', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
+                                legend: { labels: { color: '#aab8c5', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
                                 tooltip: {
-                                    backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#c9d1d9',
+                                    backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#aab8c5',
                                     callbacks: {
                                         title: (items) => dHistData[items[0].dataIndex]?.date || '',
                                         label: function(ctx) {
@@ -3482,14 +3437,14 @@
                                 x: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 45 } },
                                 yPrice: {
                                     type: 'linear', position: 'left',
-                                    title: { display: true, text: 'Close Price ₹', color: '#d29922', font: { size: 11 } },
-                                    grid: { color: 'rgba(210,153,34,0.06)' },
-                                    ticks: { color: '#d29922', font: { size: 10 }, callback: v => '\u20b9'+v }, },
+                                    title: { display: true, text: 'Close Price ₹', color: '#f7b84b', font: { size: 11 } },
+                                    grid: { color: 'rgba(247,184,75,0.06)' },
+                                    ticks: { color: '#f7b84b', font: { size: 10 }, callback: v => '\u20b9'+v }, },
                                 yVol: {
                                     type: 'linear', position: 'right',
-                                    title: { display: true, text: 'Volume', color: '#58a6ff', font: { size: 11 } },
+                                    title: { display: true, text: 'Volume', color: '#7c8aef', font: { size: 11 } },
                                     grid: { display: false },
-                                    ticks: { color: '#58a6ff', font: { size: 10 }, callback: v => v >= 1e7 ? (v/1e7).toFixed(1)+'Cr' : v >= 1e5 ? (v/1e5).toFixed(1)+'L' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v },
+                                    ticks: { color: '#7c8aef', font: { size: 10 }, callback: v => v >= 1e7 ? (v/1e7).toFixed(1)+'Cr' : v >= 1e5 ? (v/1e5).toFixed(1)+'L' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v },
                                     beginAtZero: true, } },
                             animation: { duration: 800, easing: 'easeOutQuart' } } }); } } }, 100); }
 
@@ -3514,7 +3469,7 @@
         const yoy = (curr, prev) => {
             if(curr == null || prev == null || prev === 0) return '';
             const chg = ((curr - prev) / Math.abs(prev) * 100);
-            const col = chg >= 0 ? '#3fb950' : '#f85149';
+            const col = chg >= 0 ? '#0ab39c' : '#f06548';
             const arrow = chg >= 0 ? '↑' : '↓';
             return ` <span style="color:${col};font-size:.75rem;">${arrow}${Math.abs(chg).toFixed(1)}%</span>`; };
 
@@ -3526,25 +3481,25 @@
         let html = '';
 
         // ══ WHAT ARE FINANCIAL STATEMENTS? (Layman intro)
-        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(88,166,255,0.04);border:1px solid rgba(88,166,255,0.12);">
-            <h6 class="mb-2" style="color:#58a6ff"><i class="bi bi-info-circle-fill me-1"></i> What are Annual Financial Statements?</h6>
+        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(124,138,239,0.04);border:1px solid rgba(124,138,239,0.12);">
+            <h6 class="mb-2" style="color:#7c8aef"><i class="bi bi-info-circle-fill me-1"></i> What are Annual Financial Statements?</h6>
             <p class="small mb-2" style="color:var(--bs-body-color)">Every year, companies publish 3 key financial reports that tell the complete story of their business health. Think of them like a full medical checkup — but for a company:</p>
             <div class="row g-2 small">
                 <div class="col-md-4">
-                    <div class="p-2 rounded" style="background:var(--bs-body-bg);border-left:3px solid #58a6ff">
-                        <strong style="color:#58a6ff"><i class="bi bi-receipt me-1"></i>Income Statement</strong>
+                    <div class="p-2 rounded" style="background:var(--bs-body-bg);border-left:3px solid #7c8aef">
+                        <strong style="color:#7c8aef"><i class="bi bi-receipt me-1"></i>Income Statement</strong>
                         <p class="mb-0 mt-1" style="color:#8b949e">The "report card" — how much did the company earn (revenue) and how much did it keep as profit? Like your salary vs. expenses.</p>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="p-2 rounded" style="background:var(--bs-body-bg);border-left:3px solid #d29922">
-                        <strong style="color:#d29922"><i class="bi bi-bank me-1"></i>Balance Sheet</strong>
+                    <div class="p-2 rounded" style="background:var(--bs-body-bg);border-left:3px solid #f7b84b">
+                        <strong style="color:#f7b84b"><i class="bi bi-bank me-1"></i>Balance Sheet</strong>
                         <p class="mb-0 mt-1" style="color:#8b949e">The "net worth statement" — what does the company own (assets) vs. what it owes (liabilities)? Like your house value minus your loans.</p>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="p-2 rounded" style="background:var(--bs-body-bg);border-left:3px solid #3fb950">
-                        <strong style="color:#3fb950"><i class="bi bi-cash-stack me-1"></i>Cash Flow</strong>
+                    <div class="p-2 rounded" style="background:var(--bs-body-bg);border-left:3px solid #0ab39c">
+                        <strong style="color:#0ab39c"><i class="bi bi-cash-stack me-1"></i>Cash Flow</strong>
                         <p class="mb-0 mt-1" style="color:#8b949e">The "bank statement" — actual cash coming in and going out. A profitable company can still fail if it runs out of cash!</p>
                     </div>
                 </div>
@@ -3554,14 +3509,14 @@
 
         // ── Analysis summary from backend
         if(f.financial_statements_analysis) {
-            html += `<div class="mb-3" style="background:rgba(63,185,80,0.04);border:1px solid rgba(63,185,80,0.12);border-radius:12px;padding:16px 18px;">
+            html += `<div class="mb-3" style="background:rgba(10,179,156,0.04);border:1px solid rgba(10,179,156,0.12);border-radius:12px;padding:16px 18px;">
                 <h6 class="mb-2" style="font-size:.95rem;"><i class="bi bi-robot me-1 text-success"></i> AI Financial Health Summary</h6>
                 <div class="small" style="color:var(--bs-body-color)">${f.financial_statements_analysis}</div>
             </div>`; }
 
         // ── Latest Year Snapshot
-        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(210,153,34,0.04);border:1px solid rgba(210,153,34,0.12);">
-            <h6 class="mb-2"><i class="bi bi-lightning-charge-fill me-1" style="color:#d29922"></i> Latest Year Snapshot: <strong style="color:#58a6ff">${latest.year.replace(/\s*\(.*\)/,'')}</strong></h6>
+        html += `<div class="mb-3 p-3 rounded-3" style="background:rgba(247,184,75,0.04);border:1px solid rgba(247,184,75,0.12);">
+            <h6 class="mb-2"><i class="bi bi-lightning-charge-fill me-1" style="color:#f7b84b"></i> Latest Year Snapshot: <strong style="color:#7c8aef">${latest.year.replace(/\s*\(.*\)/,'')}</strong></h6>
             <div class="row g-2">
                 <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Revenue</small>
@@ -3570,27 +3525,27 @@
                 </div></div>
                 <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Net Profit</small>
-                    <strong class="font-mono" style="color:${latest.net_income>=0?'#3fb950':'#f85149'}">${fmtCr(latest.net_income)}</strong>${prev?yoy(latest.net_income,prev.net_income):''}
+                    <strong class="font-mono" style="color:${latest.net_income>=0?'#0ab39c':'#f06548'}">${fmtCr(latest.net_income)}</strong>${prev?yoy(latest.net_income,prev.net_income):''}
                     <small class="d-block text-secondary mt-1">Bottom Line</small>
                 </div></div>
                 <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Net Margin</small>
-                    <strong class="font-mono" style="color:${latest.net_margin>=15?'#3fb950':latest.net_margin>=5?'#d29922':'#f85149'}">${fmtPct(latest.net_margin)}</strong>
+                    <strong class="font-mono" style="color:${latest.net_margin>=15?'#0ab39c':latest.net_margin>=5?'#f7b84b':'#f06548'}">${fmtPct(latest.net_margin)}</strong>
                     <small class="d-block text-secondary mt-1">Profit per ₹100</small>
                 </div></div>
                 <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">ROE</small>
-                    <strong class="font-mono" style="color:${latest.roe>=15?'#3fb950':latest.roe>=10?'#d29922':'#f85149'}">${fmtPct(latest.roe)}</strong>
+                    <strong class="font-mono" style="color:${latest.roe>=15?'#0ab39c':latest.roe>=10?'#f7b84b':'#f06548'}">${fmtPct(latest.roe)}</strong>
                     <small class="d-block text-secondary mt-1">Return on Equity</small>
                 </div></div>
                 <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">D/E Ratio</small>
-                    <strong class="font-mono" style="color:${latest.debt_to_equity!=null&&latest.debt_to_equity<=1?'#3fb950':'#f85149'}">${fmtNum(latest.debt_to_equity,2)}</strong>
+                    <strong class="font-mono" style="color:${latest.debt_to_equity!=null&&latest.debt_to_equity<=1?'#0ab39c':'#f06548'}">${fmtNum(latest.debt_to_equity,2)}</strong>
                     <small class="d-block text-secondary mt-1">Debt vs Equity</small>
                 </div></div>
                 <div class="col-6 col-md-2"><div class="p-2 rounded text-center" style="background:var(--bs-body-bg)">
                     <small class="text-secondary d-block">Free Cash Flow</small>
-                    <strong class="font-mono" style="color:${latest.free_cashflow>=0?'#3fb950':'#f85149'}">${fmtCr(latest.free_cashflow)}</strong>
+                    <strong class="font-mono" style="color:${latest.free_cashflow>=0?'#0ab39c':'#f06548'}">${fmtCr(latest.free_cashflow)}</strong>
                     <small class="d-block text-secondary mt-1">Available Cash</small>
                 </div></div>
             </div>
@@ -3613,7 +3568,7 @@
         // ════════════════════════════════════════════════════════
         // ── 1. INCOME STATEMENT TABLE
         // ════════════════════════════════════════════════════════
-        html += `<div class="mb-2 p-2 rounded" style="background:rgba(88,166,255,0.04);border-left:3px solid #58a6ff">
+        html += `<div class="mb-2 p-2 rounded" style="background:rgba(124,138,239,0.04);border-left:3px solid #7c8aef">
             <h6 class="mb-1"><i class="bi bi-receipt me-1 text-info"></i> Income Statement <small class="text-secondary">(Annual Profit & Loss)</small></h6>
             <p class="small mb-0" style="color:#8b949e">Shows how the company earns money and what it spends. Start from Revenue (total sales) at the top, subtract costs step by step, and arrive at Net Income (final profit) at the bottom. Each deduction tells you where the money went.</p>
         </div>`;
@@ -3638,14 +3593,14 @@
         ];
         incRows.forEach(([label, key, fmt, desc]) => {
             const isKey = ['Total Revenue','Gross Profit','Operating Income','Net Income','Diluted EPS'].includes(label);
-            html += `<tr${isKey?' style="background:rgba(88,166,255,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681;max-width:160px">${desc}</td>`;
+            html += `<tr${isKey?' style="background:rgba(124,138,239,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681;max-width:160px">${desc}</td>`;
             fins.forEach((a, i) => {
                 const v = a[key];
                 const p = i < fins.length - 1 ? fins[i+1][key] : null;
                 html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`; });
             html += `</tr>`; });
         // Margin rows (highlighted)
-        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td class="fw-semibold" colspan="${2+fins.length}" style="color:#58a6ff;font-size:.75rem;padding-top:8px"><i class="bi bi-percent me-1"></i> PROFITABILITY MARGINS (higher = more profitable)</td></tr>`;
+        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td class="fw-semibold" colspan="${2+fins.length}" style="color:#7c8aef;font-size:.75rem;padding-top:8px"><i class="bi bi-percent me-1"></i> PROFITABILITY MARGINS (higher = more profitable)</td></tr>`;
         [
             ['Gross Margin', 'gross_margin', 'How much of each ₹100 revenue is kept after direct costs'],
             ['Operating Margin', 'operating_margin', 'How much is kept after ALL operating costs'],
@@ -3654,7 +3609,7 @@
             html += `<tr><td class="fw-semibold">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach(a => {
                 const v = a[key];
-                const col = v!=null ? (v>=20?'#3fb950':v>=10?'#d29922':'#f85149') : '#8b949e';
+                const col = v!=null ? (v>=20?'#0ab39c':v>=10?'#f7b84b':'#f06548') : '#8b949e';
                 html += `<td class="text-end"><span style="color:${col}">${fmtPct(v)}</span></td>`; });
             html += `</tr>`; });
         html += `</tbody></table></div>`;
@@ -3662,8 +3617,8 @@
         // ════════════════════════════════════════════════════════
         // ── 2. BALANCE SHEET TABLE
         // ════════════════════════════════════════════════════════
-        html += `<div class="mb-2 p-2 rounded" style="background:rgba(210,153,34,0.04);border-left:3px solid #d29922">
-            <h6 class="mb-1"><i class="bi bi-bank me-1" style="color:#d29922"></i> Balance Sheet <small class="text-secondary">(What the Company Owns vs. Owes)</small></h6>
+        html += `<div class="mb-2 p-2 rounded" style="background:rgba(247,184,75,0.04);border-left:3px solid #f7b84b">
+            <h6 class="mb-1"><i class="bi bi-bank me-1" style="color:#f7b84b"></i> Balance Sheet <small class="text-secondary">(What the Company Owns vs. Owes)</small></h6>
             <p class="small mb-0" style="color:#8b949e">A snapshot of the company's financial position on the last day of the fiscal year. <strong>Assets</strong> = what the company owns (cash, property, inventory). <strong>Liabilities</strong> = what it owes (loans, payables). <strong>Equity</strong> = what's left for shareholders (Assets − Liabilities). Like your personal net worth: house value − mortgage = your equity.</p>
         </div>`;
         html += `<div class="table-responsive mb-3"><table class="table table-sm table-dark table-striped mb-0" style="font-size:.8rem;">`;
@@ -3672,7 +3627,7 @@
         html += `</tr></thead><tbody>`;
 
         // Assets section
-        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#3fb950;padding-top:8px"><i class="bi bi-box-seam me-1"></i> ASSETS (What the company OWNS)</td></tr>`;
+        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#0ab39c;padding-top:8px"><i class="bi bi-box-seam me-1"></i> ASSETS (What the company OWNS)</td></tr>`;
         const assetRows = [
             ['Total Assets', 'total_assets', fmtCr, 'Everything the company owns — total value of all resources'],
             ['Current Assets', 'total_current_assets', fmtCr, 'Can be turned into cash within 1 year (cash, inventory, receivables)'],
@@ -3684,14 +3639,14 @@
         ];
         assetRows.forEach(([label, key, fmt, desc]) => {
             const isKey = label === 'Total Assets';
-            html += `<tr${isKey?' style="background:rgba(63,185,80,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
+            html += `<tr${isKey?' style="background:rgba(10,179,156,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach((a, i) => {
                 const v = a[key]; const p = i < fins.length - 1 ? fins[i+1][key] : null;
                 html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`; });
             html += `</tr>`; });
 
         // Liabilities section
-        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#f85149;padding-top:8px"><i class="bi bi-exclamation-triangle me-1"></i> LIABILITIES (What the company OWES)</td></tr>`;
+        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#f06548;padding-top:8px"><i class="bi bi-exclamation-triangle me-1"></i> LIABILITIES (What the company OWES)</td></tr>`;
         const liabRows = [
             ['Total Liabilities', 'total_liabilities', fmtCr, 'Total money owed to others — loans, bills, obligations'],
             ['Current Liabilities', 'total_current_liab', fmtCr, 'Bills due within 1 year (short-term debts)'],
@@ -3700,14 +3655,14 @@
         ];
         liabRows.forEach(([label, key, fmt, desc]) => {
             const isKey = label === 'Total Liabilities';
-            html += `<tr${isKey?' style="background:rgba(248,81,73,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
+            html += `<tr${isKey?' style="background:rgba(240,101,72,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach((a, i) => {
                 const v = a[key]; const p = i < fins.length - 1 ? fins[i+1][key] : null;
                 html += `<td class="text-end">${fmt(v)}${yoy(v, p)}</td>`; });
             html += `</tr>`; });
 
         // Equity & Ratios section
-        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#58a6ff;padding-top:8px"><i class="bi bi-shield-check me-1"></i> EQUITY & KEY RATIOS</td></tr>`;
+        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#7c8aef;padding-top:8px"><i class="bi bi-shield-check me-1"></i> EQUITY & KEY RATIOS</td></tr>`;
         const equityRows = [
             ['Stockholders\' Equity', 'stockholders_equity', fmtCr, 'Assets − Liabilities = what truly belongs to shareholders'],
             ['Retained Earnings', 'retained_earnings', fmtCr, 'Accumulated profits kept in the company (not paid as dividends)'],
@@ -3723,11 +3678,11 @@
         [
             ['D/E Ratio', 'debt_to_equity', v => {
                 if(v==null) return '<span class="text-secondary">—</span>';
-                const col = v<=0.5?'#3fb950':v<=1?'#d29922':'#f85149';
+                const col = v<=0.5?'#0ab39c':v<=1?'#f7b84b':'#f06548';
                 return `<span style="color:${col}">${v.toFixed(2)}</span>`; }, 'Total Debt ÷ Equity. Below 1 = company owns more than it owes (safe)'],
             ['Current Ratio', 'current_ratio', v => {
                 if(v==null) return '<span class="text-secondary">—</span>';
-                const col = v>=1.5?'#3fb950':v>=1?'#d29922':'#f85149';
+                const col = v>=1.5?'#0ab39c':v>=1?'#f7b84b':'#f06548';
                 return `<span style="color:${col}">${v.toFixed(2)}</span>`; }, 'Current Assets ÷ Current Liabilities. Above 1.5 = can easily pay short-term bills'],
         ].forEach(([label, key, fmt, desc]) => {
             html += `<tr><td class="fw-semibold">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
@@ -3738,9 +3693,9 @@
         // ════════════════════════════════════════════════════════
         // ── 3. CASH FLOW STATEMENT TABLE
         // ════════════════════════════════════════════════════════
-        html += `<div class="mb-2 p-2 rounded" style="background:rgba(63,185,80,0.04);border-left:3px solid #3fb950">
+        html += `<div class="mb-2 p-2 rounded" style="background:rgba(10,179,156,0.04);border-left:3px solid #0ab39c">
             <h6 class="mb-1"><i class="bi bi-cash-stack me-1 text-success"></i> Cash Flow Statement <small class="text-secondary">(Where the Money Actually Went)</small></h6>
-            <p class="small mb-0" style="color:#8b949e">The most important statement! A company can show "profit" on paper but still run out of cash. This tracks actual money movement: <strong style="color:#3fb950">Operating</strong> = cash from daily business, <strong style="color:#d29922">Investing</strong> = buying/selling assets, <strong style="color:#f85149">Financing</strong> = borrowing/repaying loans & dividends. Positive Operating Cash Flow is essential for survival.</p>
+            <p class="small mb-0" style="color:#8b949e">The most important statement! A company can show "profit" on paper but still run out of cash. This tracks actual money movement: <strong style="color:#0ab39c">Operating</strong> = cash from daily business, <strong style="color:#f7b84b">Investing</strong> = buying/selling assets, <strong style="color:#f06548">Financing</strong> = borrowing/repaying loans & dividends. Positive Operating Cash Flow is essential for survival.</p>
         </div>`;
         html += `<div class="table-responsive mb-3"><table class="table table-sm table-dark table-striped mb-0" style="font-size:.8rem;">`;
         html += `<thead><tr><th style="min-width:180px">Metric</th><th style="min-width:140px;color:#8b949e" class="small">What It Means</th>`;
@@ -3749,11 +3704,11 @@
 
         const fmtCF = (v) => {
             if(v == null) return '<span class="text-secondary">—</span>';
-            const col = v >= 0 ? '#3fb950' : '#f85149';
+            const col = v >= 0 ? '#0ab39c' : '#f06548';
             return `<span style="color:${col}">${fmtCr(v)}</span>`; };
         const fmtCFAbs = (v) => {
             if(v == null) return '<span class="text-secondary">—</span>';
-            const col = v <= 0 ? '#d29922' : '#3fb950';
+            const col = v <= 0 ? '#f7b84b' : '#0ab39c';
             return `<span style="color:${col}">${fmtCr(v)}</span>`; };
 
         const cfRows = [
@@ -3769,21 +3724,21 @@
         ];
         cfRows.forEach(([label, key, fmt, showYoY, desc]) => {
             const isKey = ['Operating Cash Flow','Free Cash Flow'].includes(label);
-            html += `<tr${isKey?' style="background:rgba(63,185,80,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
+            html += `<tr${isKey?' style="background:rgba(10,179,156,0.04)"':''}><td class="${isKey?'fw-bold':'fw-semibold'}">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
             fins.forEach((a, i) => {
                 const v = a[key]; const p = (showYoY && i < fins.length - 1) ? fins[i+1][key] : null;
                 html += `<td class="text-end">${fmt(v)}${showYoY ? yoy(v, p) : ''}</td>`; });
             html += `</tr>`; });
         // FCF Margin & Interest Coverage
-        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#3fb950;padding-top:8px"><i class="bi bi-shield-check me-1"></i> CASH FLOW HEALTH RATIOS</td></tr>`;
+        html += `<tr style="border-top:2px solid var(--bs-border-color)"><td colspan="${2+fins.length}" class="fw-bold small" style="color:#0ab39c;padding-top:8px"><i class="bi bi-shield-check me-1"></i> CASH FLOW HEALTH RATIOS</td></tr>`;
         [
             ['FCF Margin', 'fcf_margin', v => {
                 if(v==null) return '<span class="text-secondary">—</span>';
-                const col = v>=10?'#3fb950':v>=0?'#d29922':'#f85149';
+                const col = v>=10?'#0ab39c':v>=0?'#f7b84b':'#f06548';
                 return `<span style="color:${col}">${v.toFixed(1)}%</span>`; }, 'Free Cash Flow ÷ Revenue. Above 10% = excellent cash generation'],
             ['Interest Coverage', 'interest_coverage', v => {
                 if(v==null) return '<span class="text-secondary">—</span>';
-                const col = v>=3?'#3fb950':v>=1.5?'#d29922':'#f85149';
+                const col = v>=3?'#0ab39c':v>=1.5?'#f7b84b':'#f06548';
                 return `<span style="color:${col}">${v.toFixed(1)}x</span>`; }, 'EBIT ÷ Interest. Above 3x = easily covers interest payments (safe)'],
         ].forEach(([label, key, fmt, desc]) => {
             html += `<tr><td class="fw-semibold">${label}</td><td class="small" style="color:#6e7681">${desc}</td>`;
@@ -3792,11 +3747,11 @@
         html += `</tbody></table></div>`;
 
         // ── How to Read Financial Statements (Layman Guide)
-        html += `<div class="p-3 rounded-3 mb-3" style="background:rgba(188,140,255,0.04);border:1px solid rgba(188,140,255,0.12);">
-            <h6 class="mb-2"><i class="bi bi-book me-1" style="color:#bc8cff"></i> Quick Guide: What to Look For</h6>
+        html += `<div class="p-3 rounded-3 mb-3" style="background:rgba(192,132,252,0.04);border:1px solid rgba(192,132,252,0.12);">
+            <h6 class="mb-2"><i class="bi bi-book me-1" style="color:#c084fc"></i> Quick Guide: What to Look For</h6>
             <div class="row g-3 small" style="color:var(--bs-body-color)">
                 <div class="col-md-4">
-                    <p class="mb-1"><strong style="color:#3fb950">✅ Good Signs</strong></p>
+                    <p class="mb-1"><strong style="color:#0ab39c">✅ Good Signs</strong></p>
                     <ul class="mb-0" style="padding-left:1.2rem;color:#8b949e">
                         <li>Revenue growing steadily year after year</li>
                         <li>Net Margin stable or improving (not shrinking)</li>
@@ -3807,7 +3762,7 @@
                     </ul>
                 </div>
                 <div class="col-md-4">
-                    <p class="mb-1"><strong style="color:#f85149">⚠️ Warning Signs</strong></p>
+                    <p class="mb-1"><strong style="color:#f06548">⚠️ Warning Signs</strong></p>
                     <ul class="mb-0" style="padding-left:1.2rem;color:#8b949e">
                         <li>Revenue growing but Net Profit declining (cost problem)</li>
                         <li>Negative Free Cash Flow (burning cash)</li>
@@ -3818,7 +3773,7 @@
                     </ul>
                 </div>
                 <div class="col-md-4">
-                    <p class="mb-1"><strong style="color:#58a6ff">💡 Pro Tips</strong></p>
+                    <p class="mb-1"><strong style="color:#7c8aef">💡 Pro Tips</strong></p>
                     <ul class="mb-0" style="padding-left:1.2rem;color:#8b949e">
                         <li>Look at <strong>trends</strong>, not just single years</li>
                         <li>Compare margins to industry peers</li>
@@ -3847,8 +3802,8 @@
             if(revCtx) {
                 new Chart(revCtx, { type: 'bar',
                     data: { labels: years, datasets: [
-                        { label: 'Revenue', data: rev.map(a => a.total_revenue), backgroundColor: 'rgba(88,166,255,0.5)', borderColor: '#58a6ff', borderWidth: 1, borderRadius: 4 },
-                        { label: 'Net Income', data: rev.map(a => a.net_income), backgroundColor: 'rgba(63,185,80,0.5)', borderColor: '#3fb950', borderWidth: 1, borderRadius: 4 },
+                        { label: 'Revenue', data: rev.map(a => a.total_revenue), backgroundColor: 'rgba(124,138,239,0.5)', borderColor: '#7c8aef', borderWidth: 1, borderRadius: 4 },
+                        { label: 'Net Income', data: rev.map(a => a.net_income), backgroundColor: 'rgba(10,179,156,0.5)', borderColor: '#0ab39c', borderWidth: 1, borderRadius: 4 },
                     ]},
                     options: { ...chartOpts, plugins: { ...chartOpts.plugins, title: { display: true, text: 'Revenue & Net Income (Annual)', color: '#e6edf3', font: { size: 12 } } } } }); }
 
@@ -3857,10 +3812,10 @@
             if(margCtx) {
                 new Chart(margCtx, { type: 'line',
                     data: { labels: years, datasets: [
-                        { label: 'Gross %', data: rev.map(a => a.gross_margin), borderColor: '#58a6ff', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2.5, pointBackgroundColor: '#58a6ff' },
-                        { label: 'Operating %', data: rev.map(a => a.operating_margin), borderColor: '#d29922', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#d29922' },
-                        { label: 'Net %', data: rev.map(a => a.net_margin), borderColor: '#3fb950', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#3fb950' },
-                        { label: 'FCF %', data: rev.map(a => a.fcf_margin), borderColor: '#bc8cff', borderDash: [5,3], fill: false, tension: 0.3, pointRadius: 4, borderWidth: 1.5, pointBackgroundColor: '#bc8cff' },
+                        { label: 'Gross %', data: rev.map(a => a.gross_margin), borderColor: '#7c8aef', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2.5, pointBackgroundColor: '#7c8aef' },
+                        { label: 'Operating %', data: rev.map(a => a.operating_margin), borderColor: '#f7b84b', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#f7b84b' },
+                        { label: 'Net %', data: rev.map(a => a.net_margin), borderColor: '#0ab39c', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#0ab39c' },
+                        { label: 'FCF %', data: rev.map(a => a.fcf_margin), borderColor: '#c084fc', borderDash: [5,3], fill: false, tension: 0.3, pointRadius: 4, borderWidth: 1.5, pointBackgroundColor: '#c084fc' },
                     ]},
                     options: { responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true } }, title: { display: true, text: 'Profit Margins Trend', color: '#e6edf3', font: { size: 12 } } },
@@ -3871,9 +3826,9 @@
             if(cfCtx) {
                 new Chart(cfCtx, { type: 'bar',
                     data: { labels: years, datasets: [
-                        { label: 'OCF', data: rev.map(a => a.operating_cashflow), backgroundColor: 'rgba(63,185,80,0.5)', borderColor: '#3fb950', borderWidth: 1, borderRadius: 4 },
-                        { label: 'FCF', data: rev.map(a => a.free_cashflow), backgroundColor: 'rgba(88,166,255,0.5)', borderColor: '#58a6ff', borderWidth: 1, borderRadius: 4 },
-                        { label: 'Capex', data: rev.map(a => a.capex != null ? Math.abs(a.capex) : null), backgroundColor: 'rgba(248,81,73,0.4)', borderColor: '#f85149', borderWidth: 1, borderRadius: 4 },
+                        { label: 'OCF', data: rev.map(a => a.operating_cashflow), backgroundColor: 'rgba(10,179,156,0.5)', borderColor: '#0ab39c', borderWidth: 1, borderRadius: 4 },
+                        { label: 'FCF', data: rev.map(a => a.free_cashflow), backgroundColor: 'rgba(124,138,239,0.5)', borderColor: '#7c8aef', borderWidth: 1, borderRadius: 4 },
+                        { label: 'Capex', data: rev.map(a => a.capex != null ? Math.abs(a.capex) : null), backgroundColor: 'rgba(240,101,72,0.4)', borderColor: '#f06548', borderWidth: 1, borderRadius: 4 },
                     ]},
                     options: { ...chartOpts, plugins: { ...chartOpts.plugins, title: { display: true, text: 'Cash Flow Breakdown', color: '#e6edf3', font: { size: 12 } } } } }); }
 
@@ -3882,8 +3837,8 @@
             if(retCtx) {
                 new Chart(retCtx, { type: 'line',
                     data: { labels: years, datasets: [
-                        { label: 'ROE %', data: rev.map(a => a.roe), borderColor: '#58a6ff', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2.5, pointBackgroundColor: '#58a6ff' },
-                        { label: 'ROA %', data: rev.map(a => a.roa), borderColor: '#d29922', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#d29922' },
+                        { label: 'ROE %', data: rev.map(a => a.roe), borderColor: '#7c8aef', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2.5, pointBackgroundColor: '#7c8aef' },
+                        { label: 'ROA %', data: rev.map(a => a.roa), borderColor: '#f7b84b', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#f7b84b' },
                     ]},
                     options: { responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true } }, title: { display: true, text: 'Return Ratios (ROE & ROA)', color: '#e6edf3', font: { size: 12 } } },
@@ -3894,21 +3849,21 @@
             if(levCtx) {
                 new Chart(levCtx, { type: 'bar',
                     data: { labels: years, datasets: [
-                        { label: 'D/E', data: rev.map(a => a.debt_to_equity), backgroundColor: 'rgba(248,81,73,0.4)', borderColor: '#f85149', borderWidth: 1, borderRadius: 4, yAxisID: 'yDE' },
-                        { label: 'Current Ratio', data: rev.map(a => a.current_ratio), type: 'line', borderColor: '#3fb950', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#3fb950', yAxisID: 'yCR' },
+                        { label: 'D/E', data: rev.map(a => a.debt_to_equity), backgroundColor: 'rgba(240,101,72,0.4)', borderColor: '#f06548', borderWidth: 1, borderRadius: 4, yAxisID: 'yDE' },
+                        { label: 'Current Ratio', data: rev.map(a => a.current_ratio), type: 'line', borderColor: '#0ab39c', fill: false, tension: 0.3, pointRadius: 5, borderWidth: 2, pointBackgroundColor: '#0ab39c', yAxisID: 'yCR' },
                     ]},
                     options: { responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true } }, title: { display: true, text: 'Leverage & Liquidity', color: '#e6edf3', font: { size: 12 } } },
                         scales: {
                             x: { grid: { display: false }, ticks: chartFont },
-                            yDE: { type: 'linear', position: 'left', title: { display: true, text: 'D/E', color: '#f85149', font: { size: 10 } }, grid: { color: '#21262d' }, ticks: { color: '#f85149', font: { size: 9 } }, beginAtZero: true },
-                            yCR: { type: 'linear', position: 'right', title: { display: true, text: 'Current Ratio', color: '#3fb950', font: { size: 10 } }, grid: { display: false }, ticks: { color: '#3fb950', font: { size: 9 } }, beginAtZero: true }, } } }); }
+                            yDE: { type: 'linear', position: 'left', title: { display: true, text: 'D/E', color: '#f06548', font: { size: 10 } }, grid: { color: '#21262d' }, ticks: { color: '#f06548', font: { size: 9 } }, beginAtZero: true },
+                            yCR: { type: 'linear', position: 'right', title: { display: true, text: 'Current Ratio', color: '#0ab39c', font: { size: 10 } }, grid: { display: false }, ticks: { color: '#0ab39c', font: { size: 9 } }, beginAtZero: true }, } } }); }
 
             // 6. EPS bar chart
             const epsCtx = document.getElementById('finEPSChart');
             if(epsCtx) {
                 const epsData = rev.map(a => a.diluted_eps);
-                const epsColors = epsData.map(v => v != null && v >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.4)');
+                const epsColors = epsData.map(v => v != null && v >= 0 ? 'rgba(10,179,156,0.5)' : 'rgba(240,101,72,0.4)');
                 new Chart(epsCtx, { type: 'bar',
                     data: { labels: years, datasets: [{ label: 'Diluted EPS ₹', data: epsData, backgroundColor: epsColors, borderRadius: 4 }] },
                     options: { responsive: true, maintainAspectRatio: false,
@@ -3923,8 +3878,8 @@
         const scoreColor = sc>=65?'var(--g)':sc>=40?'var(--y)':'var(--r)';
 
         // Big verdict badge
-        let badgeBg = sig==='BUY'?'rgba(63,185,80,0.12)':sig==='HOLD'?'rgba(210,153,34,0.12)':'rgba(248,81,73,0.12)';
-        let badgeBorder = sig==='BUY'?'rgba(63,185,80,0.4)':sig==='HOLD'?'rgba(210,153,34,0.4)':'rgba(248,81,73,0.4)';
+        let badgeBg = sig==='BUY'?'rgba(10,179,156,0.12)':sig==='HOLD'?'rgba(247,184,75,0.12)':'rgba(240,101,72,0.12)';
+        let badgeBorder = sig==='BUY'?'rgba(10,179,156,0.4)':sig==='HOLD'?'rgba(247,184,75,0.4)':'rgba(240,101,72,0.4)';
         let badgeIcon = sig==='BUY'?'bi-arrow-up-circle-fill':sig==='HOLD'?'bi-pause-circle-fill':'bi-exclamation-triangle-fill';
 
         el.innerHTML = `
@@ -3956,7 +3911,7 @@
                     .replace(/─/g,'<span class="text-secondary">─</span>')
                     .replace(/\n/g,'<br>')}</div>
             </div>
-            <div class="alert" style="background:rgba(88,166,255,0.05);border:1px solid rgba(88,166,255,0.15);border-radius:10px;">
+            <div class="alert" style="background:rgba(124,138,239,0.05);border:1px solid rgba(124,138,239,0.15);border-radius:10px;">
                 <small><i class="bi bi-info-circle text-blue"></i> <strong>How to read the verdict:</strong><br>
                 <span class="text-green fw-bold">🟢 BUY</span> — Strong fundamentals. Good for long-term investment. Use Bollinger Bands for timing entry.<br>
                 <span class="text-yellow fw-bold">🟡 HOLD</span> — Mixed fundamentals. Hold if owned, wait for better entry if not. Let technical signals guide timing.<br>
@@ -3979,8 +3934,154 @@
             .catch(() => {
                 btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Failed';
                 setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Refresh Live Data'; }, 3000); }); }
+    /* ═══════════════════════════════════════════════════════════════
+       PRO FEATURE RENDER FUNCTIONS — Weekly, Sector RS, Earnings
+       ═══════════════════════════════════════════════════════════════ */
+
+    function _proCardColors(verdict) {
+        const map = {
+            green:  { border: '#198754', bg: 'rgba(25,135,84,.08)',  badge: 'bg-success' },
+            amber:  { border: '#ffc107', bg: 'rgba(255,193,7,.08)', badge: 'bg-warning text-dark' },
+            red:    { border: '#dc3545', bg: 'rgba(220,53,69,.08)', badge: 'bg-danger' },
+            blue:   { border: '#0d6efd', bg: 'rgba(13,110,253,.08)', badge: 'bg-primary' },
+        };
+        return map[verdict] || map.blue;
+    }
+
+    function renderWeeklyCard(w) {
+        if (!w || !w.available) return;
+        const card = document.getElementById('weeklyCard');
+        const badge = document.getElementById('weeklyBadge');
+        const body = document.getElementById('weeklyBody');
+        card.style.display = 'block';
+
+        const colorKey = w.verdict === 'CONFIRMS' ? 'green' : w.verdict === 'CONTRADICTS' ? 'red' : w.verdict === 'WEAK' ? 'amber' : 'blue';
+        const c = _proCardColors(colorKey);
+        card.style.borderLeft = `4px solid ${c.border}`;
+        badge.className = `badge rounded-pill ${c.badge}`;
+        badge.textContent = w.verdict;
+
+        const pctB = (w.weekly_pct_b * 100).toFixed(0);
+        const gaugePos = Math.max(0, Math.min(100, pctB));
+
+        body.innerHTML = `
+            <div class="row g-3 mb-3">
+                <div class="col-md-3 text-center">
+                    <div class="small text-secondary">Weekly Trend</div>
+                    <div class="fs-5 fw-bold" style="color:${c.border}">${w.weekly_trend}</div>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="small text-secondary">Weekly %b</div>
+                    <div class="fs-5 fw-bold">${pctB}%</div>
+                    <div style="background:linear-gradient(90deg,#dc3545 0%,#ffc107 35%,#198754 65%,#198754 100%);height:6px;border-radius:3px;position:relative;margin-top:4px">
+                        <div style="position:absolute;top:-3px;left:${gaugePos}%;width:12px;height:12px;background:#fff;border:2px solid ${c.border};border-radius:50%;transform:translateX(-50%)"></div>
+                    </div>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="small text-secondary">Weekly SMA20</div>
+                    <div class="fs-6 font-mono">₹${w.weekly_sma20}</div>
+                    <div class="small ${w.weekly_above_sma ? 'text-success' : 'text-danger'}">${w.weekly_above_sma ? '▲ Above' : '▼ Below'}</div>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="small text-secondary">Confidence Adj</div>
+                    <div class="fs-5 fw-bold ${w.confidence_adjustment > 0 ? 'text-success' : w.confidence_adjustment < 0 ? 'text-danger' : ''}">${w.confidence_adjustment > 0 ? '+' : ''}${w.confidence_adjustment}%</div>
+                </div>
+            </div>
+            <div style="background:rgba(255,255,255,.03);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;line-height:1.6;color:#8b949e;border:1px dashed rgba(255,255,255,.08)">
+                <strong style="color:var(--bs-body-color)">What is this section?</strong> This checks whether the <em>bigger picture</em> (weekly chart) agrees with the daily signal shown above. The daily chart tells you what's happening <em>this week</em> — the weekly chart tells you the trend over the <em>past 5 months</em> (20 weeks). When both say the same thing, your trade has a much higher chance of success. When they disagree, the weekly trend usually wins. In the Top 5 Picks scan, stocks where the weekly trend contradicts the daily signal are automatically removed.
+            </div>
+            ${w.weekly_bbw_squeezing ? '<div class="alert alert-warning py-2 mb-3" style="font-size:.85rem"><i class="bi bi-activity me-1"></i><strong>Weekly Squeeze Detected</strong> — Bollinger Bands are contracting on the weekly chart. Think of this as a spring being compressed — a major price move may be building. When the bands expand, the breakout tends to be powerful.</div>' : ''}
+            <div style="background:${c.bg};border-radius:8px;padding:1rem;font-size:.88rem;line-height:1.65;color:var(--bs-body-color);white-space:pre-line">${w.explanation}</div>
+        `;
+    }
+
+    function renderSectorRsCard(sr) {
+        if (!sr || !sr.available) return;
+        const card = document.getElementById('sectorRsCard');
+        const badge = document.getElementById('sectorRsBadge');
+        const body = document.getElementById('sectorRsBody');
+        card.style.display = 'block';
+
+        const colorKey = sr.sector_trend === 'LEADING' ? 'green' : sr.sector_trend === 'LAGGING' ? 'red' : 'amber';
+        const c = _proCardColors(colorKey);
+        card.style.borderLeft = `4px solid ${c.border}`;
+        badge.className = `badge rounded-pill ${c.badge}`;
+        badge.textContent = `#${sr.sector_rank} of ${sr.total_sectors} — ${sr.sector_trend}`;
+
+        // Sector heatmap bar
+        let heatmap = '';
+        if (sr.all_sectors && sr.all_sectors.length) {
+            heatmap = '<div class="d-flex gap-1 mb-3 flex-wrap">';
+            sr.all_sectors.forEach(s => {
+                const isActive = s.name === sr.sector_index;
+                const barColor = s.return_20d > 2 ? '#198754' : s.return_20d > 0 ? '#20c997' : s.return_20d > -2 ? '#ffc107' : '#dc3545';
+                heatmap += `<div style="flex:1;min-width:60px;text-align:center;padding:6px 4px;border-radius:6px;background:${barColor}20;border:${isActive ? '2px solid '+barColor : '1px solid transparent'};font-size:.7rem">
+                    <div style="color:${barColor};font-weight:${isActive?700:400}">${s.name.replace('Nifty ','')}</div>
+                    <div class="fw-bold" style="color:${barColor}">${s.return_20d > 0 ? '+' : ''}${s.return_20d.toFixed(1)}%</div>
+                    <div style="color:var(--bs-secondary-color)">#${s.rank}</div>
+                </div>`;
+            });
+            heatmap += '</div>';
+        }
+
+        body.innerHTML = `
+            ${heatmap}
+            <div class="row g-3 mb-3">
+                <div class="col-md-3 text-center">
+                    <div class="small text-secondary">Sector</div>
+                    <div class="fw-bold">${sr.sector_index}</div>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="small text-secondary">Sector vs Nifty</div>
+                    <div class="fs-6 fw-bold ${sr.sector_rs_vs_nifty >= 1 ? 'text-success' : 'text-danger'}">${sr.sector_rs_vs_nifty.toFixed(2)}x</div>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="small text-secondary">Stock vs Sector</div>
+                    <div class="fs-6 fw-bold ${sr.stock_rs_vs_sector >= 1 ? 'text-success' : 'text-danger'}">${sr.stock_rs_vs_sector.toFixed(2)}x</div>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="small text-secondary">Sector 20d Return</div>
+                    <div class="fs-6 fw-bold ${sr.sector_return_20d >= 0 ? 'text-success' : 'text-danger'}">${sr.sector_return_20d >= 0 ? '+' : ''}${sr.sector_return_20d.toFixed(1)}%</div>
+                </div>
+            </div>
+            <div style="background:${c.bg};border-radius:8px;padding:1rem;font-size:.88rem;line-height:1.65;color:var(--bs-body-color)">${sr.explanation}</div>
+        `;
+    }
+
+    function renderEarningsCard(ew) {
+        if (!ew || !ew.warning) return;
+        const card = document.getElementById('earningsCard');
+        const badge = document.getElementById('earningsBadge');
+        const body = document.getElementById('earningsBody');
+        card.style.display = 'block';
+
+        const colorKey = ew.risk_level === 'HIGH' ? 'red' : ew.risk_level === 'MEDIUM' ? 'amber' : 'blue';
+        const c = _proCardColors(colorKey);
+        card.style.borderLeft = `4px solid ${c.border}`;
+        badge.className = `badge rounded-pill ${c.badge}`;
+        badge.textContent = `${ew.risk_level} RISK — ${ew.days_to_earnings} trading days`;
+
+        body.innerHTML = `
+            <div class="row g-3 mb-3">
+                <div class="col-md-4 text-center">
+                    <div class="small text-secondary">Earnings Date</div>
+                    <div class="fs-6 fw-bold">${ew.earnings_date}</div>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="small text-secondary">Trading Days Away</div>
+                    <div class="fs-4 fw-bold" style="color:${c.border}">${ew.days_to_earnings}</div>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="small text-secondary">Confidence Adj</div>
+                    <div class="fs-5 fw-bold text-danger">${ew.confidence_adjustment}%</div>
+                </div>
+            </div>
+            <div style="background:${c.bg};border-radius:8px;padding:1rem;font-size:.88rem;line-height:1.65;color:var(--bs-body-color)">${ew.explanation}</div>
+        `;
+    }
+
     </script>
-<script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
 {% include "_theme_picker.html" %}
+{% include "_scroll_reveal.html" %}
 </body>
 </html>

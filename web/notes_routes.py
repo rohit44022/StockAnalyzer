@@ -29,9 +29,13 @@ notes_bp = Blueprint("notes", __name__)
 
 
 def _uid() -> int | None:
-    """Resolve the current user id from auth middleware context."""
+    """Resolve the current user id from auth middleware context.
+    Key is 'user_id' — matches auth/db.py validate_session() and every
+    other blueprint. The old 'id' key never existed on g.user, so this
+    endpoint used to 401 for every authenticated request.
+    """
     if hasattr(g, "user") and g.user:
-        return g.user.get("id")
+        return g.user.get("user_id")
     return None
 
 

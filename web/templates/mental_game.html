@@ -11,38 +11,24 @@
 <style>
 :root{
   
-  --card-bg:var(--bs-tertiary-bg);--card-border:var(--bs-border-color);
-  --g:#3fb950;--r:#f85149;--y:#d29922;--b:#58a6ff;--p:#bc8cff;--o:#f0883e;--c:#39d2c0; }
+  --card-bg:#282f36;--card-border:#2f3944;
+  --g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc;--o:#f0883e;--c:#39d2c0; }
 body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .font-mono{font-family:'JetBrains Mono',monospace}
-.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px}
 .card-header{background:rgba(255,255,255,.03);border-bottom:1px solid var(--card-border);font-weight:600}
-
-/* ══ UNIFIED NAV ══ */
-.sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
-.sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;white-space:nowrap;padding:.4rem 0;letter-spacing:.5px;background:linear-gradient(135deg,#f6d365 0%,#fda085 25%,#fbc2eb 50%,#f6d365 75%,#fda085 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:brandShimmer 3s ease infinite,brandGlow 2s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px rgba(246,211,101,.5));transition:filter .3s,transform .3s}
-.sc-nav .sc-brand:hover{filter:drop-shadow(0 0 18px rgba(246,211,101,.8)) drop-shadow(0 0 35px rgba(253,160,133,.4));transform:scale(1.05)}
-@keyframes brandShimmer{0%{background-position:0% center}50%{background-position:300% center}100%{background-position:0% center}}
-@keyframes brandGlow{0%{filter:drop-shadow(0 0 8px rgba(246,211,101,.4)) drop-shadow(0 0 2px rgba(253,160,133,.2))}100%{filter:drop-shadow(0 0 16px rgba(246,211,101,.7)) drop-shadow(0 0 40px rgba(253,160,133,.3))}}
-.sc-nav .sc-links{display:flex;align-items:center;gap:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.sc-nav .sc-links::-webkit-scrollbar{display:none}
-.sc-nav .sc-link{color:#8b949e;text-decoration:none;font-size:.82rem;font-weight:500;padding:.85rem .75rem;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
-.sc-nav .sc-link:hover{color:var(--bs-body-color);border-bottom-color:rgba(88,166,255,.3)}
-.sc-nav .sc-link.active{color:#58a6ff;border-bottom-color:#58a6ff}
-.sc-nav .sc-right{margin-left:auto;display:flex;align-items:center;gap:.75rem}
-.sc-nav .sc-clock{color:#484f58;font-size:.75rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
-@media(max-width:768px){.sc-nav .sc-link{font-size:.75rem;padding:.65rem .5rem}.sc-nav .sc-brand{font-size:1.2rem}}
 
 /* Hero */
 .hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%,var(--bs-tertiary-bg));border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
-.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#bc8cff,#58a6ff,#39d2c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#c084fc,#7c8aef,#39d2c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 
 /* Tabs */
 .nav-pills .nav-link{color:#8b949e;border-radius:8px;font-size:.88rem;padding:.5rem .9rem}
-.nav-pills .nav-link.active{background:rgba(188,140,255,.15);color:var(--p)}
+.nav-pills .nav-link.active{background:rgba(192,132,252,.15);color:var(--p)}
 
 /* Form */
 .form-control,.form-select{background:var(--bs-body-bg);border-color:var(--card-border);color:var(--bs-body-color)}
-.form-control:focus,.form-select:focus{background:var(--bs-body-bg);border-color:var(--p);color:var(--bs-body-color);box-shadow:0 0 0 .2rem rgba(188,140,255,.15)}
+.form-control:focus,.form-select:focus{background:var(--bs-body-bg);border-color:var(--p);color:var(--bs-body-color);box-shadow:0 0 0 .2rem rgba(192,132,252,.15)}
 
 /* Score gauge */
 .score-display{font-size:3rem;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1}
@@ -69,7 +55,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 /* Workflow step */
 .wf-step{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:.85rem}
 .wf-step:last-child{border-bottom:none}
-.wf-num{min-width:24px;height:24px;border-radius:50%;background:rgba(188,140,255,.15);color:var(--p);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700}
+.wf-num{min-width:24px;height:24px;border-radius:50%;background:rgba(192,132,252,.15);color:var(--p);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700}
 .wf-src{font-size:.65rem;color:#6e7681;margin-left:auto;white-space:nowrap}
 
 /* In-trade rule */
@@ -86,13 +72,13 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 
 /* Learning curve */
 .lc-level{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:.78rem;font-weight:600}
-.lc-UI{background:rgba(248,81,73,.12);color:#f85149}
-.lc-CI{background:rgba(210,153,34,.12);color:#d29922}
-.lc-CC{background:rgba(88,166,255,.12);color:#58a6ff}
-.lc-UC{background:rgba(63,185,80,.12);color:#3fb950}
+.lc-UI{background:rgba(240,101,72,.12);color:#f06548}
+.lc-CI{background:rgba(247,184,75,.12);color:#f7b84b}
+.lc-CC{background:rgba(124,138,239,.12);color:#7c8aef}
+.lc-UC{background:rgba(10,179,156,.12);color:#0ab39c}
 
 /* Score colors */
-.sc-10,.sc-9{color:var(--g)} .sc-8{color:#56d364} .sc-7{color:var(--b)}
+.sc-10,.sc-9{color:var(--g)} .sc-8{color:#6ee7b7} .sc-7{color:var(--b)}
 .sc-6{color:var(--y)} .sc-5{color:var(--o)} .sc-4{color:#f87171}
 .sc-3{color:var(--r)} .sc-2{color:#ff4444} .sc-1{color:#cc0000}
 
@@ -112,7 +98,6 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .scroll-section{max-height:500px;overflow-y:auto}
 .scroll-section::-webkit-scrollbar{width:6px}
 .scroll-section::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:3px}
-.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color)}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color);text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
 </style>
 </head>
 <body>
@@ -125,7 +110,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   <div class="container-fluid">
     <h1><i class="bi bi-brain me-2"></i>Mental Game of Trading</h1>
     <p class="text-secondary mb-2">Based on Jared Tendler's book &bull; "Am I trading my system — or my emotions?"</p>
-    <div class="p-3 mt-2" style="background:rgba(188,140,255,.06);border:1px solid rgba(188,140,255,.15);border-radius:10px;max-width:900px">
+    <div class="p-3 mt-2" style="background:rgba(192,132,252,.06);border:1px solid rgba(192,132,252,.15);border-radius:10px;max-width:900px">
       <div class="small" style="color:var(--bs-body-color);line-height:1.7">
         <strong style="color:var(--p)"><i class="bi bi-info-circle me-1"></i>What is this system?</strong><br>
         This is your <strong>Personal Trading Psychology Tracker</strong>. Most traders lose money not because of bad strategies, but because <strong>emotions</strong> (fear, greed, revenge, overconfidence) hijack their decision-making. This system helps you:<br>
@@ -181,7 +166,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   <div class="card mb-3">
     <div class="card-header"><i class="bi bi-question-diamond me-2"></i>THE ONE QUESTION — Am I Trading My System or My Emotions?</div>
     <div class="card-body">
-      <div class="p-2 mb-3" style="background:rgba(188,140,255,.04);border-radius:8px">
+      <div class="p-2 mb-3" style="background:rgba(192,132,252,.04);border-radius:8px">
         <div class="small text-secondary" style="line-height:1.6">
           <strong style="color:var(--p)">What is this?</strong> This is the most important question a trader can ask. Before every trade, you should check: am I about to trade because my <em>system</em> told me to (technical signals, confluence, etc.), or because my <em>emotions</em> are pushing me (fear of missing out, revenge after a loss, greed after a win)? Fill in the 3 fields below and click "Check Now" to get your answer.
           <br><strong style="color:var(--y)">Mental Score</strong> = How clear-headed you feel right now (10 = razor sharp, 1 = completely tilted).
@@ -214,7 +199,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   </div>
 
   <!-- Summary Cards -->
-  <div class="p-2 mb-3" style="background:rgba(88,166,255,.04);border-radius:8px">
+  <div class="p-2 mb-3" style="background:rgba(124,138,239,.04);border-radius:8px">
     <div class="small text-secondary" style="line-height:1.6">
       <strong style="color:var(--b)"><i class="bi bi-bar-chart me-1"></i>Dashboard Summary:</strong>
       These 4 cards give you a quick snapshot of your trading psychology <em>right now</em>.
@@ -279,7 +264,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
       <button class="btn btn-sm btn-outline-primary" onclick="loadUnlinkedTrades()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
     </div>
     <div class="card-body">
-      <div class="p-2 mb-3" style="background:rgba(188,140,255,.04);border-radius:8px">
+      <div class="p-2 mb-3" style="background:rgba(192,132,252,.04);border-radius:8px">
         <div class="small text-secondary" style="line-height:1.6">
           <strong style="color:var(--p)">What is this?</strong> Trades you added to the <strong>Strategy Portfolio Tracker</strong> <em>before</em> the Mental Game system was built don't have any psychology data attached yet.
           This section shows those "unlinked" trades and lets you <strong>retroactively add psychology tags</strong> to each one — so your entire trade history has complete mental game data, not just new trades.
@@ -290,7 +275,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         </div>
       </div>
       <div class="d-flex gap-2 align-items-center mb-3">
-        <span class="badge fs-6" style="background:rgba(248,81,73,.15);color:var(--r)" id="syncCount">—</span>
+        <span class="badge fs-6" style="background:rgba(240,101,72,.15);color:var(--r)" id="syncCount">—</span>
         <span class="text-secondary small">trades without psychology data</span>
         <button class="btn btn-sm btn-success ms-auto" id="btnSyncAll" onclick="bulkSyncAll()" disabled><i class="bi bi-check2-all me-1"></i>Quick Sync All (Default Values)</button>
       </div>
@@ -386,7 +371,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
      [TENDLER] Ch9: Build a Productive Routine — Warmup
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-session" style="display:none">
-  <div class="p-3 mb-3" style="background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.12);border-radius:10px">
+  <div class="p-3 mb-3" style="background:rgba(192,132,252,.05);border:1px solid rgba(192,132,252,.12);border-radius:10px">
     <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--p)"><i class="bi bi-clipboard-check me-1"></i>What is a Pre-Session Checklist?</strong><br>
       Before you even open a chart, you need to check: <em>"Am I mentally fit to trade today?"</em> Just like a pilot runs through a pre-flight checklist before takeoff, you run through these 10 questions before every trading session. They check things like: Did you sleep well? Are you under financial stress? Are you trying to recover yesterday’s losses? Are you feeling overconfident from a winning streak?<br><br>
@@ -401,7 +386,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
     <div class="col-lg-7">
       <div class="card mb-3">
         <div class="card-header"><i class="bi bi-clipboard-check me-2"></i>Pre-Session Mental Game Checklist
-          <span class="float-end badge" style="background:rgba(188,140,255,.15);color:var(--p)">[TENDLER] Ch9 — Warmup</span></div>
+          <span class="float-end badge" style="background:rgba(192,132,252,.15);color:var(--p)">[TENDLER] Ch9 — Warmup</span></div>
         <div class="card-body" id="preSessionChecklist">
           <!-- Populated by JS -->
         </div>
@@ -475,7 +460,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
      [TENDLER] Ch9: Real-Time Strategy applied BEFORE entry
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-pretrade" style="display:none">
-  <div class="p-3 mb-3" style="background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.12);border-radius:10px">
+  <div class="p-3 mb-3" style="background:rgba(124,138,239,.05);border:1px solid rgba(124,138,239,.12);border-radius:10px">
     <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--b)"><i class="bi bi-shield-lock me-1"></i>What is the Pre-Trade Psychological Gate?</strong><br>
       The Pre-Session checklist was for the <em>whole day</em>. This gate is for <strong>each individual trade</strong>. Before you click "Buy" or "Sell," you must pass all 5 checks. Think of it as a bouncer at a nightclub — if you can't pass every check, you don't get in.<br><br>
@@ -490,7 +475,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
     <div class="col-lg-7">
       <div class="card mb-3">
         <div class="card-header"><i class="bi bi-shield-lock me-2"></i>Pre-Trade Psychological Gate
-          <span class="float-end badge" style="background:rgba(88,166,255,.15);color:var(--b)">[TENDLER] Ch9 — Real-Time Strategy</span></div>
+          <span class="float-end badge" style="background:rgba(124,138,239,.15);color:var(--b)">[TENDLER] Ch9 — Real-Time Strategy</span></div>
         <div class="card-body" id="preTradeGate">
           <!-- Populated by JS -->
         </div>
@@ -606,7 +591,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
      [TENDLER] Ch4-8 + Ch9 Real-Time Strategy
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-intrade" style="display:none">
-  <div class="p-3 mb-3" style="background:rgba(210,153,34,.05);border:1px solid rgba(210,153,34,.12);border-radius:10px">
+  <div class="p-3 mb-3" style="background:rgba(247,184,75,.05);border:1px solid rgba(247,184,75,.12);border-radius:10px">
     <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--y)"><i class="bi bi-shield-exclamation me-1"></i>What are In-Trade Psychological Rules?</strong><br>
       You've entered a trade. Now what? This is where most traders lose control. Your stock starts dropping and panic sets in. Or it spikes up and greed tells you to add more. These rules tell you <strong>exactly what to do when specific emotions hit while you’re in a live trade</strong>.<br><br>
@@ -620,7 +605,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   </div>
   <div class="card mb-3">
     <div class="card-header"><i class="bi bi-shield-exclamation me-2"></i>In-Trade Psychological Rules &mdash; Reference Card
-      <span class="float-end badge" style="background:rgba(210,153,34,.15);color:var(--y)">[TENDLER] Ch4-8, Ch9</span></div>
+      <span class="float-end badge" style="background:rgba(247,184,75,.15);color:var(--y)">[TENDLER] Ch4-8, Ch9</span></div>
     <div class="card-body" id="inTradeRules">
       <span class="text-secondary">Loading...</span>
     </div>
@@ -629,25 +614,25 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   <!-- Real-Time 4-Step Strategy Quick Reference -->
   <div class="card mb-3">
     <div class="card-header"><i class="bi bi-lightning me-2"></i>Real-Time 4-Step Strategy
-      <span class="float-end badge" style="background:rgba(63,185,80,.15);color:var(--g)">[TENDLER] Ch9</span></div>
+      <span class="float-end badge" style="background:rgba(10,179,156,.15);color:var(--g)">[TENDLER] Ch9</span></div>
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(188,140,255,.08);border-radius:10px">
+        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(192,132,252,.08);border-radius:10px">
           <div class="fs-4 mb-2">1️⃣</div><div class="fw-bold" style="color:var(--p)">RECOGNIZE</div>
           <div class="small text-secondary mt-1">Notice the emotion. Name it. "I am feeling revenge right now."</div>
           <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch9 — Step 1</div>
         </div></div>
-        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(88,166,255,.08);border-radius:10px">
+        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(124,138,239,.08);border-radius:10px">
           <div class="fs-4 mb-2">2️⃣</div><div class="fw-bold" style="color:var(--b)">DISRUPT</div>
           <div class="small text-secondary mt-1">Break the momentum. Deep breaths. Stand up. Walk. Newton's first law — emotions in motion stay in motion.</div>
           <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch9 — Step 2</div>
         </div></div>
-        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(63,185,80,.08);border-radius:10px">
+        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(10,179,156,.08);border-radius:10px">
           <div class="fs-4 mb-2">3️⃣</div><div class="fw-bold" style="color:var(--g)">INJECT LOGIC</div>
           <div class="small text-secondary mt-1">Say your trained correction statement. The one you prepared and rehearsed. Not improvised — PREPARED.</div>
           <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch9 — Step 3</div>
         </div></div>
-        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(210,153,34,.08);border-radius:10px">
+        <div class="col-md-3"><div class="p-3 text-center" style="background:rgba(247,184,75,.08);border-radius:10px">
           <div class="fs-4 mb-2">4️⃣</div><div class="fw-bold" style="color:var(--y)">STRATEGIC REMINDER</div>
           <div class="small text-secondary mt-1">List 3 mistakes you commonly make when this emotion takes over. Remember what's at stake.</div>
           <div class="mt-2" style="font-size:.65rem;color:#6e7681">[TENDLER] Ch9 — Step 4</div>
@@ -729,7 +714,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
      [TENDLER] Ch2: Map severity + Ch9: threshold concept
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-scoring" style="display:none">
-  <div class="p-3 mb-3" style="background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.12);border-radius:10px">
+  <div class="p-3 mb-3" style="background:rgba(192,132,252,.05);border:1px solid rgba(192,132,252,.12);border-radius:10px">
     <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--p)"><i class="bi bi-thermometer-half me-1"></i>What is the Mental Score System?</strong><br>
       Every trading day, you rate yourself from 1 to 10. This isn't random — each number has a specific meaning and <strong>directly controls what you're allowed to do</strong>. It’s like a traffic light for your trading:<br><br>
@@ -743,7 +728,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   </div>
   <div class="card mb-3">
     <div class="card-header"><i class="bi bi-thermometer-half me-2"></i>Mental Game Scoring System (1-10) — Complete Reference
-      <span class="float-end badge" style="background:rgba(188,140,255,.15);color:var(--p)">[TENDLER] Ch2, Ch9</span></div>
+      <span class="float-end badge" style="background:rgba(192,132,252,.15);color:var(--p)">[TENDLER] Ch2, Ch9</span></div>
     <div class="card-body" id="scoringReference">
       <span class="text-secondary">Loading...</span>
     </div>
@@ -755,7 +740,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
      [TENDLER] Ch2: Map Your Pattern + Ch9: recognizing patterns
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-patterns" style="display:none">
-  <div class="p-3 mb-3" style="background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.12);border-radius:10px">
+  <div class="p-3 mb-3" style="background:rgba(240,101,72,.05);border:1px solid rgba(240,101,72,.12);border-radius:10px">
     <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--r)"><i class="bi bi-exclamation-triangle me-1"></i>What are Patterns & Alerts?</strong><br>
       A <strong>pattern</strong> is a recurring psychological mistake. Most traders don't just make random errors — they repeat the same 2-3 mistakes over and over. This section has two parts:<br><br>
@@ -773,7 +758,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
     <div class="col-lg-6">
       <div class="card mb-3">
         <div class="card-header"><i class="bi bi-exclamation-triangle me-2"></i>Live Pattern Alerts (Last 7 Days)
-          <span class="float-end badge" style="background:rgba(248,81,73,.15);color:var(--r)">[TENDLER] Ch2, Ch9</span></div>
+          <span class="float-end badge" style="background:rgba(240,101,72,.15);color:var(--r)">[TENDLER] Ch2, Ch9</span></div>
         <div class="card-body" id="livePatternAlerts">
           <span class="text-secondary">Analyzing...</span>
         </div>
@@ -795,7 +780,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
      [TENDLER] Ch6 Tilt, Ch7 Desperation, Ch9, Ch10
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-emergency" style="display:none">
-  <div class="p-3 mb-3" style="background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.12);border-radius:10px">
+  <div class="p-3 mb-3" style="background:rgba(240,101,72,.05);border:1px solid rgba(240,101,72,.12);border-radius:10px">
     <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--r)"><i class="bi bi-exclamation-octagon me-1"></i>What are Emergency Protocols?</strong><br>
       These are your <strong>"break glass in case of emergency"</strong> procedures. Trading has extreme moments — big losses, streak losses, euphoric wins — and in those moments, your brain is NOT capable of rational decision-making. These 6 protocols tell you <strong>exactly what to do</strong> in each crisis situation:<br><br>
@@ -810,7 +795,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   </div>
   <div class="card mb-3">
     <div class="card-header"><i class="bi bi-exclamation-octagon me-2 text-danger"></i>Emergency Protocols (A-F)
-      <span class="float-end badge" style="background:rgba(248,81,73,.15);color:var(--r)">[TENDLER] Ch6, Ch7, Ch9, Ch10</span></div>
+      <span class="float-end badge" style="background:rgba(240,101,72,.15);color:var(--r)">[TENDLER] Ch6, Ch7, Ch9, Ch10</span></div>
     <div class="card-body" id="emergencyProtocols">
       <span class="text-secondary">Loading...</span>
     </div>
@@ -873,7 +858,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
      [TENDLER] Ch9 Cooldown + [SYSTEM ARCHITECTURE]
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-weekly" style="display:none">
-  <div class="p-3 mb-3" style="background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.12);border-radius:10px">
+  <div class="p-3 mb-3" style="background:rgba(10,179,156,.05);border:1px solid rgba(10,179,156,.12);border-radius:10px">
     <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--g)"><i class="bi bi-calendar-week me-1"></i>What is the Weekly Psychological Report?</strong><br>
       Every weekend, take 15 minutes to review your week — not just profits and losses, but your <strong>mental performance</strong>. This has two parts:<br><br>
@@ -887,7 +872,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
       <!-- Auto-Computed Summary -->
       <div class="card mb-3">
         <div class="card-header"><i class="bi bi-calculator me-2"></i>Auto-Computed Weekly Summary
-          <span class="float-end badge" style="background:rgba(63,185,80,.15);color:var(--g)">[SYSTEM ARCHITECTURE]</span></div>
+          <span class="float-end badge" style="background:rgba(10,179,156,.15);color:var(--g)">[SYSTEM ARCHITECTURE]</span></div>
         <div class="card-body" id="weeklyAutoSummary">
           <span class="text-secondary">Loading...</span>
         </div>
@@ -950,7 +935,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
      [TENDLER] Ch1: Inchworm concept; Ch2: competence levels
      ═══════════════════════════════════════════════════════════════ -->
 <div class="container-fluid tab-content" id="tab-learning" style="display:none">
-  <div class="p-3 mb-3" style="background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.12);border-radius:10px">
+  <div class="p-3 mb-3" style="background:rgba(10,179,156,.05);border:1px solid rgba(10,179,156,.12);border-radius:10px">
     <div class="small" style="color:var(--bs-body-color);line-height:1.7">
       <strong style="color:var(--g)"><i class="bi bi-graph-up me-1"></i>What is the Learning Curve Tracker?</strong><br>
       This tracks your <strong>psychological growth over months</strong>. Jared Tendler uses the concept of an <strong>"Inchworm"</strong> — imagine your performance as a range, like a worm. The front end is your best trading day (A-game). The back end is your worst (C-game). You improve NOT by making your best days better, but by <strong>making your worst days less bad</strong>. The worm "inches" forward from the back.<br><br>
@@ -966,7 +951,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
     <div class="col-lg-7">
       <div class="card mb-3">
         <div class="card-header"><i class="bi bi-graph-up me-2"></i>Learning Curve Tracker — Inchworm Concept
-          <span class="float-end badge" style="background:rgba(63,185,80,.15);color:var(--g)">[TENDLER] Ch1</span></div>
+          <span class="float-end badge" style="background:rgba(10,179,156,.15);color:var(--g)">[TENDLER] Ch1</span></div>
         <div class="card-body">
           <p class="text-secondary small mb-3"><strong>The Inchworm:</strong> Your performance has a range — A-game (front) and C-game (back). Fix the C-game and the entire range moves forward. You improve by "sucking less" at the worst moments. <span style="color:#6e7681">[TENDLER] Ch1</span></p>
           <div id="lcTimeline">
@@ -1083,7 +1068,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
       <div class="row g-3">
         <!-- Connection 1 -->
         <div class="col-md-6">
-          <div class="p-3" style="background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.15);border-radius:10px">
+          <div class="p-3" style="background:rgba(124,138,239,.05);border:1px solid rgba(124,138,239,.15);border-radius:10px">
             <div class="fw-bold mb-2" style="color:var(--b)"><i class="bi bi-1-circle me-1"></i>Confluence Scoring Adjustment</div>
             <div class="small text-secondary mb-2">Mental score directly affects the minimum technical confluence required to enter a trade.</div>
             <table class="table table-sm table-dark mb-0" style="font-size:.82rem">
@@ -1100,7 +1085,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         </div>
         <!-- Connection 2 -->
         <div class="col-md-6">
-          <div class="p-3" style="background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.15);border-radius:10px">
+          <div class="p-3" style="background:rgba(10,179,156,.05);border:1px solid rgba(10,179,156,.15);border-radius:10px">
             <div class="fw-bold mb-2" style="color:var(--g)"><i class="bi bi-2-circle me-1"></i>Position Size Link</div>
             <div class="small text-secondary mb-2">Mental score determines max position size. Lower score = smaller size = less damage potential.</div>
             <table class="table table-sm table-dark mb-0" style="font-size:.82rem">
@@ -1119,7 +1104,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         </div>
         <!-- Connection 3 -->
         <div class="col-md-6">
-          <div class="p-3" style="background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.15);border-radius:10px">
+          <div class="p-3" style="background:rgba(240,101,72,.05);border:1px solid rgba(240,101,72,.15);border-radius:10px">
             <div class="fw-bold mb-2" style="color:var(--r)"><i class="bi bi-3-circle me-1"></i>Pattern Tag Analysis</div>
             <div class="small text-secondary mb-2">If the same pattern tag appears 3+ times in recent trades, position size drops by 50% until the pattern is resolved.</div>
             <div class="small mt-2"><strong style="color:var(--r)">Rule:</strong> 3× same tag = 50% size reduction. 5× = STOP trading that pattern.</div>
@@ -1128,7 +1113,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         </div>
         <!-- Connection 4 -->
         <div class="col-md-6">
-          <div class="p-3" style="background:rgba(188,140,255,.05);border:1px solid rgba(188,140,255,.15);border-radius:10px">
+          <div class="p-3" style="background:rgba(192,132,252,.05);border:1px solid rgba(192,132,252,.15);border-radius:10px">
             <div class="fw-bold mb-2" style="color:var(--p)"><i class="bi bi-4-circle me-1"></i>Rule Break Protocol</div>
             <div class="small text-secondary mb-2">When "System Followed" = NO, the trade is tagged, root cause identified, and the feedback loop activates.</div>
             <div class="small mt-2"><strong style="color:var(--p)">Flow:</strong> Rule Broken → Tag Pattern → Identify Root Cause → Run Emergency Protocol F → Update Performance Map → Update Learning Curve</div>
@@ -1277,7 +1262,7 @@ function updateDashLimits(score){
 function renderDashAlerts(alerts){
   const el=document.getElementById('dshAlerts');
   if(!alerts.length){el.innerHTML='<div class="text-center py-3"><i class="bi bi-check-circle fs-3" style="color:var(--g)"></i><div class="small text-secondary mt-1">No active pattern alerts. Keep following the system.</div></div>';return;}
-  el.innerHTML=alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()}"><div class="d-flex justify-content-between"><strong>${a.name}</strong><span class="badge" style="background:${a.severity==='HIGH'?'rgba(248,81,73,.15)':'rgba(210,153,34,.15)'};color:${a.severity==='HIGH'?'var(--r)':'var(--y)'}">${a.severity} — ${a.count}x</span></div><div class="small mt-1">${a.action}</div><div style="font-size:.65rem;color:#6e7681" class="mt-1">${a.source}</div></div>`).join(''); }
+  el.innerHTML=alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()}"><div class="d-flex justify-content-between"><strong>${a.name}</strong><span class="badge" style="background:${a.severity==='HIGH'?'rgba(240,101,72,.15)':'rgba(247,184,75,.15)'};color:${a.severity==='HIGH'?'var(--r)':'var(--y)'}">${a.severity} — ${a.count}x</span></div><div class="small mt-1">${a.action}</div><div style="font-size:.65rem;color:#6e7681" class="mt-1">${a.source}</div></div>`).join(''); }
 
 // ═══════════════════════════════════════════════════════════════
 //  CHARTS
@@ -1289,7 +1274,7 @@ async function loadScoreTrendChart(){
   const sorted=sessions.slice().reverse();
   const labels=sorted.map(s=>s.session_date?s.session_date.slice(5):'');
   const data=sorted.map(s=>s.mental_score||0);
-  const colors=data.map(v=>v>=8?'rgba(63,185,80,.8)':v>=6?'rgba(210,153,34,.8)':'rgba(248,81,73,.8)');
+  const colors=data.map(v=>v>=8?'rgba(10,179,156,.8)':v>=6?'rgba(247,184,75,.8)':'rgba(240,101,72,.8)');
   const ctx=document.getElementById('scoreTrendChart').getContext('2d');
   if(scoreTrendChartObj)scoreTrendChartObj.destroy();
   scoreTrendChartObj=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Mental Score',data,backgroundColor:colors,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:10,grid:{color:'rgba(255,255,255,.05)'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}}}); }
@@ -1298,10 +1283,10 @@ function loadEmotionPieChart(dist){
   const labels=Object.keys(dist);
   const data=Object.values(dist);
   if(!labels.length)return;
-  const palette=['#bc8cff','#58a6ff','#f85149','#d29922','#3fb950','#f0883e','#39d2c0','#ff6b6b','#a5d8ff','#ffd43b'];
+  const palette=['#c084fc','#7c8aef','#f06548','#f7b84b','#0ab39c','#f0883e','#39d2c0','#ff6b6b','#a5d8ff','#ffd43b'];
   const ctx=document.getElementById('emotionPieChart').getContext('2d');
   if(emotionPieChartObj)emotionPieChartObj.destroy();
-  emotionPieChartObj=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:palette.slice(0,labels.length)}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#c9d1d9',font:{size:11}}}}}}); }
+  emotionPieChartObj=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:palette.slice(0,labels.length)}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#aab8c5',font:{size:11}}}}}}); }
 
 // ═══════════════════════════════════════════════════════════════
 //  PRE-SESSION CHECKLIST
@@ -1370,11 +1355,11 @@ function renderScoringReference(){
   for(let s=10;s>=1;s--){
     const b=bands[String(s)];if(!b)continue;
     const clr=s>=8?'var(--g)':s>=6?'var(--y)':'var(--r)';
-    const bg=s>=8?'rgba(63,185,80,.05)':s>=6?'rgba(210,153,34,.05)':'rgba(248,81,73,.05)';
-    const border=s>=8?'rgba(63,185,80,.15)':s>=6?'rgba(210,153,34,.15)':'rgba(248,81,73,.15)';
+    const bg=s>=8?'rgba(10,179,156,.05)':s>=6?'rgba(247,184,75,.05)':'rgba(240,101,72,.05)';
+    const border=s>=8?'rgba(10,179,156,.15)':s>=6?'rgba(247,184,75,.15)':'rgba(240,101,72,.15)';
     html+=`<div class="p-3 mb-2" style="background:${bg};border:1px solid ${border};border-radius:10px">
       <div class="d-flex align-items-center gap-2 mb-1"><span class="font-mono fw-bold fs-4" style="color:${clr}">${s}</span><span class="fw-bold" style="color:${clr}">${b.label}</span>
-      <span class="ms-auto">${b.no_trade?'<span class="badge bg-danger">NO TRADE</span>':b.full_size?'<span class="badge" style="background:rgba(63,185,80,.15);color:var(--g)">FULL SIZE</span>':'<span class="badge" style="background:rgba(210,153,34,.15);color:var(--y)">REDUCED</span>'}</span></div>
+      <span class="ms-auto">${b.no_trade?'<span class="badge bg-danger">NO TRADE</span>':b.full_size?'<span class="badge" style="background:rgba(10,179,156,.15);color:var(--g)">FULL SIZE</span>':'<span class="badge" style="background:rgba(247,184,75,.15);color:var(--y)">REDUCED</span>'}</span></div>
       <div class="small text-secondary">${b.desc}</div>
       <div class="small mt-1" style="color:${clr}"><strong>Action:</strong> ${b.action}</div>
       <div class="mt-1" style="font-size:.65rem;color:#6e7681">${b.source}</div>
@@ -1477,9 +1462,9 @@ async function loadTradePsychHistory(){
     return `<div class="p-2 mb-2" style="background:rgba(255,255,255,.02);border-radius:8px;border-left:3px solid ${sf?'var(--g)':'var(--r)'}">
       <div class="d-flex justify-content-between"><span class="font-mono fw-bold" style="color:var(--b)">${t.ticker||''}</span><span class="font-mono small">${t.trade_date||''}</span></div>
       <div class="d-flex gap-2 mt-1 flex-wrap">
-        <span class="badge" style="background:rgba(188,140,255,.15);color:var(--p)">Score: ${sc}</span>
-        <span class="badge" style="background:${sf?'rgba(63,185,80,.15)':'rgba(248,81,73,.15)'};color:${sf?'var(--g)':'var(--r)'}">${sf?'System Followed':'Rule Broken'}</span>
-        ${t.pattern_tag?`<span class="badge" style="background:rgba(210,153,34,.15);color:var(--y)">${t.pattern_tag}</span>`:''}
+        <span class="badge" style="background:rgba(192,132,252,.15);color:var(--p)">Score: ${sc}</span>
+        <span class="badge" style="background:${sf?'rgba(10,179,156,.15)':'rgba(240,101,72,.15)'};color:${sf?'var(--g)':'var(--r)'}">${sf?'System Followed':'Rule Broken'}</span>
+        ${t.pattern_tag?`<span class="badge" style="background:rgba(247,184,75,.15);color:var(--y)">${t.pattern_tag}</span>`:''}
         ${t.pre_emotion?`<span class="badge" style="background:rgba(255,255,255,.08)">${t.pre_emotion}</span>`:''}
       </div>
       ${t.post_reflection?`<div class="small text-secondary mt-1">${t.post_reflection.slice(0,80)}${t.post_reflection.length>80?'...':''}</div>`:''}
@@ -1546,7 +1531,7 @@ async function loadPatternAlerts(){
   const el=document.getElementById('livePatternAlerts');
   const alerts=d.alerts||[];
   if(!alerts.length){el.innerHTML=`<div class="text-center py-4"><i class="bi bi-check-circle fs-2" style="color:var(--g)"></i><div class="mt-2 fw-bold" style="color:var(--g)">No Active Alerts</div><div class="small text-secondary">${d.trade_count||0} trades analyzed in last 7 days. No recurring patterns detected.</div></div>`;return;}
-  el.innerHTML=alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()}"><div class="d-flex justify-content-between"><strong>${a.name}</strong><span class="badge" style="background:${a.severity==='HIGH'?'rgba(248,81,73,.15)':'rgba(210,153,34,.15)'};color:${a.severity==='HIGH'?'var(--r)':'var(--y)'}">${a.severity} — ${a.count}x</span></div><div class="small mt-1">${a.action}</div><div style="font-size:.65rem;color:#6e7681" class="mt-1">${a.source}</div></div>`).join(''); }
+  el.innerHTML=alerts.map(a=>`<div class="pattern-card alert-${a.severity.toLowerCase()}"><div class="d-flex justify-content-between"><strong>${a.name}</strong><span class="badge" style="background:${a.severity==='HIGH'?'rgba(240,101,72,.15)':'rgba(247,184,75,.15)'};color:${a.severity==='HIGH'?'var(--r)':'var(--y)'}">${a.severity} — ${a.count}x</span></div><div class="small mt-1">${a.action}</div><div style="font-size:.65rem;color:#6e7681" class="mt-1">${a.source}</div></div>`).join(''); }
 
 // ═══════════════════════════════════════════════════════════════
 //  EMERGENCY PROTOCOLS
@@ -1688,15 +1673,15 @@ function renderInchwormChart(entries){
   const labels=entries.map(e=>e.month);
   const mkDS=(field,label,color)=>({label,data:entries.map(e=>levelMap[e[field]]||1),borderColor:color,backgroundColor:color+'33',fill:false,tension:.3,pointRadius:4});
   const datasets=[
-    mkDS('fear','Fear','#f85149'),
-    mkDS('greed','Greed','#d29922'),
+    mkDS('fear','Fear','#f06548'),
+    mkDS('greed','Greed','#f7b84b'),
     mkDS('anger','Anger','#f0883e'),
-    mkDS('confidence','Confidence','#bc8cff'),
-    mkDS('discipline','Discipline','#58a6ff'),
+    mkDS('confidence','Confidence','#c084fc'),
+    mkDS('discipline','Discipline','#7c8aef'),
   ];
   const ctx=document.getElementById('inchwormChart').getContext('2d');
   if(inchwormChartObj)inchwormChartObj.destroy();
-  inchwormChartObj=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:5,ticks:{callback:v=>({1:'UI',2:'CI',3:'CC',4:'UC'}[v]||''),color:'#8b949e'},grid:{color:'rgba(255,255,255,.05)'}},x:{grid:{display:false}}},plugins:{legend:{labels:{color:'#c9d1d9',font:{size:11}}}}}}); }
+  inchwormChartObj=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:5,ticks:{callback:v=>({1:'UI',2:'CI',3:'CC',4:'UC'}[v]||''),color:'#8b949e'},grid:{color:'rgba(255,255,255,.05)'}},x:{grid:{display:false}}},plugins:{legend:{labels:{color:'#aab8c5',font:{size:11}}}}}}); }
 
 async function saveLearningCurve(){
   const data={
@@ -1755,8 +1740,8 @@ async function loadUnlinkedTrades(){
       html+=`<tr>
         <td class="font-mono fw-bold" style="color:var(--b)">${t.ticker}</td>
         <td class="font-mono small">${t.date}</td>
-        <td><span class="badge" style="background:rgba(88,166,255,.15);color:var(--b)">${t.source==='portfolio'?'Portfolio':'P&L Trades'}</span></td>
-        <td><span class="badge" style="background:${t.status==='OPEN'?'rgba(63,185,80,.15)':'rgba(139,148,158,.15)'};color:${t.status==='OPEN'?'var(--g)':'#8b949e'}">${t.status}</span></td>
+        <td><span class="badge" style="background:rgba(124,138,239,.15);color:var(--b)">${t.source==='portfolio'?'Portfolio':'P&L Trades'}</span></td>
+        <td><span class="badge" style="background:${t.status==='OPEN'?'rgba(10,179,156,.15)':'rgba(139,148,158,.15)'};color:${t.status==='OPEN'?'var(--g)':'#8b949e'}">${t.status}</span></td>
         <td class="font-mono small">₹${t.buy_price?t.buy_price.toFixed(2):'-'}</td>
         <td class="font-mono small">${t.sell_price?'<span style="color:'+pnlClr+'">₹'+t.sell_price.toFixed(2)+' ('+pnl+')</span>':'-'}</td>
         <td><button class="btn btn-sm btn-outline-primary" onclick="openSyncModal(${i})"><i class="bi bi-pencil me-1"></i>Tag</button></td>
@@ -1829,7 +1814,7 @@ async function bulkSyncAll(){
   loadTradePsychHistory(); }
 
 </script>
-<script>document.addEventListener('click',function(e){var w=document.getElementById('avatarWrap');if(w&&!w.contains(e.target))w.classList.remove('open')})</script>
 {% include "_theme_picker.html" %}
+{% include "_scroll_reveal.html" %}
 </body>
 </html>

@@ -1,0 +1,124 @@
+{#
+  Shared "Market Regime — At a Glance" cards.
+  Renders 4 layman-friendly cards from a regime_cards payload built by
+  web/regime_cards.py. Same widget on /analyze and /portfolio so the
+  verdict logic can never drift between pages.
+
+  Usage in the parent template:
+    {% include "_regime_cards.html" %}
+    <div id="myRegimeContainer"></div>
+    <script>renderRegimeCards('myRegimeContainer', apiResponse.regime_cards);</script>
+#}
+<style>
+  .rg-card {
+    background: var(--card-bg, rgba(255,255,255,0.03));
+    border: 1px solid var(--card-border, rgba(255,255,255,0.08));
+    border-radius: 10px;
+    padding: 14px 16px;
+    height: 100%;
+    display: flex; flex-direction: column;
+  }
+  .rg-card + .rg-card { margin-top: 0; }
+  .rg-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .rg-title { font-size: .82rem; font-weight: 600; color: rgba(255,255,255,.85); display:flex; align-items:center; gap:8px; }
+  .rg-title .bi { font-size: 1rem; }
+  .rg-badge {
+    font-size: .68rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 12px;
+    letter-spacing: .04em; text-transform: uppercase;
+    border: 1px solid; white-space: nowrap;
+  }
+  .rg-badge.green  { color:#0ab39c; border-color:rgba(10,179,156,.55);  background:rgba(10,179,156,.12); }
+  .rg-badge.blue   { color:#7c8aef; border-color:rgba(124,138,239,.55); background:rgba(124,138,239,.12); }
+  .rg-badge.yellow { color:#f7b84b; border-color:rgba(247,184,75,.55); background:rgba(247,184,75,.12); }
+  .rg-badge.orange { color:#f0883e; border-color:rgba(240,136,62,.55); background:rgba(240,136,62,.12); }
+  .rg-badge.red    { color:#f06548; border-color:rgba(240,101,72,.55);  background:rgba(240,101,72,.12); }
+  .rg-badge.gray   { color:#8b949e; border-color:rgba(139,148,158,.55);background:rgba(139,148,158,.10); }
+  .rg-big { font-size: 1.6rem; font-weight: 800; font-family:'JetBrains Mono',monospace; line-height:1.1; }
+  .rg-big-unit { font-size: .72rem; color:#8b949e; margin-left: 6px; }
+  .rg-sub { font-size: .72rem; color:#8b949e; margin-top: 2px; }
+  .rg-english {
+    font-size: .72rem; color: rgba(255,255,255,.65);
+    background: rgba(255,255,255,.02);
+    border-left: 3px solid rgba(124,138,239,.45);
+    padding: 8px 10px; border-radius: 4px;
+    white-space: pre-wrap; line-height: 1.5;
+    margin-top: 10px;
+  }
+  .rg-action {
+    font-size: .74rem; color: rgba(255,255,255,.85);
+    margin-top: 10px; padding: 8px 10px;
+    border-radius: 4px; line-height: 1.55;
+    background: rgba(10,179,156,.06); border-left: 3px solid rgba(10,179,156,.5);
+  }
+  .rg-action-label { color:#0ab39c; font-weight:700; margin-right:6px; }
+  .rg-rows { margin-top: 10px; font-size: .72rem; color: rgba(255,255,255,.75); }
+  .rg-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed rgba(255,255,255,.05); }
+  .rg-row:last-child { border-bottom: none; }
+  .rg-row .lbl { color:#8b949e; }
+  .rg-row .val { font-family:'JetBrains Mono',monospace; }
+  .rg-row .note { color:#6e7681; font-size:.65rem; margin-left: 6px; }
+  .rg-intro {
+    font-size:.72rem; color:#8b949e; margin-bottom:10px; line-height:1.55;
+  }
+</style>
+
+<script>
+(function(){
+  function esc(s){
+    if(s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => (
+      {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+    ));
+  }
+
+  function renderCard(card){
+    if(!card) return '';
+    const color = card.verdict_color || 'gray';
+    const icon = card.icon || 'bi-info-circle';
+    const rowsHtml = (card.rows || []).map(r => `
+      <div class="rg-row">
+        <span class="lbl">${esc(r.label)}</span>
+        <span class="val">${esc(r.value)}${r.note ? `<span class="note">${esc(r.note)}</span>` : ''}</span>
+      </div>`).join('');
+    return `
+      <div class="rg-card">
+        <div class="rg-head">
+          <div class="rg-title"><i class="bi ${esc(icon)}"></i>${esc(card.title || '')}</div>
+          <span class="rg-badge ${esc(color)}">${esc(card.verdict || '')}</span>
+        </div>
+        <div>
+          <span class="rg-big">${esc(card.big_number || '—')}</span>
+          ${card.big_unit ? `<span class="rg-big-unit">${esc(card.big_unit)}</span>` : ''}
+        </div>
+        <div class="rg-sub">${esc(card.subline || '')}</div>
+        <div class="rg-english">🧠 In plain English:\n${esc(card.plain_english || '')}</div>
+        <div class="rg-action"><span class="rg-action-label">✅ For you right now:</span>${esc(card.action || '')}</div>
+        ${rowsHtml ? `<div class="rg-rows">${rowsHtml}</div>` : ''}
+      </div>`;
+  }
+
+  window.renderRegimeCards = function(containerId, payload){
+    const el = document.getElementById(containerId);
+    if(!el) return;
+    if(!payload){
+      el.innerHTML = '<div class="text-secondary small">Regime data unavailable for this stock.</div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="rg-intro">
+        <strong>Market Regime — At a Glance.</strong>
+        Four fast checks: is the trend strong, is volatility coiled, how big is
+        a normal daily move, and is smart money buying or selling?
+        Each card reads the raw numbers our engine already computes and turns
+        them into plain-English guidance.
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">${renderCard(payload.trend)}</div>
+        <div class="col-md-6">${renderCard(payload.squeeze)}</div>
+        <div class="col-md-6">${renderCard(payload.volatility)}</div>
+        <div class="col-md-6">${renderCard(payload.money_flow)}</div>
+      </div>`;
+  };
+})();
+</script>

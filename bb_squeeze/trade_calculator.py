@@ -1,10 +1,11 @@
 """
-Trade P&L Calculator for Indian Equity Markets — Zerodha & Dhan
-================================================================
+Trade P&L Calculator for Indian Equity Markets — Zerodha, Groww & Dhan
+======================================================================
 All charges, taxes, and net P&L in one place.
 
-Charge sources (verified June 2025):
+Charge sources (verified Aug 2026):
   • https://zerodha.com/charges/#tab-equities
+  • https://groww.in/pricing
   • https://dhan.co/pricing/
 
 Tax rates: Union Budget 2024 (applicable FY 2024-25 onwards)
@@ -49,9 +50,9 @@ BROKERAGE_RULES = {
         "intraday": {"mode": "pct_or_flat", "pct": 0.0003, "flat": 20},
     },
     "groww": {
-        # Groww equity delivery: ₹20 or 0.1% (whichever lower); intraday: ₹20 or 0.03%.
-        "delivery": {"mode": "pct_or_flat", "pct": 0.001,  "flat": 20},
-        "intraday": {"mode": "pct_or_flat", "pct": 0.0003, "flat": 20},
+        # https://groww.in/pricing — ₹20 or 0.1% (whichever lower), minimum ₹5
+        "delivery": {"mode": "pct_or_flat", "pct": 0.001, "flat": 20, "min_fee": 5},
+        "intraday": {"mode": "pct_or_flat", "pct": 0.001, "flat": 20, "min_fee": 5},
     },
     "dhan": {
         "delivery": {"mode": "zero"},
@@ -62,7 +63,7 @@ BROKERAGE_RULES = {
 # DP (Depository Participant) charges — charged per scrip on delivery sell
 DP_CHARGES = {
     "zerodha": 15.34,   # ₹3.5 CDSL + ₹9.5 broker + ₹2.34 GST
-    "groww":   18.50,   # ₹13.5 CDSL + ₹3 broker + GST (approx)
+    "groww":   20.00,   # ₹3.50 depository + ₹16.50 Groww (per groww.in/pricing)
     "dhan":    14.75,   # ₹12.50 + GST
 }
 
@@ -165,7 +166,11 @@ def _brokerage(platform: str, trade_type: str, value: float) -> float:
     if mode == "zero":
         return 0.0
     if mode == "pct_or_flat":
-        return round(min(value * rule["pct"], rule["flat"]), 2)
+        fee = min(value * rule["pct"], rule["flat"])
+        min_fee = rule.get("min_fee", 0)
+        if min_fee and fee > 0:
+            fee = max(fee, min_fee)
+        return round(fee, 2)
     return 0.0
 
 

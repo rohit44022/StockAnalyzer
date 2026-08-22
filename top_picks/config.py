@@ -73,10 +73,12 @@ MIN_BB_CONFIDENCE = 30
 # Stocks with less data can't produce reliable technical analysis.
 MIN_DATA_BARS = 50
 
-# Maximum number of stocks to deeply analyze (prevents system from
-# running for 30+ minutes if 500 stocks pass the initial scan).
-# The system will take the top N by BB confidence and analyze those.
-MAX_DEEP_ANALYSIS = 100
+# Maximum number of stocks to deeply analyze.
+# Kept as a safety ceiling only — the 30% BB-confidence pre-filter almost
+# never returns more than a few hundred candidates, so in practice every
+# qualifying stock reaches deep analysis. Uncap further only if you also
+# raise MAX_WORKERS and the SSE idle timeout in web/top_picks_routes.py.
+MAX_DEEP_ANALYSIS = 1500
 
 # ═══════════════════════════════════════════════════════════════
 # OUTPUT SETTINGS
@@ -152,10 +154,11 @@ TRIPLE_MIN_SCORE = -425
 # PARALLEL PROCESSING
 # ═══════════════════════════════════════════════════════════════
 # Number of worker threads for analyzing stocks in parallel.
-# More threads = faster analysis but more CPU/memory usage.
-# 4-6 is a good balance for most machines.
-
-MAX_WORKERS = 6
+# Deep analysis is mostly pandas/numpy — the GIL releases during heavy
+# math, so threads scale reasonably up to ~2x CPU cores. Beyond ~20 the
+# GIL contention on Python-side scoring code kills returns; switch to
+# ProcessPoolExecutor before pushing higher.
+MAX_WORKERS = 16
 
 # ═══════════════════════════════════════════════════════════════
 # TRADING CAPITAL (default)

@@ -946,13 +946,13 @@ def _build_financial_statements_analysis(fd) -> str:
                 f'margin-left:4px;">{text}</span>')
 
     def _good(text):
-        return _badge(text, '#3fb950')
+        return _badge(text, '#0ab39c')
 
     def _warn(text):
-        return _badge(text, '#d29922')
+        return _badge(text, '#f7b84b')
 
     def _bad(text):
-        return _badge(text, '#f85149')
+        return _badge(text, '#f06548')
 
     def _neutral(text):
         return _badge(text, '#8b949e')
@@ -993,7 +993,7 @@ def _build_financial_statements_analysis(fd) -> str:
             )
 
     if latest.net_income is not None:
-        ni_color = '#3fb950' if latest.net_income > 0 else '#f85149'
+        ni_color = '#0ab39c' if latest.net_income > 0 else '#f06548'
         rev_bullets.append(
             f'Net income (bottom-line profit): <strong style="color:{ni_color}">{_cr(latest.net_income)}</strong>. '
             f'<span style="color:#8b949e;">This is what\'s left after ALL expenses (costs, taxes, interest) '
@@ -1053,7 +1053,7 @@ def _build_financial_statements_analysis(fd) -> str:
                 diff = curr_m - prev_m
                 if abs(diff) >= 1.0:
                     arrow = '↑' if diff > 0 else '↓'
-                    color = '#3fb950' if diff > 0 else '#f85149'
+                    color = '#0ab39c' if diff > 0 else '#f06548'
                     margin_bullets.append(
                         f'{label} margin changed <strong style="color:{color}">{arrow} {abs(diff):.1f} '
                         f'percentage points</strong> vs last year'
@@ -1135,12 +1135,12 @@ def _build_financial_statements_analysis(fd) -> str:
             if d_chg is not None and abs(d_chg) >= 5:
                 if d_chg > 0:
                     bs_bullets.append(
-                        f'⚠️ Total debt <strong style="color:#f85149">increased {d_chg:.1f}%</strong> '
+                        f'⚠️ Total debt <strong style="color:#f06548">increased {d_chg:.1f}%</strong> '
                         f'YoY ({_cr(d_prev)} → {_cr(d_curr)}) {_bad("Debt Rising")}'
                     )
                 else:
                     bs_bullets.append(
-                        f'✅ Total debt <strong style="color:#3fb950">reduced {abs(d_chg):.1f}%</strong> '
+                        f'✅ Total debt <strong style="color:#0ab39c">reduced {abs(d_chg):.1f}%</strong> '
                         f'YoY ({_cr(d_prev)} → {_cr(d_curr)}) {_good("Deleveraging")}'
                     )
 
@@ -1155,7 +1155,7 @@ def _build_financial_statements_analysis(fd) -> str:
 
     if latest.working_capital is not None:
         wc = latest.working_capital
-        wc_color = '#3fb950' if wc > 0 else '#f85149'
+        wc_color = '#0ab39c' if wc > 0 else '#f06548'
         wc_badge = _good('Positive') if wc > 0 else _bad('Negative')
         bs_bullets.append(
             f'Working Capital: <strong style="color:{wc_color}">{_cr(wc)}</strong> {wc_badge}. '
@@ -1170,7 +1170,7 @@ def _build_financial_statements_analysis(fd) -> str:
     cf_bullets = []
     if latest.operating_cashflow is not None:
         ocf = latest.operating_cashflow
-        ocf_color = '#3fb950' if ocf > 0 else '#f85149'
+        ocf_color = '#0ab39c' if ocf > 0 else '#f06548'
         cf_bullets.append(
             f'<strong style="color:{ocf_color}">Operating Cash Flow: {_cr(ocf)}</strong>. '
             f'<span style="color:#8b949e;">Actual cash generated from day-to-day business operations. '
@@ -1198,7 +1198,7 @@ def _build_financial_statements_analysis(fd) -> str:
 
     if latest.free_cashflow is not None:
         fcf = latest.free_cashflow
-        fcf_color = '#3fb950' if fcf > 0 else '#f85149'
+        fcf_color = '#0ab39c' if fcf > 0 else '#f06548'
         fcf_badge = _good('Positive FCF') if fcf > 0 else _bad('Negative FCF')
         cf_bullets.append(
             f'<strong style="color:{fcf_color}">Free Cash Flow: {_cr(fcf)}</strong> {fcf_badge}. '
@@ -1239,12 +1239,12 @@ def _build_financial_statements_analysis(fd) -> str:
             if fcf_g is not None and abs(fcf_g) >= 10:
                 if fcf_g > 0:
                     cf_bullets.append(
-                        f'Free cash flow <strong style="color:#3fb950">grew {fcf_g:.1f}%</strong> '
+                        f'Free cash flow <strong style="color:#0ab39c">grew {fcf_g:.1f}%</strong> '
                         f'YoY {_good("↑ Improving")}'
                     )
                 else:
                     cf_bullets.append(
-                        f'Free cash flow <strong style="color:#f85149">declined {abs(fcf_g):.1f}%</strong> '
+                        f'Free cash flow <strong style="color:#f06548">declined {abs(fcf_g):.1f}%</strong> '
                         f'YoY {_bad("↓ Declining")}'
                     )
 
@@ -1297,7 +1297,7 @@ def _build_financial_statements_analysis(fd) -> str:
         if len(eps_vals) >= 2:
             eps_latest = eps_vals[0][1]
             eps_oldest = eps_vals[-1][1]
-            eps_color = '#3fb950' if eps_latest > 0 else '#f85149'
+            eps_color = '#0ab39c' if eps_latest > 0 else '#f06548'
             eps_bullets.append(
                 f'Latest Diluted EPS: <strong style="color:{eps_color}">\u20b9{eps_latest:.2f}</strong>. '
                 f'<span style="color:#8b949e;">EPS = Earnings Per Share. If the company\'s total profit '
@@ -1352,11 +1352,11 @@ def _build_financial_statements_analysis(fd) -> str:
         concerns.append('Low return on equity (ROE < 8%)')
 
     if strengths:
-        strength_items = ''.join(f'<li style="color:#3fb950;">{s}</li>' for s in strengths)
-        verdict_bullets.append(f'<strong style="color:#3fb950;">✅ Key Strengths:</strong><ul style="margin:2px 0 6px 0;padding-left:18px;">{strength_items}</ul>')
+        strength_items = ''.join(f'<li style="color:#0ab39c;">{s}</li>' for s in strengths)
+        verdict_bullets.append(f'<strong style="color:#0ab39c;">✅ Key Strengths:</strong><ul style="margin:2px 0 6px 0;padding-left:18px;">{strength_items}</ul>')
     if concerns:
-        concern_items = ''.join(f'<li style="color:#f85149;">{c}</li>' for c in concerns)
-        verdict_bullets.append(f'<strong style="color:#f85149;">⚠️ Key Concerns:</strong><ul style="margin:2px 0 6px 0;padding-left:18px;">{concern_items}</ul>')
+        concern_items = ''.join(f'<li style="color:#f06548;">{c}</li>' for c in concerns)
+        verdict_bullets.append(f'<strong style="color:#f06548;">⚠️ Key Concerns:</strong><ul style="margin:2px 0 6px 0;padding-left:18px;">{concern_items}</ul>')
 
     if not strengths and not concerns:
         verdict_bullets.append('Insufficient data to form a clear verdict.')
@@ -1371,14 +1371,14 @@ def _build_financial_statements_analysis(fd) -> str:
             f'<div style="margin-bottom:14px;">'
             f'<div style="font-weight:700;font-size:.88rem;margin-bottom:6px;'
             f'padding:4px 10px;border-radius:6px;'
-            f'background:rgba(88,166,255,0.08);border-left:3px solid #58a6ff;">'
+            f'background:rgba(129,140,248,0.08);border-left:3px solid #818cf8;">'
             f'{title}</div>'
             f'<ul style="list-style:none;padding-left:6px;margin:0;">'
         )
         for b in bullets:
             html_parts.append(
                 f'<li style="padding:3px 0 3px 14px;position:relative;line-height:1.65;">'
-                f'<span style="position:absolute;left:0;color:#58a6ff;">▸</span>{b}</li>'
+                f'<span style="position:absolute;left:0;color:#818cf8;">▸</span>{b}</li>'
             )
         html_parts.append('</ul></div>')
 

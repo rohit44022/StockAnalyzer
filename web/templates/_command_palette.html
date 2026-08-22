@@ -1,0 +1,94 @@
+<style>
+.cmd-palette-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding-top:min(20vh,160px);opacity:0;pointer-events:none;transition:opacity .2s ease-out}
+.cmd-palette-backdrop.open{opacity:1;pointer-events:auto}
+.cmd-palette-modal{background:#282f36;border:1px solid #2f3944;border-radius:16px;max-width:560px;width:90vw;box-shadow:0 24px 64px rgba(0,0,0,.5);transform:scale(.95);transition:transform .2s ease-out;overflow:hidden}
+.cmd-palette-backdrop.open .cmd-palette-modal{transform:scale(1)}
+.cmd-palette-input{background:transparent;border:none;border-bottom:1px solid #2f3944;color:#e1e6eb;font-size:1.1rem;padding:1rem 1.25rem;width:100%;outline:none;box-sizing:border-box}
+.cmd-palette-input::placeholder{color:#5a6a7a}
+.cmd-palette-results{max-height:340px;overflow-y:auto;padding:6px 0}
+.cmd-palette-item{padding:.6rem 1.25rem;font-size:.88rem;color:#aab8c5;cursor:pointer;border-radius:8px;margin:2px 6px;display:flex;align-items:center;gap:10px}
+.cmd-palette-item.active{background:rgba(124,138,239,.12);color:#7c8aef}
+.cmd-palette-item i{font-size:1rem;width:18px;text-align:center}
+.cmd-palette-hint{padding:.5rem 1.25rem;font-size:.72rem;color:#5a6a7a;border-top:1px solid #2f3944;text-align:center}
+</style>
+
+<div class="cmd-palette-backdrop" id="cmdPalette">
+  <div class="cmd-palette-modal">
+    <input class="cmd-palette-input" id="cmdInput" placeholder="Search pages or enter ticker..." autocomplete="off" spellcheck="false">
+    <div class="cmd-palette-results" id="cmdResults"></div>
+    <div class="cmd-palette-hint">⌘K to open · ↑↓ to navigate · ↵ to select · Esc to close</div>
+  </div>
+</div>
+
+<script>
+(function(){
+if(window.__cmdPaletteInit) return;
+window.__cmdPaletteInit=true;
+
+var pages=[
+  {name:'Home',icon:'bi-house-door',url:'/'},
+  {name:'Technical Analysis',icon:'bi-graph-up-arrow',url:'/ta'},
+  {name:'Price Action',icon:'bi-bar-chart-steps',url:'/pa'},
+  {name:'Triple',icon:'bi-layers',url:'/triple'},
+  {name:'Data Browser',icon:'bi-folder2-open',url:'/data-browser'},
+  {name:'Global Sentiment',icon:'bi-globe2',url:'/global-sentiment'},
+  {name:'Sentiment',icon:'bi-broadcast',url:'/sentiment'},
+  {name:'Trades',icon:'bi-arrow-left-right',url:'/trades'},
+  {name:'Portfolio',icon:'bi-briefcase',url:'/portfolio'},
+  {name:'Risk Management',icon:'bi-shield-check',url:'/risk-management'},
+  {name:'Mental Game',icon:'bi-emoji-smile',url:'/mental-game'},
+  {name:'RenTech',icon:'bi-cpu',url:'/rentech'}
+];
+
+var backdrop=document.getElementById('cmdPalette'),
+    input=document.getElementById('cmdInput'),
+    results=document.getElementById('cmdResults'),
+    active=-1, items=[];
+
+function open(){backdrop.classList.add('open');input.value='';render('');input.focus()}
+function close(){backdrop.classList.remove('open')}
+function isOpen(){return backdrop.classList.contains('open')}
+
+function render(q){
+  q=q.trim().toLowerCase();
+  var matched=q?pages.filter(function(p){return p.name.toLowerCase().includes(q)}):pages.slice();
+  var html='';
+  matched.forEach(function(p,i){
+    html+='<div class="cmd-palette-item" data-url="'+p.url+'" data-idx="'+i+'"><i class="bi '+p.icon+'"></i>'+p.name+'</div>';
+  });
+  if(q && q.length>=1){
+    var idx=matched.length;
+    html+='<div class="cmd-palette-item" data-url="/analyze?ticker='+encodeURIComponent(q.toUpperCase())+'" data-idx="'+idx+'"><i class="bi bi-search"></i>Search ticker: <strong>'+q.toUpperCase()+'</strong></div>';
+  }
+  results.innerHTML=html;
+  items=results.querySelectorAll('.cmd-palette-item');
+  active=items.length?0:-1;
+  highlight();
+}
+
+function highlight(){
+  items.forEach(function(el,i){el.classList.toggle('active',i===active)});
+  if(active>=0&&items[active])items[active].scrollIntoView({block:'nearest'});
+}
+
+function go(url){close();window.location.href=url}
+
+input.addEventListener('input',function(){render(this.value);});
+
+results.addEventListener('click',function(e){
+  var el=e.target.closest('.cmd-palette-item');
+  if(el)go(el.dataset.url);
+});
+
+backdrop.addEventListener('click',function(e){if(e.target===backdrop)close()});
+
+document.addEventListener('keydown',function(e){
+  if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();isOpen()?close():open();return}
+  if(!isOpen())return;
+  if(e.key==='Escape'){close();return}
+  if(e.key==='ArrowDown'){e.preventDefault();if(items.length){active=(active+1)%items.length;highlight()}return}
+  if(e.key==='ArrowUp'){e.preventDefault();if(items.length){active=(active-1+items.length)%items.length;highlight()}return}
+  if(e.key==='Enter'){e.preventDefault();if(active>=0&&items[active])go(items[active].dataset.url);return}
+});
+})();
+</script>

@@ -10,12 +10,12 @@
   <style>
     body { font-family: var(--bs-body-font-family); background: var(--bs-body-bg); }
     .font-mono { font-family: 'JetBrains Mono', monospace; }
-    .card { background: var(--bs-tertiary-bg); border: 1px solid var(--bs-border-color); border-radius: 12px; }
+    .card { background: rgba(255,255,255,.03); backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5); border: 1px solid rgba(255,255,255,.06); border-radius: 16px; }
 
     /* Page hero */
     .db-hero { padding: 1.6rem 0 1rem; border-bottom: 1px solid var(--bs-border-color); }
     .db-title { font-size: 1.7rem; font-weight: 800;
-      background: linear-gradient(135deg,#58a6ff,#bc8cff,#f0883e);
+      background: linear-gradient(135deg,#7c8aef,#c084fc,#f0883e);
       -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin:0; }
     .db-subtitle { color:#8b949e; font-size:.85rem; margin-top:.25rem; }
 
@@ -38,7 +38,7 @@
       color: var(--bs-body-color); font-size: 1rem; padding: .65rem 1rem .65rem 38px;
       border-radius: 12px; width:100%; transition: border-color .15s, box-shadow .15s;
     }
-    #dbSearch:focus { outline:none; border-color:#58a6ff; box-shadow:0 0 0 .2rem rgba(88,166,255,.15); }
+    #dbSearch:focus { outline:none; border-color:#7c8aef; box-shadow:0 0 0 .2rem rgba(124,138,239,.15); }
 
     /* Filter chips */
     .db-filters { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.7rem; }
@@ -48,7 +48,7 @@
       background:rgba(255,255,255,.03); color:#8b949e; transition:all .15s;
     }
     .db-chip:hover { color:#fff; border-color:#8b949e; }
-    .db-chip.active { background:rgba(88,166,255,.15); color:#9ec5ff; border-color:#58a6ff; }
+    .db-chip.active { background:rgba(124,138,239,.15); color:#9ec5ff; border-color:#7c8aef; }
 
     /* Tickers table */
     .db-table-wrap { max-height: 62vh; overflow:auto; border:1px solid var(--bs-border-color); border-radius:10px; }
@@ -61,8 +61,8 @@
     }
     .db-table thead th:hover { color:#fff; }
     .db-table tbody tr { border-bottom:1px solid rgba(255,255,255,.04); cursor:pointer; transition:background .12s; }
-    .db-table tbody tr:hover { background:rgba(88,166,255,.07); }
-    .db-table tbody tr.selected { background:rgba(88,166,255,.13); }
+    .db-table tbody tr:hover { background:rgba(124,138,239,.07); }
+    .db-table tbody tr.selected { background:rgba(124,138,239,.13); }
     .db-table td { padding:.45rem .8rem; vertical-align:middle; }
     .db-ticker { color:#e6edf3; font-weight:600; }
 
@@ -70,19 +70,19 @@
     .fresh-badge { display:inline-block; padding:.18rem .55rem; border-radius:5px; font-size:.68rem;
                    font-weight:700; letter-spacing:.4px; text-transform:uppercase; white-space:nowrap;
                    border:1px solid transparent; }
-    .fresh-badge.fresh      { background:rgba( 63,185, 80,.18); color:#7ee787; border-color:rgba(63,185,80,.45); }
+    .fresh-badge.fresh      { background:rgba( 63,185, 80,.18); color:#7ee787; border-color:rgba(10,179,156,.45); }
     .fresh-badge.recent     { background:rgba(121,192,255,.18); color:#9ec5ff; border-color:rgba(121,192,255,.45); }
-    .fresh-badge.stale      { background:rgba(210,153, 34,.20); color:#e3b341; border-color:rgba(210,153,34,.50); }
+    .fresh-badge.stale      { background:rgba(210,153, 34,.20); color:#e3b341; border-color:rgba(247,184,75,.50); }
     .fresh-badge.very_stale { background:rgba(240,136, 62,.20); color:#f0883e; border-color:rgba(240,136,62,.55); }
-    .fresh-badge.ancient    { background:rgba(248, 81, 73,.22); color:#ff7b72; border-color:rgba(248,81,73,.55); }
+    .fresh-badge.ancient    { background:rgba(248, 81, 73,.22); color:#ff7b72; border-color:rgba(240,101,72,.55); }
     .fresh-badge.missing    { background:rgba(120,120,120,.20); color:#8b949e; border-color:rgba(120,120,120,.45); }
 
     /* Whole-row tinted left border so the colour reads even when skimming */
-    tr[data-status="fresh"]      td:first-child { border-left: 3px solid #3fb950; }
+    tr[data-status="fresh"]      td:first-child { border-left: 3px solid #0ab39c; }
     tr[data-status="recent"]     td:first-child { border-left: 3px solid #79c0ff; }
-    tr[data-status="stale"]      td:first-child { border-left: 3px solid #d29922; }
+    tr[data-status="stale"]      td:first-child { border-left: 3px solid #f7b84b; }
     tr[data-status="very_stale"] td:first-child { border-left: 3px solid #f0883e; }
-    tr[data-status="ancient"]    td:first-child { border-left: 3px solid #f85149; }
+    tr[data-status="ancient"]    td:first-child { border-left: 3px solid #f06548; }
     tr[data-status="missing"]    td:first-child { border-left: 3px solid #6e7681; }
 
     /* Detail pane */
@@ -97,15 +97,15 @@
       padding:.45rem .7rem; font-size:.65rem; color:#8b949e; text-transform:uppercase; letter-spacing:.5px;
     }
     .db-detail-rows td { padding:.35rem .7rem; border-bottom:1px solid rgba(255,255,255,.04); }
-    .db-detail-rows tr.row-latest { background:rgba(88,166,255,.10); }
+    .db-detail-rows tr.row-latest { background:rgba(124,138,239,.10); }
     .pct-pos { color:#7ee787; }
     .pct-neg { color:#ff7b72; }
     .pct-zero { color:#8b949e; }
-    .row-up   { box-shadow: inset 3px 0 0 #3fb950; }
-    .row-down { box-shadow: inset 3px 0 0 #f85149; }
+    .row-up   { box-shadow: inset 3px 0 0 #0ab39c; }
+    .row-down { box-shadow: inset 3px 0 0 #f06548; }
 
     .db-empty { padding:2rem; text-align:center; color:#8b949e; font-size:.85rem; }
-    .spinner-tiny { width:14px; height:14px; border:2px solid rgba(255,255,255,.15); border-top-color:#58a6ff; border-radius:50%; display:inline-block; animation:spin .8s linear infinite; vertical-align:-2px; }
+    .spinner-tiny { width:14px; height:14px; border:2px solid rgba(255,255,255,.15); border-top-color:#7c8aef; border-radius:50%; display:inline-block; animation:spin .8s linear infinite; vertical-align:-2px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Help bar at the top of the detail card */
@@ -154,11 +154,11 @@
       <div class="col-12 col-lg-6">
         <div class="card">
           <div class="db-legend">
-            <span><span class="dot" style="background:#3fb950"></span>Up to date</span>
+            <span><span class="dot" style="background:#0ab39c"></span>Up to date</span>
             <span><span class="dot" style="background:#79c0ff"></span>1–2 td behind</span>
-            <span><span class="dot" style="background:#d29922"></span>3–5 td behind</span>
+            <span><span class="dot" style="background:#f7b84b"></span>3–5 td behind</span>
             <span><span class="dot" style="background:#f0883e"></span>6–10 td behind</span>
-            <span><span class="dot" style="background:#f85149"></span>&gt;10 td behind</span>
+            <span><span class="dot" style="background:#f06548"></span>&gt;10 td behind</span>
             <span class="ms-auto" id="dbVisibleCount">—</span>
           </div>
           <div class="d-flex align-items-center gap-2 mb-2" id="dbBulkBar" style="display:none !important;">
@@ -222,7 +222,7 @@
         </div>
         <div class="modal-body">
           <p>You are about to permanently delete <strong id="dbDelCount">0</strong> CSV file(s) from disk. This cannot be undone.</p>
-          <div class="p-2 mb-2" style="background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.25);border-radius:6px;max-height:220px;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#f85149" id="dbDelList"></div>
+          <div class="p-2 mb-2" style="background:rgba(240,101,72,.06);border:1px solid rgba(240,101,72,.25);border-radius:6px;max-height:220px;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#f06548" id="dbDelList"></div>
           <small class="text-secondary">The files are removed from <span class="font-mono" id="dbDelPathHint">stock_csv/</span>. The listing cache is invalidated so the UI refreshes right after.</small>
         </div>
         <div class="modal-footer" style="border-color:var(--bs-border-color)">
@@ -565,5 +565,6 @@
         });
     })();
   </script>
+{% include "_scroll_reveal.html" %}
 </body>
 </html>

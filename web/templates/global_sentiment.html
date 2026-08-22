@@ -14,20 +14,14 @@
   :root {
     --bg:var(--bs-body-bg); --card:var(--bs-tertiary-bg); --border:var(--bs-border-color);
     --text:var(--bs-body-color); --muted:#8b949e; --dim:#6e7681;
-    --bull:#3fb950; --bull-soft:#3fb95018;
-    --bear:#f85149; --bear-soft:#f8514918;
-    --warn:#d29922; --warn-soft:#d2992218;
-    --info:#58a6ff; --info-soft:#58a6ff18;
+    --bull:#0ab39c; --bull-soft:#0ab39c18;
+    --bear:#f06548; --bear-soft:#f0654818;
+    --warn:#f7b84b; --warn-soft:#f7b84b18;
+    --info:#7c8aef; --info-soft:#7c8aef18;
     --neutral:#8b949e; --neutral-soft:#8b949e18;
     --cautious:#ff7b00; --cautious-soft:#ff7b0018;
   }
   body{background:var(--bg);color:var(--text);font-family:var(--bs-body-font-family);font-size:0.92rem}
-  .sc-nav{position:sticky;top:0;z-index:1030;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);border-bottom:1px solid rgba(48,54,61,.8);padding:.35rem 0}
-  .sc-nav .sc-brand{font-weight:900;font-size:1.6rem;text-decoration:none;background:linear-gradient(135deg,#f6d365,#fda085,#fbc2eb,#f6d365);background-size:300% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shim 3s ease infinite}
-  @keyframes shim{0%{background-position:0% 50%}100%{background-position:300% 50%}}
-  .sc-nav .sc-link{color:var(--muted);text-decoration:none;font-size:.82rem;padding:.85rem .75rem;border-bottom:2px solid transparent}
-  .sc-nav .sc-link.active{color:var(--info);border-bottom-color:var(--info)}
-  .sc-nav .sc-link:hover{color:var(--text)}
   .gs-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px}
   .gs-tone-bullish{border-left:4px solid var(--bull);background:linear-gradient(90deg,var(--bull-soft) 0%,var(--card) 50%)}
   .gs-tone-bearish{border-left:4px solid var(--bear);background:linear-gradient(90deg,var(--bear-soft) 0%,var(--card) 50%)}
@@ -46,7 +40,7 @@
   .gs-meter-pin{position:absolute;top:-3px;width:3px;height:16px;background:#fff;border-radius:2px;box-shadow:0 0 8px rgba(255,255,255,.6)}
   .gs-meter-mid{position:absolute;left:50%;top:-2px;width:1px;height:14px;background:rgba(255,255,255,0.3)}
   .gs-meter-labels{display:flex;justify-content:space-between;font-size:.68rem;color:var(--dim);margin-top:4px}
-  .gs-driver-chip{display:inline-block;padding:4px 11px;border-radius:14px;background:var(--info-soft);border:1px solid rgba(88,166,255,.3);color:var(--text);font-size:.74rem;margin:3px 4px 3px 0}
+  .gs-driver-chip{display:inline-block;padding:4px 11px;border-radius:14px;background:var(--info-soft);border:1px solid rgba(124,138,239,.3);color:var(--text);font-size:.74rem;margin:3px 4px 3px 0}
   .gs-tile{background:rgba(255,255,255,0.025);border:1px solid var(--border);border-radius:10px;padding:10px 12px;height:100%}
   .gs-tile:hover{border-color:var(--info)}
   .gs-tile-title{font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -76,10 +70,10 @@
   .gs-hist-fill{position:absolute;left:0;top:0;height:100%;border-radius:3px}
   .gs-hist-pin{position:absolute;top:-3px;width:3px;height:12px;background:#fff;border-radius:2px}
   .gs-tone-extreme{color:#ff7b72;font-weight:600}
-  .gs-tone-high{color:#d29922}
-  .gs-tone-low{color:#56d364}
+  .gs-tone-high{color:#f7b84b}
+  .gs-tone-low{color:#6ee7b7}
   .gs-tone-neutral{color:var(--muted)}
-  .gs-stale-warn{background:rgba(210,153,34,.08);border-left:3px solid var(--warn);padding:8px 12px;border-radius:4px;font-size:.78rem;color:#d29922;margin-bottom:10px}
+  .gs-stale-warn{background:rgba(247,184,75,.08);border-left:3px solid var(--warn);padding:8px 12px;border-radius:4px;font-size:.78rem;color:#f7b84b;margin-bottom:10px}
   /* Section verdict pill */
   .gs-verdict-pill{padding:11px 14px;border-radius:8px;margin-bottom:10px;font-size:.86rem;line-height:1.55;border-left:4px solid}
   .gs-verdict-pill .gs-vp-headline{font-size:.92rem;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:4px}
@@ -100,7 +94,7 @@
   .gs-vp-neutral .gs-vp-headline,.gs-vp-neutral .gs-vp-tonebadge{color:var(--warn)}
   .gs-vp-neutral .gs-vp-tonebadge{background:var(--warn);color:var(--bs-body-bg)}
   /* Layman explainer panels */
-  .gs-explainer{background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.18);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:.86rem;line-height:1.6;color:var(--text)}
+  .gs-explainer{background:rgba(124,138,239,.04);border:1px solid rgba(124,138,239,.18);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:.86rem;line-height:1.6;color:var(--text)}
   .gs-explainer-title{font-size:.78rem;letter-spacing:.6px;text-transform:uppercase;color:var(--info);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
   .gs-explainer p{margin:0 0 8px 0}
   .gs-explainer p:last-child{margin-bottom:0}
@@ -134,7 +128,6 @@
   .gs-chart-h-420{position:relative;height:420px;width:100%}
   .gs-pulse-grid{display:grid;grid-template-columns:1.1fr 1fr 1.4fr;gap:12px}
   @media (max-width: 900px){.gs-pulse-grid{grid-template-columns:1fr}}
-.sc-avatar-wrap{position:relative}.sc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s;letter-spacing:.5px;border:2px solid rgba(255,255,255,.15)}.sc-avatar:hover{transform:scale(1.1);box-shadow:0 0 12px rgba(255,255,255,.2)}.sc-avatar-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bs-tertiary-bg);border:1px solid rgba(48,54,61,.8);border-radius:10px;min-width:200px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}.sc-avatar-wrap.open .sc-avatar-menu{display:block}.sc-avatar-menu .am-header{padding:.75rem 1rem;border-bottom:1px solid rgba(48,54,61,.8);font-size:.8rem;color:var(--bs-body-color)}.sc-avatar-menu .am-header small{display:block;color:#8b949e;font-size:.7rem;margin-top:2px}.sc-avatar-menu a{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;color:var(--bs-body-color);text-decoration:none;font-size:.8rem;transition:background .15s}.sc-avatar-menu a:hover{background:rgba(88,166,255,.1)}.sc-avatar-menu a i{width:16px;text-align:center;font-size:.85rem}.sc-avatar-menu .am-divider{border-top:1px solid rgba(48,54,61,.8);margin:0}.sc-avatar-menu a.am-signout{color:#f85149}.sc-avatar-menu a.am-signout:hover{background:rgba(248,81,73,.1)}
 </style>
 </head>
 <body>
@@ -197,12 +190,12 @@ function _gsPalette(){
     return v || fb;
   };
   return {
-    bull: css('--bull','#3fb950'),
-    bear: css('--bear','#f85149'),
-    warn: css('--warn','#d29922'),
-    info: css('--info','#58a6ff'),
+    bull: css('--bull','#0ab39c'),
+    bear: css('--bear','#f06548'),
+    warn: css('--warn','#f7b84b'),
+    info: css('--info','#7c8aef'),
     cautious: css('--cautious','#ff7b00'),
-    muted:'#8b949e', text:'#c9d1d9', grid:'rgba(255,255,255,.06)',
+    muted:'#8b949e', text:'#aab8c5', grid:'rgba(255,255,255,.06)',
   };
 }
 function _signColor(v, p){ return v == null ? p.muted : (v >= 0 ? p.bull : p.bear); }
@@ -370,7 +363,7 @@ function render(data){
         if (!cal.ok) return '';
         const d = cal.score_distribution || {};
         const b = cal.buckets || {};
-        return `<div style="margin-top:10px;padding:8px 12px;background:rgba(88,166,255,.05);border-left:3px solid var(--info);border-radius:4px;font-size:.72rem;color:var(--muted)">
+        return `<div style="margin-top:10px;padding:8px 12px;background:rgba(124,138,239,.05);border-left:3px solid var(--info);border-radius:4px;font-size:.72rem;color:var(--muted)">
           📊 <b style="color:var(--info)">Score buckets calibrated</b> from ${cal.n_days} historical days · 5th=${b.strong_risk_off} · 25th=${b.risk_off} · 50th=${d.p50} · 75th=${b.risk_on} · 95th=${b.strong_risk_on} · σ=${d.std} · today's ${data.composite.score>0?'+':''}${data.composite.score} maps to <b>${data.composite.label}</b>
         </div>`;
       })()}
@@ -410,11 +403,11 @@ function render(data){
         <p>A raw number like <b>"US 10Y yield = 4.31%"</b> tells you nothing on its own. Is that high? Low? Normal? <b>Context is everything.</b></p>
         <p>The <b>1-year percentile rank</b> answers that. It tells you where today's value sits compared to every value over the last 12 months:</p>
         <ul>
-          <li><b style="color:#f85149">90th–100th %ile</b> = at or near 1-year HIGH. <b>Extreme zone — prone to mean-reversion.</b></li>
-          <li><b style="color:#d29922">70th–90th %ile</b> = elevated, above normal range.</li>
+          <li><b style="color:#f06548">90th–100th %ile</b> = at or near 1-year HIGH. <b>Extreme zone — prone to mean-reversion.</b></li>
+          <li><b style="color:#f7b84b">70th–90th %ile</b> = elevated, above normal range.</li>
           <li><b style="color:#8b949e">30th–70th %ile</b> = normal range, no extreme.</li>
-          <li><b style="color:#56d364">10th–30th %ile</b> = depressed, below normal range.</li>
-          <li><b style="color:#3fb950">0th–10th %ile</b> = at or near 1-year LOW. <b>Extreme zone — could bottom or break further.</b></li>
+          <li><b style="color:#6ee7b7">10th–30th %ile</b> = depressed, below normal range.</li>
+          <li><b style="color:#0ab39c">0th–10th %ile</b> = at or near 1-year LOW. <b>Extreme zone — could bottom or break further.</b></li>
         </ul>
         <p><b>Why this matters:</b> When India VIX is at 90th percentile, fear is near a yearly extreme — historically that's a <b>contrarian signal</b> (markets often bottom near max fear). When USD/INR is at 97th percentile, the rupee is near its weakest in a year — historically pressure builds toward central-bank intervention or trend exhaustion.</p>
         <div class="gs-color-key">
@@ -432,8 +425,8 @@ function render(data){
       ${histCtx.map(h => {
         const pct = h.pct_rank_1y;
         const pct5 = h.pct_rank_5y;
-        const fillColor = pct >= 70 ? '#f85149' : (pct <= 30 ? '#3fb950' : '#d29922');
-        const fill5Color = pct5 != null ? (pct5 >= 70 ? '#f85149' : (pct5 <= 30 ? '#3fb950' : '#d29922')) : '#8b949e';
+        const fillColor = pct >= 70 ? '#f06548' : (pct <= 30 ? '#0ab39c' : '#f7b84b');
+        const fill5Color = pct5 != null ? (pct5 >= 70 ? '#f06548' : (pct5 <= 30 ? '#0ab39c' : '#f7b84b')) : '#8b949e';
         const lastFmt = typeof h.last === 'number' ? (h.last >= 1000 ? h.last.toLocaleString('en-IN', {maximumFractionDigits: 2}) : h.last.toFixed(2)) : h.last;
         return `
           <div class="col-md-6 col-lg-3">
@@ -463,7 +456,7 @@ function render(data){
                   <span style="color:${fill5Color}"><b>${pct5}%</b></span>
                   <span style="color:var(--dim)">5Y high</span>
                 </div>` : ''}
-              ${h.context_note ? `<div style="font-size:.62rem;color:#d29922;margin-top:5px;padding-top:4px;border-top:1px dashed rgba(255,255,255,0.06)">⚠ ${h.context_note}</div>` : ''}
+              ${h.context_note ? `<div style="font-size:.62rem;color:#f7b84b;margin-top:5px;padding-top:4px;border-top:1px dashed rgba(255,255,255,0.06)">⚠ ${h.context_note}</div>` : ''}
             </div>
           </div>`;
       }).join('')}
@@ -521,8 +514,8 @@ function render(data){
       <p><b>Currencies are the FIRST place global capital flow shows up</b> — before stocks move, before commodities move, currencies move. When foreign investors decide to leave India, they sell rupees and buy dollars — and you see USD/INR rise <b>before</b> Nifty falls.</p>
       <p><b>Key pairs and what they tell you:</b></p>
       <ul>
-        <li><b>USD/INR</b> — The headline. <b style="color:#f85149">Rising = rupee weakening = foreign investors converting back to dollars (bad for stocks).</b> Falling = foreigners buying rupees (good for stocks).</li>
-        <li><b>DXY (Dollar Index)</b> — USD vs basket of major world currencies. <b style="color:#f85149">Strong DXY pressures all emerging markets — India included.</b> Weak DXY supports EM rally.</li>
+        <li><b>USD/INR</b> — The headline. <b style="color:#f06548">Rising = rupee weakening = foreign investors converting back to dollars (bad for stocks).</b> Falling = foreigners buying rupees (good for stocks).</li>
+        <li><b>DXY (Dollar Index)</b> — USD vs basket of major world currencies. <b style="color:#f06548">Strong DXY pressures all emerging markets — India included.</b> Weak DXY supports EM rally.</li>
         <li><b>USD/CNY</b> — China stress signal. China devaluing = exporting deflation = bad for global growth.</li>
         <li><b>JPY/INR</b> — The "fear radar". Yen STRENGTHENS in risk-off because Japanese investors repatriate capital. Watch for sudden JPY rallies.</li>
         <li><b>EUR/INR, GBP/INR</b> — Europe-India trade & investment context.</li>
@@ -537,7 +530,7 @@ function render(data){
       <p>Commodities tell you about <b>real-world demand and inflation</b>. Stock prices can be moved by sentiment, but the price of oil and copper reflect actual industrial activity.</p>
       <ul>
         <li><b style="color:#fbb">Gold</b> — The fear gauge. Rises when investors are SCARED, when inflation rises, or when the dollar weakens. <b>Falling gold during stock weakness = panic NOT yet here</b> (good). Rising gold + falling stocks = real risk-off.</li>
-        <li><b style="color:#fbb">Brent Crude (oil)</b> — Global growth proxy + inflation driver. <b style="color:#f85149">India imports ~85% of oil</b> — high oil prices hurt the rupee, raise inflation, squeeze fiscal deficit. Affected sectors: paint (Asian Paints), tyres, aviation, OMCs (HPCL/BPCL).</li>
+        <li><b style="color:#fbb">Brent Crude (oil)</b> — Global growth proxy + inflation driver. <b style="color:#f06548">India imports ~85% of oil</b> — high oil prices hurt the rupee, raise inflation, squeeze fiscal deficit. Affected sectors: paint (Asian Paints), tyres, aviation, OMCs (HPCL/BPCL).</li>
         <li><b style="color:#fbb">Copper ("Dr. Copper")</b> — Has a PhD in economics. Rising copper = global economy expanding. <b>Falling copper = recession warning</b>, even if stocks haven't reacted yet.</li>
         <li><b style="color:#fbb">Silver</b> — Industrial + monetary. Tracks gold but more volatile.</li>
         <li><b style="color:#fbb">Natural Gas</b> — Highly seasonal. Spikes signal supply shocks/cold winters.</li>
@@ -550,8 +543,8 @@ function render(data){
     ['bond', 'Bonds & Volatility', '📊', 'Interest rates and the fear gauges (US VIX + India VIX)', `
       <p>Bond yields are the <b>"price of money"</b> — when yields are high, borrowing is expensive and stocks struggle. When yields fall, money is cheap and stocks rally. <b>The fear indices (VIX) measure how scared traders are right now.</b></p>
       <ul>
-        <li><b>US 10Y Yield</b> — The most-watched number in the world. <b style="color:#f85149">Above 4.5% = restrictive, capital flees to US bonds.</b> Below 3.5% = accommodative, supportive for stocks globally.</li>
-        <li><b>US 3M T-Bill</b> — Short-end. When 10Y < 3M (inverted curve) → <b style="color:#f85149">recession warning</b> (the NY Fed's preferred indicator).</li>
+        <li><b>US 10Y Yield</b> — The most-watched number in the world. <b style="color:#f06548">Above 4.5% = restrictive, capital flees to US bonds.</b> Below 3.5% = accommodative, supportive for stocks globally.</li>
+        <li><b>US 3M T-Bill</b> — Short-end. When 10Y < 3M (inverted curve) → <b style="color:#f06548">recession warning</b> (the NY Fed's preferred indicator).</li>
         <li><b>US 30Y</b> — Long-bond, term premium = long-run inflation expectations.</li>
         <li><b>US VIX (S&P fear)</b> — &gt;25 = fear, 15-25 = normal, &lt;15 = complacency (often before sell-offs).</li>
         <li><b style="color:#fbb">India VIX</b> — The Nifty fear gauge — <b>more relevant for Indian trades than US VIX</b>. &gt;20 = elevated, &gt;25 = real fear, &lt;13 = complacency.</li>
@@ -572,8 +565,8 @@ function render(data){
       </ul>
       <p><b>The most useful comparison: Nifty vs S&P 500.</b></p>
       <ul>
-        <li>Nifty <b style="color:#3fb950">OUTPERFORMING</b> S&P → India has its own story (DII flows, domestic earnings, policy). Bullish India-specific.</li>
-        <li>Nifty <b style="color:#f85149">UNDERPERFORMING</b> S&P → India-specific drag (FII selling, election/policy concerns). Bearish for Nifty even if global tape is OK.</li>
+        <li>Nifty <b style="color:#0ab39c">OUTPERFORMING</b> S&P → India has its own story (DII flows, domestic earnings, policy). Bullish India-specific.</li>
+        <li>Nifty <b style="color:#f06548">UNDERPERFORMING</b> S&P → India-specific drag (FII selling, election/policy concerns). Bearish for Nifty even if global tape is OK.</li>
         <li>Nifty <b>tracking</b> S&P → No India-specific story; you're just along for the global ride.</li>
       </ul>
       <div class="gs-color-key">
@@ -585,14 +578,14 @@ function render(data){
       <p>While the Nifty 50 is the <b>average</b> of all sectors, the magic happens <b>underneath</b> — at the sector level. <b>Money rotates between sectors continuously.</b> A flat Nifty can hide huge moves: pharma up 8%, metal down 8%, net = 0.</p>
       <p><b>Each sector has a personality:</b></p>
       <ul>
-        <li><b style="color:#56d364">Bank Nifty</b> — Most rate-sensitive. <b>RBI rate cut → banks rally.</b> US 10Y yield rising → banks struggle (FII selling).</li>
-        <li><b style="color:#56d364">Nifty IT</b> — Counterintuitive: <b>weak rupee BENEFITS IT</b> (export earnings worth more in INR). Strong rupee hurts IT.</li>
-        <li><b style="color:#56d364">Nifty Auto</b> — Sensitive to commodity costs (steel, aluminium) and consumer demand. Rising oil = transport cost up = margin pressure.</li>
-        <li><b style="color:#56d364">Nifty Pharma</b> — <b>Defensive sector</b>. Outperforms in risk-off, has USD-export angle. People buy medicine in any economy.</li>
-        <li><b style="color:#56d364">Nifty Metal</b> — Highly cyclical. <b>Loves inflation/growth regimes</b>, suffers in recession. Tracks Chinese demand closely.</li>
-        <li><b style="color:#56d364">Nifty FMCG</b> — Defensive consumer staples. Outperforms in volatility/inflation. Boring but resilient.</li>
-        <li><b style="color:#56d364">Nifty Energy</b> — Mixed: upstream (ONGC) gains from oil up, downstream (HPCL/BPCL) loses.</li>
-        <li><b style="color:#56d364">Nifty Realty</b> — <b>The most rate-sensitive sector</b>. Inversely tied to interest rates. Rate cut talk → realty rallies.</li>
+        <li><b style="color:#6ee7b7">Bank Nifty</b> — Most rate-sensitive. <b>RBI rate cut → banks rally.</b> US 10Y yield rising → banks struggle (FII selling).</li>
+        <li><b style="color:#6ee7b7">Nifty IT</b> — Counterintuitive: <b>weak rupee BENEFITS IT</b> (export earnings worth more in INR). Strong rupee hurts IT.</li>
+        <li><b style="color:#6ee7b7">Nifty Auto</b> — Sensitive to commodity costs (steel, aluminium) and consumer demand. Rising oil = transport cost up = margin pressure.</li>
+        <li><b style="color:#6ee7b7">Nifty Pharma</b> — <b>Defensive sector</b>. Outperforms in risk-off, has USD-export angle. People buy medicine in any economy.</li>
+        <li><b style="color:#6ee7b7">Nifty Metal</b> — Highly cyclical. <b>Loves inflation/growth regimes</b>, suffers in recession. Tracks Chinese demand closely.</li>
+        <li><b style="color:#6ee7b7">Nifty FMCG</b> — Defensive consumer staples. Outperforms in volatility/inflation. Boring but resilient.</li>
+        <li><b style="color:#6ee7b7">Nifty Energy</b> — Mixed: upstream (ONGC) gains from oil up, downstream (HPCL/BPCL) loses.</li>
+        <li><b style="color:#6ee7b7">Nifty Realty</b> — <b>The most rate-sensitive sector</b>. Inversely tied to interest rates. Rate cut talk → realty rallies.</li>
       </ul>
       <div class="gs-color-key">
         <span class="gs-color-key-item gs-key-bull">🟢 Cyclicals leading (Banks/Metal/Auto/Realty) = growth/risk-on</span>
@@ -677,15 +670,15 @@ function render(data){
       <div class="gs-explainer-title">📖 What is a "correlation" and why does it matter?</div>
       <p>A correlation tells you <b>how two markets move together</b>. It's a number from <b>−1 to +1</b>:</p>
       <ul>
-        <li><b style="color:#3fb950">+1</b> → they move <b>identically together</b> (one up, the other up).</li>
-        <li><b style="color:#f85149">−1</b> → they move <b>perfectly opposite</b> (one up, the other down).</li>
+        <li><b style="color:#0ab39c">+1</b> → they move <b>identically together</b> (one up, the other up).</li>
+        <li><b style="color:#f06548">−1</b> → they move <b>perfectly opposite</b> (one up, the other down).</li>
         <li><b style="color:#8b949e">0</b> → no relationship (random).</li>
       </ul>
       <p><b>Why care?</b> Markets have textbook relationships that have held for decades — Gold and Dollar move <b>opposite</b>, Stocks and VIX move <b>opposite</b>, Copper and Stocks move <b>together</b>. <b>When these relationships HOLD, the world is behaving normally.</b> When they BREAK, something is changing — a regime shift, a structural problem, or a one-off shock.</p>
       <p><b>How to read this section:</b></p>
       <ul>
-        <li><b style="color:#3fb950">✓ "working as expected"</b> = correlation is in the direction history says it should be (markets behaving normally).</li>
-        <li><b style="color:#d29922">⚠ "relationship broken"</b> = correlation has gone wrong direction or vanished. <b>Pay attention</b> — something unusual is brewing.</li>
+        <li><b style="color:#0ab39c">✓ "working as expected"</b> = correlation is in the direction history says it should be (markets behaving normally).</li>
+        <li><b style="color:#f7b84b">⚠ "relationship broken"</b> = correlation has gone wrong direction or vanished. <b>Pay attention</b> — something unusual is brewing.</li>
         <li>The <b>bar</b> shows magnitude: longer bar = stronger relationship.</li>
         <li>Rolling 30 days: only the last 30 trading days of returns are used, so this reflects the <b>current</b> regime, not history.</li>
       </ul>
@@ -712,7 +705,7 @@ function render(data){
         const c30 = c.corr_30d, c60 = c.corr_60d, c90 = c.corr_90d;
         const colorOf = v => v == null ? 'var(--dim)' : (v >= 0 ? 'var(--bull)' : 'var(--bear)');
         const fmt2 = v => v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(2);
-        const shiftFlag = c.regime_shift ? '<span style="font-size:.6rem;padding:1px 6px;border-radius:8px;background:#f8514922;color:#f85149;border:1px solid #f8514955;margin-left:4px">⚠ regime shift</span>' : '';
+        const shiftFlag = c.regime_shift ? '<span style="font-size:.6rem;padding:1px 6px;border-radius:8px;background:#f0654822;color:#f06548;border:1px solid #f0654855;margin-left:4px">⚠ regime shift</span>' : '';
         return `
           <div class="col-md-6 col-lg-4">
             <div class="gs-corr-card">
@@ -992,10 +985,10 @@ function _buildVixGauge(canvasId, vixValue, idSuffix){
   // Tweaked so the colour bands feel right when reading at a glance.
   const segments = [18, 16, 12, 24, 30];
   const colors   = [
-    'rgba(63,185,80,.85)',     // complacency (green) — eerie quiet
-    'rgba(88,166,255,.85)',    // normal (blue)
-    'rgba(210,153,34,.85)',    // elevated (amber)
-    'rgba(248,81,73,.85)',     // fear (red)
+    'rgba(10,179,156,.85)',     // complacency (green) — eerie quiet
+    'rgba(124,138,239,.85)',    // normal (blue)
+    'rgba(247,184,75,.85)',    // elevated (amber)
+    'rgba(240,101,72,.85)',     // fear (red)
     'rgba(165,29,42,.92)',     // panic (deep red)
   ];
   // Choose tone label by raw VIX
@@ -1065,9 +1058,9 @@ function renderAllCharts(data){
         datasets: [{
           data: [35, 30, 35],
           backgroundColor: [
-            'rgba(248,81,73,.85)',
-            'rgba(210,153,34,.85)',
-            'rgba(63,185,80,.85)',
+            'rgba(240,101,72,.85)',
+            'rgba(247,184,75,.85)',
+            'rgba(10,179,156,.85)',
           ],
           borderColor: 'rgba(0,0,0,.25)',
           borderWidth: 1,
@@ -1591,5 +1584,6 @@ function renderAllCharts(data){
 }
 </script>
 {% include "_theme_picker.html" %}
+{% include "_scroll_reveal.html" %}
 </body>
 </html>

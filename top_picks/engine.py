@@ -70,12 +70,16 @@ from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
 from bb_squeeze.config import CSV_DIR
 from bb_squeeze.fundamentals import fetch_fundamentals
 from bb_squeeze.weekly_confirmation import compute_weekly_view
+from bb_squeeze.vix_regime import get_vix_regime
+from bb_squeeze.sector_strength import compute_sector_rs, prefetch_all_sectors
+from bb_squeeze.earnings_guard import check_earnings_proximity
 from hybrid_pa_engine import run_triple_analysis
 
 # ── Our own modules ──
 from top_picks.config import (
     MIN_BB_CONFIDENCE, MIN_DATA_BARS, MAX_DEEP_ANALYSIS,
     TOP_N, MIN_COMPOSITE_SCORE, MAX_WORKERS, DEFAULT_CAPITAL,
+    HOLD_PERIOD_MAP, FUNDAMENTAL_FLOOR_SCORE, FUNDAMENTAL_FLOOR_SIGNAL,
 )
 from top_picks.scorer import compute_composite_score
 
@@ -115,6 +119,8 @@ def _fundamentals_payload(ticker: str) -> dict:
             "profitability_score":_safe(fd.profitability_score, 0),
             "growth_score":       _safe(fd.growth_score, 0),
             "stability_score":    _safe(fd.stability_score, 0),
+            "sector":             getattr(fd, "sector", "") or "",
+            "upcoming_results_date": getattr(fd, "upcoming_results_date", None),
             "error":              fd.fetch_error or "",
         }
     except Exception as e:
@@ -129,7 +135,7 @@ def _fundamentals_payload(ticker: str) -> dict:
 # header badge), per-ticker retries can add 30-60s. We give the parallel
 # fetch a generous-but-safe budget that still fits comfortably under the
 # 120s SSE timeout configured in top_picks_routes.
-_FUND_TOTAL_BUDGET_SEC = 75.0
+_FUND_TOTAL_BUDGET_SEC = 40.0
 _FUND_MAX_WORKERS      = 10
 
 
@@ -304,6 +310,23 @@ def find_top_picks(
     └──────────────────────────────────────────────────────────────┘
     """
 
+    # ── Stage 0 (NEW): VIX Regime Gate ────────────────────────────
+    vix_info = get_vix_regime()
+    vix_regime = vix_info.get("regime", "UNKNOWN")
+    effective_min_score = vix_info.get("min_score_override") or MIN_COMPOSITE_SCORE
+    active_methods = vix_info.get("active_methods")
+
+    if active_methods is not None and method not in active_methods:
+        return {
+            "method": method, "signal_filter": signal_filter,
+            "total_scanned": len(scan_results),
+            "total_signals": 0, "total_qualified": 0, "total_analyzed": 0,
+            "picks": [], "vix_regime": vix_regime,
+            "vix_value": vix_info.get("vix_value"),
+            "message": f"VIX DEFENSIVE regime ({vix_info.get('vix_value')} VIX). "
+                       f"Only {active_methods} active. {method} suspended.",
+        }
+
     # ── Stage 1: Extract candidates from scan results ───────────
     candidates = _extract_candidates(scan_results, method, signal_filter)
     total_signals = len(candidates)
@@ -333,9 +356,9 @@ def find_top_picks(
 
     scored.sort(key=lambda x: x["composite_score"], reverse=True)
 
-    # Apply minimum score threshold
+    # Apply effective minimum score (may be raised by VIX CAUTION)
     above_min = [
-        p for p in scored if p["composite_score"] >= MIN_COMPOSITE_SCORE
+        p for p in scored if p["composite_score"] >= effective_min_score
     ]
 
     # Strict filter: ALL method conditions must be met — no exceptions
@@ -359,17 +382,82 @@ def find_top_picks(
     for i, pick in enumerate(top):
         pick["rank"] = i + 1
 
-    # ── Stage 7: Enrich top picks with the same fundamentals shown on
-    #            the /analyze page (score + BUY/HOLD/AVOID verdict).
-    #            Done after ranking so we only fetch for the final picks
-    #            instead of all 100 deep-analyzed candidates. Runs in
-    #            parallel under a hard wall-clock budget so a yfinance
-    #            stall can never block the SSE response.
+    # ── Stage 7: Enrich top picks with fundamentals ─────────────
+    #    Start sector index prefetch in background while fundamentals run
+    _sector_future = None
+    if signal_filter == "BUY" and top:
+        from concurrent.futures import ThreadPoolExecutor as _TPE
+        _sector_pool = _TPE(max_workers=1, thread_name_prefix="tp-sec")
+        _sector_future = _sector_pool.submit(prefetch_all_sectors)
+        _sector_pool.shutdown(wait=False)
+
     if top:
         if phase_callback:
             phase_callback("enriching",
                            f"Fetching fundamentals for {len(top)} top picks…")
         _enrich_with_fundamentals(top)
+
+    # ── Stage 7.5 (NEW): Sector RS Gate ─────────────────────────
+    if signal_filter == "BUY" and top:
+        if _sector_future:
+            _sector_future.result(timeout=10)
+        for pick in top:
+            fd = pick.get("fundamentals", {})
+            sector_name = fd.get("sector", "") or ""
+            close_tail = pick.get("_close_tail", [])
+            if sector_name and len(close_tail) >= 10:
+                try:
+                    df_mini = pd.DataFrame({"Close": close_tail})
+                    pick["sector_rs"] = compute_sector_rs(
+                        pick["ticker"], df_mini, sector_name)
+                except Exception:
+                    pick["sector_rs"] = {"available": False, "sector_trend": None}
+            else:
+                pick["sector_rs"] = {"available": False, "sector_trend": None}
+
+        remaining_pool = weekly_filtered[TOP_N:]
+        top = [p for p in top
+               if p.get("sector_rs", {}).get("sector_trend") != "LAGGING"]
+        # Backfill from pool if sector gate removed picks
+        while len(top) < TOP_N and remaining_pool:
+            backfill = remaining_pool.pop(0)
+            _enrich_with_fundamentals([backfill])
+            backfill["sector_rs"] = {"available": False, "sector_trend": None}
+            top.append(backfill)
+
+    # ── Stage 7.6 (NEW): Fundamental Floor Gate ─────────────────
+    if top:
+        remaining_pool = [p for p in weekly_filtered
+                          if p not in top and p.get("_close_tail")]
+        filtered_top = []
+        for pick in top:
+            fd = pick.get("fundamentals", {})
+            if fd.get("available", False):
+                score = fd.get("score", 100)
+                sig = fd.get("signal", "")
+                if score < FUNDAMENTAL_FLOOR_SCORE or sig == FUNDAMENTAL_FLOOR_SIGNAL:
+                    if remaining_pool:
+                        backfill = remaining_pool.pop(0)
+                        _enrich_with_fundamentals([backfill])
+                        filtered_top.append(backfill)
+                    continue
+            filtered_top.append(pick)
+        top = filtered_top
+
+    # ── Stage 7.7 (NEW): Earnings Guard Gate ────────────────────
+    if signal_filter == "BUY" and top:
+        for pick in top:
+            fd = pick.get("fundamentals", {})
+            upcoming = fd.get("upcoming_results_date")
+            eg = check_earnings_proximity(pick["ticker"], upcoming)
+            pick["earnings_guard"] = eg
+        top = [p for p in top
+               if p.get("earnings_guard", {}).get("risk_level") != "HIGH"]
+
+    # ── Clean up internal fields and re-rank ────────────────────
+    for i, pick in enumerate(top):
+        pick.pop("_close_tail", None)
+        pick["rank"] = i + 1
 
     weekly_rejected = len(strict_picks) - len(weekly_filtered)
 
@@ -382,11 +470,14 @@ def find_top_picks(
         "total_analyzed": len(scored),
         "total_strict": len(strict_picks),
         "total_weekly_rejected": weekly_rejected,
+        "vix_regime": vix_regime,
+        "vix_value": vix_info.get("vix_value"),
         "picks": top,
         "message": (
             f"Showing {len(top)} stocks with ALL {method} {signal_filter} "
             f"conditions strictly met + weekly trend confirmed."
             + (f" ({weekly_rejected} dropped by weekly filter.)" if weekly_rejected else "")
+            + (f" VIX regime: {vix_regime}." if vix_info.get("available") else "")
         ) if top else (
             f"No stocks met ALL {method} {signal_filter} conditions strictly. "
             f"0 out of {len(scored)} analyzed stocks passed."
@@ -669,6 +760,12 @@ def _deep_analyze_stock(
         triple_targets_unified = triple.get("triple_targets", {})
         ta_categories = ta_signal.get("categories", {})
 
+        # Step 3b: Volume quality ratio (for enhanced scoring)
+        bb_ind = bb_data.get("indicators", {})
+        _vol = _safe(bb_ind.get("volume"), 0)
+        _vol_sma = _safe(bb_ind.get("vol_sma50"), 0)
+        volume_ratio = (_vol / _vol_sma) if _vol_sma > 0 else None
+
         # Step 4: Compute composite score (this calls scorer.py)
         scoring = compute_composite_score(
             bb_confidence=bb_confidence,
@@ -679,6 +776,7 @@ def _deep_analyze_stock(
             method=method,
             signal_filter=signal_filter,
             pa_result=pa_flat,
+            volume_ratio=volume_ratio,
         )
 
         # Step 5: Package the result card
@@ -786,6 +884,11 @@ def _deep_analyze_stock(
 
             # ── Weekly Confirmation (multi-timeframe filter) ──
             "weekly_confirmation": _compute_weekly_confirmation(df),
+
+            # ── Enhancement layers ──
+            "volume_ratio": volume_ratio,
+            "_close_tail": list(df["Close"].dropna().values[-21:]),
+            "hold_guidance": HOLD_PERIOD_MAP.get(method, {"days": "N/A", "stop": "N/A"}),
         }
 
     except Exception:

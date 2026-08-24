@@ -10,7 +10,7 @@ Then open:  http://127.0.0.1:5000
 
 import sys, os, json, math, threading
 from dataclasses import asdict
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 import pandas as pd
 import numpy as np
 import time as _time
@@ -79,6 +79,7 @@ from web.mental_game_routes import mental_game_bp
 from web.rentech_routes import rentech_bp
 from web.auth_routes import auth_bp
 from web.sentiment_routes import sentiment_bp
+from web.feedback_routes import feedback_bp
 from mental_game.db import init_mental_game_db as _init_mental_game_db
 from auth.db import init_auth_db as _init_auth_db
 from auth.middleware import init_auth_middleware
@@ -97,6 +98,7 @@ app.register_blueprint(mental_game_bp)
 app.register_blueprint(rentech_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(sentiment_bp)
+app.register_blueprint(feedback_bp)
 
 # Global Macro / Inter-Market Sentiment (separate, isolated module)
 from web.global_sentiment_routes import global_sentiment_bp
@@ -105,6 +107,9 @@ app.register_blueprint(global_sentiment_bp)
 # Quick Notes (separate, isolated module — floating notepad widget)
 from web.notes_routes import notes_bp
 app.register_blueprint(notes_bp)
+
+from web.holdings_routes import holdings_bp
+app.register_blueprint(holdings_bp)
 from notes.db import init_notes_db
 init_notes_db()
 
@@ -2079,24 +2084,29 @@ def api_portfolio_unrealized_daily():
     idx = pd.DatetimeIndex(all_dates)
 
     by_ticker = {}
+    buy_dates = {}
     for ticker, s in pnl_series:
-        aligned = s.reindex(idx).ffill().fillna(0.0)
+        aligned = s.reindex(idx).ffill()
         if ticker in by_ticker:
-            by_ticker[ticker] = by_ticker[ticker] + aligned
+            by_ticker[ticker] = by_ticker[ticker].add(aligned, fill_value=0)
+            buy_dates[ticker] = min(buy_dates[ticker], s.index[0])
         else:
             by_ticker[ticker] = aligned
+            buy_dates[ticker] = s.index[0]
 
     series_payload = []
     for ticker in sorted(by_ticker.keys()):
         ts = by_ticker[ticker]
+        bd = buy_dates.get(ticker, idx[0])
+        pnl_list = [round(float(v), 2) if d >= bd and pd.notna(v) else None for d, v in zip(ts.index, ts.values)]
         series_payload.append({
             "ticker": ticker,
             "label": ticker.replace(".NS", ""),
-            "pnl": [round(float(v), 2) for v in ts.values],
-            "latest": round(float(ts.iloc[-1]), 2) if len(ts) else 0.0,
+            "pnl": pnl_list,
+            "latest": round(float(ts.iloc[-1]), 2) if len(ts) and pd.notna(ts.iloc[-1]) else 0.0,
         })
 
-    portfolio_pnl = pd.concat(list(by_ticker.values()), axis=1).sum(axis=1)
+    portfolio_pnl = pd.concat(list(by_ticker.values()), axis=1).fillna(0).sum(axis=1)
 
     return jsonify({
         "dates": [d.strftime("%Y-%m-%d") for d in portfolio_pnl.index],
@@ -2109,6 +2119,90 @@ def api_portfolio_unrealized_daily():
             "latest": round(float(portfolio_pnl.iloc[-1]), 2) if len(portfolio_pnl) else 0.0,
         },
     })
+
+
+# ─────────────────────────────────────────────────────────────────
+#  LIVE TICKER — near-real-time prices via Yahoo Finance
+# ─────────────────────────────────────────────────────────────────
+
+_ticker_cache = {"data": None, "ts": 0}
+_ticker_lock = threading.Lock()
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+def _is_market_open():
+    now = datetime.now(_IST)
+    if now.weekday() >= 5:
+        return False
+    t = now.time()
+    return time(9, 15) <= t <= time(15, 30)
+
+
+def get_live_prices(user_id, is_admin=False):
+    """Fetch near-real-time prices for portfolio tickers + indices. Cached 55s."""
+    import yfinance as yf
+
+    now_ts = _time.time()
+    with _ticker_lock:
+        if _ticker_cache["data"] and (now_ts - _ticker_cache["ts"]) < 55:
+            return _ticker_cache["data"]
+
+    positions = get_open_positions(user_id=user_id, is_admin=is_admin)
+    symbols = list({
+        (p.get("ticker") or "").strip().upper()
+        for p in positions if p.get("ticker")
+    })
+    indices = ["^NSEI", "^NSEBANK"]
+    all_syms = symbols + indices
+
+    if not all_syms:
+        return {"market_open": _is_market_open(), "as_of": None, "tickers": []}
+
+    tickers_out = []
+    try:
+        df = yf.download(all_syms, period="5d", interval="1d",
+                         group_by="ticker", threads=True, progress=False)
+        for sym in all_syms:
+            try:
+                if len(all_syms) == 1:
+                    closes = df["Close"].dropna()
+                else:
+                    closes = df[sym]["Close"].dropna()
+                if len(closes) < 1:
+                    continue
+                price = round(float(closes.iloc[-1]), 2)
+                prev = round(float(closes.iloc[-2]), 2) if len(closes) >= 2 else price
+                change = round(price - prev, 2)
+                change_pct = round((change / prev) * 100, 2) if prev else 0.0
+                label = sym.replace(".NS", "")
+                if sym == "^NSEI":
+                    label = "NIFTY 50"
+                elif sym == "^NSEBANK":
+                    label = "BANK NIFTY"
+                tickers_out.append({
+                    "symbol": label, "raw_symbol": sym,
+                    "price": price, "change": change,
+                    "change_pct": change_pct, "prev_close": prev,
+                })
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    result = {
+        "market_open": _is_market_open(),
+        "as_of": datetime.now(_IST).strftime("%H:%M:%S"),
+        "tickers": tickers_out,
+    }
+    with _ticker_lock:
+        _ticker_cache["data"] = result
+        _ticker_cache["ts"] = _time.time()
+
+    return result
+
+
+@app.route("/api/ticker/live")
+def api_ticker_live():
+    return jsonify(get_live_prices(_uid(), _is_admin()))
 
 
 # ─────────────────────────────────────────────────────────────────

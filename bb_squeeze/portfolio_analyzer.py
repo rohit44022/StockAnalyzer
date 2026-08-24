@@ -2032,6 +2032,7 @@ def analyze_position(position: dict, light: bool = False) -> dict:
         }
 
     # 7. Current indicator snapshot
+    _recent5 = df_with_ind.tail(5)
     indicators = {
         "price":      _safe(float(last["Close"])),
         "bb_upper":   _safe(float(last["BB_Upper"])),
@@ -2046,6 +2047,11 @@ def analyze_position(position: dict, light: bool = False) -> dict:
         "squeeze_on": bool(last["Squeeze_ON"]),
         "volume":     int(last["Volume"]),
         "vol_sma50":  int(last["Vol_SMA50"]) if not math.isnan(last["Vol_SMA50"]) else 0,
+        "rsi":             _safe(float(last["RSI"])),
+        "expansion_end":   bool(last.get("Expansion_End", False)),
+        "bbw_6m_min":      _safe(float(last.get("BBW_6M_Min", 0)), 6),
+        "percent_b_slope": _safe(float(_recent5["Percent_B"].iloc[-1] - _recent5["Percent_B"].iloc[0]), 3),
+        "rsi_slope":       _safe(float(_recent5["RSI"].iloc[-1] - _recent5["RSI"].iloc[0]), 2),
     }
 
     # 8. Holding info
@@ -2059,6 +2065,7 @@ def analyze_position(position: dict, light: bool = False) -> dict:
     fund_snapshot = {"available": False}
     benchmark = {}
     trailing_stops = _compute_trailing_stops(df_with_ind, buy_price)
+    indicators["atr_14"] = trailing_stops.get("atr_14", 0)
     expert_commentary = {}
 
     # Vince risk is needed for the table (risk_grade + sizing_status), so it
@@ -2116,6 +2123,20 @@ def analyze_position(position: dict, light: bool = False) -> dict:
         strategy_code=strategy_code,
     )
 
+    # ── Connect trailing stops to recommendation action_triggers ────
+    if trailing_stops.get("available") and rec.get("action_triggers") is not None:
+        ts_rec = trailing_stops.get("recommended_stop", 0)
+        tier = trailing_stops.get("trailing_tiers", {})
+        action = rec.get("action", "")
+        if action in ("HOLD", "ADD", "STRONG HOLD") and ts_rec > 0:
+            rec["action_triggers"].append(
+                f"TRAIL STOP: Move stop-loss to ₹{ts_rec:,.2f} (Chandelier/ATR-based)"
+            )
+        if tier and tier.get("tier_number", 0) >= 2 and ts_rec > 0:
+            rec["action_triggers"].append(
+                f"PROFIT LOCK: {tier['current_tier']} — stop at ₹{tier['tier_stop']:,.2f} locks {tier['tier_locked_pct']:.1f}% profit"
+            )
+
     # ── Layman regime cards (ADX / Squeeze / ATR / OBV) ──────────────
     # Built from the triple snapshot we already stashed inside multi_sys.
     # Pop the internal keys so they don't bloat the response.
@@ -2133,6 +2154,147 @@ def analyze_position(position: dict, light: bool = False) -> dict:
     except Exception as _e:
         _pa_logger.debug("regime_cards build failed: %s", _e)
         regime_cards = None
+
+    # ── AI/ML Intelligence (purely additive) ──────────────────────
+    ai_ml_intel = {}
+    try:
+        pick_proxy = {
+            "ticker": ticker,
+            "price": current_price,
+            "method": strategy_code,
+            "bb_data": {"indicators": indicators},
+            "stop_loss": targets.get("stop_loss"),
+            "target_upside": targets.get("target_3_sigma"),
+            "composite_score": None,
+            "ml_confidence": None,
+        }
+
+        # Exit Intelligence — always runs (fast, local)
+        from ai_ml.exit_intelligence import enrich_picks_with_exit
+        enrich_picks_with_exit([pick_proxy])
+        ai_ml_intel["exit_intelligence"] = pick_proxy.get("exit_intelligence", {})
+
+        # Market Regime — cached after first call
+        from ai_ml.regime_filter import get_market_regime
+        regime = get_market_regime()
+        ai_ml_intel["market_regime"] = regime
+
+        if not light:
+            # ML Confidence — score this position live
+            try:
+                from ai_ml.signal_filter import score_picks
+                from ai_ml.engine import is_available
+                if is_available():
+                    score_picks([pick_proxy])
+                    ai_ml_intel["ml_confidence"] = pick_proxy.get("ml_confidence")
+                    ai_ml_intel["ml_verdict"] = pick_proxy.get("ml_verdict")
+                    ai_ml_intel["ml_percentile"] = pick_proxy.get("ml_percentile")
+            except Exception:
+                pass
+
+            # Feedback stats for this method
+            try:
+                from ai_ml.feedback_loop import get_feedback_stats
+                fb = get_feedback_stats()
+                method_stats = fb.get("by_method", {}).get(strategy_code, {})
+                ai_ml_intel["feedback"] = {
+                    "method_win_rate": method_stats.get("win_rate"),
+                    "method_trades": method_stats.get("trades", 0),
+                    "overall_win_rate": fb.get("win_rate_overall"),
+                    "total_tracked": fb.get("total_resolved", 0),
+                }
+            except Exception:
+                pass
+
+            # Kelly position size check
+            try:
+                from ai_ml.position_sizer import compute_position_sizes
+                compute_position_sizes([pick_proxy], capital=500_000)
+                kelly_pct = pick_proxy.get("size_recommended_pct") or 0
+                qty = int(position["quantity"])
+                actual_pct = (current_price * qty) / 500_000 * 100 if current_price else 0
+                status = ("OVERSIZED" if actual_pct > kelly_pct * 1.5
+                          else "UNDERSIZED" if kelly_pct and actual_pct < kelly_pct * 0.5
+                          else "ALIGNED")
+                ai_ml_intel["kelly_check"] = {
+                    "recommended_pct": kelly_pct,
+                    "actual_pct": round(actual_pct, 1),
+                    "status": status,
+                }
+            except Exception:
+                pass
+
+        # ── Scale-Out Guidance ──────────────────────────────────────
+        try:
+            bb_upper = indicators.get("bb_upper", 0)
+            bb_lower = indicators.get("bb_lower", 0)
+            bb_mid   = indicators.get("bb_mid", 0)
+            bb_range = bb_upper - bb_lower if bb_upper > bb_lower else 1
+            band_progress = (current_price - bb_lower) / bb_range * 100
+            band_progress = max(0, min(band_progress, 150))
+
+            def _band_zone(price, lower, mid, upper):
+                if price <= lower:   return "Below Lower Band"
+                if price <= mid:     return "Lower Half"
+                if price <= upper:   return "Upper Half"
+                sigma1 = upper + (upper - mid)
+                if price <= sigma1:  return "Above Upper Band (1σ)"
+                return "Extended (>1σ)"
+
+            t_upper = targets.get("target_bb_upper", bb_upper)
+            t_1sigma = targets.get("target_1_sigma", bb_upper + (bb_upper - bb_mid))
+            t_3sigma = targets.get("target_3_sigma", bb_upper + 3 * (bb_upper - bb_mid))
+            ts_rec = trailing_stops.get("recommended_stop", 0)
+            qty = int(position["quantity"])
+
+            tiers = [
+                {"tier": "T1", "target": round(t_upper, 2), "action": "Book 1/3",
+                 "shares": max(1, qty // 3), "label": "BB Upper Band"},
+                {"tier": "T2", "target": round(t_1sigma, 2), "action": "Book 1/3",
+                 "shares": max(1, qty // 3), "label": "1-Sigma Extension"},
+                {"tier": "T3", "target": round(t_3sigma, 2), "action": "Trail rest",
+                 "shares": qty - 2 * max(1, qty // 3), "label": "3-Sigma / Let it run"},
+            ]
+
+            ai_ml_intel["scale_out"] = {
+                "band_progress_pct": round(band_progress, 1),
+                "entry_band_zone": _band_zone(buy_price, bb_lower, bb_mid, bb_upper),
+                "current_band_zone": _band_zone(current_price, bb_lower, bb_mid, bb_upper),
+                "tiers": tiers,
+                "recommended_trail_stop": ts_rec,
+                "bb_lower": round(bb_lower, 2),
+                "bb_mid": round(bb_mid, 2),
+                "bb_upper": round(bb_upper, 2),
+            }
+        except Exception:
+            pass
+
+        # ── Time-in-Trade Check ─────────────────────────────────────
+        try:
+            _HOLD_RANGES = {
+                "M1": (15, 20), "M2": (20, 25), "M3": (10, 15), "M4": (20, 25),
+            }
+            lo, hi = _HOLD_RANGES.get(strategy_code, (15, 25))
+            if days <= lo * 0.5:
+                time_status = "EARLY"
+            elif days <= hi:
+                time_status = "NORMAL"
+            elif days <= hi * 1.5:
+                time_status = "EXTENDED"
+            else:
+                time_status = "OVERDUE"
+            ai_ml_intel["time_check"] = {
+                "days_held": days,
+                "typical_lo": lo,
+                "typical_hi": hi,
+                "status": time_status,
+                "method": strategy_code,
+            }
+        except Exception:
+            pass
+
+    except Exception as e:
+        ai_ml_intel["error"] = str(e)
 
     return {
         "position":                position,
@@ -2160,6 +2322,7 @@ def analyze_position(position: dict, light: bool = False) -> dict:
         "trailing_stops":  trailing_stops,
         "regime_cards":    regime_cards,
         "expert_commentary": expert_commentary,
+        "ai_ml_intel":     ai_ml_intel,
         "holding": {
             "days":          days,
             "buy_price":     buy_price,

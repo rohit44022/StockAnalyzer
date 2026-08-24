@@ -36,8 +36,8 @@ logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 #  CONFIGURATION  — edit only this section if needed
 # ══════════════════════════════════════════════════════════════════
 
-# 3 years of history — dynamic so it's always "last 3 years to today"
-START_DATE  = (date.today() - timedelta(days=3*365)).strftime("%Y-%m-%d")
+# 15 years of history — dynamic so it's always "last 15 years to today"
+START_DATE  = (date.today() - timedelta(days=15*365)).strftime("%Y-%m-%d")
 # yfinance 'end' is exclusive — use tomorrow so today's EOD data is included
 END_DATE    = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 SAVE_PATH   = "/Users/rttripathirttripathi/Rohit/coding/StockCode/ historical_data/stock_csv/"

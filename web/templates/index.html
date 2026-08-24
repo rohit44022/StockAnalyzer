@@ -592,7 +592,7 @@
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2 mb-0" style="padding-right:2rem">
-                            <span class="strat-method-tag">Method II · Chapter 16</span>
+                            <span class="strat-method-tag">M2 · Method II · Chapter 16</span>
                             <div class="strat-title mb-0">Trend Following — %b + MFI Confirmation</div>
                         </div>
                         <i class="bi bi-chevron-down strat-chevron"></i>
@@ -696,7 +696,7 @@
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2 mb-0" style="padding-right:2rem">
-                            <span class="strat-method-tag">Method I · Chapters 15–16</span>
+                            <span class="strat-method-tag">M1 · Method I · Chapters 15–16</span>
                             <div class="strat-title mb-0">Volatility Breakout — The Squeeze</div>
                         </div>
                         <i class="bi bi-chevron-down strat-chevron"></i>
@@ -794,7 +794,7 @@
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2 mb-0" style="padding-right:2rem">
-                            <span class="strat-method-tag">Method III · Chapter 17</span>
+                            <span class="strat-method-tag">M3 · Method III · Chapter 17</span>
                             <div class="strat-title mb-0">Reversals — W-Bottoms &amp; M-Tops</div>
                         </div>
                         <i class="bi bi-chevron-down strat-chevron"></i>
@@ -907,7 +907,7 @@
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2 mb-0" style="padding-right:2rem">
-                            <span class="strat-method-tag">Method IV · Chapter 18</span>
+                            <span class="strat-method-tag">M4 · Method IV · Chapter 18</span>
                             <div class="strat-title mb-0">Walking the Bands — Trend Confirmation</div>
                         </div>
                         <i class="bi bi-chevron-down strat-chevron"></i>
@@ -1079,11 +1079,22 @@
               </div>
               <div class="tp-progress-bar"><div class="tp-progress-fill" id="tpProgressFill" style="width:0%"></div></div>
               <div class="tp-progress-text" id="tpProgressText">Connecting...</div>
-              <p class="text-secondary mt-3" style="font-size:0.78rem;">
+              <p class="text-secondary mt-3 mb-1" style="font-size:0.78rem;">
                 <i class="bi bi-info-circle me-1"></i>
                 This runs a <strong>full deep analysis</strong> on every qualifying stock: BB pattern + Murphy's TA (6 categories)
                 + Triple cross-validation + Risk/Reward assessment. This takes a moment because quality analysis cannot be rushed.
               </p>
+              <div style="font-size:0.72rem;color:#6e7681;padding:8px 12px;border:1px solid var(--bs-border-color);border-radius:8px;background:var(--bs-body-bg);line-height:1.6">
+                <strong style="color:#7c8aef">7 Smart Filters</strong> run automatically after the BB strict checklist:
+                <span style="color:#0ab39c">VIX Regime</span> (blocks trades in panic markets) ·
+                <span style="color:#7c8aef">Volume Quality</span> (checks institutional participation) ·
+                <span style="color:#0ab39c">Sector Strength</span> (drops stocks in weak sectors) ·
+                <span style="color:#f7b84b">Earnings Guard</span> (blocks trades near earnings dates) ·
+                <span style="color:#f06548">Fundamental Floor</span> (removes fundamentally weak stocks) ·
+                <span style="color:#7c8aef">Score Reweighting</span> (BB gets 35% weight, not 20%) ·
+                <span style="color:#0ab39c">Hold Guidance</span> (recommended exit plan per method).
+                <br>All book rules remain <strong>100% untouched</strong> — these filters only veto picks that passed BB but are likely to fail.
+              </div>
             </div>
             <!-- Results (shown after analysis completes) -->
             <div id="tpResults" style="display:none;">
@@ -1683,6 +1694,17 @@
             <span class="tp-summary-item"><strong>${data.total_analyzed || 0}</strong> successfully analyzed</span>
             ${data.total_weekly_rejected ? `<span class="tp-summary-item" style="color:#f7b84b"><strong>${data.total_weekly_rejected}</strong> dropped by weekly filter</span>` : ''}
             <span class="tp-summary-item"><strong>${(data.picks||[]).length}</strong> top picks found</span>
+            ${(function(){
+                const vr = data.vix_regime;
+                if (!vr || vr === 'UNKNOWN') return '';
+                const vc = vr === 'NORMAL' ? '#0ab39c' : vr === 'CAUTION' ? '#f7b84b' : '#f06548';
+                const vi = vr === 'NORMAL' ? '🟢' : vr === 'CAUTION' ? '🟡' : '🔴';
+                const vv = data.vix_value != null ? data.vix_value.toFixed(1) : '';
+                const vTip = vr === 'NORMAL' ? 'Market is calm — all methods active, no restrictions'
+                    : vr === 'CAUTION' ? 'Market is nervous — only picks scoring 45+ shown'
+                    : 'Market in fear — only M2 (trend-following) active';
+                return '<span class="tp-summary-item" style="color:'+vc+'" title="'+vTip+'">'+vi+' VIX: <strong>'+vr+'</strong>'+(vv ? ' ('+vv+')' : '')+'</span>';
+            })()}
         `;
 
         const picksList = document.getElementById('tpPicksList');
@@ -1699,8 +1721,50 @@
             document.getElementById('tpFooter').textContent = 'Analysis complete — no stocks met the quality threshold.';
             return; }
 
+        // AI/ML portfolio-level insights (correlation + method routing)
+        const aiml = data.ai_ml;
+        if (aiml && aiml.available) {
+            let aiHtml = '';
+            // Correlation Guard
+            const corr = aiml.correlation;
+            if (corr && corr.correlated_pairs) {
+                const divColor = corr.risk_level === 'LOW' ? '#0ab39c' : corr.risk_level === 'MEDIUM' ? '#f7b84b' : '#f06548';
+                const divIcon = corr.risk_level === 'LOW' ? '🟢' : corr.risk_level === 'MEDIUM' ? '🟡' : '🔴';
+                const pairsHtml = corr.correlated_pairs.length > 0
+                    ? corr.correlated_pairs.map(p => `<span style="font-size:0.65rem;color:#f7b84b">${p.stock_a.replace('.NS','')}-${p.stock_b.replace('.NS','')}: ${(p.correlation*100).toFixed(0)}%</span>`).join(' · ')
+                    : '<span style="font-size:0.65rem;color:#0ab39c">No highly correlated pairs — good diversification</span>';
+                aiHtml += `<span class="tp-summary-item" title="Diversification score: ${corr.diversification_score}/100. ${corr.risk_level === 'HIGH' ? 'HIGH correlation risk — consider replacing one of the correlated stocks.' : corr.risk_level === 'MEDIUM' ? 'Some correlation detected — be aware of concentrated exposure.' : 'Well diversified portfolio of picks.'}">${divIcon} Diversification: <strong style="color:${divColor}">${corr.diversification_score}/100</strong></span>`;
+            }
+            // Method Routing
+            const routing = aiml.method_routing;
+            if (routing && routing.available && routing.best_method) {
+                const isBest = routing.best_method === method;
+                const routeColor = isBest ? '#0ab39c' : '#f7b84b';
+                const routeIcon = isBest ? '✅' : 'ℹ️';
+                const bestWr = routing.method_rankings && routing.method_rankings[0] ? (routing.method_rankings[0].win_rate * 100).toFixed(1) + '%' : '';
+                aiHtml += `<span class="tp-summary-item" title="ML analysis of ${routing.regime_detected} regime. Best method right now: ${routing.best_method} (${bestWr} win rate in this regime)." style="color:${routeColor}">${routeIcon} ${isBest ? method + ' is optimal for this regime' : 'Regime favors ' + routing.best_method + ' (' + bestWr + ')'}</span>`;
+            }
+            // Market Regime
+            const mktReg = aiml.market_regime;
+            if (mktReg && mktReg.regime) {
+                const regColors = {STRONG_BULL:'#0ab39c', BULL:'#3b82f6', NEUTRAL:'#f7b84b', BEAR:'#ef5350', STRONG_BEAR:'#d32f2f'};
+                const regIcons = {STRONG_BULL:'🟢', BULL:'🔵', NEUTRAL:'🟡', BEAR:'🔴', STRONG_BEAR:'⛔'};
+                const regC = regColors[mktReg.regime] || '#8b949e';
+                aiHtml += `<span class="tp-summary-item" title="${mktReg.explanation || ''}" style="color:${regC}">${regIcons[mktReg.regime] || '⬜'} Market: <strong>${mktReg.regime.replace('_',' ')}</strong> (${mktReg.score}/${mktReg.max_score})</span>`;
+            }
+            if (aiHtml) {
+                summaryEl.innerHTML += aiHtml;
+            }
+            // Lazy-fetch feedback stats
+            fetch('/api/ai-ml/feedback/stats').then(r=>r.json()).then(fb => {
+                if (fb && fb.total_resolved > 0) {
+                    summaryEl.innerHTML += `<span class="tp-summary-item" title="AI tracks real outcomes of past picks. Win rate: ${fb.win_rate_overall||0}%. Resolved: ${fb.total_resolved}, Open: ${fb.total_open}." style="color:#7c8aef">📊 AI Track Record: <strong>${fb.win_rate_overall||0}%</strong> win (${fb.total_resolved} trades)</span>`;
+                }
+            }).catch(()=>{});
+        }
+
         // Render each pick card
-        picksList.innerHTML = picks.map(pick => tpRenderCard(pick, method)).join('');
+        picksList.innerHTML = picks.map(pick => tpRenderCard(pick, method, data)).join('');
         const _weeklyNote = data.total_weekly_rejected ? ` · ${data.total_weekly_rejected} dropped by weekly filter` : '';
         document.getElementById('tpFooter').textContent =
             `Analysis complete · ${picks.length} top pick${picks.length>1?'s':''} from ${data.total_analyzed} analyzed stocks${_weeklyNote}`;
@@ -1809,7 +1873,7 @@
      * │ 🔍 Open Full Analysis →                │  ← Link to detailed page
      * └─────────────────────────────────────────┘
      */
-    function tpRenderCard(pick, method) {
+    function tpRenderCard(pick, method, parentData) {
         const rank = pick.rank || 1;
         const rankClass = `tp-rank-${Math.min(rank, 5)}`;
         const rankEmoji = ['🥇','🥈','🥉','4th','5th'][rank-1] || rank;
@@ -1832,7 +1896,7 @@
             'D':  'D (40-49): Weak — conflicting signals, high risk',
             'F':  'F (0-39): Failing — do not recommend, signals mostly against' };
         const gradeTooltip = gradeDesc[pick.grade] || 'Composite grade based on all analysis engines';
-        const scoreTooltip = `Composite Score: ${score.toFixed(1)}/100\nWeighted: BB (20%) + TA (20%) + Triple (15%) + Price Action (15%) + R/R (15%) + Agreement (10%) + Data (5%)`;
+        const scoreTooltip = `Composite Score: ${score.toFixed(1)}/100\nWeighted: BB (35%) + R/R (20%) + TA (15%) + Triple (10%) + Volume (5%) + PA (5%) + Agreement (5%) + Data (5%)`;
 
         // Short grade label for legend
         const gradeLegend = {
@@ -1841,7 +1905,7 @@
 
         // Build component bars
         const comps = pick.components || {};
-        const compOrder = ['bb_strategy','ta_score','triple_score','pa_score','risk_reward','signal_agreement','data_quality'];
+        const compOrder = ['bb_strategy','ta_score','triple_score','pa_score','risk_reward','signal_agreement','data_quality','volume_quality'];
         const compLabels = {
             bb_strategy: 'BB Strategy',
             ta_score: 'TA Score',
@@ -1849,7 +1913,8 @@
             pa_score: 'Price Action',
             risk_reward: 'Risk/Reward',
             signal_agreement: 'Agreement',
-            data_quality: 'Data Quality', };
+            data_quality: 'Data Quality',
+            volume_quality: 'Volume Quality', };
         const compBarsHtml = compOrder.map(key => {
             const c = comps[key] || {};
             const val = c.score || 0;
@@ -2230,6 +2295,110 @@
                 `;
             })()}
 
+            <!-- SMART FILTERS — VIX, Volume, Sector RS, Earnings, Fundamental Floor -->
+            ${(function(){
+                const pd = parentData || {};
+                const vr = pd.vix_regime || 'UNKNOWN';
+                const vv = pd.vix_value;
+                const volR = pick.volume_ratio;
+                const sr = pick.sector_rs || {};
+                const eg = pick.earnings_guard || {};
+                const fd = pick.fundamentals || {};
+                const fdScore = Number(fd.score || 0);
+
+                // VIX
+                const vixAvail = vr && vr !== 'UNKNOWN';
+                const vixColor = vr === 'NORMAL' ? '#0ab39c' : vr === 'CAUTION' ? '#f7b84b' : vr === 'DEFENSIVE' ? '#f06548' : '#8b949e';
+                const vixIcon = vr === 'NORMAL' ? '🟢' : vr === 'CAUTION' ? '🟡' : vr === 'DEFENSIVE' ? '🔴' : '⚪';
+                const vixExplain = vr === 'NORMAL'
+                    ? 'Market is calm (VIX ≤ 15). All trading methods are active and no extra restrictions apply. This is the ideal environment for Bollinger Band setups.'
+                    : vr === 'CAUTION'
+                    ? 'Market is nervous (VIX 15-22). Only picks scoring above 45/100 are shown — the quality bar is raised because mediocre setups tend to fail in choppy markets.'
+                    : vr === 'DEFENSIVE'
+                    ? 'Market is in fear mode (VIX > 22). Only Method M2 (trend-following) is active. Other methods are suspended because counter-trend and reversal setups get destroyed in high-volatility environments.'
+                    : 'VIX data is not available. No market regime filter was applied.';
+
+                // Volume
+                const volAvail = volR != null && !isNaN(volR);
+                const volTier = !volAvail ? 'N/A' : volR >= 2.5 ? 'STRONG' : volR >= 1.5 ? 'ADEQUATE' : 'WEAK';
+                const volColor = volTier === 'STRONG' ? '#0ab39c' : volTier === 'ADEQUATE' ? '#7c8aef' : volTier === 'WEAK' ? '#f06548' : '#8b949e';
+                const volIcon = volTier === 'STRONG' ? '🔊' : volTier === 'ADEQUATE' ? '🔉' : volTier === 'WEAK' ? '🔈' : '—';
+                const volExplain = volTier === 'STRONG'
+                    ? 'Volume is more than 2.5x the 50-day average. Heavy institutional participation — big money is moving this stock. This is what you want to see on a breakout. Like a crowd rushing through a door.'
+                    : volTier === 'ADEQUATE'
+                    ? 'Volume is 1.5 to 2.5 times the 50-day average. Decent participation — enough traders are paying attention to this move. A reasonable level of conviction behind the breakout.'
+                    : volTier === 'WEAK'
+                    ? 'Volume is less than 1.5x the 50-day average. Low volume breakouts often fail — not enough buyers/sellers to sustain the move. Think of it as a whisper instead of a shout.'
+                    : 'Volume data is not available for this stock.';
+
+                // Sector RS
+                const srAvail = sr.available !== false && sr.sector_trend;
+                const srTrend = (sr.sector_trend || '').toUpperCase();
+                const srSector = sr.sector_name || fd.sector || '';
+                const srColor = srTrend === 'LEADING' ? '#0ab39c' : srTrend === 'INLINE' ? '#7c8aef' : srTrend === 'LAGGING' ? '#f06548' : '#8b949e';
+                const srIcon = srTrend === 'LEADING' ? '🚀' : srTrend === 'INLINE' ? '➡️' : srTrend === 'LAGGING' ? '📉' : '—';
+                const srExplain = srTrend === 'LEADING'
+                    ? 'This stock\'s sector'+(srSector ? ' ('+srSector+')' : '')+' is outperforming the broad market. You have the wind at your back — stocks in strong sectors tend to go higher even when individual setups are just average.'
+                    : srTrend === 'INLINE'
+                    ? 'This stock\'s sector'+(srSector ? ' ('+srSector+')' : '')+' is performing in line with the market. No advantage or disadvantage from the sector — the trade stands on its own technical merits.'
+                    : srTrend === 'LAGGING'
+                    ? 'This stock\'s sector is underperforming the market. Even a perfect technical setup often fails in a weak sector — it\'s like swimming against the current. Picks in LAGGING sectors are automatically removed.'
+                    : 'Sector data is not available.'+(srSector ? ' Sector: '+srSector : '');
+
+                // Earnings Guard
+                const egRisk = (eg.risk_level || '').toUpperCase();
+                const egDays = eg.days_to_earnings;
+                const egAvail = eg.warning !== undefined;
+                const egLabel = egRisk === 'HIGH' ? 'HIGH RISK' : egRisk === 'MEDIUM' ? 'MEDIUM RISK' : egRisk === 'LOW' ? 'LOW RISK' : 'CLEAR';
+                const egColor = egRisk === 'HIGH' ? '#f06548' : egRisk === 'MEDIUM' ? '#f7b84b' : egRisk === 'LOW' ? '#7c8aef' : '#0ab39c';
+                const egIcon = egRisk === 'HIGH' ? '🚫' : egRisk === 'MEDIUM' ? '⚠️' : egRisk === 'LOW' ? 'ℹ️' : '✅';
+                const egExplain = egRisk === 'HIGH'
+                    ? 'Earnings report due within 3 trading days. This pick would be BLOCKED because earnings announcements can move a stock 10-20% in either direction regardless of any technical signal. No chart pattern can predict what the company will report.'
+                    : egRisk === 'MEDIUM'
+                    ? 'Earnings coming in 4-10 trading days. The pick is shown but be cautious — consider taking partial profits or reducing your position size before the announcement date.'
+                    : egRisk === 'LOW'
+                    ? 'Earnings are 11-14 trading days away. Enough time for the technical trade to play out before the event, but keep the date on your radar and plan your exit accordingly.'
+                    : 'No upcoming earnings within 14 trading days. The technical setup can play out without an earnings event interfering — the coast is clear.';
+
+                // Fundamental Floor note
+                const fdFloorNote = fd.available && fdScore >= 35 && fdScore < 45
+                    ? '<div style="margin-top:6px;padding:6px 10px;border-left:3px solid #f7b84b;background:rgba(247,184,75,.06);font-size:0.72rem;color:#f7b84b">⚠️ <strong>Near the floor:</strong> Fundamental score ('+fdScore+'/100) barely cleared the minimum threshold of 35. This trade relies heavily on the technical setup — fundamentals offer little support.</div>'
+                    : '';
+
+                // Build a row helper
+                const row = (icon, label, badge, badgeColor, value, explain) => `
+                    <div style="padding:8px 10px;border-bottom:1px solid var(--bs-border-color)">
+                        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:4px">
+                            <div style="display:flex;align-items:center;gap:6px">
+                                <span style="font-size:0.85rem">${icon}</span>
+                                <span style="font-size:0.75rem;font-weight:600;color:var(--bs-body-color)">${label}</span>
+                                <span style="font-size:0.68rem;padding:2px 8px;border-radius:4px;background:${badgeColor}22;color:${badgeColor};border:1px solid ${badgeColor}44;font-weight:700">${badge}</span>
+                            </div>
+                            ${value ? '<span style="font-size:0.7rem;color:#8b949e;font-family:monospace">'+value+'</span>' : ''}
+                        </div>
+                        <div style="font-size:0.72rem;color:#8b949e;line-height:1.5;padding-left:28px">${explain}</div>
+                    </div>`;
+
+                return `
+                <details style="border:1px solid #7c8aef33;border-radius:10px;margin:10px 0;background:#7c8aef06;overflow:hidden">
+                    <summary style="padding:10px 14px;cursor:pointer;font-size:0.8rem;font-weight:700;color:var(--bs-body-color);display:flex;align-items:center;gap:8px">
+                        🛡️ Smart Filters Applied
+                        <span style="font-size:0.65rem;color:#8b949e;font-weight:400">— environment checks that protect your trade</span>
+                    </summary>
+                    <div style="border-top:1px solid var(--bs-border-color)">
+                        ${row(vixIcon, 'Market Regime (India VIX)', vr, vixColor, vv != null ? 'VIX: '+vv.toFixed(1) : '', vixExplain)}
+                        ${row(volIcon, 'Volume Quality', volTier, volColor, volAvail ? volR.toFixed(1)+'x avg' : '', volExplain)}
+                        ${row(srIcon, 'Sector Strength', srAvail ? srTrend : 'N/A', srColor, srSector || '', srExplain)}
+                        ${row(egIcon, 'Earnings Guard', egLabel, egColor, egDays != null ? egDays+' days away' : '', egExplain)}
+                        ${fdFloorNote}
+                    </div>
+                    <div style="padding:6px 14px;border-top:1px solid var(--bs-border-color);font-size:0.65rem;color:#6e7681;line-height:1.4">
+                        💡 <strong>How these filters work:</strong> After the Bollinger Band strict checklist selects a stock, these 5 environment checks run automatically. They can VETO a pick that passed the BB rules (e.g., remove it if the sector is weak or earnings are imminent), but they can NEVER promote a stock that failed the BB checklist. The BB book rules remain 100% untouched.
+                    </div>
+                </details>
+                `;
+            })()}
+
             <!-- BOLLINGER BAND DEEP DIVE — New book indicators + conditions -->
             ${(function(){
                 const ind = pick.bb_indicators || {};
@@ -2551,6 +2720,335 @@
 
             <!-- UNIFIED TRIPLE TARGETS — Entry/Stop/T1/T2/T3 across BB+TA+PA+Wyckoff -->
             ${tripleTargetsHtml}
+
+            <!-- HOLD PERIOD GUIDANCE — method-specific exit plan -->
+            ${(function(){
+                const hg = pick.hold_guidance;
+                if (!hg || !hg.days) return '';
+                const explains = {
+                    M1: 'Squeeze breakouts typically resolve within 15-20 trading days. Use the Parabolic SAR as your trailing stop — when SAR flips above the price, that is your exit signal. The squeeze has released its energy and the move is likely done.',
+                    M2: 'Trend-following trades can run for 20+ trading days as long as the trend stays intact. Use the lower Bollinger Band as your stop — as long as the stock stays above it, the trend is alive. A close below the lower band means the trend may be weakening.',
+                    M3: 'Reversal setups are faster trades, typically resolving in 10-15 trading days. The reversal either works quickly or it doesn\'t. Use the lower Bollinger Band as your stop to limit downside.',
+                    M4: 'Long-term trend trades can run 20+ trading days. The 20-day Simple Moving Average (SMA) acts as your trailing stop — if the stock closes below it, the uptrend may be over and it\'s time to exit.',
+                };
+                return `
+                <div style="border:1px solid #7c8aef33;border-radius:8px;padding:10px 14px;margin:8px 0;background:#7c8aef06">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                        <span style="font-size:0.8rem;font-weight:700;color:var(--bs-body-color)">📅 Hold Period Guidance</span>
+                        <span style="font-size:0.75rem;padding:3px 10px;border-radius:6px;background:#7c8aef22;color:#7c8aef;border:1px solid #7c8aef44;font-weight:700">${hg.days} days</span>
+                        <span style="font-size:0.68rem;padding:2px 8px;border-radius:4px;background:#0ab39c22;color:#0ab39c;border:1px solid #0ab39c44">Stop: ${hg.stop}</span>
+                    </div>
+                    <div style="font-size:0.72rem;color:#8b949e;line-height:1.5">${explains[method] || 'Follow the recommended hold period and use the specified stop-loss method to manage risk.'}</div>
+                </div>`;
+            })()}
+
+            <!-- AI/ML INTELLIGENCE LAYER -->
+            ${(function(){
+                const ml = pick.ml_confidence;
+                const ad = pick.adaptive_context;
+                const sz = pick.size_recommended_pct;
+                if (ml == null && !ad && !sz) return '';
+
+                let rows = '';
+
+                // ── ML Confidence ──
+                if (ml != null) {
+                    const pct = (ml * 100).toFixed(1);
+                    const verdict = pick.ml_verdict || 'ML_UNAVAILABLE';
+                    const mlColor = verdict === 'ML_PASS' ? '#0ab39c' : verdict === 'ML_CAUTION' ? '#f7b84b' : '#8b949e';
+                    const mlPctl = pick.ml_percentile ? (pick.ml_percentile * 100).toFixed(0) : null;
+
+                    // Gauge bar
+                    const gaugeW = Math.min(Math.max(parseFloat(pct), 0), 100);
+                    const gaugeColor = gaugeW >= 55 ? '#0ab39c' : gaugeW >= 45 ? '#f7b84b' : '#ef5350';
+
+                    let mlExplain, mlTakeaway;
+                    if (verdict === 'ML_PASS') {
+                        mlExplain = `Our ML model was trained on <strong>3 lakh+ real trades</strong> from 15 years of NSE data. It learned which combinations of indicators (bandwidth, RSI, volume, momentum, etc.) tend to produce winning trades. This particular stock's current setup scored <strong>${pct}%</strong> — meaning out of 100 similar historical setups, roughly ${Math.round(parseFloat(pct))} went on to hit the target price.`;
+                        mlTakeaway = `<span style="color:#0ab39c;font-weight:600">Higher confidence trade.</span> The AI sees a pattern similar to past winners. This doesn't guarantee a win, but historically similar setups worked more often than not.`;
+                    } else {
+                        mlExplain = `Our ML model was trained on <strong>3 lakh+ real trades</strong> from 15 years of NSE data. This stock's current setup scored only <strong>${pct}%</strong> — meaning in history, setups like this one hit the target less than 55% of the time.`;
+                        mlTakeaway = `<span style="color:#f7b84b;font-weight:600">Lower confidence — trade with caution.</span> The stock passed all Bollinger Band rules (those are untouched), but the AI thinks the overall setup is weaker than usual. Consider smaller position size or tighter stop-loss.`;
+                    }
+
+                    rows += `<div style="padding:10px 0;border-bottom:1px solid rgba(127,127,127,0.12)">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+                            <span style="font-size:1.1rem">🤖</span>
+                            <span style="font-size:0.82rem;font-weight:700;color:var(--bs-body-color)">ML Win Probability</span>
+                            <span style="font-size:0.72rem;padding:3px 10px;border-radius:5px;background:${mlColor}22;color:${mlColor};border:1px solid ${mlColor}44;font-weight:700">${pct}% — ${verdict === 'ML_PASS' ? 'PASS' : 'CAUTION'}</span>
+                            ${mlPctl ? `<span style="font-size:0.65rem;color:#8b949e">Rank: top ${(100 - parseFloat(mlPctl)).toFixed(0)}% of this batch</span>` : ''}
+                        </div>
+                        <!-- Gauge bar -->
+                        <div style="height:6px;border-radius:3px;background:rgba(127,127,127,0.15);margin:6px 0 8px 0;position:relative;overflow:hidden">
+                            <div style="position:absolute;left:0;top:0;height:100%;width:${gaugeW}%;background:${gaugeColor};border-radius:3px;transition:width 0.4s"></div>
+                            <div style="position:absolute;left:55%;top:-2px;width:1.5px;height:10px;background:#ffffff88;border-radius:1px" title="55% threshold"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:#8b949e;margin-bottom:8px">
+                            <span>0% (likely loss)</span>
+                            <span>55% threshold</span>
+                            <span>100% (very likely win)</span>
+                        </div>
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6;margin-bottom:6px">${mlExplain}</div>
+                        <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${mlColor}08;border-left:3px solid ${mlColor}">
+                            <strong>What this means for you:</strong> ${mlTakeaway}
+                        </div>
+                    </div>`;
+                }
+
+                // ── Adaptive Context ──
+                if (ad && ad.bbw_percentile != null) {
+                    const bbwPct = ad.bbw_percentile;
+                    const rsiPct = ad.rsi_percentile;
+                    const volPct = ad.vol_ratio_percentile;
+                    const atrPct = ad.atr_percentile;
+
+                    const bbwColor = bbwPct < 15 ? '#0ab39c' : bbwPct < 30 ? '#3b82f6' : bbwPct < 50 ? '#f7b84b' : '#8b949e';
+                    const bbwLabel = bbwPct < 15 ? 'VERY TIGHT' : bbwPct < 30 ? 'TIGHT' : bbwPct < 50 ? 'MODERATE' : 'WIDE';
+
+                    let bbwExplain;
+                    if (bbwPct < 15) {
+                        bbwExplain = `The Bollinger Bands are <strong>extremely squeezed</strong> — tighter than 85% of the last 250 trading days for <em>this specific stock</em>. Think of it like a spring coiled very tightly. Historically, very tight squeezes lead to strong breakouts because the stock has been "quiet" for so long that a big move is building up.`;
+                    } else if (bbwPct < 30) {
+                        bbwExplain = `The bands are <strong>below average</strong> tightness compared to this stock's last 250 days. The squeeze is genuine — conditions are compressed enough for a valid breakout setup.`;
+                    } else if (bbwPct < 50) {
+                        bbwExplain = `The bands are at <strong>moderate</strong> tightness — not at an extreme. The squeeze exists but isn't as coiled as ideal setups. Watch for additional confirmation before entering.`;
+                    } else {
+                        bbwExplain = `The bands are <strong>relatively wide</strong> for this stock. The squeeze signal is weaker here — the stock hasn't been building up pressure as much as usual.`;
+                    }
+
+                    const rsiColor = rsiPct != null ? (rsiPct > 70 ? '#ef5350' : rsiPct > 50 ? '#0ab39c' : rsiPct > 30 ? '#f7b84b' : '#3b82f6') : '#8b949e';
+                    const rsiLabel = rsiPct != null ? (rsiPct > 80 ? 'Very overbought — risky to buy here, pullback likely' : rsiPct > 70 ? 'Overbought — momentum is strong but stretched, watch for reversal' : rsiPct > 50 ? 'Bullish momentum — buyers are in control, good zone' : rsiPct > 30 ? 'Neutral — no strong momentum either way, wait for direction' : rsiPct > 15 ? 'Oversold — sellers exhausted, bounce potential ahead' : 'Deeply oversold — strong bounce potential if trend reverses') : '';
+                    const volColor = volPct != null ? (volPct > 70 ? '#0ab39c' : volPct > 40 ? '#f7b84b' : '#ef5350') : '#8b949e';
+                    const volLabel = volPct != null ? (volPct > 80 ? 'Very heavy volume — big players are active, strong conviction behind this move' : volPct > 60 ? 'Above-average volume — more buyers than usual, supports the signal' : volPct > 40 ? 'Average volume — normal trading activity, neither strong nor weak' : volPct > 20 ? 'Below-average volume — fewer buyers participating, signal is less reliable' : 'Very light volume — almost no interest, be cautious') : '';
+                    const atrColor = atrPct != null ? (atrPct > 70 ? '#ef5350' : atrPct > 40 ? '#f7b84b' : '#0ab39c') : '#8b949e';
+
+                    rows += `<div style="padding:10px 0;border-bottom:1px solid rgba(127,127,127,0.12)">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                            <span style="font-size:1.1rem">📊</span>
+                            <span style="font-size:0.82rem;font-weight:700;color:var(--bs-body-color)">How This Stock Compares to Its Own History</span>
+                        </div>
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.5;margin-bottom:10px">Instead of using fixed thresholds for every stock, we compare each stock to <strong>its own 250-day (1-year) history</strong>. A squeeze that's tight for Reliance might be normal for a small-cap. These percentiles tell you how unusual today's setup is for <em>this</em> stock:</div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                            <!-- BBW -->
+                            <div style="padding:8px 10px;border-radius:6px;background:${bbwColor}0A;border:1px solid ${bbwColor}22">
+                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                                    <span style="font-size:0.72rem;font-weight:700;color:var(--bs-body-color)">Squeeze Tightness</span>
+                                    <span style="font-size:0.62rem;padding:1px 6px;border-radius:3px;background:${bbwColor}22;color:${bbwColor};font-weight:600">${bbwLabel}</span>
+                                </div>
+                                <div style="font-size:0.95rem;font-weight:700;color:${bbwColor}">${Math.round(bbwPct)}th <span style="font-size:0.65rem;font-weight:400">percentile</span></div>
+                                <div style="font-size:0.62rem;color:#8b949e">${bbwPct < 30 ? 'Bands are compressed like a coiled spring — breakout energy building up' : bbwPct < 50 ? 'Moderate compression — some squeeze pressure present' : 'Bands are wide — the stock is already moving freely, less breakout potential'}</div>
+                            </div>
+
+                            <!-- RSI -->
+                            ${rsiPct != null ? `<div style="padding:8px 10px;border-radius:6px;background:${rsiColor}0A;border:1px solid ${rsiColor}22">
+                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                                    <span style="font-size:0.72rem;font-weight:700;color:var(--bs-body-color)">Momentum (RSI)</span>
+                                    <span style="font-size:0.62rem;padding:1px 6px;border-radius:3px;background:${rsiColor}22;color:${rsiColor};font-weight:600">${rsiPct > 70 ? 'BEARISH' : rsiPct > 50 ? 'BULLISH' : rsiPct > 30 ? 'NEUTRAL' : 'OVERSOLD'}</span>
+                                </div>
+                                <div style="font-size:0.95rem;font-weight:700;color:${rsiColor}">${Math.round(rsiPct)}th <span style="font-size:0.65rem;font-weight:400">percentile</span></div>
+                                <div style="font-size:0.62rem;color:#8b949e">${rsiLabel}</div>
+                            </div>` : ''}
+
+                            <!-- Volume -->
+                            ${volPct != null ? `<div style="padding:8px 10px;border-radius:6px;background:${volColor}0A;border:1px solid ${volColor}22">
+                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                                    <span style="font-size:0.72rem;font-weight:700;color:var(--bs-body-color)">Volume Activity</span>
+                                    <span style="font-size:0.62rem;padding:1px 6px;border-radius:3px;background:${volColor}22;color:${volColor};font-weight:600">${volPct > 60 ? 'STRONG' : volPct > 40 ? 'NORMAL' : 'WEAK'}</span>
+                                </div>
+                                <div style="font-size:0.95rem;font-weight:700;color:${volColor}">${Math.round(volPct)}th <span style="font-size:0.65rem;font-weight:400">percentile</span></div>
+                                <div style="font-size:0.62rem;color:#8b949e">${volLabel}</div>
+                            </div>` : ''}
+
+                            <!-- ATR -->
+                            ${atrPct != null ? `<div style="padding:8px 10px;border-radius:6px;background:${atrColor}0A;border:1px solid ${atrColor}22">
+                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                                    <span style="font-size:0.72rem;font-weight:700;color:var(--bs-body-color)">Volatility (ATR)</span>
+                                    <span style="font-size:0.62rem;padding:1px 6px;border-radius:3px;background:${atrColor}22;color:${atrColor};font-weight:600">${atrPct < 30 ? 'LOW' : atrPct < 70 ? 'NORMAL' : 'HIGH'}</span>
+                                </div>
+                                <div style="font-size:0.95rem;font-weight:700;color:${atrColor}">${Math.round(atrPct)}th <span style="font-size:0.65rem;font-weight:400">percentile</span></div>
+                                <div style="font-size:0.62rem;color:#8b949e">${atrPct < 20 ? 'Very calm stock — small daily price swings, lower risk but also lower reward potential' : atrPct < 40 ? 'Low volatility — tight daily moves, good for conservative setups' : atrPct < 60 ? 'Normal volatility — balanced risk and reward, standard trading conditions' : atrPct < 80 ? 'Above-average volatility — bigger daily swings, use wider stop-losses' : 'Very high volatility — large unpredictable swings, risky entry — keep position small'}</div>
+                            </div>` : ''}
+                        </div>
+
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6">${bbwExplain}</div>
+                    </div>`;
+                }
+
+                // ── Position Sizing ──
+                if (sz != null) {
+                    const shares = pick.size_shares || 0;
+                    const amt = pick.size_recommended_amount || 0;
+                    const risk = pick.size_risk_per_trade || 0;
+                    const kelly = pick.size_kelly_fraction || 0;
+                    const stats = pick.size_method_stats || {};
+                    const winRate = ((stats.win_rate||0)*100).toFixed(1);
+                    const avgWin = stats.avg_winner_r || 0;
+                    const avgLoss = stats.avg_loser_r || 0;
+                    const curPrice = pick.current_price || pick.price || 0;
+
+                    const szColor = sz >= 15 ? '#0ab39c' : sz >= 8 ? '#3b82f6' : '#f7b84b';
+                    const szLabel = sz >= 15 ? 'FULL SIZE' : sz >= 8 ? 'MODERATE' : 'SMALL';
+
+                    const fmtAmt = v => v >= 100000 ? (v/100000).toFixed(1)+'L' : v >= 1000 ? (v/1000).toFixed(0)+'K' : Math.round(v);
+                    const sharesTxt = shares > 0 ? shares : Math.floor((500000 * sz / 100) / curPrice) || '—';
+                    const amtTxt = amt > 0 ? fmtAmt(amt) : (curPrice > 0 ? fmtAmt(sharesTxt * curPrice) : '—');
+                    const riskTxt = risk > 0 ? fmtAmt(risk) : '—';
+
+                    rows += `<div style="padding:10px 0">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                            <span style="font-size:1.1rem">💰</span>
+                            <span style="font-size:0.82rem;font-weight:700;color:var(--bs-body-color)">How Much to Invest (Position Sizing)</span>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+                            <div style="text-align:center;padding:10px 8px;border-radius:6px;background:${szColor}0A;border:1px solid ${szColor}22">
+                                <div style="font-size:0.62rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Allocation</div>
+                                <div style="font-size:1.1rem;font-weight:700;color:${szColor}">${sz}%</div>
+                                <div style="font-size:0.6rem;color:#8b949e">of your capital</div>
+                            </div>
+                            <div style="text-align:center;padding:10px 8px;border-radius:6px;background:rgba(127,127,127,0.04);border:1px solid rgba(127,127,127,0.12)">
+                                <div style="font-size:0.62rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Buy Quantity</div>
+                                <div style="font-size:1.1rem;font-weight:700;color:var(--bs-body-color)">${sharesTxt}</div>
+                                <div style="font-size:0.6rem;color:#8b949e">shares (₹${amtTxt})</div>
+                            </div>
+                            <div style="text-align:center;padding:10px 8px;border-radius:6px;background:rgba(127,127,127,0.04);border:1px solid rgba(127,127,127,0.12)">
+                                <div style="font-size:0.62rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Risk if Wrong</div>
+                                <div style="font-size:1.1rem;font-weight:700;color:#ef5350">₹${riskTxt}</div>
+                                <div style="font-size:0.6rem;color:#8b949e">max loss at stop</div>
+                            </div>
+                        </div>
+
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6;margin-bottom:6px">
+                            <strong>How is this calculated?</strong> We use the <em>Kelly Criterion</em> (a formula used by professional gamblers and hedge funds) to compute the mathematically optimal bet size. We then halve it for safety — this is called <strong>half-Kelly</strong>, which gives 75% of the growth with much lower risk of ruin.
+                        </div>
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6;margin-bottom:6px">
+                            <strong>The math behind it:</strong> ${method} historically wins <strong>${winRate}%</strong> of the time. When it wins, the average gain is <strong>${avgWin}R</strong> (R = your risk unit). When it loses, the average loss is <strong>${avgLoss}R</strong>. The Kelly formula uses these numbers to find the size where you grow fastest without risking blowup.${pick.ml_confidence != null ? ` The size is further adjusted based on ML confidence — higher AI confidence = slightly larger position, lower confidence = slightly smaller.` : ''}
+                        </div>
+                        <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${szColor}08;border-left:3px solid ${szColor}">
+                            <strong>What this means for you:</strong> If you have ₹5 lakh capital, buy <strong>${sharesTxt} shares</strong> (≈ ₹${amtTxt}). ${risk > 0 ? `If the trade hits stop-loss, you lose ≈ ₹${riskTxt} — a controlled, survivable loss. Never risk more than this on a single trade.` : `Set a stop-loss to know your maximum risk. A good rule: never risk more than 1-2% of your total capital on any single trade.`}
+                        </div>
+                    </div>`;
+                }
+
+                // ── Market Regime ──
+                const mr = pick.market_regime;
+                if (mr && mr.regime) {
+                    const regimeScore = mr.score || 0;
+                    const maxScore = mr.max_score || 5;
+                    const regimeColors = {STRONG_BULL:'#0ab39c', BULL:'#3b82f6', NEUTRAL:'#f7b84b', BEAR:'#ef5350', STRONG_BEAR:'#d32f2f'};
+                    const rc = regimeColors[mr.regime] || '#8b949e';
+                    const regimeLabels = {STRONG_BULL:'STRONG BULL', BULL:'BULL', NEUTRAL:'NEUTRAL', BEAR:'BEAR', STRONG_BEAR:'STRONG BEAR'};
+                    const rl = regimeLabels[mr.regime] || mr.regime;
+                    const sigs = mr.signals || {};
+
+                    // Signal dots
+                    const dots = [
+                        {k:'nifty_above_50sma', label:'Nifty > 50-SMA'},
+                        {k:'nifty_above_200sma', label:'Nifty > 200-SMA'},
+                        {k:'nifty_rsi_bullish', label:'RSI > 50'},
+                        {k:'vix_bullish', label:'VIX < 18'},
+                        {k:'breadth_bullish', label:'Breadth +ve'},
+                    ].map(d => {
+                        const v = sigs[d.k];
+                        const color = v === true ? '#0ab39c' : v === false ? '#ef5350' : '#8b949e';
+                        return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:0.62rem;color:${color}"><span style="width:7px;height:7px;border-radius:50%;background:${color};display:inline-block"></span>${d.label}</span>`;
+                    }).join(' ');
+
+                    // Gauge
+                    const gaugeW = regimeScore / maxScore * 100;
+
+                    // Confidence factor
+                    const factor = mr.confidence_factor || 1.0;
+                    const factorLabel = factor > 1 ? `+${((factor-1)*100).toFixed(0)}% boost` : factor < 1 ? `${((1-factor)*100).toFixed(0)}% reduction` : 'no change';
+                    const factorColor = factor > 1 ? '#0ab39c' : factor < 1 ? '#ef5350' : '#8b949e';
+
+                    rows += `<div style="padding:10px 0;border-bottom:1px solid rgba(127,127,127,0.12)">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                            <span style="font-size:1.1rem">🌊</span>
+                            <span style="font-size:0.82rem;font-weight:700;color:var(--bs-body-color)">Market Regime (The Tide)</span>
+                            <span style="font-size:0.72rem;padding:3px 10px;border-radius:5px;background:${rc}22;color:${rc};border:1px solid ${rc}44;font-weight:700">${rl}</span>
+                            <span style="font-size:0.65rem;color:#8b949e">${regimeScore}/${maxScore} bullish signals</span>
+                        </div>
+                        <!-- Regime gauge -->
+                        <div style="height:6px;border-radius:3px;background:rgba(127,127,127,0.15);margin:6px 0 8px 0;position:relative;overflow:hidden">
+                            <div style="position:absolute;left:0;top:0;height:100%;width:${gaugeW}%;background:${rc};border-radius:3px;transition:width 0.4s"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:#8b949e;margin-bottom:8px">
+                            <span>STRONG BEAR (0/5)</span>
+                            <span>NEUTRAL (2-3/5)</span>
+                            <span>STRONG BULL (5/5)</span>
+                        </div>
+                        <!-- Signal dots -->
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">${dots}</div>
+                        <!-- Confidence adjustment -->
+                        <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${rc}08;border-left:3px solid ${rc};margin-bottom:6px">
+                            <strong>Impact on your trade:</strong> ML confidence is adjusted by <strong style="color:${factorColor}">${factorLabel}</strong> based on the market regime.${mr.adjusted_ml_confidence != null && mr.original_ml_confidence != null ? ` (${(mr.original_ml_confidence*100).toFixed(1)}% → ${(mr.adjusted_ml_confidence*100).toFixed(1)}%)` : ''}
+                        </div>
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6">${mr.explanation || ''}</div>
+                    </div>`;
+                }
+
+                // ── Exit Intelligence ──
+                const ei = pick.exit_intelligence;
+                if (ei && ei.available) {
+                    const urgency = ei.urgency || 0;
+                    const uLabel = ei.urgency_label || 'HOLD';
+                    const momentum = ei.momentum_health || 'UNKNOWN';
+                    const uColors = {HOLD:'#0ab39c', MONITOR:'#f7b84b', TIGHTEN_STOP:'#ef5350', CONSIDER_EXIT:'#d32f2f'};
+                    const uc = uColors[uLabel] || '#8b949e';
+                    const mColors = {STRONG:'#0ab39c', HEALTHY:'#3b82f6', FADING:'#f7b84b', WEAK:'#ef5350'};
+                    const mc = mColors[momentum] || '#8b949e';
+
+                    const eSigs = ei.signals || {};
+                    const activeWarnings = [
+                        eSigs.rsi_overbought && 'RSI overbought (>75)',
+                        eSigs.rsi_declining && 'RSI declining',
+                        eSigs.bbw_contracting && 'Breakout energy fading',
+                        eSigs.volume_fading && `Volume low (${eSigs.volume_ratio || '?'}x avg)`,
+                        eSigs.sar_bearish && 'SAR flipped bearish',
+                        eSigs.below_sma20 && 'Below 20-day MA',
+                    ].filter(Boolean);
+
+                    rows += `<div style="padding:10px 0;border-bottom:1px solid rgba(127,127,127,0.12)">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                            <span style="font-size:1.1rem">🚦</span>
+                            <span style="font-size:0.82rem;font-weight:700;color:var(--bs-body-color)">Exit Intelligence</span>
+                            <span style="font-size:0.72rem;padding:3px 10px;border-radius:5px;background:${uc}22;color:${uc};border:1px solid ${uc}44;font-weight:700">${uLabel.replace('_',' ')}</span>
+                            <span style="font-size:0.65rem;padding:2px 6px;border-radius:3px;background:${mc}22;color:${mc}">Momentum: ${momentum}</span>
+                        </div>
+                        <!-- Urgency gauge -->
+                        <div style="height:6px;border-radius:3px;background:rgba(127,127,127,0.15);margin:6px 0 8px 0;position:relative;overflow:hidden">
+                            <div style="position:absolute;left:0;top:0;height:100%;width:${urgency}%;background:${uc};border-radius:3px;transition:width 0.4s"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:#8b949e;margin-bottom:8px">
+                            <span>0 — HOLD</span>
+                            <span>25 — MONITOR</span>
+                            <span>45 — TIGHTEN</span>
+                            <span>65+ — EXIT</span>
+                        </div>
+                        ${activeWarnings.length ? `<div style="margin-bottom:8px">${activeWarnings.map(w => '<span style="display:inline-block;font-size:0.65rem;padding:2px 8px;border-radius:4px;background:#ef535022;color:#ef5350;margin:2px 4px 2px 0">⚠ ' + w + '</span>').join('')}</div>` : ''}
+                        <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${uc}08;border-left:3px solid ${uc};margin-bottom:6px">
+                            <strong>What to do:</strong> ${ei.explanation || ''}
+                        </div>
+                    </div>`;
+                }
+
+                if (!rows) return '';
+                return `
+                <div style="border:1px solid #7c8aef33;border-radius:10px;padding:14px 16px;margin:10px 0;background:#7c8aef06">
+                    <div style="display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:1px solid rgba(127,127,127,0.12);margin-bottom:4px">
+                        <span style="font-size:1.1rem">🧠</span>
+                        <span style="font-size:0.88rem;font-weight:700;color:var(--bs-body-color)">AI/ML Intelligence</span>
+                        ${ml != null ? (pick.ml_verdict === 'ML_PASS'
+                            ? '<span style="font-size:0.65rem;padding:2px 8px;border-radius:4px;background:#0ab39c22;color:#0ab39c;font-weight:600">AI AGREES</span>'
+                            : '<span style="font-size:0.65rem;padding:2px 8px;border-radius:4px;background:#f7b84b22;color:#f7b84b;font-weight:600">AI CAUTIOUS</span>')
+                        : ''}
+                        <span style="font-size:0.62rem;color:#8b949e;margin-left:auto">Trained on 3L+ trades from 15 years of NSE data</span>
+                    </div>
+                    ${rows}
+                </div>`;
+            })()}
 
             <!-- TARGET PRICES & STOP LOSS (legacy summary) -->
             ${targetHtml}

@@ -18,6 +18,20 @@
     --g:#0ab39c; --r:#f06548; --y:#f7b84b; --b:#7c8aef; --p:#c084fc; --o:#f0883e; --c:#39d2c0;
     --m1-color:#7c8aef; --m2-color:#0ab39c; --m3-color:#c084fc; --m4-color:#f0883e; }
 body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
+
+/* Live ticker strip */
+.ticker-strip{position:fixed;top:60px;left:260px;right:0;height:34px;background:#1a1f25;border-bottom:1px solid rgba(255,255,255,.06);z-index:1034;overflow:hidden;display:flex;align-items:center;transition:left .3s cubic-bezier(.4,0,.2,1)}
+body.sidebar-collapsed .ticker-strip{left:70px}
+@media(max-width:991.98px){.ticker-strip{left:0!important}}
+.ticker-track{display:inline-flex;align-items:center;gap:0;white-space:nowrap;animation:ticker-scroll var(--ticker-dur, 30s) linear infinite;animation-play-state:running}
+.ticker-strip:hover .ticker-track{animation-play-state:paused}
+@keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ticker-item{display:inline-flex;align-items:center;gap:6px;padding:0 18px;font-family:'JetBrains Mono',monospace;font-size:.74rem;border-right:1px solid rgba(255,255,255,.06);height:34px;line-height:34px}
+.ticker-sym{color:#8b949e;font-weight:600;letter-spacing:.3px}
+.ticker-price{color:#c9d1d9;font-weight:500}
+.ticker-up{color:#0ab39c}.ticker-down{color:#f06548}.ticker-flat{color:#8b949e}
+.ticker-closed{font-size:.6rem;background:rgba(139,148,158,.15);color:#8b949e;padding:1px 6px;border-radius:4px;margin-left:4px}
+.sc-main{margin-top:94px!important}
 .font-mono{font-family:'JetBrains Mono',monospace}
 .card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px}
 .card-header{background:rgba(255,255,255,.02);border-bottom:1px solid var(--card-border);font-weight:600}
@@ -179,6 +193,13 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 <!-- ═══ UNIFIED NAVBAR ═══ -->
 {% include "_nav.html" %}
 
+<!-- ═══════ LIVE TICKER ═══════ -->
+<div class="ticker-strip" id="tickerStrip">
+  <div class="ticker-track" id="tickerTrack">
+    <span class="ticker-item"><span class="ticker-sym" style="color:#596275">Loading market data...</span></span>
+  </div>
+</div>
+
 <!-- ═══════ HERO ═══════ -->
 <div class="hero">
   <div class="container-fluid">
@@ -213,11 +234,17 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
     <div class="card-body" id="portfolioRiskBody"></div>
   </div>
 
-  <div class="card mb-3" id="dailyPnlCard">
+  <div class="card mb-3" id="dailyPnlCard" style="border-radius:16px;overflow:hidden">
     <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer" onclick="toggleDailyPnl(event)">
-      <span><i class="bi bi-graph-up-arrow me-1"></i>Per-Day Unrealized Profit (Line Chart)</span>
+      <span><i class="bi bi-graph-up-arrow me-1"></i>Per-Day Unrealized Profit</span>
       <div class="d-flex align-items-center gap-2">
         <span class="small text-secondary" id="dailyPnlMeta">Loading...</span>
+        <div class="btn-group" role="group" id="dailyPnlChartTypes" onclick="event.stopPropagation()" style="font-size:.7rem">
+          <button class="btn btn-sm btn-outline-secondary py-0 px-2 active" data-chart-type="line" onclick="switchDailyChartType('line',this)" title="Line Chart"><i class="bi bi-graph-up"></i></button>
+          <button class="btn btn-sm btn-outline-secondary py-0 px-2" data-chart-type="area" onclick="switchDailyChartType('area',this)" title="Area Chart"><i class="bi bi-bar-chart-line"></i></button>
+          <button class="btn btn-sm btn-outline-secondary py-0 px-2" data-chart-type="bar" onclick="switchDailyChartType('bar',this)" title="Bar Chart"><i class="bi bi-bar-chart"></i></button>
+          <button class="btn btn-sm btn-outline-secondary py-0 px-2" data-chart-type="stacked" onclick="switchDailyChartType('stacked',this)" title="Stacked Area"><i class="bi bi-layers"></i></button>
+        </div>
         <button class="btn btn-sm btn-outline-secondary py-0 px-2" id="dailyPnlResetZoom"
                 onclick="event.stopPropagation();resetDailyPnlZoom()" title="Reset zoom / pan" style="display:none">
           <i class="bi bi-arrows-fullscreen"></i>
@@ -228,7 +255,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         </button>
       </div>
     </div>
-    <div class="card-body" id="dailyPnlBody">
+    <div class="card-body" id="dailyPnlBody" style="padding:1rem 1.25rem">
       <div class="chart-container" style="height:clamp(360px, 55vh, 620px);max-height:none">
         <canvas id="dailyUnrealizedChart" style="max-height:none"></canvas>
       </div>
@@ -368,6 +395,200 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
       </div>
 
       {% include "_regime_cards.html" %}
+
+      <!-- ═══ AI/ML INTELLIGENCE PANEL ═══ -->
+      <div class="analysis-panel mb-3" id="aiMlPanel" style="display:none;">
+        <div class="d-flex align-items-center mb-3">
+          <i class="bi bi-robot me-2" style="color:var(--p);font-size:1.2rem"></i>
+          <span class="fw-semibold" style="color:var(--p);font-size:1.05rem">AI/ML Intelligence — What Should You Do?</span>
+        </div>
+
+        <!-- EXIT INTELLIGENCE -->
+        <div class="p-3 rounded mb-3" id="aiExitSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-door-open" style="color:var(--y)"></i>
+            <span class="fw-semibold">Exit Timing Advisor</span>
+            <span class="badge font-mono ms-auto" id="aiExitBadge" style="font-size:.75rem"></span>
+          </div>
+          <div class="small text-secondary mb-2">Should you keep holding this stock, or is it time to exit? This system checks 6 technical signals to assess how "tired" the current move is.</div>
+          <!-- Urgency gauge -->
+          <div class="mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="small text-secondary">Exit Urgency</span>
+              <span class="font-mono fw-bold" id="aiExitScore" style="font-size:.95rem"></span>
+            </div>
+            <div style="height:8px;border-radius:4px;background:var(--card-border);position:relative">
+              <div id="aiExitBar" style="height:100%;border-radius:4px;transition:width .5s"></div>
+              <div style="position:absolute;top:-16px;left:25%;font-size:.55rem;color:#8b949e">MONITOR</div>
+              <div style="position:absolute;top:-16px;left:45%;font-size:.55rem;color:#8b949e">TIGHTEN</div>
+              <div style="position:absolute;top:-16px;left:65%;font-size:.55rem;color:#8b949e">EXIT</div>
+            </div>
+            <div class="d-flex justify-content-between mt-1" style="font-size:.6rem;color:#596275">
+              <span>0 — Safe to hold</span><span>100 — Exit now</span>
+            </div>
+          </div>
+          <!-- Momentum + Hold estimate -->
+          <div class="d-flex gap-2 flex-wrap mb-2">
+            <span class="ind-pill"><span class="text-secondary">Momentum</span><span class="ind-val" id="aiMomentum"></span></span>
+            <span class="ind-pill"><span class="text-secondary">Typical Hold</span><span class="ind-val" id="aiHoldDays"></span></span>
+          </div>
+          <!-- Active signals -->
+          <div id="aiExitSignals" class="d-flex gap-1 flex-wrap mb-2"></div>
+          <!-- Explanation -->
+          <div class="p-2 rounded" id="aiExitExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--y);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
+        <!-- MARKET REGIME -->
+        <div class="p-3 rounded mb-3" id="aiRegimeSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-globe2" style="color:var(--b)"></i>
+            <span class="fw-semibold">Market Regime (Nifty 50)</span>
+            <span class="badge font-mono ms-auto" id="aiRegimeBadge" style="font-size:.75rem"></span>
+          </div>
+          <div class="small text-secondary mb-2">Is the overall Indian stock market in a bull run or bear phase? This affects how confidently you should hold your positions.</div>
+          <!-- 5 signal dots -->
+          <div class="d-flex gap-2 flex-wrap mb-2" id="aiRegimeSignals"></div>
+          <!-- Confidence adjustment -->
+          <div class="p-2 rounded" id="aiRegimeExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--b);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
+        <!-- ML CONFIDENCE -->
+        <div class="p-3 rounded mb-3" id="aiMlConfSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-cpu" style="color:var(--g)"></i>
+            <span class="fw-semibold">ML Win Probability</span>
+            <span class="badge font-mono ms-auto" id="aiMlBadge" style="font-size:.75rem"></span>
+          </div>
+          <div class="small text-secondary mb-2">Our machine learning model was trained on 3 lakh+ real trades from 15 years of NSE data. It scores how likely this trade pattern is to be a winner.</div>
+          <!-- Gauge -->
+          <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="small text-secondary">Confidence</span>
+              <span class="font-mono fw-bold" id="aiMlScore"></span>
+            </div>
+            <div style="height:8px;border-radius:4px;background:var(--card-border);position:relative">
+              <div id="aiMlBar" style="height:100%;border-radius:4px;transition:width .5s"></div>
+              <div style="position:absolute;top:-2px;left:55%;width:2px;height:12px;background:var(--y)" title="55% threshold"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-1" style="font-size:.6rem;color:#596275">
+              <span>0% — Unlikely winner</span><span>55% threshold</span><span>100% — Very likely</span>
+            </div>
+          </div>
+          <div class="p-2 rounded" id="aiMlExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--g);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
+        <!-- KELLY POSITION CHECK -->
+        <div class="p-3 rounded mb-3" id="aiKellySection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-pie-chart" style="color:var(--o)"></i>
+            <span class="fw-semibold">Position Size Check (Kelly)</span>
+            <span class="badge font-mono ms-auto" id="aiKellyBadge" style="font-size:.75rem"></span>
+          </div>
+          <div class="small text-secondary mb-2">The Kelly Criterion (used by professional traders and hedge funds) calculates the optimal percentage of your capital to risk on this trade. Is your current position too big, too small, or just right?</div>
+          <div class="row g-2 mb-2">
+            <div class="col-4 text-center">
+              <div class="small text-secondary">Recommended</div>
+              <div class="font-mono fw-bold" id="aiKellyRec" style="font-size:1.1rem"></div>
+            </div>
+            <div class="col-4 text-center">
+              <div class="small text-secondary">Your Actual</div>
+              <div class="font-mono fw-bold" id="aiKellyActual" style="font-size:1.1rem"></div>
+            </div>
+            <div class="col-4 text-center">
+              <div class="small text-secondary">Status</div>
+              <div class="font-mono fw-bold" id="aiKellyStatus" style="font-size:1.1rem"></div>
+            </div>
+          </div>
+          <div class="p-2 rounded" id="aiKellyExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--o);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
+        <!-- AI TRACK RECORD -->
+        <div class="p-3 rounded" id="aiFeedbackSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-graph-up-arrow" style="color:var(--c)"></i>
+            <span class="fw-semibold">AI Track Record</span>
+          </div>
+          <div class="small text-secondary mb-2">How well has our AI performed on trades using the same strategy as yours? This is based on real outcomes tracked automatically.</div>
+          <div class="row g-2 mb-2">
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Method Win Rate</div>
+              <div class="font-mono fw-bold" id="aiFbMethodWR" style="font-size:1.1rem"></div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Method Trades</div>
+              <div class="font-mono fw-bold" id="aiFbMethodN" style="font-size:1.1rem"></div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Overall Win Rate</div>
+              <div class="font-mono fw-bold" id="aiFbOverallWR" style="font-size:1.1rem"></div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Total Tracked</div>
+              <div class="font-mono fw-bold" id="aiFbTotal" style="font-size:1.1rem"></div>
+            </div>
+          </div>
+          <div class="p-2 rounded" id="aiFbExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--c);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
+        <!-- SCALE-OUT GUIDANCE -->
+        <div class="p-3 rounded mb-3" id="aiScaleOutSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-stairs" style="color:var(--p)"></i>
+            <span class="fw-semibold">Scale-Out Plan — When to Book Profits</span>
+            <span class="badge font-mono ms-auto" id="aiScaleOutBadge" style="font-size:.75rem"></span>
+          </div>
+          <div class="small text-secondary mb-2">Professional traders never sell everything at once. This plan splits your exit into 3 tiers using Bollinger Band levels so you capture profits step by step while letting the remaining position ride for a bigger move.</div>
+          <!-- Band Progress Bar -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="small text-secondary">Band Progress</span>
+              <span class="font-mono small" id="aiScaleOutPct"></span>
+            </div>
+            <div style="position:relative;height:18px;border-radius:9px;background:var(--card-border);overflow:visible">
+              <div id="aiScaleOutBar" style="height:100%;border-radius:9px;transition:width .5s;position:relative"></div>
+              <div id="aiScaleOutEntryMarker" style="position:absolute;top:-4px;width:2px;height:26px;background:var(--y);border-radius:1px" title="Your entry"></div>
+              <div style="position:absolute;top:20px;left:0;font-size:.55rem;color:#596275">Lower Band</div>
+              <div style="position:absolute;top:20px;left:50%;transform:translateX(-50%);font-size:.55rem;color:#596275">Mid Band</div>
+              <div style="position:absolute;top:20px;right:0;font-size:.55rem;color:#596275">Upper Band</div>
+            </div>
+          </div>
+          <!-- Tier table -->
+          <div class="table-responsive mb-2">
+            <table class="table table-sm mb-0" style="font-size:.82rem">
+              <thead><tr><th>Tier</th><th>Target Price</th><th>Action</th><th>Shares</th><th>Level</th></tr></thead>
+              <tbody id="aiScaleOutTiers"></tbody>
+            </table>
+          </div>
+          <!-- Trail stop + explanation -->
+          <div class="p-2 rounded" id="aiScaleOutExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--p);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
+        <!-- TIME-IN-TRADE -->
+        <div class="p-3 rounded mb-3" id="aiTimeSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-hourglass-split" style="color:var(--y)"></i>
+            <span class="fw-semibold">Time-in-Trade Check</span>
+            <span class="badge font-mono ms-auto" id="aiTimeBadge" style="font-size:.75rem"></span>
+          </div>
+          <div class="small text-secondary mb-2">Each Bollinger Band method has a typical holding period based on backtesting. This tells you whether your trade is still in its normal window or if you've been holding longer than expected.</div>
+          <!-- Days progress bar -->
+          <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="small text-secondary">Days Held</span>
+              <span class="font-mono fw-bold" id="aiTimeDays"></span>
+            </div>
+            <div style="position:relative;height:14px;border-radius:7px;background:var(--card-border)">
+              <div id="aiTimeBar" style="height:100%;border-radius:7px;transition:width .5s"></div>
+              <div id="aiTimeLoMark" style="position:absolute;top:-2px;width:2px;height:18px;background:var(--g);border-radius:1px" title="Typical start"></div>
+              <div id="aiTimeHiMark" style="position:absolute;top:-2px;width:2px;height:18px;background:var(--y);border-radius:1px" title="Typical end"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-1" style="font-size:.6rem;color:#596275">
+              <span>Day 0</span><span id="aiTimeRange"></span><span id="aiTimeMax"></span>
+            </div>
+          </div>
+          <div class="p-2 rounded" id="aiTimeExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--y);font-size:.85rem;line-height:1.7"></div>
+        </div>
+      </div>
 
       <!-- ═══ ROW 1: Recommendation + Targets | Indicators + Strategy ═══ -->
       <div class="row g-3">
@@ -1212,6 +1433,50 @@ function updateClock() {
 setInterval(updateClock, 1000); updateClock();
 
 // ═══════════════════════════════════════════════════════════════
+//  LIVE TICKER — refreshes every 60s
+// ═══════════════════════════════════════════════════════════════
+let _tickerTimer = null;
+async function fetchTickerData() {
+    try {
+        const res = await fetch('/api/ticker/live');
+        const data = await res.json();
+        const track = document.getElementById('tickerTrack');
+        if (!track || !data.tickers || !data.tickers.length) return;
+
+        const items = data.tickers.map(t => {
+            const up = t.change >= 0;
+            const arrow = up ? '▲' : '▼';
+            const cls = t.change > 0 ? 'ticker-up' : t.change < 0 ? 'ticker-down' : 'ticker-flat';
+            const isIndex = t.symbol.includes('NIFTY');
+            const icon = isIndex ? '<i class="bi bi-bar-chart-fill me-1" style="font-size:.65rem;opacity:.6"></i>' : '';
+            const closed = !data.market_open ? '<span class="ticker-closed">CLOSED</span>' : '';
+            const dimStyle = !data.market_open ? 'opacity:.55' : '';
+            return `<span class="ticker-item" style="${dimStyle}">
+                ${icon}<span class="ticker-sym">${t.symbol}</span>
+                <span class="ticker-price">₹${Number(t.price).toLocaleString('en-IN',{maximumFractionDigits:2})}</span>
+                <span class="${cls}">${arrow} ${up?'+':''}${t.change_pct.toFixed(2)}%</span>
+                ${closed}
+            </span>`;
+        }).join('');
+
+        // Duplicate items for seamless loop
+        track.innerHTML = items + items;
+
+        // Auto-calculate animation duration: ~3s per ticker item
+        const dur = Math.max(15, data.tickers.length * 3);
+        track.style.setProperty('--ticker-dur', dur + 's');
+        track.style.animation = 'none';
+        track.offsetHeight; // reflow
+        track.style.animation = '';
+    } catch (_) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetchTickerData();
+    _tickerTimer = setInterval(fetchTickerData, 60000);
+});
+
+// ═══════════════════════════════════════════════════════════════
 //  DATA LOADING
 // ═══════════════════════════════════════════════════════════════
 async function loadPositions() {
@@ -1418,7 +1683,16 @@ async function fetchLiveUpdates(openPositions) {
         if (curEl) curEl.textContent = fmtINR2(h.current_price);
         if (pnlEl) { pnlEl.textContent = `${pnlSign(h.pnl_amount)}${fmtINR2(h.pnl_amount)}`; pnlEl.style.color = pnlColor(h.pnl_amount); }
         if (pnlpEl) { pnlpEl.textContent = `${pnlSign(h.pnl_pct)}${fmt(h.pnl_pct)}%`; pnlpEl.style.color = pnlColor(h.pnl_pct); }
-        if (actEl) actEl.innerHTML = actionBadge(a.recommendation.action);
+        if (actEl) {
+            let actHtml = actionBadge(a.recommendation.action);
+            const ei = (a.ai_ml_intel || {}).exit_intelligence || {};
+            const elbl = ei.urgency_label || '';
+            if (elbl && elbl !== 'HOLD') {
+                const eClr = elbl==='MONITOR'?'color:var(--y)':elbl==='TIGHTEN_STOP'?'color:var(--o)':'color:var(--r)';
+                actHtml += `<div style="font-size:.6rem;margin-top:2px;${eClr}">${elbl.replace(/_/g,' ')}</div>`;
+            }
+            actEl.innerHTML = actHtml;
+        }
 
         // ── Risk columns ──
         const vr = a.vince_risk || {};
@@ -1982,7 +2256,15 @@ function renderAnalysis(data) {
          `Bollinger Band Squeeze = volatility compression. ${ind.squeeze_on?'🟡 SQUEEZE IS ON — the bands are very tight, meaning the stock is "coiling up" like a spring. A big move is coming, but we don\'t know which direction yet. This is when Method I traders get ready.':'🟢 No squeeze — normal volatility. The stock can move freely in either direction.'}`],
         ['Volume', Number(ind.volume).toLocaleString('en-IN'), ind.volume>ind.vol_sma50?'var(--g)':'var(--r)',
          `Today\'s trading volume vs 50-day average. ${ind.volume>ind.vol_sma50?'ABOVE average — more people are trading this stock than usual. High volume confirms the current move.':'BELOW average — fewer people trading than usual. Low volume means less conviction behind the price move.'} Volume is like the "fuel" behind a price move.`],
-    ];
+        ['RSI', fmt(ind.rsi,1), ind.rsi>70?'var(--r)':ind.rsi>50?'var(--g)':ind.rsi>30?'var(--y)':'var(--b)',
+         `RSI (Relative Strength Index) measures how fast the price has been rising or falling (0-100 scale). Current: ${fmt(ind.rsi,1)}. ${ind.rsi>70?'Above 70 = OVERBOUGHT — the stock has risen too fast too quickly. Often leads to a pullback. Consider tightening your stop-loss.':ind.rsi>50?'Above 50 = BULLISH — buying momentum is stronger than selling. The trend is in your favour.':ind.rsi>30?'Between 30-50 = NEUTRAL — neither strong buying nor selling. The stock is undecided.':'Below 30 = OVERSOLD — the stock has fallen too fast. Could bounce back, but also signals weakness.'}`],
+        ['ATR', '₹'+fmt(ind.atr_14,2), null,
+         `ATR (Average True Range) = how much this stock typically moves in a single day in rupees. Current: ₹${fmt(ind.atr_14,2)}. Use this to set your stop-loss: a good rule is 2-3× ATR below your entry. Too tight a stop (less than 1× ATR) = you get stopped out by normal daily noise.`],
+        ['%b Velocity', (ind.percent_b_slope>0?'+':'')+fmt(ind.percent_b_slope,3), ind.percent_b_slope>0.05?'var(--g)':ind.percent_b_slope<-0.05?'var(--r)':'var(--y)',
+         `%b Velocity = how fast the price is moving within the Bollinger Bands over the last 5 days. ${ind.percent_b_slope>0.05?'RISING — price is accelerating toward the upper band. Bullish momentum building.':ind.percent_b_slope<-0.05?'FALLING — price is sliding toward the lower band. Momentum fading, watch for exit.':'FLAT — price is moving sideways within the bands. No strong push either way.'}`],
+        ind.expansion_end ? ['Expansion', 'ENDING', 'var(--y)',
+         'Bollinger Band expansion is fading — the "energy" from the squeeze breakout is running out. The big move may be nearing its end. This doesn\'t mean sell immediately, but tighten your stops and watch for the first sign of reversal.'] : null,
+    ].filter(Boolean);
     ip.innerHTML = pillData.map(([label, val, clr, tip]) =>
         `<div class="ind-pill tip-wrap"><span class="text-secondary">${label}</span><span class="ind-val" ${clr?`style="color:${clr}"`:''}>​${val}</span><div class="tip-text">${tip}</div></div>`
     ).join('');
@@ -2049,7 +2331,10 @@ function renderAnalysis(data) {
     renderExpertCommentary(data.expert_commentary || {});
     renderFundamentalHealth(data.fundamental_snapshot || {});
     renderBenchmarkAlpha(data.benchmark || {});
-    renderTrailingStops(data.trailing_stops || {}, data.holding || {}); }
+    renderTrailingStops(data.trailing_stops || {}, data.holding || {});
+
+    // ═══════ AI/ML INTELLIGENCE PANEL ═══════
+    renderAiMlPanel(data.ai_ml_intel || {}, data.holding || {}, data.recommendation || {}); }
 
 function renderMultiSystem(ms) {
     const section = document.getElementById('multiSystemSection');
@@ -2508,12 +2793,174 @@ async function loadPortfolioRisk() {
   } catch(e) { console.error('Portfolio risk load failed:', e); }
 }
 
+let _dailyChartData = null;
+let _dailyChartType = 'line';
+try { _dailyChartType = localStorage.getItem('dailyPnlChartType') || 'line'; } catch(_){}
+
+function switchDailyChartType(type, btn) {
+    _dailyChartType = type;
+    try { localStorage.setItem('dailyPnlChartType', type); } catch(_){}
+    document.querySelectorAll('#dailyPnlChartTypes button').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    if (_dailyChartData) _buildDailyChart(_dailyChartData.dates, _dailyChartData.pnl, _dailyChartData.stockSeries);
+}
+
+function _makeGradient(ctx, color, h) {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, color + '40');
+    g.addColorStop(1, color + '05');
+    return g;
+}
+
+function _buildDailyChart(dates, pnl, stockSeries) {
+    const canvas = document.getElementById('dailyUnrealizedChart');
+    if (!canvas) return;
+    if (dailyUnrealizedInstance) { dailyUnrealizedInstance.destroy(); dailyUnrealizedInstance = null; }
+
+    const ctx2d = canvas.getContext('2d');
+    const h = canvas.parentElement?.clientHeight || 400;
+    const palette = ['#7c8aef','#0ab39c','#c084fc','#f0883e','#39d2c0','#f7b84b','#ff7b72','#79c0ff'];
+    const type = _dailyChartType;
+    const isBar = type === 'bar';
+    const isArea = type === 'area';
+    const isStacked = type === 'stacked';
+    const isLine = type === 'line';
+    const chartType = isBar ? 'bar' : 'line';
+
+    const datasets = [];
+
+    if (stockSeries.length) {
+        stockSeries.forEach((s, i) => {
+            const clr = palette[i % palette.length];
+            datasets.push({
+                label: (s.label || s.ticker).replace('.NS',''),
+                data: s.pnl || [],
+                tension: 0.3,
+                borderWidth: isBar ? 0 : 2,
+                borderColor: clr,
+                backgroundColor: isBar ? clr + 'cc' : (isArea || isStacked) ? _makeGradient(ctx2d, clr, h) : 'transparent',
+                pointRadius: isLine ? 1.5 : 0,
+                pointHoverRadius: 5,
+                pointBackgroundColor: clr,
+                pointBorderWidth: 0,
+                fill: isArea || isStacked,
+                stack: isStacked ? 'stack0' : undefined,
+                spanGaps: false,
+            });
+        });
+    } else {
+        datasets.push({
+            label: 'Unrealized P&L',
+            data: pnl,
+            tension: 0.3,
+            borderWidth: isBar ? 0 : 2.5,
+            borderColor: '#7c8aef',
+            backgroundColor: isBar ? pnl.map(v => v >= 0 ? '#0ab39ccc' : '#f06548cc') : (isArea || isStacked) ? _makeGradient(ctx2d, '#7c8aef', h) : 'transparent',
+            pointRadius: isLine ? 1.5 : 0,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#7c8aef',
+            fill: isArea || isStacked,
+        });
+    }
+
+    if (datasets.length > 1) {
+        datasets.push({
+            label: 'Portfolio Total',
+            data: pnl,
+            tension: 0.3,
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            borderDash: [6, 4],
+            borderColor: '#e2e8f0',
+            pointBackgroundColor: '#e2e8f0',
+            backgroundColor: 'transparent',
+            fill: false,
+            stack: isStacked ? 'total' : undefined,
+            order: -1,
+        });
+    }
+
+    const hasZoom = typeof Chart !== 'undefined' && Chart.registry && Chart.registry.plugins.get('zoom');
+
+    dailyUnrealizedInstance = new Chart(canvas, {
+        type: chartType,
+        data: { labels: dates, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400, easing: 'easeOutQuart' },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        color: '#8b949e', boxWidth: 12, boxHeight: 12,
+                        padding: 14, font: { size: 11 },
+                        usePointStyle: true, pointStyle: 'rectRounded',
+                    },
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(22,27,34,.92)',
+                    titleColor: '#e6edf3', bodyColor: '#c9d1d9',
+                    borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
+                    padding: 10, cornerRadius: 8,
+                    titleFont: { size: 12, weight: 600 },
+                    bodyFont: { size: 11 },
+                    callbacks: {
+                        title: (items) => items[0]?.label || '',
+                        label: (ctx) => {
+                            const v = Number(ctx.parsed.y || 0);
+                            return ` ${ctx.dataset.label}: ${v >= 0 ? '+' : ''}₹${Math.abs(v).toLocaleString('en-IN', {maximumFractionDigits:0})}`;
+                        },
+                    },
+                },
+                zoom: hasZoom ? {
+                    pan: { enabled: true, mode: 'x', threshold: 2,
+                           onPanStart: ({chart}) => { chart.canvas.style.cursor = 'grabbing'; return true; },
+                           onPanComplete: ({chart}) => { chart.canvas.style.cursor = 'grab'; const b = document.getElementById('dailyPnlResetZoom'); if (b) b.style.display = ''; },
+                           onPan: () => { const b = document.getElementById('dailyPnlResetZoom'); if (b) b.style.display = ''; } },
+                    zoom: { wheel: { enabled: true, speed: 0.08 }, pinch: { enabled: true }, drag: { enabled: false }, mode: 'x',
+                            onZoom: () => { const b = document.getElementById('dailyPnlResetZoom'); if (b) b.style.display = ''; } },
+                    limits: { x: { minRange: 5 } },
+                } : undefined,
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#8b949e', maxTicksLimit: 10, autoSkip: true, font: { size: 10 } },
+                    grid: { color: 'rgba(255,255,255,.04)', drawTicks: false },
+                    border: { color: 'rgba(255,255,255,.08)' },
+                },
+                y: {
+                    ticks: {
+                        color: '#8b949e', font: { size: 10 },
+                        callback: (v) => (v >= 0 ? '+' : '') + '₹' + Math.abs(v).toLocaleString('en-IN', {maximumFractionDigits:0}),
+                    },
+                    grid: { color: 'rgba(255,255,255,.06)', drawTicks: false },
+                    border: { display: false },
+                    stacked: isStacked,
+                },
+            },
+        },
+    });
+    canvas.ondblclick = () => resetDailyPnlZoom();
+    if (hasZoom) canvas.style.cursor = 'grab';
+}
+
 async function loadDailyUnrealizedChart() {
   const card = document.getElementById('dailyPnlCard');
   const meta = document.getElementById('dailyPnlMeta');
   const hint = document.getElementById('dailyPnlHint');
   const canvas = document.getElementById('dailyUnrealizedChart');
   if (!card || !meta || !hint || !canvas) return;
+
+  // Restore saved chart type button
+  const savedBtn = document.querySelector(`#dailyPnlChartTypes button[data-chart-type="${_dailyChartType}"]`);
+  if (savedBtn) {
+      document.querySelectorAll('#dailyPnlChartTypes button').forEach(b => b.classList.remove('active'));
+      savedBtn.classList.add('active');
+  }
 
   const openCount = allPositions.filter(p => p.status === 'OPEN').length;
   if (!openCount) {
@@ -2535,99 +2982,15 @@ async function loadDailyUnrealizedChart() {
       hint.textContent = 'Historical price data is not available yet for one or more open positions.';
       return; }
 
-    if (dailyUnrealizedInstance) { dailyUnrealizedInstance.destroy(); dailyUnrealizedInstance = null; }
+    _dailyChartData = { dates, pnl, stockSeries };
 
     const latest = pnl[pnl.length - 1] || 0;
     const latestColor = latest >= 0 ? '#0ab39c' : '#f06548';
     const stockCount = stockSeries.length || 1;
-    meta.textContent = `${dates.length} trading days | ${stockCount} stock lines`;
-    hint.innerHTML = `Latest total unrealized P&L: <strong style="color:${latestColor}">${latest >= 0 ? '+' : ''}${fmtINR2(latest)}</strong> &nbsp;|&nbsp; Dots show each day's unrealized P&L.`;
+    meta.textContent = `${dates.length} trading days | ${stockCount} stocks`;
+    hint.innerHTML = `Latest total unrealized P&L: <strong style="color:${latestColor}">${latest >= 0 ? '+' : ''}₹${Math.abs(latest).toLocaleString('en-IN',{maximumFractionDigits:0})}</strong> &nbsp;|&nbsp; Drag to pan · scroll to zoom · double-click to reset.`;
 
-    const palette = ['#7c8aef', '#0ab39c', '#c084fc', '#f0883e', '#39d2c0', '#f7b84b', '#ff7b72', '#79c0ff'];
-    const datasets = [];
-
-    if (stockSeries.length) {
-      stockSeries.forEach((s, i) => {
-        datasets.push({
-          label: `${s.label || s.ticker} (₹)`,
-          data: s.pnl || [],
-          tension: 0.22,
-          borderWidth: 2,
-          borderColor: palette[i % palette.length],
-          backgroundColor: 'transparent',
-          pointRadius: 2.8,
-          pointHoverRadius: 5.5,
-          pointBackgroundColor: palette[i % palette.length],
-          pointBorderWidth: 0,
-          fill: false }); }); } else {
-      datasets.push({
-        label: 'Unrealized P&L (₹)',
-        data: pnl,
-        tension: 0.25,
-        borderWidth: 2,
-        pointRadius: 2.2,
-        pointHoverRadius: 4,
-        fill: false,
-        borderColor: '#7c8aef',
-        pointBackgroundColor: '#7c8aef', }); }
-
-    if (datasets.length > 1) {
-      datasets.push({
-        label: 'Portfolio Total (₹)',
-        data: pnl,
-        tension: 0.25,
-        borderWidth: 2.5,
-        pointRadius: 3.2,
-        pointHoverRadius: 6,
-        borderDash: [6, 4],
-        borderColor: '#aab8c5',
-        pointBackgroundColor: '#aab8c5',
-        fill: false }); }
-
-    // Register the zoom plugin once (chartjs-plugin-zoom UMD attaches to window).
-    if (window.ChartZoom && !window.__chartZoomRegistered) {
-        try { Chart.register(window.ChartZoom); } catch (_) {}
-        window.__chartZoomRegistered = true;
-    }
-    const hasZoom = !!window.ChartZoom;
-
-    dailyUnrealizedInstance = new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels: dates,
-        datasets: datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'nearest', intersect: false, axis: 'x' },
-        plugins: {
-          legend: {
-            display: true,
-            labels: { color: '#8b949e', boxWidth: 16 } },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                const v = Number(ctx.parsed.y || 0);
-                return `${ctx.dataset.label}: ${v >= 0 ? '+' : ''}${fmtINR2(v)}`; } } },
-          zoom: hasZoom ? {
-            pan:  { enabled: true, mode: 'x', modifierKey: null,
-                    onPan: () => { const b = document.getElementById('dailyPnlResetZoom'); if (b) b.style.display = ''; } },
-            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x',
-                    onZoom: () => { const b = document.getElementById('dailyPnlResetZoom'); if (b) b.style.display = ''; } },
-            limits: { x: { minRange: 5 } }, // don't let user zoom below a 5-day window
-          } : undefined,
-        },
-        scales: {
-          x: {
-            ticks: { color: '#8b949e', maxTicksLimit: 12, autoSkip: true },
-            grid: { color: 'rgba(255,255,255,.05)' } },
-          y: {
-            ticks: {
-              color: '#8b949e',
-              callback: (v) => fmtINR(v) },
-            grid: { color: 'rgba(255,255,255,.08)' } } } } });
-    // Double-click on the canvas resets zoom — matches most stock-chart UX.
-    canvas.ondblclick = () => resetDailyPnlZoom();
+    _buildDailyChart(dates, pnl, stockSeries);
     } catch (e) {
     if (dailyUnrealizedInstance) { dailyUnrealizedInstance.destroy(); dailyUnrealizedInstance = null; }
     meta.textContent = 'Chart unavailable';
@@ -3690,6 +4053,285 @@ function renderTrailingStops(ts, holding) {
         ? `<span style="color:var(--g)">+${t.tier_locked_pct}%</span>`
         : '<span class="text-secondary">—</span>';
     document.getElementById('tierExplanation').innerHTML = `<i class="bi bi-trophy me-1" style="color:${tc}"></i>${t.tier_explanation}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AI/ML INTELLIGENCE PANEL RENDERER
+// ═══════════════════════════════════════════════════════════════
+function renderAiMlPanel(ai, holding, rec) {
+    const panel = document.getElementById('aiMlPanel');
+    if (!panel) return;
+    if (!ai || (!ai.exit_intelligence && !ai.market_regime)) {
+        panel.style.display = 'none';
+        return;
+    }
+    panel.style.display = '';
+
+    // ── EXIT INTELLIGENCE ──
+    const ei = ai.exit_intelligence || {};
+    const exSec = document.getElementById('aiExitSection');
+    if (ei.available) {
+        exSec.style.display = '';
+        const u = ei.urgency || 0;
+        const lbl = ei.urgency_label || 'HOLD';
+        const barClr = u <= 25 ? 'var(--g)' : u <= 45 ? 'var(--b)' : u <= 65 ? 'var(--y)' : 'var(--r)';
+        const badgeClr = lbl==='HOLD' ? 'background:rgba(10,179,156,.15);color:#0ab39c'
+            : lbl==='MONITOR' ? 'background:rgba(124,138,239,.15);color:#7c8aef'
+            : lbl==='TIGHTEN_STOP' ? 'background:rgba(247,184,75,.15);color:#f7b84b'
+            : 'background:rgba(240,101,72,.15);color:#f06548';
+
+        document.getElementById('aiExitBadge').textContent = lbl.replace('_',' ');
+        document.getElementById('aiExitBadge').style.cssText = badgeClr;
+        document.getElementById('aiExitScore').textContent = u + '/100';
+        document.getElementById('aiExitScore').style.color = barClr;
+        document.getElementById('aiExitBar').style.width = u + '%';
+        document.getElementById('aiExitBar').style.background = barClr;
+
+        const mom = ei.momentum_health || 'N/A';
+        const momClr = mom==='STRONG'?'var(--g)':mom==='HEALTHY'?'var(--b)':mom==='FADING'?'var(--y)':'var(--r)';
+        document.getElementById('aiMomentum').textContent = mom;
+        document.getElementById('aiMomentum').style.color = momClr;
+        document.getElementById('aiHoldDays').textContent = (ei.hold_estimate_days || '15-20') + ' days';
+
+        const sigs = ei.signals || {};
+        const sigLabels = {
+            rsi_overbought: ['RSI Overbought (>75)', 'var(--r)'],
+            rsi_declining: ['RSI Declining', 'var(--y)'],
+            bbw_contracting: ['Squeeze Fading', 'var(--y)'],
+            volume_fading: ['Volume Fading', 'var(--y)'],
+            sar_bearish: ['SAR Bearish', 'var(--r)'],
+            below_sma20: ['Below 20-day MA', 'var(--r)'],
+        };
+        let sigHtml = '';
+        Object.entries(sigLabels).forEach(([k, [label, clr]]) => {
+            if (sigs[k]) sigHtml += `<span class="badge" style="background:${clr}22;color:${clr};font-size:.7rem"><i class="bi bi-exclamation-triangle-fill me-1"></i>${label}</span>`;
+        });
+        if (!sigHtml) sigHtml = '<span class="badge" style="background:rgba(10,179,156,.12);color:var(--g);font-size:.7rem"><i class="bi bi-check-circle me-1"></i>No warning signals</span>';
+        document.getElementById('aiExitSignals').innerHTML = sigHtml;
+
+        const borderClr = u <= 25 ? 'var(--g)' : u <= 45 ? 'var(--b)' : u <= 65 ? 'var(--y)' : 'var(--r)';
+        document.getElementById('aiExitExplain').style.borderLeftColor = borderClr;
+        document.getElementById('aiExitExplain').innerHTML = `<strong>What to do:</strong> ${ei.explanation || 'No data available.'}`;
+    } else {
+        exSec.style.display = 'none';
+    }
+
+    // ── MARKET REGIME ──
+    const mr = ai.market_regime || {};
+    const regSec = document.getElementById('aiRegimeSection');
+    if (mr.regime) {
+        regSec.style.display = '';
+        const regime = mr.regime || 'NEUTRAL';
+        const regClr = regime.includes('BULL') ? 'var(--g)' : regime.includes('BEAR') ? 'var(--r)' : 'var(--y)';
+        const regBg = regime.includes('BULL') ? 'rgba(10,179,156,.15)' : regime.includes('BEAR') ? 'rgba(240,101,72,.15)' : 'rgba(247,184,75,.15)';
+        document.getElementById('aiRegimeBadge').textContent = regime.replace('_',' ');
+        document.getElementById('aiRegimeBadge').style.cssText = `background:${regBg};color:${regClr}`;
+
+        const signals = mr.signals || {};
+        const sigNames = {
+            nifty_above_50sma: 'Nifty > 50 SMA',
+            nifty_above_200sma: 'Nifty > 200 SMA',
+            nifty_rsi_bullish: 'Nifty RSI > 50',
+            vix_bullish: 'VIX < 18 (calm)',
+            breadth_bullish: 'Breadth A/D > 1',
+        };
+        let regSigHtml = '';
+        Object.entries(sigNames).forEach(([k, label]) => {
+            const val = signals[k];
+            const dotClr = val ? 'var(--g)' : val === false ? 'var(--r)' : '#596275';
+            const icon = val ? 'check-circle-fill' : val === false ? 'x-circle-fill' : 'dash-circle';
+            regSigHtml += `<span class="ind-pill" style="font-size:.78rem"><i class="bi bi-${icon} me-1" style="color:${dotClr}"></i>${label}</span>`;
+        });
+        document.getElementById('aiRegimeSignals').innerHTML = regSigHtml;
+
+        const cf = mr.confidence_factor || 1;
+        const niftyPrice = mr.nifty_price ? `Nifty at ₹${Number(mr.nifty_price).toLocaleString('en-IN', {maximumFractionDigits:0})}` : '';
+        let regExpl = mr.explanation || '';
+        if (cf !== 1) {
+            const adj = cf > 1 ? `boosted by ${((cf-1)*100).toFixed(0)}%` : `reduced by ${((1-cf)*100).toFixed(0)}%`;
+            regExpl += ` <strong>Impact on your trade:</strong> In a ${regime.replace('_',' ').toLowerCase()} market, your ML confidence scores are ${adj}. `;
+        }
+        if (niftyPrice) regExpl += ` ${niftyPrice}.`;
+        document.getElementById('aiRegimeExplain').innerHTML = regExpl;
+    } else {
+        regSec.style.display = 'none';
+    }
+
+    // ── ML CONFIDENCE ──
+    const mlSec = document.getElementById('aiMlConfSection');
+    if (ai.ml_confidence != null) {
+        mlSec.style.display = '';
+        const conf = Math.round(ai.ml_confidence * 100);
+        const verdict = ai.ml_verdict || (conf >= 55 ? 'ML_PASS' : 'ML_CAUTION');
+        const vClr = verdict === 'ML_PASS' ? 'var(--g)' : 'var(--y)';
+        const vBg = verdict === 'ML_PASS' ? 'rgba(10,179,156,.15)' : 'rgba(247,184,75,.15)';
+
+        document.getElementById('aiMlBadge').textContent = verdict.replace('ML_','');
+        document.getElementById('aiMlBadge').style.cssText = `background:${vBg};color:${vClr}`;
+        document.getElementById('aiMlScore').textContent = conf + '%';
+        document.getElementById('aiMlScore').style.color = vClr;
+        document.getElementById('aiMlBar').style.width = conf + '%';
+        document.getElementById('aiMlBar').style.background = vClr;
+
+        let mlExpl = verdict === 'ML_PASS'
+            ? `<strong>Good news:</strong> This trade pattern scores ${conf}% — above the 55% threshold. The ML model (trained on 3 lakh+ real NSE trades) considers this a higher-probability setup. This supports your decision to hold.`
+            : `<strong>Caution:</strong> This trade pattern scores ${conf}% — below the 55% threshold. The model sees this as a lower-probability setup based on historical patterns. Consider tighter risk management.`;
+        if (ai.ml_percentile) mlExpl += ` This puts it in the top ${100 - Math.round(ai.ml_percentile)}% of all scored trades.`;
+        document.getElementById('aiMlExplain').innerHTML = mlExpl;
+    } else {
+        mlSec.style.display = 'none';
+    }
+
+    // ── KELLY CHECK ──
+    const kc = ai.kelly_check || {};
+    const kellySec = document.getElementById('aiKellySection');
+    if (kc.recommended_pct != null) {
+        kellySec.style.display = '';
+        const st = kc.status || 'ALIGNED';
+        const stClr = st==='ALIGNED'?'var(--g)':st==='OVERSIZED'?'var(--r)':'var(--y)';
+        const stBg = st==='ALIGNED'?'rgba(10,179,156,.15)':st==='OVERSIZED'?'rgba(240,101,72,.15)':'rgba(247,184,75,.15)';
+
+        document.getElementById('aiKellyBadge').textContent = st;
+        document.getElementById('aiKellyBadge').style.cssText = `background:${stBg};color:${stClr}`;
+        document.getElementById('aiKellyRec').textContent = (kc.recommended_pct || 0).toFixed(1) + '%';
+        document.getElementById('aiKellyRec').style.color = 'var(--b)';
+        document.getElementById('aiKellyActual').textContent = (kc.actual_pct || 0).toFixed(1) + '%';
+        document.getElementById('aiKellyActual').style.color = stClr;
+        document.getElementById('aiKellyStatus').textContent = st;
+        document.getElementById('aiKellyStatus').style.color = stClr;
+
+        let kellyExpl = st === 'ALIGNED'
+            ? `<strong>Your position size looks right.</strong> Kelly says to allocate ${(kc.recommended_pct||0).toFixed(1)}% of your capital, and you\'re at ${(kc.actual_pct||0).toFixed(1)}%. No adjustment needed.`
+            : st === 'OVERSIZED'
+            ? `<strong>You may be risking too much.</strong> Kelly recommends ${(kc.recommended_pct||0).toFixed(1)}% of capital, but you\'re at ${(kc.actual_pct||0).toFixed(1)}%. Consider reducing your position by selling some shares to bring it closer to the recommended level.`
+            : `<strong>You could add more.</strong> Kelly recommends ${(kc.recommended_pct||0).toFixed(1)}% but you\'re only at ${(kc.actual_pct||0).toFixed(1)}%. If you\'re confident in the trade, you have room to buy more shares.`;
+        document.getElementById('aiKellyExplain').innerHTML = kellyExpl;
+    } else {
+        kellySec.style.display = 'none';
+    }
+
+    // ── AI TRACK RECORD ──
+    const fb = ai.feedback || {};
+    const fbSec = document.getElementById('aiFeedbackSection');
+    if (fb.total_tracked > 0 || fb.method_trades > 0) {
+        fbSec.style.display = '';
+        document.getElementById('aiFbMethodWR').textContent = fb.method_win_rate != null ? fb.method_win_rate + '%' : '—';
+        document.getElementById('aiFbMethodWR').style.color = fb.method_win_rate >= 55 ? 'var(--g)' : fb.method_win_rate >= 45 ? 'var(--y)' : 'var(--r)';
+        document.getElementById('aiFbMethodN').textContent = fb.method_trades || '0';
+        document.getElementById('aiFbOverallWR').textContent = fb.overall_win_rate != null ? fb.overall_win_rate + '%' : '—';
+        document.getElementById('aiFbOverallWR').style.color = fb.overall_win_rate >= 55 ? 'var(--g)' : fb.overall_win_rate >= 45 ? 'var(--y)' : 'var(--r)';
+        document.getElementById('aiFbTotal').textContent = fb.total_tracked || '0';
+
+        let fbExpl = `The AI has tracked <strong>${fb.total_tracked || 0} trades</strong> so far. `;
+        if (fb.method_trades > 0) {
+            fbExpl += `For your strategy (${rec.strategy_code || ''}), it has tracked ${fb.method_trades} trades with a ${fb.method_win_rate || 0}% win rate. `;
+        }
+        if (fb.total_tracked < 50) {
+            fbExpl += '<em>Note: these stats are still building up — they become more reliable after 50+ tracked trades.</em>';
+        }
+        document.getElementById('aiFbExplain').innerHTML = fbExpl;
+    } else {
+        fbSec.style.display = 'none';
+    }
+
+    // ── SCALE-OUT GUIDANCE ──
+    const so = ai.scale_out || {};
+    const soSec = document.getElementById('aiScaleOutSection');
+    if (so.tiers && so.tiers.length) {
+        soSec.style.display = '';
+        const bp = so.band_progress_pct || 0;
+        const bpClr = bp > 100 ? 'var(--g)' : bp > 50 ? 'var(--b)' : 'var(--y)';
+        const bpW = Math.min(bp, 100);
+        document.getElementById('aiScaleOutPct').textContent = bp.toFixed(0) + '% of BB range';
+        document.getElementById('aiScaleOutPct').style.color = bpClr;
+        document.getElementById('aiScaleOutBar').style.width = bpW + '%';
+        document.getElementById('aiScaleOutBar').style.background = bpClr;
+
+        // Entry marker position
+        if (holding.buy_price && so.bb_lower && so.bb_upper) {
+            const entryPct = ((holding.buy_price - so.bb_lower) / (so.bb_upper - so.bb_lower)) * 100;
+            document.getElementById('aiScaleOutEntryMarker').style.left = Math.max(0, Math.min(100, entryPct)) + '%';
+            document.getElementById('aiScaleOutEntryMarker').title = 'Entry: ₹' + fmt(holding.buy_price);
+        }
+
+        const zoneBadge = so.current_band_zone || '';
+        const zClr = zoneBadge.includes('Upper') || zoneBadge.includes('Extended') ? 'var(--g)' : zoneBadge.includes('Lower') || zoneBadge.includes('Below') ? 'var(--r)' : 'var(--b)';
+        document.getElementById('aiScaleOutBadge').textContent = zoneBadge;
+        document.getElementById('aiScaleOutBadge').style.cssText = `background:${zClr}22;color:${zClr}`;
+
+        let tierHtml = '';
+        so.tiers.forEach(t => {
+            const hit = holding.current_price >= t.target;
+            tierHtml += `<tr style="${hit?'background:rgba(10,179,156,.08)':''}">
+                <td class="fw-bold">${t.tier}</td>
+                <td class="font-mono">₹${Number(t.target).toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+                <td>${t.action}</td>
+                <td class="font-mono">${t.shares}</td>
+                <td class="small text-secondary">${t.label}${hit?' <span class="badge" style="background:var(--g);color:#fff;font-size:.6rem">HIT</span>':''}</td>
+            </tr>`;
+        });
+        document.getElementById('aiScaleOutTiers').innerHTML = tierHtml;
+
+        let soExpl = `<strong>How to read this:</strong> You entered at the "${so.entry_band_zone}" zone. The price is now in the "${so.current_band_zone}" zone (${bp.toFixed(0)}% of the Bollinger Band range). `;
+        if (bp < 50) {
+            soExpl += 'Price is still in the lower half of the bands — <strong>no profit-booking needed yet</strong>. Wait for the trade to develop.';
+        } else if (bp < 100) {
+            soExpl += 'Price is approaching the upper band — <strong>get ready for T1</strong>. When it touches the upper band, book 1/3 of your shares.';
+        } else {
+            soExpl += '<strong>Price is above the upper band</strong> — consider booking T1 profits (1/3 of shares) if you haven\'t already. Let the rest ride with a trailing stop.';
+        }
+        if (so.recommended_trail_stop) {
+            soExpl += ` Set trailing stop at <strong>₹${Number(so.recommended_trail_stop).toLocaleString('en-IN',{maximumFractionDigits:2})}</strong> for remaining shares.`;
+        }
+        document.getElementById('aiScaleOutExplain').innerHTML = soExpl;
+    } else {
+        soSec.style.display = 'none';
+    }
+
+    // ── TIME-IN-TRADE ──
+    const tc = ai.time_check || {};
+    const timeSec = document.getElementById('aiTimeSection');
+    if (tc.days_held != null) {
+        timeSec.style.display = '';
+        const d = tc.days_held;
+        const lo = tc.typical_lo || 15;
+        const hi = tc.typical_hi || 25;
+        const maxD = Math.round(hi * 1.8);
+        const pct = Math.min((d / maxD) * 100, 100);
+        const st = tc.status || 'NORMAL';
+        const stClr = st==='EARLY'?'var(--b)':st==='NORMAL'?'var(--g)':st==='EXTENDED'?'var(--y)':'var(--r)';
+        const stBg = st==='EARLY'?'rgba(124,138,239,.15)':st==='NORMAL'?'rgba(10,179,156,.15)':st==='EXTENDED'?'rgba(247,184,75,.15)':'rgba(240,101,72,.15)';
+
+        document.getElementById('aiTimeBadge').textContent = st;
+        document.getElementById('aiTimeBadge').style.cssText = `background:${stBg};color:${stClr}`;
+        document.getElementById('aiTimeDays').textContent = d + ' days';
+        document.getElementById('aiTimeDays').style.color = stClr;
+        document.getElementById('aiTimeBar').style.width = pct + '%';
+        document.getElementById('aiTimeBar').style.background = stClr;
+
+        const loMark = (lo / maxD) * 100;
+        const hiMark = (hi / maxD) * 100;
+        document.getElementById('aiTimeLoMark').style.left = loMark + '%';
+        document.getElementById('aiTimeHiMark').style.left = hiMark + '%';
+        document.getElementById('aiTimeRange').textContent = lo + '-' + hi + ' days (typical)';
+        document.getElementById('aiTimeMax').textContent = 'Day ' + maxD;
+
+        const mNames = {M1:'Squeeze Breakout',M2:'Trend Following',M3:'Reversal',M4:'Walking the Bands'};
+        const mName = mNames[tc.method] || tc.method;
+        let timeExpl = `<strong>${mName} (${tc.method})</strong> trades typically play out in <strong>${lo}-${hi} trading days</strong>. You are at day <strong>${d}</strong>. `;
+        if (st === 'EARLY') {
+            timeExpl += 'This trade is still very early — <strong>give it time to develop</strong>. Don\'t panic if it dips; the setup hasn\'t had time to play out yet.';
+        } else if (st === 'NORMAL') {
+            timeExpl += 'You are within the expected holding window — <strong>the trade is on schedule</strong>. Monitor your indicators and let the strategy do its job.';
+        } else if (st === 'EXTENDED') {
+            timeExpl += '<strong>You\'ve held longer than typical.</strong> Most ' + mName + ' moves complete by day ' + hi + '. If you\'re still in profit, consider tightening your trailing stop. If flat or losing, reassess whether the setup is still valid.';
+        } else {
+            timeExpl += '<strong>WARNING: This trade is significantly overdue.</strong> It has exceeded the typical hold period by a wide margin. Unless there\'s a strong reason to stay (new squeeze forming, strong trend continuation), consider exiting to free up capital for fresh setups.';
+        }
+        document.getElementById('aiTimeExplain').innerHTML = timeExpl;
+    } else {
+        timeSec.style.display = 'none';
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════

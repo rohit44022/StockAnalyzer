@@ -164,6 +164,11 @@ def _deep_analyze_for_backtest(
         bb_data = triple.get("bb_data", {})
         target_prices = triple.get("target_prices", {})
 
+        bb_ind = bb_data.get("indicators", {})
+        _vol = _safe(bb_ind.get("volume"), 0)
+        _vol_sma = _safe(bb_ind.get("vol_sma50"), 0)
+        volume_ratio = (_vol / _vol_sma) if _vol_sma > 0 else None
+
         scoring = compute_composite_score(
             bb_confidence=bb_confidence,
             bb_signal_type=bb_signal_type,
@@ -173,6 +178,7 @@ def _deep_analyze_for_backtest(
             method=method,
             signal_filter=signal_filter,
             pa_result=pa_flat,
+            volume_ratio=volume_ratio,
         )
 
         # Weekly confirmation
@@ -525,6 +531,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Walk-Forward Pipeline Backtest")
     parser.add_argument("--method", default="M1", choices=["M1", "M2", "M3", "M4"])
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--enhanced", action="store_true",
+                        help="Already active — reweighted scoring + volume quality "
+                             "are applied via config. This flag is a no-op marker.")
     args = parser.parse_args()
 
     run_backtest(method=args.method, max_workers=args.workers)

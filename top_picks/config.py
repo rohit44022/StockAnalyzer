@@ -46,13 +46,14 @@ A stock scoring 85+ is an EXCELLENT pick. 70-85 is GOOD. Below 50 is WEAK.
 # For example, if you trust BB more than TA, increase BB_STRATEGY_WEIGHT.
 
 WEIGHTS = {
-    "bb_strategy":      0.20,   # 20% — How strong is the BB pattern?
-    "ta_score":         0.20,   # 20% — Murphy's technical analysis verdict
-    "triple_score":     0.15,   # 15% — Combined BB+TA+PA cross-validation score
-    "pa_score":         0.15,   # 15% — Al Brooks Price Action analysis
-    "risk_reward":      0.15,   # 15% — Potential profit vs potential loss
-    "signal_agreement": 0.10,   # 10% — Do ALL engines agree on direction?
+    "bb_strategy":      0.35,   # 35% — BB pattern is the primary alpha source
+    "ta_score":         0.15,   # 15% — Murphy's technical analysis verdict
+    "triple_score":     0.10,   # 10% — Combined BB+TA+PA cross-validation score
+    "pa_score":         0.05,   # 5%  — Al Brooks Price Action analysis
+    "risk_reward":      0.20,   # 20% — Potential profit vs potential loss
+    "signal_agreement": 0.05,   # 5%  — Do ALL engines agree on direction?
     "data_quality":     0.05,   # 5%  — Is the data fresh and reliable?
+    "volume_quality":   0.05,   # 5%  — Volume vs 50-day avg (institutional participation)
 }
 
 # Maximum PA score (from -100 to +100, so range = 200)
@@ -167,3 +168,35 @@ MAX_WORKERS = 16
 # Users can override this in the API request.
 
 DEFAULT_CAPITAL = 500000  # ₹5,00,000 (~$6,000 USD)
+
+
+# ═══════════════════════════════════════════════════════════════
+# VIX REGIME THRESHOLDS
+# ═══════════════════════════════════════════════════════════════
+VIX_CAUTION_THRESHOLD   = 15.0   # VIX above this → CAUTION
+VIX_DEFENSIVE_THRESHOLD = 22.0   # VIX above this → DEFENSIVE
+VIX_CAUTION_MIN_SCORE   = 45.0   # Replaces MIN_COMPOSITE_SCORE in CAUTION
+VIX_DEFENSIVE_METHODS   = ["M2"] # Only trend-following active in DEFENSIVE
+
+# ═══════════════════════════════════════════════════════════════
+# VOLUME QUALITY TIERS (current volume / 50-day SMA)
+# ═══════════════════════════════════════════════════════════════
+VOL_TIER_LOW_MAX = 1.5   # ratio < 1.5  → score 30  (weak)
+VOL_TIER_MID_MAX = 2.5   # ratio 1.5-2.5 → score 60 (adequate)
+                          # ratio > 2.5  → score 100 (strong institutional)
+
+# ═══════════════════════════════════════════════════════════════
+# FUNDAMENTAL FLOOR GATE
+# ═══════════════════════════════════════════════════════════════
+FUNDAMENTAL_FLOOR_SCORE  = 35      # Drop picks with fundamental_score < this
+FUNDAMENTAL_FLOOR_SIGNAL = "AVOID" # Drop picks with fundamental_signal == this
+
+# ═══════════════════════════════════════════════════════════════
+# HOLD PERIOD GUIDANCE (display only — no pipeline logic)
+# ═══════════════════════════════════════════════════════════════
+HOLD_PERIOD_MAP = {
+    "M1": {"days": "15-20", "stop": "SAR"},
+    "M2": {"days": "20+",   "stop": "Lower BB"},
+    "M3": {"days": "10-15", "stop": "Lower BB"},
+    "M4": {"days": "20+",   "stop": "20-day SMA"},
+}

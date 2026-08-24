@@ -109,6 +109,15 @@ def _return_20d(closes: tuple[float, ...]) -> float | None:
     return (end - start) / start * 100.0
 
 
+def prefetch_all_sectors() -> None:
+    """Pre-warm the LRU cache for all sector indices + Nifty in parallel."""
+    from concurrent.futures import ThreadPoolExecutor
+    today = date.today()
+    tickers = ["^NSEI"] + [t for t, _ in _ALL_SECTOR_INDICES]
+    with ThreadPoolExecutor(max_workers=len(tickers)) as pool:
+        list(pool.map(lambda t: _fetch_close(t, today), tickers))
+
+
 # ---------------------------------------------------------------------------
 # Main public function
 # ---------------------------------------------------------------------------

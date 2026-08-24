@@ -23,7 +23,7 @@ logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
 # ── Shared rate-limit state ───────────────────────────────────────
 _last_call_time: float = 0.0
-_MIN_INTERVAL: float   = 1.2   # minimum seconds between Yahoo API calls
+_MIN_INTERVAL: float   = 0.5   # minimum seconds between Yahoo API calls
 
 
 @dataclass
@@ -369,7 +369,7 @@ def _throttle():
     global _last_call_time
     elapsed = time.time() - _last_call_time
     if elapsed < _MIN_INTERVAL:
-        time.sleep(_MIN_INTERVAL - elapsed + random.uniform(0.1, 0.4))
+        time.sleep(_MIN_INTERVAL - elapsed + random.uniform(0.05, 0.15))
     _last_call_time = time.time()
 
 

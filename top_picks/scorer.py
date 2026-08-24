@@ -49,6 +49,7 @@ from typing import Optional
 
 from top_picks.config import (
     WEIGHTS, RR_SCORE_MAP, FRESHNESS_SCORE_MAP, TRIPLE_MAX_SCORE, TRIPLE_MIN_SCORE, PA_MAX_SCORE,
+    VOL_TIER_LOW_MAX, VOL_TIER_MID_MAX,
 )
 
 
@@ -65,6 +66,7 @@ def compute_composite_score(
     method: str,
     signal_filter: str = "BUY",
     pa_result: Optional[dict] = None,
+    volume_ratio: Optional[float] = None,
 ) -> dict:
     """
     Combine all analysis layers into a single Composite Score (0-100).
@@ -195,6 +197,9 @@ def compute_composite_score(
     elif trading_days_stale > 2:
         warnings.append(f"Data is {trading_days_stale} trading days old — consider refreshing")
 
+    # ── Component 8: Volume Quality ─────────────────────────────
+    vq_score = _score_volume_quality(volume_ratio)
+
     # ── Combine Weighted Components ─────────────────────────────
     composite = (
         bb_score            * WEIGHTS["bb_strategy"]
@@ -204,6 +209,7 @@ def compute_composite_score(
         + rr_score           * WEIGHTS["risk_reward"]
         + agreement_score    * WEIGHTS["signal_agreement"]
         + dq_score           * WEIGHTS["data_quality"]
+        + vq_score           * WEIGHTS.get("volume_quality", 0.0)
     )
 
     # Clamp to 0-100
@@ -264,6 +270,13 @@ def compute_composite_score(
                 "weighted": round(dq_score * WEIGHTS["data_quality"], 1),
                 "detail": f"Data {trading_days_stale} trading day(s) old",
                 "hint": "How fresh is the stock data? Stale data = less reliable signals",
+            },
+            "volume_quality": {
+                "score": round(vq_score, 1),
+                "weight": WEIGHTS.get("volume_quality", 0.0),
+                "weighted": round(vq_score * WEIGHTS.get("volume_quality", 0.0), 1),
+                "detail": f"Volume ratio: {volume_ratio:.2f}x" if volume_ratio else "N/A",
+                "hint": "Current volume vs 50-day average — confirms institutional participation",
             },
         },
         "reasons": reasons,
@@ -572,6 +585,17 @@ def _describe_agreement(bb_signal: str, ta_verdict: str, triple_verdict: str) ->
         f"Triple → {tr_dir}",
     ]
     return " | ".join(parts)
+
+
+def _score_volume_quality(volume_ratio: Optional[float]) -> float:
+    """Score based on current volume relative to 50-day average."""
+    if volume_ratio is None or (isinstance(volume_ratio, float) and math.isnan(volume_ratio)) or volume_ratio <= 0:
+        return 50.0
+    if volume_ratio >= VOL_TIER_MID_MAX:
+        return 100.0
+    if volume_ratio >= VOL_TIER_LOW_MAX:
+        return 60.0
+    return 30.0
 
 
 def _assign_grade(score: float) -> str:

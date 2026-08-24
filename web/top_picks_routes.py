@@ -273,6 +273,15 @@ def top_picks_stream(method):
                 phase_callback=_phase_callback,
             )
 
+            # AI/ML enrichment — purely additive, never modifies existing data
+            try:
+                from ai_ml.engine import enrich_top_picks, is_available
+                if is_available():
+                    _phase_callback("ai_ml", "Running AI/ML intelligence layer…")
+                    enrich_top_picks(result, capital=capital)
+            except Exception:
+                pass  # AI/ML failure must never break Top 5
+
             # Phase 3: Done
             progress_queue.put({
                 "type": "result",
@@ -366,6 +375,13 @@ def top_picks_api(method):
         capital=capital,
     )
 
+    try:
+        from ai_ml.engine import enrich_top_picks, is_available
+        if is_available():
+            enrich_top_picks(result, capital=capital)
+    except Exception:
+        pass
+
     return jsonify(_safe_json(result))
 
 
@@ -408,6 +424,14 @@ def top_picks_export_xlsx(method):
         signal_filter=signal_filter,
         capital=capital,
     )
+
+    try:
+        from ai_ml.engine import enrich_top_picks, is_available
+        if is_available():
+            enrich_top_picks(result, capital=capital)
+    except Exception:
+        pass
+
     safe = _safe_json(result)
 
     try:

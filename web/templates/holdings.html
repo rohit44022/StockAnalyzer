@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holdings — Live Portfolio</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--card-bg:#282f36;--card-border:#2f3944;--g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef}
+body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#0ab39c,#7c8aef,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+/* Summary cards */
+.sum-card{border-radius:14px;padding:1.2rem 1.4rem;background:var(--card-bg);border:1px solid var(--card-border);transition:transform .15s}
+.sum-card:hover{transform:translateY(-2px)}
+.sum-val{font-size:1.45rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sum-label{font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* Table */
+.h-table{width:100%;border-collapse:separate;border-spacing:0}
+.h-table th{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:#8b949e;padding:10px 14px;border-bottom:2px solid var(--card-border);position:sticky;top:0;background:var(--card-bg);cursor:pointer;user-select:none;white-space:nowrap}
+.h-table th:hover{color:#c9d1d9}
+.h-table th .sort-arrow{margin-left:4px;font-size:.65rem;opacity:.4}
+.h-table th.sorted .sort-arrow{opacity:1;color:var(--b)}
+.h-table td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-size:.88rem;vertical-align:middle}
+.h-table .ticker-name{font-weight:600;color:#e6edf3;font-size:.92rem}
+.h-table .strategy-tag{font-size:.65rem;color:#8b949e;background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px;margin-left:6px}
+.h-table tfoot td{font-weight:700;border-top:2px solid var(--card-border);background:rgba(255,255,255,.02);font-size:.92rem}
+.h-table .num{font-family:'JetBrains Mono',monospace;text-align:right;white-space:nowrap}
+.up{color:var(--g)}.down{color:var(--r)}
+
+/* Hover action buttons */
+.h-table tbody tr{position:relative}
+.h-table tbody tr:hover td{background:rgba(124,138,239,.04)}
+.row-actions{display:none;gap:6px}
+.h-table tbody tr:hover .row-actions{display:inline-flex}
+.btn-buy,.btn-sell{font-size:.72rem;font-weight:600;padding:3px 12px;border-radius:6px;border:none;cursor:pointer;letter-spacing:.3px;transition:opacity .15s}
+.btn-buy{background:rgba(10,179,156,.18);color:var(--g)}
+.btn-buy:hover{background:rgba(10,179,156,.3)}
+.btn-sell{background:rgba(240,101,72,.15);color:var(--r)}
+.btn-sell:hover{background:rgba(240,101,72,.28)}
+
+/* Search */
+.search-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:6px 14px;color:#e6edf3;font-size:.85rem;width:240px}
+.search-box:focus{outline:none;border-color:var(--b);box-shadow:0 0 0 2px rgba(124,138,239,.15)}
+
+/* Market badge */
+.market-badge{font-size:.7rem;padding:3px 8px;border-radius:6px;font-weight:600;letter-spacing:.3px}
+.market-open{background:rgba(10,179,156,.15);color:var(--g)}
+.market-closed{background:rgba(240,101,72,.12);color:var(--r)}
+
+/* LTP flash */
+@keyframes ltp-flash{0%{background:rgba(124,138,239,.2)}100%{background:transparent}}
+.ltp-flash{animation:ltp-flash .6s ease-out}
+
+/* Modal */
+.h-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;display:none;overflow-y:auto;padding:2rem 0}
+.h-modal-backdrop.active{display:flex;align-items:flex-start;justify-content:center}
+.h-modal{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:1.5rem;width:380px;max-width:92vw;margin:auto}
+.h-modal h5{font-weight:700;margin-bottom:1rem}
+.h-modal label{font-size:.78rem;color:#8b949e;display:block;margin-bottom:3px;margin-top:10px}
+.h-modal input,.h-modal select{width:100%;background:var(--bs-body-bg);border:1px solid var(--card-border);border-radius:8px;padding:7px 12px;color:#e6edf3;font-size:.88rem;font-family:'JetBrains Mono',monospace}
+.h-modal input:focus,.h-modal select:focus{outline:none;border-color:var(--b)}
+.h-modal .modal-actions{display:flex;gap:8px;margin-top:1.2rem;justify-content:flex-end}
+.h-modal .btn-confirm{padding:6px 20px;border-radius:8px;border:none;font-weight:600;font-size:.85rem;cursor:pointer}
+.h-modal .btn-cancel{padding:6px 16px;border-radius:8px;border:1px solid var(--card-border);background:transparent;color:#8b949e;font-size:.85rem;cursor:pointer}
+.h-modal .btn-confirm.buy{background:var(--g);color:#fff}
+.h-modal .btn-confirm.sell{background:var(--r);color:#fff}
+.h-modal .error-msg{color:var(--r);font-size:.78rem;margin-top:6px;min-height:1.2em}
+
+/* Responsive */
+.table-wrap{overflow-x:auto;border-radius:16px;background:var(--card-bg);border:1px solid var(--card-border)}
+@media(max-width:768px){
+  .sum-val{font-size:1.1rem}
+  .hero h1{font-size:1.5rem}
+  .search-box{width:100%}
+}
+</style>
+</head>
+<body>
+
+{% include "_nav.html" %}
+
+<!-- Hero -->
+<div class="hero">
+  <div class="container-fluid">
+    <h1><i class="bi bi-wallet2 me-2"></i>Holdings</h1>
+    <p class="text-secondary mb-0">
+      Live portfolio positions &bull; Auto-refreshes every 60s &bull; Hover row to Buy/Sell
+      <span id="marketBadge" class="market-badge ms-2"></span>
+      <span id="asOf" class="text-secondary ms-2" style="font-size:.75rem"></span>
+    </p>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="container-fluid mt-3">
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="sum-card">
+        <div class="sum-val font-mono" id="totalInvested">--</div>
+        <div class="sum-label">Total Investment</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="sum-card">
+        <div class="sum-val font-mono" id="totalCurrent">--</div>
+        <div class="sum-label">Current Value</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="sum-card">
+        <div class="sum-val font-mono" id="totalPnl">--</div>
+        <div class="sum-label">Total P&amp;L</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="sum-card">
+        <div class="sum-val font-mono" id="totalDayPnl">--</div>
+        <div class="sum-label">Day's P&amp;L</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search + Add button -->
+  <div class="d-flex align-items-center gap-3 mb-2">
+    <input type="text" class="search-box" id="searchInput" placeholder="Search holdings...">
+    <button class="btn-buy" style="padding:6px 16px;font-size:.82rem" onclick="openBuyModal()">+ Add Position</button>
+    <span class="text-secondary" style="font-size:.78rem" id="holdingsCount"></span>
+  </div>
+
+  <div class="table-wrap">
+    <table class="h-table" id="holdingsTable">
+      <thead>
+        <tr>
+          <th data-col="ticker">Instrument <span class="sort-arrow">&#9650;</span></th>
+          <th data-col="qty" class="num">Qty <span class="sort-arrow">&#9650;</span></th>
+          <th data-col="avg_price" class="num">Avg. Cost <span class="sort-arrow">&#9650;</span></th>
+          <th data-col="ltp" class="num">LTP <span class="sort-arrow">&#9650;</span></th>
+          <th data-col="current" class="num">Cur. Val <span class="sort-arrow">&#9650;</span></th>
+          <th data-col="pnl" class="num">P&amp;L <span class="sort-arrow">&#9650;</span></th>
+          <th data-col="pnl_pct" class="num">P&amp;L % <span class="sort-arrow">&#9650;</span></th>
+          <th data-col="day_change" class="num">Day Chg <span class="sort-arrow">&#9650;</span></th>
+          <th style="width:1%;cursor:default"></th>
+        </tr>
+      </thead>
+      <tbody id="holdingsBody">
+        <tr><td colspan="9" class="text-center text-secondary py-4">Loading holdings...</td></tr>
+      </tbody>
+      <tfoot id="holdingsFoot" style="display:none">
+        <tr>
+          <td colspan="4" style="text-align:right">Portfolio Total</td>
+          <td class="num" id="footCurrent">--</td>
+          <td class="num" id="footPnl">--</td>
+          <td class="num" id="footPnlPct">--</td>
+          <td class="num" id="footDayChg">--</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════ ADD POSITION MODAL (matches Portfolio page) ═══════ -->
+<div class="h-modal-backdrop" id="buyModal">
+  <div class="h-modal" style="width:480px">
+    <h5 style="color:var(--g)"><i class="bi bi-plus-circle me-2"></i>Add Position</h5>
+    <label>Ticker Symbol</label>
+    <input id="buyTicker" class="font-mono" placeholder="e.g. RELIANCE" autocomplete="off">
+    <label>Strategy Used to Buy</label>
+    <select id="buyStrategy">
+      <option value="M1">Method I — Volatility Breakout (Squeeze)</option>
+      <option value="M2">Method II — Trend Following (%b + MFI)</option>
+      <option value="M3">Method III — Reversals (W-Bottom / M-Top)</option>
+      <option value="M4">Method IV — Walking the Bands</option>
+    </select>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label>Broker <span style="color:#8b949e;font-weight:400">(drives charges)</span></label>
+        <select id="buyPlatform">
+          <option value="zerodha" selected>Zerodha</option>
+          <option value="groww">Groww</option>
+          <option value="dhan">Dhan</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label>Account Owner <span style="color:#8b949e;font-weight:400">(who holds it)</span></label>
+        <input id="buyOwner" placeholder="Self / Wife / …" autocomplete="off">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label>Buy Price (₹)</label>
+        <input id="buyPrice" type="number" class="font-mono" step="0.05" min="0.01">
+      </div>
+      <div style="flex:1">
+        <label>Quantity</label>
+        <input id="buyQty" type="number" class="font-mono" value="1" min="1">
+      </div>
+    </div>
+    <label>Buy Date</label>
+    <input id="buyDate" type="date" class="font-mono">
+    <label>Notes (optional)</label>
+    <textarea id="buyNotes" rows="2" style="width:100%;background:var(--bs-body-bg);border:1px solid var(--card-border);border-radius:8px;padding:7px 12px;color:#e6edf3;font-size:.85rem;resize:vertical" placeholder="e.g. Entered on squeeze breakout with high volume"></textarea>
+    <hr style="border-color:var(--card-border);margin:12px 0 8px">
+    <div style="font-size:.82rem;font-weight:700;color:var(--b);margin-bottom:8px"><i class="bi bi-brain me-1"></i>Mental Game Fields <span style="color:#8b949e;font-weight:400">(optional)</span></div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label>Pre-Trade Emotion</label>
+        <select id="buyPsychEmotion">
+          <option value="">— skip —</option>
+          <option value="CALM">Calm</option><option value="FOCUSED">Focused</option>
+          <option value="ANXIOUS">Anxious</option><option value="FEARFUL">Fearful</option>
+          <option value="OVERCONFIDENT">Overconfident</option><option value="IMPATIENT">Impatient</option>
+          <option value="REVENGE">Revenge-Driven</option><option value="GREEDY">Greedy</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label>Mental Score (1-10)</label>
+        <input id="buyPsychScore" type="number" class="font-mono" min="1" max="10" placeholder="7">
+      </div>
+    </div>
+    <div class="error-msg" id="buyError"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('buyModal')">Cancel</button>
+      <button class="btn-confirm buy" onclick="submitBuy()"><i class="bi bi-check-lg me-1"></i>Add Position</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ CLOSE/SELL POSITION MODAL (matches Portfolio page) ═══════ -->
+<div class="h-modal-backdrop" id="sellModal">
+  <div class="h-modal" style="width:520px">
+    <h5 style="color:var(--r)"><i class="bi bi-x-circle me-2"></i>Close Position</h5>
+    <p style="color:#8b949e;font-size:.88rem;margin-bottom:10px">
+      Selling <strong class="font-mono" style="color:var(--b)" id="sellTickerLabel"></strong>
+      <span style="font-size:.82rem"> — holding <strong id="sellHoldQty">0</strong> shares
+      @ avg ₹<strong id="sellAvg">0.00</strong></span>
+    </p>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label>Quantity to Sell</label>
+        <input id="sellQty" type="number" class="font-mono" step="1" min="1">
+        <div style="font-size:.72rem;margin-top:2px">
+          <a href="#" style="color:var(--r);text-decoration:none;font-size:.75rem" onclick="document.getElementById('sellQty').value=document.getElementById('sellMaxQty').textContent;updateSellPreview();return false">sell all</a>
+          <span id="sellQtyRemaining" style="color:#8b949e;margin-left:8px"></span>
+        </div>
+      </div>
+      <div style="flex:1">
+        <label>Sell Price (₹)</label>
+        <input id="sellPrice" type="number" class="font-mono" step="0.05" min="0.01">
+      </div>
+      <div style="flex:1">
+        <label>Sell Date</label>
+        <input id="sellDate" type="date" class="font-mono">
+      </div>
+    </div>
+    <div id="sellPnlPreview" style="display:none;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid var(--card-border);font-size:.85rem;margin-top:10px"></div>
+    <label>Sell Reason</label>
+    <select id="sellReason">
+      <option value="Target reached">Target reached</option>
+      <option value="Stop loss hit">Stop loss hit</option>
+      <option value="Strategy exit signal">Strategy exit signal</option>
+      <option value="Manual decision">Manual decision</option>
+      <option value="Other">Other</option>
+    </select>
+    <hr style="border-color:var(--card-border);margin:12px 0 8px">
+    <div style="font-size:.82rem;font-weight:700;color:var(--b);margin-bottom:8px"><i class="bi bi-receipt me-1"></i>Trade Logging <span style="color:#8b949e;font-weight:400">(auto-adds to Trade History &amp; FY Tax Summary)</span></div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label>Broker</label>
+        <select id="sellPlatform">
+          <option value="zerodha" selected>Zerodha</option>
+          <option value="groww">Groww</option>
+          <option value="dhan">Dhan</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label>Trade Type</label>
+        <select id="sellTradeType">
+          <option value="delivery" selected>Delivery (CNC)</option>
+          <option value="intraday">Intraday (MIS)</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label>Exchange</label>
+        <select id="sellExchange">
+          <option value="NSE" selected>NSE</option>
+          <option value="BSE">BSE</option>
+        </select>
+      </div>
+    </div>
+    <label>Account Owner</label>
+    <input id="sellOwner" placeholder="Self / Wife / …" autocomplete="off">
+    <hr style="border-color:var(--card-border);margin:12px 0 8px">
+    <div style="font-size:.82rem;font-weight:700;color:var(--b);margin-bottom:8px"><i class="bi bi-brain me-1"></i>Mental Game Fields <span style="color:#8b949e;font-weight:400">(optional)</span></div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label>System Followed?</label>
+        <select id="sellPsychSystem">
+          <option value="">— skip —</option>
+          <option value="YES">YES — followed system</option>
+          <option value="NO">NO — deviated</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label>Pattern Tag</label>
+        <select id="sellPsychPattern">
+          <option value="">None</option>
+          <option value="REVENGE_TRADE">Revenge Trade</option>
+          <option value="OVERCONFIDENCE">Overconfidence</option>
+          <option value="FEAR_PARALYSIS">Fear Paralysis</option>
+          <option value="FOMO">FOMO</option>
+          <option value="EARLY_EXIT">Early Exit</option>
+          <option value="DISCIPLINE_BREAKDOWN">Discipline Breakdown</option>
+        </select>
+      </div>
+    </div>
+    <label>Post-Trade Reflection</label>
+    <textarea id="sellPsychReflection" rows="2" style="width:100%;background:var(--bs-body-bg);border:1px solid var(--card-border);border-radius:8px;padding:7px 12px;color:#e6edf3;font-size:.85rem;resize:vertical" placeholder="What happened? What did I feel? What will I do differently?"></textarea>
+    <div class="error-msg" id="sellError"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('sellModal')">Cancel</button>
+      <button class="btn-confirm sell" onclick="submitSell()"><i class="bi bi-check-lg me-1"></i>Close Position</button>
+    </div>
+    <input type="hidden" id="sellPid">
+    <input type="hidden" id="sellMaxQty">
+    <input type="hidden" id="sellAvgRaw">
+  </div>
+</div>
+
+{% include "_notepad_widget.html" %}
+{% include "_theme_picker.html" %}
+
+<script>
+(function(){
+  const fmt = v => v == null ? '--' : '₹' + Number(v).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const pct = v => v == null ? '--' : (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+  const cls = v => v >= 0 ? 'up' : 'down';
+  const arrow = v => v >= 0 ? '▲' : '▼';
+  const today = () => new Date().toISOString().slice(0,10);
+
+  let _data = [];
+  let _sortCol = 'pnl', _sortAsc = false;
+
+  function renderRows(holdings){
+    const q = (document.getElementById('searchInput').value || '').toUpperCase();
+    const filtered = q ? holdings.filter(h => h.ticker.includes(q)) : holdings;
+
+    filtered.sort((a,b) => {
+      let va = a[_sortCol], vb = b[_sortCol];
+      if (typeof va === 'string') { va = va.toLowerCase(); vb = (vb||'').toLowerCase(); }
+      if (va < vb) return _sortAsc ? -1 : 1;
+      if (va > vb) return _sortAsc ? 1 : -1;
+      return 0;
+    });
+
+    const tbody = document.getElementById('holdingsBody');
+    if (!filtered.length){
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary py-4">No holdings found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = filtered.map(h => `
+      <tr>
+        <td>
+          <span class="ticker-name">${h.ticker}</span>
+          ${h.strategy ? `<span class="strategy-tag">${h.strategy}</span>` : ''}
+          ${h.buy_date ? `<div style="font-size:.7rem;color:#8b949e;margin-top:2px">Bought ${h.buy_date}</div>` : ''}
+        </td>
+        <td class="num">${h.qty}</td>
+        <td class="num">${fmt(h.avg_price)}</td>
+        <td class="num ltp-cell" data-ticker="${h.ticker}-${h.id}">${fmt(h.ltp)}</td>
+        <td class="num">${fmt(h.current)}</td>
+        <td class="num ${cls(h.pnl)}">${arrow(h.pnl)} ${fmt(h.pnl)}</td>
+        <td class="num ${cls(h.pnl_pct)}">${pct(h.pnl_pct)}</td>
+        <td class="num ${cls(h.day_change)}">${arrow(h.day_change)} ${fmt(h.day_change)}<div style="font-size:.7rem">${pct(h.day_change_pct)}</div></td>
+        <td>
+          <div class="row-actions">
+            <button class="btn-buy" onclick="openBuyModal('${h.ticker}')">B</button>
+            <button class="btn-sell" onclick="openSellModal(${h.id},'${h.ticker}',${h.qty},${h.avg_price},${h.ltp},'${h.platform||'zerodha'}','${h.owner||'Self'}')">S</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    document.getElementById('holdingsCount').textContent = filtered.length + ' holding' + (filtered.length !== 1 ? 's' : '');
+  }
+
+  function updateTotals(totals){
+    document.getElementById('totalInvested').textContent = fmt(totals.invested);
+    document.getElementById('totalCurrent').textContent = fmt(totals.current);
+
+    const pnlEl = document.getElementById('totalPnl');
+    pnlEl.className = 'sum-val font-mono ' + cls(totals.pnl);
+    pnlEl.innerHTML = `${arrow(totals.pnl)} ${fmt(totals.pnl)} <span style="font-size:.78rem">(${pct(totals.pnl_pct)})</span>`;
+
+    const dayEl = document.getElementById('totalDayPnl');
+    dayEl.className = 'sum-val font-mono ' + cls(totals.day_pnl);
+    dayEl.innerHTML = `${arrow(totals.day_pnl)} ${fmt(totals.day_pnl)}`;
+
+    const foot = document.getElementById('holdingsFoot');
+    foot.style.display = '';
+    document.getElementById('footCurrent').textContent = fmt(totals.current);
+    const fp = document.getElementById('footPnl');
+    fp.className = 'num ' + cls(totals.pnl); fp.textContent = fmt(totals.pnl);
+    const fpp = document.getElementById('footPnlPct');
+    fpp.className = 'num ' + cls(totals.pnl_pct); fpp.textContent = pct(totals.pnl_pct);
+    const fd = document.getElementById('footDayChg');
+    fd.className = 'num ' + cls(totals.day_pnl); fd.textContent = fmt(totals.day_pnl);
+  }
+
+  function updateMarketBadge(open, asOf){
+    const badge = document.getElementById('marketBadge');
+    badge.className = 'market-badge ms-2 ' + (open ? 'market-open' : 'market-closed');
+    badge.textContent = open ? 'MARKET OPEN' : 'MARKET CLOSED';
+    if (asOf) document.getElementById('asOf').textContent = 'Last update: ' + asOf;
+  }
+
+  let _prevLtp = {};
+  function flashUpdated(holdings){
+    holdings.forEach(h => {
+      const key = h.ticker + '-' + h.id;
+      if (_prevLtp[key] !== undefined && _prevLtp[key] !== h.ltp){
+        const cell = document.querySelector(`.ltp-cell[data-ticker="${key}"]`);
+        if (cell){ cell.classList.remove('ltp-flash'); void cell.offsetWidth; cell.classList.add('ltp-flash'); }
+      }
+      _prevLtp[key] = h.ltp;
+    });
+  }
+
+  async function fetchHoldings(){
+    try {
+      const res = await fetch('/api/holdings/live');
+      const d = await res.json();
+      _data = d.holdings || [];
+      renderRows(_data);
+      flashUpdated(_data);
+      updateTotals(d.totals || {});
+      updateMarketBadge(d.market_open, d.as_of);
+    } catch(e){ console.error('Holdings fetch error:', e); }
+  }
+
+  // Sort
+  document.querySelectorAll('.h-table th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (_sortCol === col) _sortAsc = !_sortAsc;
+      else { _sortCol = col; _sortAsc = true; }
+      document.querySelectorAll('.h-table th').forEach(t => {
+        t.classList.remove('sorted');
+        const sa = t.querySelector('.sort-arrow');
+        if (sa) sa.innerHTML = '&#9650;';
+      });
+      th.classList.add('sorted');
+      th.querySelector('.sort-arrow').innerHTML = _sortAsc ? '&#9650;' : '&#9660;';
+      renderRows(_data);
+    });
+  });
+
+  // Search
+  document.getElementById('searchInput').addEventListener('input', () => renderRows(_data));
+
+  // Init + 60s refresh
+  fetchHoldings();
+  setInterval(fetchHoldings, 60000);
+
+  // ── Modal helpers ──
+
+  window.closeModal = function(id){
+    document.getElementById(id).classList.remove('active');
+  };
+
+  // Close on backdrop click
+  document.querySelectorAll('.h-modal-backdrop').forEach(el => {
+    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('active'); });
+  });
+
+  // ── BUY (matches Portfolio submitAdd) ──
+
+  window.openBuyModal = function(ticker){
+    document.getElementById('buyTicker').value = ticker || '';
+    document.getElementById('buyQty').value = '1';
+    document.getElementById('buyPrice').value = '';
+    document.getElementById('buyDate').value = today();
+    document.getElementById('buyNotes').value = '';
+    document.getElementById('buyOwner').value = 'Self';
+    document.getElementById('buyPlatform').value = 'zerodha';
+    document.getElementById('buyPsychEmotion').value = '';
+    document.getElementById('buyPsychScore').value = '';
+    document.getElementById('buyError').textContent = '';
+    document.getElementById('buyModal').classList.add('active');
+    if (!ticker) document.getElementById('buyTicker').focus();
+    else document.getElementById('buyQty').focus();
+  };
+
+  window.submitBuy = async function(){
+    const ticker = (document.getElementById('buyTicker').value || '').trim().toUpperCase();
+    const qty = parseInt(document.getElementById('buyQty').value) || 1;
+    const price = parseFloat(document.getElementById('buyPrice').value);
+    const buyDate = document.getElementById('buyDate').value;
+    const strategy = document.getElementById('buyStrategy').value;
+    const platform = (document.getElementById('buyPlatform').value || 'zerodha').toLowerCase();
+    const owner = (document.getElementById('buyOwner').value || 'Self').trim() || 'Self';
+    const notes = (document.getElementById('buyNotes').value || '').trim();
+    const psychEmotion = document.getElementById('buyPsychEmotion').value;
+    const psychScore = document.getElementById('buyPsychScore').value;
+    const errEl = document.getElementById('buyError');
+
+    if (!ticker){ errEl.textContent = 'Please enter a ticker symbol'; return; }
+    if (!price || price <= 0){ errEl.textContent = 'Please enter a valid buy price'; return; }
+    if (!buyDate){ errEl.textContent = 'Please select a buy date'; return; }
+
+    errEl.textContent = '';
+    try {
+      const res = await fetch('/api/portfolio', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          ticker: ticker.includes('.NS') ? ticker : ticker + '.NS',
+          strategy_code: strategy,
+          buy_price: price,
+          buy_date: buyDate,
+          quantity: qty,
+          notes: notes,
+          platform: platform,
+          owner: owner,
+        })
+      });
+      const d = await res.json();
+      if (d.error){ errEl.textContent = d.error; return; }
+      if (d.merged){
+        alert(`Averaged into existing ${ticker} position.\nTotal holding: ${d.quantity} shares @ avg ₹${(d.avg_buy_price||0).toFixed(2)}.`);
+      }
+      if (psychEmotion || psychScore){
+        fetch('/api/mental-game/trade-psych', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            ticker: ticker.includes('.NS') ? ticker : ticker + '.NS',
+            trade_date: buyDate,
+            pre_mental_score: parseInt(psychScore) || 7,
+            pre_emotion: psychEmotion || 'CALM',
+            system_followed: 'YES',
+            position_id: d.id || null,
+          })
+        });
+      }
+      closeModal('buyModal');
+      fetchHoldings();
+    } catch(e){ errEl.textContent = 'Network error'; }
+  };
+
+  // ── SELL / CLOSE (matches Portfolio submitClose) ──
+
+  window.openSellModal = function(pid, ticker, qty, avg, ltp, platform, owner){
+    document.getElementById('sellPid').value = pid;
+    document.getElementById('sellTickerLabel').textContent = ticker;
+    document.getElementById('sellHoldQty').textContent = qty;
+    document.getElementById('sellAvg').textContent = avg.toFixed(2);
+    document.getElementById('sellAvgRaw').value = avg;
+    document.getElementById('sellQty').value = qty;
+    document.getElementById('sellQty').max = qty;
+    document.getElementById('sellMaxQty').value = qty;
+    document.getElementById('sellPrice').value = ltp || '';
+    document.getElementById('sellDate').value = today();
+    document.getElementById('sellReason').value = 'Target reached';
+    document.getElementById('sellPlatform').value = (platform || 'zerodha').toLowerCase();
+    document.getElementById('sellOwner').value = owner || 'Self';
+    document.getElementById('sellTradeType').value = 'delivery';
+    document.getElementById('sellExchange').value = 'NSE';
+    document.getElementById('sellPsychSystem').value = '';
+    document.getElementById('sellPsychPattern').value = '';
+    document.getElementById('sellPsychReflection').value = '';
+    document.getElementById('sellError').textContent = '';
+    updateSellPreview();
+    document.getElementById('sellModal').classList.add('active');
+    document.getElementById('sellQty').focus();
+  };
+
+  window.updateSellPreview = function(){
+    const holdingQty = parseInt(document.getElementById('sellMaxQty').value || 0);
+    const avg = parseFloat(document.getElementById('sellAvgRaw').value || 0);
+    let qty = parseInt(document.getElementById('sellQty').value || 0);
+    if (qty > holdingQty){ qty = holdingQty; document.getElementById('sellQty').value = qty; }
+    if (qty < 1){ qty = 1; document.getElementById('sellQty').value = qty; }
+    const price = parseFloat(document.getElementById('sellPrice').value || 0);
+    const remaining = holdingQty - qty;
+    const pnlPerShare = price > 0 ? (price - avg) : 0;
+    const totalPnl = pnlPerShare * qty;
+    const pnlPct = avg > 0 ? (pnlPerShare / avg * 100) : 0;
+    const pnlColor = totalPnl >= 0 ? 'var(--g)' : 'var(--r)';
+    document.getElementById('sellQtyRemaining').textContent =
+      remaining > 0 ? remaining + ' shares will remain in portfolio' : 'Position will be CLOSED';
+    const prev = document.getElementById('sellPnlPreview');
+    if (price > 0 && qty > 0){
+      prev.style.display = '';
+      prev.innerHTML = '<strong>Preview:</strong> sell ' + qty + ' × ₹' + price.toFixed(2) +
+        ' (avg buy ₹' + avg.toFixed(2) + ') → ' +
+        '<span style="color:' + pnlColor + ';font-weight:600">P&L ₹' + totalPnl.toFixed(2) +
+        ' (' + (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%)</span> · ' +
+        (remaining > 0
+          ? remaining + ' left @ avg ₹' + avg.toFixed(2) + ' (avg-cost basis)'
+          : 'entire position will close');
+    } else { prev.style.display = 'none'; }
+  };
+
+  // Wire live-preview on qty/price change
+  document.getElementById('sellQty').addEventListener('input', updateSellPreview);
+  document.getElementById('sellPrice').addEventListener('input', updateSellPreview);
+
+  window.submitSell = async function(){
+    const pid = document.getElementById('sellPid').value;
+    const qty = parseInt(document.getElementById('sellQty').value);
+    const price = parseFloat(document.getElementById('sellPrice').value);
+    const sellDate = document.getElementById('sellDate').value;
+    const reason = document.getElementById('sellReason').value;
+    const platform = document.getElementById('sellPlatform').value;
+    const owner = (document.getElementById('sellOwner').value || 'Self').trim() || 'Self';
+    const tradeType = document.getElementById('sellTradeType').value;
+    const exchange = document.getElementById('sellExchange').value;
+    const psychSystem = document.getElementById('sellPsychSystem').value;
+    const psychPattern = document.getElementById('sellPsychPattern').value;
+    const psychReflection = (document.getElementById('sellPsychReflection').value || '').trim();
+    const errEl = document.getElementById('sellError');
+
+    if (!qty || qty <= 0){ errEl.textContent = 'Please enter a quantity to sell'; return; }
+    if (!price || price <= 0){ errEl.textContent = 'Please enter a valid sell price'; return; }
+    if (!sellDate){ errEl.textContent = 'Please select a sell date'; return; }
+
+    errEl.textContent = '';
+    try {
+      const res = await fetch(`/api/portfolio/${pid}/sell-partial`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          quantity: qty,
+          sell_price: price,
+          sell_date: sellDate,
+          sell_reason: reason,
+          platform: platform,
+          owner: owner,
+          trade_type: tradeType,
+          exchange: exchange,
+        })
+      });
+      const d = await res.json();
+      if (d.error){ errEl.textContent = d.error; return; }
+      if (d.trade_logged === false && d.trade_error){
+        alert('Sale recorded, but trade entry could not be logged automatically: ' + d.trade_error);
+      }
+      if (psychSystem || psychPattern || psychReflection){
+        const ticker = document.getElementById('sellTickerLabel').textContent;
+        fetch('/api/mental-game/trade-psych', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            ticker: ticker.includes('.NS') ? ticker : ticker + '.NS',
+            trade_date: sellDate,
+            system_followed: psychSystem || 'YES',
+            pattern_tag: psychPattern || '',
+            post_reflection: psychReflection || '',
+            position_id: parseInt(pid),
+          })
+        });
+      }
+      closeModal('sellModal');
+      fetchHoldings();
+    } catch(e){ errEl.textContent = 'Network error'; }
+  };
+
+})();
+</script>
+</body>
+</html>

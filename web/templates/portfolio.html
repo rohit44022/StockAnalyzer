@@ -4176,7 +4176,30 @@ function renderAiMlPanel(ai, holding, rec) {
         let mlExpl = verdict === 'ML_PASS'
             ? `<strong>Good news:</strong> This trade pattern scores ${conf}% — above the 55% threshold. The ML model (trained on 3 lakh+ real NSE trades) considers this a higher-probability setup. This supports your decision to hold.`
             : `<strong>Caution:</strong> This trade pattern scores ${conf}% — below the 55% threshold. The model sees this as a lower-probability setup based on historical patterns. Consider tighter risk management.`;
-        if (ai.ml_percentile) mlExpl += ` This puts it in the top ${100 - Math.round(ai.ml_percentile)}% of all scored trades.`;
+        if (ai.ml_percentile) mlExpl += ` This puts it in the top ${100 - Math.round(ai.ml_percentile * 100)}% of all scored trades.`;
+
+        // SHAP explanation — which features drove this prediction
+        if (ai.ml_explanation && ai.ml_explanation.length > 0) {
+            mlExpl += `<div class="mt-2" style="border-top:1px solid rgba(127,127,127,.12);padding-top:6px"><strong>Why this score?</strong> (SHAP feature attribution)</div>`;
+            mlExpl += `<div style="font-size:.72rem;color:#8b949e;margin-bottom:4px">These are the specific indicators that pushed this stock's prediction toward WIN or LOSS. Green features increase the win probability; red features decrease it. This is not a black box — you can see exactly what the model is thinking.</div>`;
+            ai.ml_explanation.forEach(e => {
+                const dir = e.direction === 'WIN';
+                const clr = dir ? 'var(--g)' : 'var(--r)';
+                const arrow = dir ? '&#9650;' : '&#9660;';
+                const featureLabels = {bbw:'Bollinger Width', rsi14:'RSI (14)', atr14_pct:'ATR %', vol_ratio:'Volume Ratio', close_vs_sma20:'Price vs SMA20', close_vs_upper:'Price vs Upper Band', close_vs_lower:'Price vs Lower Band', sma20_slope_5d:'SMA20 Slope', rsi14_slope_5d:'RSI Slope', bbw_percentile_60d:'BB Width Pctl', vol_trend_5d:'Vol Trend', price_momentum_10d:'10d Momentum', price_momentum_20d:'20d Momentum', atr14_percentile_60d:'ATR Pctl'};
+                const label = featureLabels[e.feature] || e.feature;
+                mlExpl += `<div style="display:inline-flex;align-items:center;gap:3px;margin:2px 4px 2px 0;padding:2px 8px;border-radius:4px;background:${clr}11;border:1px solid ${clr}33;font-size:.72rem"><span style="color:${clr}">${arrow}</span> <span>${label}</span> <span style="color:${clr};font-weight:600">${e.impact > 0 ? '+' : ''}${(e.impact * 100).toFixed(1)}</span></div>`;
+            });
+        }
+
+        // Downside risk from expectile regression model
+        if (ai.ml_downside_risk != null) {
+            const dr = (ai.ml_downside_risk * 100).toFixed(1);
+            const drClr = ai.ml_downside_risk >= 0 ? 'var(--g)' : ai.ml_downside_risk > -0.03 ? 'var(--y)' : 'var(--r)';
+            mlExpl += `<div class="mt-2" style="border-top:1px solid rgba(127,127,127,.12);padding-top:6px"><strong>Downside Risk Estimate:</strong> <span style="color:${drClr};font-weight:700">${dr}%</span></div>`;
+            mlExpl += `<div style="font-size:.72rem;color:#8b949e;line-height:1.4">This is the worst-case expected return at the 25th percentile, predicted by a separate XGBoost expectile regression model. It answers: "In a bad scenario, how much could this trade lose?" A value like -3% means that in 75% of similar historical setups, the loss was smaller than 3%. Use this alongside the win probability to gauge risk — a high confidence trade with a deep downside may still warrant a smaller position.</div>`;
+        }
+
         document.getElementById('aiMlExplain').innerHTML = mlExpl;
     } else {
         mlSec.style.display = 'none';

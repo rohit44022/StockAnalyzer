@@ -1487,6 +1487,11 @@ def api_bhavcopy_update():
 #  TRADE P&L DASHBOARD ROUTES
 # ─────────────────────────────────────────────────────────────────
 
+@app.route("/indicator-guide")
+def indicator_guide_page():
+    return render_template("indicator_guide.html")
+
+
 @app.route("/trades")
 def trades_page():
     return render_template("trades.html")
@@ -1641,6 +1646,29 @@ def _current_user_display_name():
         return None
     full = " ".join(filter(None, [u.get("first_name"), u.get("last_name")])).strip()
     return full or u.get("username") or u.get("email")
+
+
+@app.route("/api/trades/ml-intelligence")
+def api_trades_ml_intelligence():
+    """ML intelligence: market regime, method ranking, feedback stats."""
+    result = {}
+    try:
+        from ai_ml.regime_filter import get_market_regime
+        result["regime"] = get_market_regime()
+    except Exception as e:
+        result["regime"] = {"available": False, "error": str(e)}
+    try:
+        from ai_ml.method_router import get_method_recommendation
+        rsi = (result.get("regime") or {}).get("signals", {}).get("nifty_rsi")
+        result["method_router"] = get_method_recommendation(current_rsi=rsi)
+    except Exception as e:
+        result["method_router"] = {"available": False, "error": str(e)}
+    try:
+        from ai_ml.feedback_loop import get_feedback_stats
+        result["feedback"] = get_feedback_stats()
+    except Exception as e:
+        result["feedback"] = {"error": str(e)}
+    return jsonify(result)
 
 
 @app.route("/api/trades/export/pdf")
@@ -2885,8 +2913,7 @@ def api_portfolio_risk():
     """Portfolio-level correlation and concentration risk."""
     try:
         from bb_squeeze.portfolio_risk import analyze_portfolio_risk
-        from web.portfolio_db import get_all_open
-        positions_raw = get_all_open()
+        positions_raw = get_open_positions(user_id=_uid(), is_admin=_is_admin())
         if not positions_raw:
             return jsonify({"available": False, "explanation": "No open positions in portfolio."})
 

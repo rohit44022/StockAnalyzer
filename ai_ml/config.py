@@ -7,7 +7,7 @@ _ROOT = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(_ROOT, "models")
 os.makedirs(MODELS_DIR, exist_ok=True)
 
-SIGNAL_FILTER_MODEL = os.path.join(MODELS_DIR, "signal_filter.xgb.json")
+SIGNAL_FILTER_MODEL = os.path.join(MODELS_DIR, "signal_filter.joblib")
 METHOD_ROUTER_DATA  = os.path.join(MODELS_DIR, "method_router.json")
 TRAINING_DATA_FILE  = os.path.join(MODELS_DIR, "training_data.parquet")
 
@@ -20,7 +20,9 @@ ML_FEATURES = [
     "close_vs_upper", "close_vs_lower", "sma20_slope_5d",
     "rsi14_slope_5d", "bbw_percentile_60d", "vol_trend_5d",
     "price_momentum_10d", "price_momentum_20d", "atr14_percentile_60d",
+    "method",
 ]
+ML_CATEGORICAL_FEATURES = ["method"]
 
 # Correlation Guard
 CORRELATION_WINDOW = 60          # trading days for pairwise correlation

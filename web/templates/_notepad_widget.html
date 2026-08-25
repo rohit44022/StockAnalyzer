@@ -11,8 +11,8 @@
    that uses the shared nav.
    ═══════════════════════════════════════════════════════════════ #}
 <div id="npFloater" class="np-floater" data-open="false">
-  <button id="npToggle" class="np-toggle" type="button" onclick="npToggle()"
-          title="Quick notes (Ctrl+Shift+N)">
+  <button id="npToggle" class="np-toggle" type="button"
+          title="Quick notes (Ctrl+Shift+N) · Drag to move">
     <span class="np-icon">📝</span>
     <span class="np-label">Notes</span>
   </button>
@@ -38,6 +38,8 @@
     </div>
   </div>
 </div>
+<button id="npVisToggle" class="np-vis-toggle" type="button" onclick="npVisToggle()"
+        title="Show/hide Notes button (Ctrl+Shift+H)">📝</button>
 
 <style>
 .np-floater {
@@ -58,18 +60,42 @@
   border: none;
   font-size: .8rem;
   font-weight: 600;
-  cursor: pointer;
+  cursor: grab;
   box-shadow: 0 4px 12px rgba(124, 77, 255, .4);
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: transform .2s, box-shadow .2s;
+  transition: box-shadow .2s;
+  touch-action: none;
 }
+.np-toggle:active { cursor: grabbing; }
 .np-toggle:hover {
-  transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(124, 77, 255, .55);
 }
 .np-floater[data-open="true"] .np-toggle { display: none; }
+.np-floater.np-hidden .np-toggle { display: none; }
+.np-floater.np-hidden .np-panel { display: none !important; }
+.np-vis-toggle {
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(30,35,40,.85);
+  color: rgba(255,255,255,.4);
+  font-size: .7rem;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10051;
+  padding: 0;
+  transition: opacity .2s;
+}
+.np-vis-toggle:hover { color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.3); }
+.np-floater.np-hidden ~ .np-vis-toggle { display: flex; }
 .np-panel {
   background: rgba(13, 17, 23, .97);
   backdrop-filter: blur(14px);
@@ -158,8 +184,91 @@
   window.__npInit = true;
 
   const NP_KEY_OPEN = 'np_widget_open';
+  const NP_KEY_POS  = 'np_widget_pos';
+  const NP_KEY_VIS  = 'np_widget_visible';
   let saveTimer = null;
   let lastSent  = null;
+
+  // ── Drag support ──
+  let _drag = null;
+  function initDrag() {
+    const btn = document.getElementById('npToggle');
+    if (!btn) return;
+
+    function onStart(ex, ey) {
+      const floater = document.getElementById('npFloater');
+      const rect = floater.getBoundingClientRect();
+      _drag = { sx: ex, sy: ey, ox: rect.left, oy: rect.top, moved: false };
+    }
+    function onMove(ex, ey) {
+      if (!_drag) return;
+      const dx = ex - _drag.sx, dy = ey - _drag.sy;
+      if (!_drag.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      _drag.moved = true;
+      const floater = document.getElementById('npFloater');
+      const x = Math.max(0, Math.min(window.innerWidth - 60, _drag.ox + dx));
+      const y = Math.max(0, Math.min(window.innerHeight - 40, _drag.oy + dy));
+      floater.style.left = x + 'px';
+      floater.style.top = y + 'px';
+      floater.style.right = 'auto';
+      floater.style.bottom = 'auto';
+    }
+    let _wasDrag = false;
+    function onEnd() {
+      if (_drag && _drag.moved) {
+        const floater = document.getElementById('npFloater');
+        try { localStorage.setItem(NP_KEY_POS, floater.style.left + ',' + floater.style.top); } catch(e){}
+      }
+      _wasDrag = !!(_drag && _drag.moved);
+      _drag = null;
+    }
+
+    btn.addEventListener('mousedown', e => { if (e.button === 0) { e.preventDefault(); onStart(e.clientX, e.clientY); } });
+    document.addEventListener('mousemove', e => { if (_drag && e.buttons === 1) onMove(e.clientX, e.clientY); else if (_drag && e.buttons === 0) onEnd(); });
+    document.addEventListener('mouseup', () => { onEnd(); });
+
+    btn.addEventListener('touchstart', e => { const t = e.touches[0]; onStart(t.clientX, t.clientY); }, {passive: true});
+    document.addEventListener('touchmove', e => { if (_drag) { const t = e.touches[0]; onMove(t.clientX, t.clientY); } }, {passive: false});
+    document.addEventListener('touchend', () => { onEnd(); });
+
+    btn.removeAttribute('onclick');
+    btn.addEventListener('click', () => {
+      if (_wasDrag) { _wasDrag = false; return; }
+      npToggle();
+    });
+  }
+
+  function restorePos() {
+    try {
+      const saved = localStorage.getItem(NP_KEY_POS);
+      if (!saved) return;
+      const [l, t] = saved.split(',');
+      const floater = document.getElementById('npFloater');
+      if (floater && l && t) {
+        floater.style.left = l; floater.style.top = t;
+        floater.style.right = 'auto'; floater.style.bottom = 'auto';
+      }
+    } catch(e){}
+  }
+
+  // ── Visibility toggle ──
+  window.npVisToggle = function() {
+    const floater = document.getElementById('npFloater');
+    if (!floater) return;
+    const hide = !floater.classList.contains('np-hidden');
+    floater.classList.toggle('np-hidden', hide);
+    try { localStorage.setItem(NP_KEY_VIS, hide ? '0' : '1'); } catch(e){}
+  };
+
+  function restoreVis() {
+    try {
+      const v = localStorage.getItem(NP_KEY_VIS);
+      if (v === '0') {
+        const floater = document.getElementById('npFloater');
+        if (floater) floater.classList.add('np-hidden');
+      }
+    } catch(e){}
+  }
 
   // ─────────────────────────────────────────────────────────────
   //  Bootstrap-modal coexistence
@@ -266,16 +375,23 @@
     } catch (e) { setStatus('error', 'error'); }
   };
 
-  // Keyboard shortcut: Ctrl/Cmd + Shift + N toggles the panel.
+  // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'N' || e.key === 'n')) {
       e.preventDefault();
       npToggle();
     }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'H' || e.key === 'h')) {
+      e.preventDefault();
+      npVisToggle();
+    }
   });
 
   document.addEventListener('DOMContentLoaded', () => {
     attachModalIsolation();
+    restorePos();
+    restoreVis();
+    initDrag();
     // Restore open/closed state from prior page
     if (loadOpenState()) {
       const floater = document.getElementById('npFloater');

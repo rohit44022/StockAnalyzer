@@ -309,6 +309,19 @@ def get_feedback_stats() -> dict:
         model_date = _model_last_trained()
         outcomes_since = _outcomes_since_training(conn, model_date)
 
+        # Load latest feature importance if available
+        feature_importance = None
+        fi_path = os.path.join(os.path.dirname(SIGNAL_FILTER_MODEL), "feature_importance.json")
+        try:
+            if os.path.exists(fi_path):
+                import json
+                with open(fi_path) as f:
+                    fi_history = json.load(f)
+                if fi_history:
+                    feature_importance = fi_history[-1]
+        except Exception:
+            pass
+
         return {
             "total_logged": total,
             "total_resolved": total_resolved,
@@ -322,11 +335,12 @@ def get_feedback_stats() -> dict:
             "model_last_trained": model_date,
             "outcomes_since_training": outcomes_since,
             "retrain_ready": outcomes_since >= FEEDBACK_MIN_RETRAIN,
+            "feature_importance": feature_importance,
         }
 
 
 def _model_last_trained() -> str | None:
-    model_path = SIGNAL_FILTER_MODEL.replace(".xgb.json", ".joblib")
+    model_path = SIGNAL_FILTER_MODEL
     if os.path.exists(model_path):
         mtime = os.path.getmtime(model_path)
         return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")

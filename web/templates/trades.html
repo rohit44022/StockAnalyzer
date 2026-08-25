@@ -518,6 +518,51 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   </div>
 </div>
 
+<!-- 11. AI INSIGHTS -->
+<div class="row g-3 mb-4" id="analyticsRow6" style="display:none">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex align-items-center">
+        <i class="bi bi-bar-chart-steps me-2" style="color:var(--y)"></i>
+        <span>Trade Analytics — behavioral edge, streaks & risk patterns mined from your closed trades</span>
+        <span class="ms-auto badge" style="background:rgba(247,184,75,.15);color:var(--y);font-size:.68rem">Statistics</span>
+      </div>
+      <div class="card-body" id="aiInsightsBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 12. ML INTELLIGENCE (real AI/ML) -->
+<div class="row g-3 mb-4" id="analyticsRow7" style="display:none">
+  <div class="col-12">
+    <div class="card" style="border-left:3px solid var(--p)">
+      <div class="card-header d-flex align-items-center">
+        <i class="bi bi-robot me-2" style="color:var(--p)"></i>
+        <span>ML Intelligence — live XGBoost model output trained on 15 years of NSE data</span>
+        <span class="ms-auto badge" style="background:rgba(192,132,252,.15);color:var(--p);font-size:.68rem">XGBoost 3.4 + SHAP + Regime Filter</span>
+      </div>
+      <div class="card-body" id="mlIntelBody">
+        <div class="text-center py-4">
+          <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+          <span class="text-secondary ms-2 small">Loading ML intelligence...</span>
+        </div>
+      </div>
+      <div class="card-footer" style="border-top:1px solid var(--card-border);background:rgba(192,132,252,.03)">
+        <div class="small" style="color:#8b949e;line-height:1.6">
+          <strong style="color:var(--p)">How this works:</strong>
+          An XGBoost gradient-boosted tree classifier is trained on <strong>3 lakh+ real trade signals</strong> from 15 years of NSE stock data (2011–2026).
+          For every Bollinger Band signal (M1 squeeze breakout, M2 trend continuation, M3 reversal, M4 momentum), the model looks at 15 features — RSI, ATR, bandwidth, volume ratio, momentum, and the method itself — to predict whether the trade will hit its target (WIN) or stop-loss (LOSS).
+          Probabilities are <strong>calibrated</strong> using isotonic regression so that a 60% confidence truly means ~60 out of 100 similar setups historically won.
+          The <strong>Market Regime</strong> adjusts confidence based on 5 macro signals (Nifty vs moving averages, RSI, VIX, market breadth).
+          <strong>SHAP values</strong> explain exactly which features pushed each prediction toward WIN or LOSS — no black box.
+          The <strong>downside risk model</strong> (expectile regression at 25th percentile) predicts worst-case expected returns.
+          The system learns from your actual trades — resolved outcomes are merged back into training data on retrain.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /container -->
 
 <!-- ═══════ DETAIL MODAL ═══════ -->
@@ -1027,6 +1072,47 @@ function showDetail(id){
 
     new bootstrap.Modal(document.getElementById('detailModal')).show(); }
 
+function showDayDetail(dateStr) {
+    const dayTrades = TRADES.filter(t => t.sell_date === dateStr);
+    if (!dayTrades.length) return;
+    const totalPnl = dayTrades.reduce((s, t) => s + t.pnl.net_pnl, 0);
+    const clr = totalPnl >= 0 ? 'var(--g)' : 'var(--r)';
+    const sign = totalPnl >= 0 ? '+' : '';
+
+    document.getElementById('mdStock').textContent = dateStr;
+    let html = `
+    <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
+      <div>
+        <div class="small text-secondary text-uppercase">Trades Closed</div>
+        <div class="fs-5 fw-bold font-mono">${dayTrades.length}</div>
+      </div>
+      <div class="ms-auto text-end">
+        <div class="small text-secondary text-uppercase">Net P&L</div>
+        <div class="fs-5 fw-bold font-mono" style="color:${clr}">${sign}${fmtR(totalPnl)}</div>
+      </div>
+    </div>
+    <table class="table table-sm table-borderless mb-0" style="font-size:.85rem">
+      <thead><tr style="color:#8b949e;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px">
+        <th>Stock</th><th class="text-end">Qty</th><th class="text-end">Buy</th><th class="text-end">Sell</th><th class="text-end">Net P&L</th><th class="text-end">Return</th>
+      </tr></thead><tbody>`;
+    dayTrades.forEach(t => {
+        const p = t.pnl;
+        html += `<tr style="cursor:pointer" onclick="
+            bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
+            setTimeout(()=>showDetail(${t.id}),300)">
+          <td class="fw-bold">${t.stock}</td>
+          <td class="text-end font-mono">${t.quantity}</td>
+          <td class="text-end font-mono">${fmtR(t.buy_price)}</td>
+          <td class="text-end font-mono">${fmtR(t.sell_price)}</td>
+          <td class="text-end font-mono ${pnlCls(p.net_pnl)}">${fmtR(p.net_pnl)}</td>
+          <td class="text-end font-mono ${pnlCls(p.return_pct)}">${p.return_pct.toFixed(2)}%</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('mdBody').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('detailModal')).show();
+}
+
 /* ═══════════════════════════════════════════════════════════════
    DELETE
    ═══════════════════════════════════════════════════════════════ */
@@ -1383,7 +1469,7 @@ function _daysHeld(t) {
 function renderAnalytics() {
     const have = (TRADES || []).length > 0;
     document.getElementById('analyticsEmpty').style.display = have ? 'none' : 'block';
-    ['kpiRow','analyticsRow1','analyticsRow1b','analyticsRow2','analyticsRow3','analyticsRow4','analyticsRow5']
+    ['kpiRow','analyticsRow1','analyticsRow1b','analyticsRow2','analyticsRow3','analyticsRow4','analyticsRow5','analyticsRow6','analyticsRow7']
         .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = have ? '' : 'none'; });
     if (!have) {
         [equityChartInstance, strategyChartInstance, holdingChartInstance,
@@ -1405,6 +1491,8 @@ function renderAnalytics() {
     renderCalendarHeatmap();
     renderChargesChart();
     renderHoldingWinLossChart();
+    renderAIInsights();
+    renderMLIntelligence();
 }
 
 // ── 1. KPI TILES ────────────────────────────────────────────────
@@ -1868,19 +1956,27 @@ function renderCalendarHeatmap() {
             cell.style.boxShadow = '0 0 0 2px rgba(124,138,239,.6)';
         });
         cell.addEventListener('mousemove', (ev) => {
-            // Position tooltip near the cursor, flipped to the left if near right edge
-            const pad = 14;
+            const pad = 12;
             const vw = window.innerWidth;
+            const vh = window.innerHeight;
             const w = tooltip.offsetWidth || 180;
+            const h = tooltip.offsetHeight || 60;
             let x = ev.clientX + pad;
+            let y = ev.clientY - h - pad;
             if (x + w + 8 > vw) x = ev.clientX - w - pad;
+            if (y < 4) y = ev.clientY + pad;
             tooltip.style.left = x + 'px';
-            tooltip.style.top  = (ev.clientY + pad) + 'px';
+            tooltip.style.top  = y + 'px';
         });
         cell.addEventListener('mouseleave', () => {
             tooltip.style.display = 'none';
             cell.style.transform = '';
             cell.style.boxShadow = '';
+        });
+        cell.addEventListener('click', () => {
+            if (cell.dataset.state === 'empty') return;
+            tooltip.style.display = 'none';
+            showDayDetail(cell.dataset.date);
         });
     });
 
@@ -1990,6 +2086,365 @@ function renderHoldingWinLossChart() {
             }
         }
     });
+}
+
+// ── 11. AI INSIGHTS — pattern analysis from trade history ────────
+function renderAIInsights() {
+    const el = document.getElementById('aiInsightsBody');
+    if (!el || TRADES.length < 3) { if (el) el.innerHTML = '<span class="text-secondary small">Need at least 3 completed trades for insights.</span>'; return; }
+
+    const sorted = [...TRADES].sort((a, b) => (a.sell_date || '').localeCompare(b.sell_date || ''));
+    const pnls = sorted.map(t => t.pnl.net_pnl);
+    const wins = pnls.filter(v => v > 0);
+    const losses = pnls.filter(v => v < 0);
+    const n = pnls.length;
+
+    // ── 1. Streaks ──
+    let cur = 0, maxW = 0, maxL = 0, curType = '';
+    sorted.forEach(t => {
+        const w = t.pnl.net_pnl > 0;
+        const type = w ? 'W' : 'L';
+        if (type === curType) { cur++; } else { cur = 1; curType = type; }
+        if (w && cur > maxW) maxW = cur;
+        if (!w && cur > maxL) maxL = cur;
+    });
+    const streakStatus = curType === 'W'
+        ? (cur >= 3 ? 'green' : 'blue') : (cur >= 3 ? 'red' : 'yellow');
+    const streakNote = cur >= 3 && curType === 'L' ? 'Tilt risk — consider pausing' : '';
+
+    // ── 2. Day-of-week edge ──
+    const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const dayStats = {};
+    DAYS.forEach(d => { dayStats[d] = {w:0, total:0}; });
+    sorted.forEach(t => {
+        if (!t.sell_date) return;
+        const d = DAYS[new Date(t.sell_date).getDay()];
+        dayStats[d].total++;
+        if (t.pnl.net_pnl > 0) dayStats[d].w++;
+    });
+    let bestDay = '', bestDayWR = -1, worstDay = '', worstDayWR = 2;
+    Object.entries(dayStats).forEach(([d, s]) => {
+        if (s.total < 1) return;
+        const wr = s.w / s.total;
+        if (wr > bestDayWR)  { bestDayWR = wr; bestDay = d; }
+        if (wr < worstDayWR) { worstDayWR = wr; worstDay = d; }
+    });
+
+    // ── 3. Holding period sweet spot ──
+    const buckets = {'1-5d':{sum:0,n:0},'5-15d':{sum:0,n:0},'15-30d':{sum:0,n:0},'30d+':{sum:0,n:0}};
+    sorted.forEach(t => {
+        const d = t.pnl.holding_days || _daysHeld(t);
+        const r = t.pnl.return_pct || 0;
+        const k = d <= 5 ? '1-5d' : d <= 15 ? '5-15d' : d <= 30 ? '15-30d' : '30d+';
+        buckets[k].sum += r; buckets[k].n++;
+    });
+    let bestBucket = '', bestBucketRet = -Infinity;
+    Object.entries(buckets).forEach(([k, v]) => {
+        if (v.n < 1) return;
+        const avg = v.sum / v.n;
+        if (avg > bestBucketRet) { bestBucketRet = avg; bestBucket = k; }
+    });
+
+    // ── 4. Risk:Reward ──
+    const avgWin = wins.length ? wins.reduce((a, b) => a + b, 0) / wins.length : 0;
+    const avgLoss = losses.length ? Math.abs(losses.reduce((a, b) => a + b, 0) / losses.length) : 1;
+    const rr = avgLoss > 0 ? avgWin / avgLoss : 0;
+    const rrColor = rr >= 2 ? 'green' : rr >= 1 ? 'yellow' : 'red';
+
+    // ── 5. Recovery speed ──
+    const recoveries = [];
+    let deficit = 0, recCount = 0;
+    sorted.forEach(t => {
+        if (deficit > 0) {
+            recCount++;
+            deficit -= t.pnl.net_pnl;
+            if (deficit <= 0) { recoveries.push(recCount); deficit = 0; recCount = 0; }
+        } else if (t.pnl.net_pnl < 0) {
+            deficit = Math.abs(t.pnl.net_pnl); recCount = 1;
+        }
+    });
+    const avgRecovery = recoveries.length ? (recoveries.reduce((a, b) => a + b, 0) / recoveries.length).toFixed(1) : '—';
+
+    // ── 6. Runs test (simplified) ──
+    const signs = pnls.filter(v => v !== 0).map(v => v > 0 ? 1 : -1);
+    let runs = signs.length > 0 ? 1 : 0;
+    for (let i = 1; i < signs.length; i++) { if (signs[i] !== signs[i-1]) runs++; }
+    const nPos = signs.filter(s => s > 0).length;
+    const nNeg = signs.length - nPos;
+    let zScore = 0, depLabel = 'Not enough data';
+    if (signs.length >= 10 && nPos > 0 && nNeg > 0) {
+        const expR = 1 + (2 * nPos * nNeg) / signs.length;
+        const varR = (2 * nPos * nNeg * (2 * nPos * nNeg - signs.length)) / (signs.length * signs.length * (signs.length - 1));
+        if (varR > 0) {
+            zScore = (runs - expR) / Math.sqrt(varR);
+            depLabel = Math.abs(zScore) < 1.96 ? 'Random pattern'
+                : zScore < 0 ? 'Streaking tendency' : 'Alternating tendency';
+        }
+    } else { depLabel = 'Need 10+ trades'; }
+    const depColor = Math.abs(zScore) < 1.96 ? 'green' : 'yellow';
+
+    // ── 7. Best & worst month ──
+    const byMonth = {};
+    sorted.forEach(t => {
+        if (!t.sell_date) return;
+        const m = t.sell_date.slice(0, 7);
+        byMonth[m] = (byMonth[m] || 0) + t.pnl.net_pnl;
+    });
+    const monthEntries = Object.entries(byMonth).sort((a, b) => b[1] - a[1]);
+    const bestMonth = monthEntries[0] || ['—', 0];
+    const worstMonth = monthEntries[monthEntries.length - 1] || ['—', 0];
+
+    // ── 8. Position sizing consistency ──
+    const sizes = sorted.map(t => t.pnl.buy_value || t.buy_price * t.quantity);
+    const meanSize = sizes.reduce((a, b) => a + b, 0) / sizes.length;
+    const stdSize = Math.sqrt(sizes.reduce((s, v) => s + (v - meanSize) ** 2, 0) / sizes.length);
+    const cv = meanSize > 0 ? (stdSize / meanSize * 100) : 0;
+    const cvColor = cv <= 30 ? 'green' : cv <= 60 ? 'yellow' : 'red';
+    const cvLabel = cv <= 30 ? 'Consistent' : cv <= 60 ? 'Moderate variance' : 'Erratic';
+
+    // ── Render cards ──
+    const pill = (color, text) => {
+        const bg = {green:'rgba(10,179,156,.12)',yellow:'rgba(247,184,75,.12)',red:'rgba(240,101,72,.12)',blue:'rgba(124,138,239,.12)'}[color] || 'rgba(255,255,255,.06)';
+        const fg = {green:'var(--g)',yellow:'var(--y)',red:'var(--r)',blue:'var(--b)'}[color] || '#8b949e';
+        return `<span style="display:inline-block;font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:5px;background:${bg};color:${fg}">${text}</span>`;
+    };
+    const card = (icon, title, value, detail, color) => `
+      <div class="col-md-3 col-sm-6">
+        <div class="p-3 rounded h-100" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi ${icon}" style="color:var(--p);font-size:1.1rem"></i>
+            <span class="small text-secondary text-uppercase" style="letter-spacing:.3px">${title}</span>
+            <span class="ms-auto">${pill(color, detail)}</span>
+          </div>
+          <div class="fw-bold font-mono" style="font-size:.92rem">${value}</div>
+        </div>
+      </div>`;
+
+    el.innerHTML = '<div class="row g-3">'
+      + card('bi-lightning-charge', 'Streaks',
+          `Current: ${cur}${curType} · Best win: ${maxW}W · Worst loss: ${maxL}L`,
+          streakNote || (curType === 'W' ? 'On a roll' : 'Watch out'), streakStatus)
+      + card('bi-calendar-week', 'Day-of-Week Edge',
+          bestDay ? `Best: ${bestDay} (${(bestDayWR*100).toFixed(0)}%) · Worst: ${worstDay} (${(worstDayWR*100).toFixed(0)}%)` : 'Not enough data',
+          bestDayWR >= 0.6 ? 'Edge found' : 'No clear edge', bestDayWR >= 0.6 ? 'green' : 'yellow')
+      + card('bi-hourglass-split', 'Holding Sweet Spot',
+          bestBucket ? `Best returns: ${bestBucket} (avg ${bestBucketRet.toFixed(1)}%)` : 'Not enough data',
+          bestBucketRet > 0 ? 'Profitable' : 'Review needed', bestBucketRet > 0 ? 'green' : 'red')
+      + card('bi-bullseye', 'Risk:Reward Ratio',
+          `${rr.toFixed(2)} : 1`,
+          rr >= 2 ? 'Excellent' : rr >= 1 ? 'Acceptable' : 'Below 1:1', rrColor)
+      + card('bi-arrow-repeat', 'Recovery Speed',
+          avgRecovery === '—' ? 'No losses yet' : `Avg ${avgRecovery} trades to recover`,
+          avgRecovery === '—' ? 'Perfect' : Number(avgRecovery) <= 3 ? 'Fast' : 'Slow',
+          avgRecovery === '—' ? 'green' : Number(avgRecovery) <= 3 ? 'green' : 'yellow')
+      + card('bi-dice-5', 'Trade Dependency',
+          depLabel + (signs.length >= 10 ? ` (Z=${zScore.toFixed(2)})` : ''),
+          Math.abs(zScore) >= 1.96 ? 'Dependent' : 'Independent', depColor)
+      + card('bi-graph-up', 'Best & Worst Month',
+          `Best: ${bestMonth[0]} (${bestMonth[1]>=0?'+':''}${fmtR(bestMonth[1])}) · Worst: ${worstMonth[0]} (${worstMonth[1]>=0?'+':''}${fmtR(worstMonth[1])})`,
+          monthEntries.length > 1 ? 'Tracked' : 'Single month', 'blue')
+      + card('bi-rulers', 'Position Sizing',
+          `CV: ${cv.toFixed(0)}% · Avg size: ${fmtR(meanSize)}`,
+          cvLabel, cvColor)
+      + '</div>';
+}
+
+// ── 12. ML INTELLIGENCE — real model output ─────────────────────
+async function renderMLIntelligence() {
+    const el = document.getElementById('mlIntelBody');
+    if (!el) return;
+    try {
+        const res = await fetch('/api/trades/ml-intelligence', {credentials:'same-origin'});
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        const regime = data.regime || {};
+        const router = data.method_router || {};
+        const fb = data.feedback || {};
+        let html = '<div class="row g-3">';
+
+        // ── Card A: Market Regime ──
+        const regimeColors = {STRONG_BULL:'var(--g)',BULL:'rgba(10,179,156,.7)',NEUTRAL:'var(--y)',BEAR:'rgba(240,101,72,.7)',STRONG_BEAR:'var(--r)'};
+        const regimeBg = {STRONG_BULL:'rgba(10,179,156,.1)',BULL:'rgba(10,179,156,.06)',NEUTRAL:'rgba(247,184,75,.08)',BEAR:'rgba(240,101,72,.06)',STRONG_BEAR:'rgba(240,101,72,.1)'};
+        const rg = regime.regime || 'UNKNOWN';
+        const rgClr = regimeColors[rg] || '#8b949e';
+        const rgBg = regimeBg[rg] || 'rgba(255,255,255,.03)';
+        html += `<div class="col-lg-4 col-md-6">
+          <div class="p-3 rounded h-100" style="background:${rgBg};border:1px solid var(--card-border)">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="bi bi-globe-americas" style="color:var(--p);font-size:1.2rem"></i>
+              <span class="small text-secondary text-uppercase fw-bold" style="letter-spacing:.4px">Market Regime</span>
+            </div>
+            <div class="fw-bold font-mono mb-1" style="font-size:1.3rem;color:${rgClr}">${rg.replace('_',' ')}</div>
+            <div class="small text-secondary mb-2">${regime.score || 0}/5 bullish signals</div>
+            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">The market regime is the "tide" of the Indian stock market. It checks 5 macro signals — whether Nifty 50 is above its 50-day and 200-day moving averages, whether RSI is bullish, whether VIX (fear index) is low, and whether market breadth (advance/decline ratio) is positive. A STRONG BULL means all 5 signals are green — the market tide is in your favour. In BEAR regimes, even good setups fail more often because the overall market is pulling everything down.</div>`;
+        if (regime.signals) {
+            const s = regime.signals;
+            const dot = (v) => v === true ? '<span style="color:var(--g)">&#9679;</span>' : v === false ? '<span style="color:var(--r)">&#9679;</span>' : '<span style="color:#8b949e">&#9679;</span>';
+            html += `<div style="font-size:.78rem;line-height:1.8">
+              ${dot(s.nifty_above_50sma)} Nifty vs 50-SMA
+              ${dot(s.nifty_above_200sma)} Nifty vs 200-SMA<br>
+              ${dot(s.nifty_rsi_bullish)} RSI ${s.nifty_rsi ? '('+s.nifty_rsi+')' : ''}
+              ${dot(s.vix_bullish)} VIX ${s.vix_value ? '('+s.vix_value+')' : ''}
+              ${dot(s.breadth_bullish)} Breadth ${s.breadth_ad_ratio ? '('+s.breadth_ad_ratio+')' : ''}
+            </div>`;
+        }
+        if (regime.explanation) {
+            html += `<div class="mt-2 small" style="color:#c9d1d9;line-height:1.5">${regime.explanation}</div>`;
+        }
+        html += '</div></div>';
+
+        // ── Card B: Method Ranking ──
+        html += `<div class="col-lg-4 col-md-6">
+          <div class="p-3 rounded h-100" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="bi bi-trophy" style="color:var(--y);font-size:1.2rem"></i>
+              <span class="small text-secondary text-uppercase fw-bold" style="letter-spacing:.4px">Method Ranking</span>
+              <span class="ms-auto small text-secondary">${router.regime_detected || ''}</span>
+            </div>
+            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">Each Bollinger Band method captures a different price pattern — M1 detects squeeze breakouts (tight bands expanding), M2 finds trend continuations (price riding the upper band), M3 spots reversals (oversold bounces), and M4 catches momentum (strong RSI + volume surges). The model tracks which method wins most often <em>in the current market regime</em>, so the best method changes as market conditions shift.</div>`;
+        if (router.available && router.method_rankings) {
+            const methodColors = {M1:'var(--g)',M2:'var(--b)',M3:'var(--r)',M4:'var(--y)'};
+            router.method_rankings.forEach((m, i) => {
+                const barW = Math.max(10, m.win_rate * 100);
+                const mc = methodColors[m.method] || '#8b949e';
+                const medal = i === 0 ? ' &#9733;' : '';
+                html += `<div class="d-flex align-items-center gap-2 mb-2">
+                  <span class="font-mono fw-bold" style="width:30px;color:${mc}">${m.method}</span>
+                  <div style="flex:1;height:22px;background:rgba(255,255,255,.04);border-radius:6px;overflow:hidden">
+                    <div style="width:${barW}%;height:100%;background:${mc};opacity:.35;border-radius:6px"></div>
+                  </div>
+                  <span class="font-mono fw-bold" style="width:55px;text-align:right;font-size:.85rem;color:${mc}">${(m.win_rate*100).toFixed(1)}%${medal}</span>
+                </div>`;
+            });
+            html += `<div class="small text-secondary mt-1">Win rates based on ${router.method_rankings[0].trades_in_regime || '—'} trades in this regime. Best method: <strong style="color:${methodColors[router.best_method]||'#fff'}">${router.best_method}</strong></div>`;
+        } else {
+            html += '<div class="text-secondary small">No router data — run the ML trainer to generate method rankings.</div>';
+        }
+        html += '</div></div>';
+
+        // ── Card C: ML Model Performance ──
+        html += `<div class="col-lg-4 col-md-6">
+          <div class="p-3 rounded h-100" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="bi bi-cpu" style="color:var(--g);font-size:1.2rem"></i>
+              <span class="small text-secondary text-uppercase fw-bold" style="letter-spacing:.4px">XGBoost Model</span>
+            </div>
+            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">This is your live model scorecard. Every Top Picks signal is logged here, then checked against what actually happened — did it hit the target (WIN), stop-loss (LOSS), or expire after 30 days? The win rate shows how often the model's predictions were correct. A well-calibrated model means its confidence numbers are trustworthy: a 60% prediction truly wins about 60% of the time. When enough new outcomes accumulate, the model can retrain itself on real results.</div>`;
+        if (fb.total_logged > 0) {
+            const fwr = fb.win_rate_overall;
+            const fwrClr = fwr === null ? '#8b949e' : fwr >= 55 ? 'var(--g)' : fwr >= 45 ? 'var(--y)' : 'var(--r)';
+            html += `<div class="d-flex gap-3 mb-2">
+              <div><div class="small text-secondary">Picks Logged</div><div class="font-mono fw-bold">${fb.total_logged}</div></div>
+              <div><div class="small text-secondary">Resolved</div><div class="font-mono fw-bold">${fb.total_resolved}</div></div>
+              <div><div class="small text-secondary">Open</div><div class="font-mono fw-bold">${fb.total_open}</div></div>
+            </div>`;
+            if (fwr !== null) {
+                html += `<div class="mb-1"><span class="small text-secondary">Overall Win Rate:</span> <span class="font-mono fw-bold" style="color:${fwrClr}">${fwr}%</span></div>`;
+            }
+            if (fb.avg_return_pct !== null) {
+                const arClr = fb.avg_return_pct >= 0 ? 'var(--g)' : 'var(--r)';
+                html += `<div class="mb-1"><span class="small text-secondary">Avg Return:</span> <span class="font-mono fw-bold" style="color:${arClr}">${fb.avg_return_pct > 0 ? '+' : ''}${fb.avg_return_pct}%</span></div>`;
+            }
+            if (fb.avg_days_held !== null) {
+                html += `<div class="mb-1"><span class="small text-secondary">Avg Hold:</span> <span class="font-mono">${fb.avg_days_held} days</span></div>`;
+            }
+            // ML verdict breakdown
+            if (fb.by_ml_verdict && Object.keys(fb.by_ml_verdict).length > 0) {
+                html += '<div class="mt-2 small text-secondary fw-bold">ML Verdict Accuracy:</div>';
+                Object.entries(fb.by_ml_verdict).forEach(([v, d]) => {
+                    const vc = v === 'ML_PASS' ? 'var(--g)' : v === 'ML_CAUTION' ? 'var(--y)' : '#8b949e';
+                    html += `<div class="d-flex align-items-center gap-2" style="font-size:.82rem">
+                      <span style="color:${vc};font-weight:600">${v}</span>
+                      <span class="text-secondary">${d.trades} trades</span>
+                      <span class="font-mono fw-bold" style="color:${d.win_rate >= 55 ? 'var(--g)' : d.win_rate >= 45 ? 'var(--y)' : 'var(--r)'}">${d.win_rate}% win</span>
+                    </div>`;
+                });
+            }
+            html += `<div class="mt-2 small text-secondary">Model trained: ${fb.model_last_trained || 'never'} · ${fb.outcomes_since_training} outcomes since${fb.retrain_ready ? ' <span style="color:var(--y)">&#9888; retrain recommended</span>' : ''}</div>`;
+            // Feature importance from latest training run
+            if (fb.feature_importance && fb.feature_importance.importance) {
+                const fi = fb.feature_importance.importance;
+                const topFeatures = Object.entries(fi).sort((a,b) => b[1] - a[1]).slice(0, 7);
+                const maxImp = topFeatures[0] ? topFeatures[0][1] : 1;
+                const featureLabels = {bbw:'Bollinger Width', rsi14:'RSI (14)', atr14_pct:'ATR %', vol_ratio:'Volume Ratio', close_vs_sma20:'Price vs SMA20', close_vs_upper:'Price vs Upper Band', close_vs_lower:'Price vs Lower Band', sma20_slope_5d:'SMA20 Slope', rsi14_slope_5d:'RSI Slope', bbw_percentile_60d:'BB Width Percentile', vol_trend_5d:'Volume Trend', price_momentum_10d:'10d Momentum', price_momentum_20d:'20d Momentum', atr14_percentile_60d:'ATR Percentile', method:'Signal Method'};
+                html += `<div class="mt-2"><div class="small text-secondary fw-bold mb-1">Top Feature Importance (SHAP):</div>
+                  <div style="font-size:.65rem;color:#8b949e;line-height:1.4;margin-bottom:4px">These are the features the model relies on most when predicting WIN vs LOSS. Higher importance = this indicator has more influence on the model's decision for every trade it scores.</div>`;
+                topFeatures.forEach(([f, v]) => {
+                    const pct = (v / maxImp * 100).toFixed(0);
+                    const label = featureLabels[f] || f;
+                    html += `<div class="d-flex align-items-center gap-2 mb-1" style="font-size:.75rem">
+                      <span style="width:120px;color:#c9d1d9">${label}</span>
+                      <div style="flex:1;height:14px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden">
+                        <div style="width:${pct}%;height:100%;background:var(--p);opacity:.35;border-radius:4px"></div>
+                      </div>
+                      <span class="font-mono" style="width:40px;text-align:right;color:#c9d1d9">${(v*100).toFixed(1)}%</span>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+        } else {
+            html += '<div class="text-secondary small">No ML picks logged yet. Use Top Picks to generate ML-scored picks — outcomes are tracked automatically.</div>';
+        }
+        html += '</div></div>';
+
+        // ── Card D: Per-Method ML Accuracy ──
+        if (fb.by_method && Object.keys(fb.by_method).length > 0) {
+            const methodColors = {M1:'var(--g)',M2:'var(--b)',M3:'var(--r)',M4:'var(--y)'};
+            html += `<div class="col-lg-6 col-md-6">
+              <div class="p-3 rounded h-100" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <i class="bi bi-bar-chart" style="color:var(--b);font-size:1.1rem"></i>
+                  <span class="small text-secondary text-uppercase fw-bold" style="letter-spacing:.4px">ML Accuracy by Method</span>
+                </div>
+                <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">How accurately has the ML model predicted outcomes for each Bollinger Band method? A method with a high win rate means the model's feature combination (15 indicators including bandwidth, RSI, ATR, volume, and momentum) is especially good at identifying winning setups for that pattern type. Methods with lower win rates may need more training data or work better in specific market conditions.</div>`;
+            Object.entries(fb.by_method).forEach(([m, d]) => {
+                const mc = methodColors[m] || '#8b949e';
+                const barW = Math.max(8, d.win_rate);
+                html += `<div class="d-flex align-items-center gap-2 mb-2">
+                  <span class="font-mono fw-bold" style="width:70px;color:${mc}">${m}</span>
+                  <div style="flex:1;height:20px;background:rgba(255,255,255,.04);border-radius:6px;overflow:hidden;position:relative">
+                    <div style="width:${barW}%;height:100%;background:${mc};opacity:.3;border-radius:6px"></div>
+                    <span style="position:absolute;left:8px;top:2px;font-size:.72rem;color:#c9d1d9">${d.trades} trades</span>
+                  </div>
+                  <span class="font-mono fw-bold" style="width:50px;text-align:right;color:${d.win_rate >= 55 ? 'var(--g)' : d.win_rate >= 45 ? 'var(--y)' : 'var(--r)'}">${d.win_rate}%</span>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+
+        // ── Card E: Per-Regime ML Accuracy ──
+        if (fb.by_regime && Object.keys(fb.by_regime).length > 0) {
+            html += `<div class="col-lg-6 col-md-6">
+              <div class="p-3 rounded h-100" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <i class="bi bi-globe" style="color:var(--o);font-size:1.1rem"></i>
+                  <span class="small text-secondary text-uppercase fw-bold" style="letter-spacing:.4px">ML Accuracy by Regime</span>
+                </div>
+                <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">How does the model perform across different market environments? Expect higher win rates in BULL/STRONG BULL regimes because the rising tide lifts most boats. In BEAR/STRONG BEAR regimes, even technically strong setups face headwinds from overall market selling pressure. This breakdown helps you calibrate your expectations — if the model shows 45% win rate in BEAR markets, you know to be extra selective or reduce position sizes during downtrends.</div>`;
+            const regimeOrder = ['STRONG_BULL','BULL','NEUTRAL','BEAR','STRONG_BEAR'];
+            const sortedRegimes = Object.entries(fb.by_regime).sort((a, b) => {
+                return (regimeOrder.indexOf(a[0]) === -1 ? 99 : regimeOrder.indexOf(a[0]))
+                     - (regimeOrder.indexOf(b[0]) === -1 ? 99 : regimeOrder.indexOf(b[0]));
+            });
+            sortedRegimes.forEach(([rg, d]) => {
+                const rc = regimeColors[rg] || '#8b949e';
+                html += `<div class="d-flex align-items-center gap-2 mb-2">
+                  <span class="fw-bold" style="width:110px;font-size:.78rem;color:${rc}">${rg.replace('_',' ')}</span>
+                  <div style="flex:1;height:20px;background:rgba(255,255,255,.04);border-radius:6px;overflow:hidden;position:relative">
+                    <div style="width:${Math.max(8, d.win_rate)}%;height:100%;background:${rc};opacity:.3;border-radius:6px"></div>
+                    <span style="position:absolute;left:8px;top:2px;font-size:.72rem;color:#c9d1d9">${d.trades} trades</span>
+                  </div>
+                  <span class="font-mono fw-bold" style="width:50px;text-align:right;color:${d.win_rate >= 55 ? 'var(--g)' : d.win_rate >= 45 ? 'var(--y)' : 'var(--r)'}">${d.win_rate}%</span>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+        el.innerHTML = html;
+    } catch (e) {
+        el.innerHTML = '<div class="text-secondary small">ML intelligence unavailable: ' + e.message + '</div>';
+    }
 }
 </script>
 {% include "_theme_picker.html" %}

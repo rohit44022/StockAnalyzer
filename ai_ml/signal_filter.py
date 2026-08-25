@@ -18,11 +18,13 @@ from ai_ml.config import SIGNAL_FILTER_MODEL, ML_FEATURES, ML_CONFIDENCE_THRESHO
 logger = logging.getLogger("ai_ml.signal_filter")
 
 _model = None
-_MODEL_PATH = SIGNAL_FILTER_MODEL.replace(".xgb.json", ".joblib")
+_downside_model = None
+_MODEL_PATH = SIGNAL_FILTER_MODEL
+_feature_medians = None
 
 
 def _load_model():
-    global _model
+    global _model, _downside_model, _feature_medians
     if _model is not None:
         return _model
     if not os.path.exists(_MODEL_PATH):
@@ -31,6 +33,17 @@ def _load_model():
     try:
         import joblib
         _model = joblib.load(_MODEL_PATH)
+        model_dir = os.path.dirname(_MODEL_PATH)
+        # Load training medians for sklearn fallback NaN handling
+        medians_path = os.path.join(model_dir, "feature_medians.json")
+        if os.path.exists(medians_path):
+            import json
+            with open(medians_path) as f:
+                _feature_medians = json.load(f)
+        # Load downside risk model if available
+        downside_path = os.path.join(model_dir, "downside_model.joblib")
+        if os.path.exists(downside_path):
+            _downside_model = joblib.load(downside_path)
         return _model
     except Exception as e:
         logger.warning("Failed to load ML model: %s", e)
@@ -77,9 +90,17 @@ def _extract_features_from_pick(pick: dict) -> dict | None:
         "price_momentum_10d": indicators.get("momentum_10d"),
         "price_momentum_20d": indicators.get("momentum_20d"),
         "atr14_percentile_60d": indicators.get("atr_percentile"),
+        "method":            pick.get("method", "M2"),
     }
 
     return feats
+
+
+def _get_raw_model(model):
+    """Unwrap CalibratedClassifierCV to get the fitted tree model for SHAP/categorical."""
+    if hasattr(model, 'calibrated_classifiers_'):
+        return model.calibrated_classifiers_[0].estimator
+    return getattr(model, 'estimator', model)
 
 
 def score_picks(picks: list[dict]) -> list[dict]:
@@ -108,11 +129,38 @@ def score_picks(picks: list[dict]) -> list[dict]:
             continue
 
         try:
-            row = pd.DataFrame([feats])[ML_FEATURES]
-            row = row.fillna(row.median())
+            row = pd.DataFrame([feats])
+            available = [c for c in ML_FEATURES if c in row.columns]
+            row = row[available]
+            # Convert categorical columns for XGBoost native handling
+            from ai_ml.config import ML_CATEGORICAL_FEATURES
+            _inner = _get_raw_model(model)
+            _is_xgb = hasattr(_inner, 'get_booster')
+            for cat_col in ML_CATEGORICAL_FEATURES:
+                if cat_col in row.columns:
+                    if _is_xgb:
+                        row[cat_col] = row[cat_col].astype("category")
+                    else:
+                        row = row.drop(columns=[cat_col])
+            if not _is_xgb and _feature_medians:
+                row = row.fillna(_feature_medians)
             prob = float(model.predict_proba(row)[0, 1])
             pick["ml_confidence"] = round(prob, 4)
             pick["ml_verdict"] = "ML_PASS" if prob >= ML_CONFIDENCE_THRESHOLD else "ML_CAUTION"
+
+            # SHAP explanation — top 5 features driving this prediction
+            pick["ml_explanation"] = _explain_row(row, _inner if _is_xgb else model)
+
+            # Downside risk (expectile regression at α=0.25, numeric features only)
+            if _downside_model is not None:
+                try:
+                    dr_row = row.select_dtypes(include="number")
+                    dr = float(_downside_model.predict(dr_row)[0])
+                    pick["ml_downside_risk"] = round(dr, 4)
+                except Exception:
+                    pick["ml_downside_risk"] = None
+            else:
+                pick["ml_downside_risk"] = None
         except Exception as e:
             logger.warning("ML scoring failed for %s: %s", pick.get("ticker"), e)
             pick["ml_confidence"] = None
@@ -127,3 +175,60 @@ def score_picks(picks: list[dict]) -> list[dict]:
             picks[idx]["ml_percentile"] = round((rank + 1) / len(scored), 2)
 
     return picks
+
+
+def _explain_row(row: pd.DataFrame, raw_model) -> list[dict] | None:
+    """SHAP explanation for a single prediction row. Returns top 5 drivers."""
+    try:
+        import shap
+        explainer = shap.TreeExplainer(raw_model)
+        sv = explainer.shap_values(row)
+        if isinstance(sv, list):
+            sv = sv[1]
+        vals = sv[0]
+        cols = row.columns.tolist()
+        # Only report numeric features (skip categorical like 'method')
+        pairs = [(f, v) for f, v in zip(cols, vals) if f not in ("method",)]
+        pairs = sorted(pairs, key=lambda x: abs(x[1]), reverse=True)[:5]
+        return [
+            {"feature": f, "impact": round(float(v), 4),
+             "direction": "WIN" if v > 0 else "LOSS"}
+            for f, v in pairs
+        ]
+    except Exception:
+        return None
+
+
+def explain_pick(pick: dict) -> dict | None:
+    """Standalone SHAP explanation for a single pick dict."""
+    model = _load_model()
+    if model is None:
+        return None
+    feats = _extract_features_from_pick(pick)
+    if feats is None:
+        return None
+    try:
+        from ai_ml.config import ML_CATEGORICAL_FEATURES
+        row = pd.DataFrame([feats])
+        available = [c for c in ML_FEATURES if c in row.columns]
+        row = row[available]
+        _inner = _get_raw_model(model)
+        _is_xgb = hasattr(_inner, 'get_booster')
+        for cat_col in ML_CATEGORICAL_FEATURES:
+            if cat_col in row.columns:
+                if _is_xgb:
+                    row[cat_col] = row[cat_col].astype("category")
+                else:
+                    row = row.drop(columns=[cat_col])
+        if not _is_xgb and _feature_medians:
+            row = row.fillna(_feature_medians)
+        prob = float(model.predict_proba(row)[0, 1])
+        explanation = _explain_row(row, _inner)
+        return {
+            "ml_confidence": round(prob, 4),
+            "ml_verdict": "ML_PASS" if prob >= ML_CONFIDENCE_THRESHOLD else "ML_CAUTION",
+            "explanation": explanation,
+        }
+    except Exception as e:
+        logger.warning("explain_pick failed: %s", e)
+        return None

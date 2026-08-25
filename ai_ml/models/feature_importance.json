@@ -1,0 +1,28 @@
+[
+  {
+    "timestamp": "2026-08-25 14:34:43",
+    "accuracy": 0.5755,
+    "auc": 0.5338,
+    "importance": {
+      "bbw": 0,
+      "rsi14": 0,
+      "atr14_pct": 0,
+      "vol_ratio": 0,
+      "close_vs_sma20": 0,
+      "close_vs_upper": 0,
+      "close_vs_lower": 0,
+      "sma20_slope_5d": 0,
+      "rsi14_slope_5d": 0,
+      "bbw_percentile_60d": 0,
+      "vol_trend_5d": 0,
+      "price_momentum_10d": 0,
+      "price_momentum_20d": 0,
+      "atr14_percentile_60d": 0
+    }
+  },
+  {
+    "timestamp": "2026-08-25 14:46:26",
+    "accuracy": 0.526,
+    "auc": 0.5364,
+    "importance": {
+      "method": 

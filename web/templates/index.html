@@ -1542,6 +1542,8 @@
     let _tpEventSource = null;
     let _tpLastMethod = null;     // remembered for the Excel export button
     let _tpLastFilter = null;
+    let _tpRetries = 0;
+    const _TP_MAX_RETRIES = 2;
 
     function _getTopPicksModal() {
         if (!_tpModal) _tpModal = new bootstrap.Modal(document.getElementById('topPicksModal'));
@@ -1574,9 +1576,10 @@
      * @param {string} method — M1, M2, M3, or M4
      * @param {string} filter — BUY or SELL (which direction to rank)
      */
-    function runTopPicks(method, filter) {
+    function runTopPicks(method, filter, _isRetry) {
         // Respect BUY-only mode
         if (isBuyOnly() && filter === 'SELL') filter = 'BUY';
+        if (!_isRetry) _tpRetries = 0;
         // Reset modal state
         const isBuy = filter === 'BUY';
         const dirIcon = isBuy ? 'bi-rocket-takeoff-fill' : 'bi-sign-stop-fill';
@@ -1648,6 +1651,7 @@
             else if (msg.type === 'result') {
                 // Analysis complete — render results
                 _setPct(100);
+                _tpRetries = 0;
                 _tpEventSource.close();
                 _tpEventSource = null;
                 document.getElementById('tpProgress').style.display = 'none';
@@ -1662,8 +1666,15 @@
         _tpEventSource.onerror = function() {
             _tpEventSource.close();
             _tpEventSource = null;
-            document.getElementById('tpPhaseText').textContent = 'Connection lost';
-            document.getElementById('tpProgressText').textContent = 'Server connection was interrupted. Please try again.'; }; }
+            if (_tpRetries < _TP_MAX_RETRIES) {
+                _tpRetries++;
+                document.getElementById('tpPhaseText').textContent = `Connection lost — retrying (${_tpRetries}/${_TP_MAX_RETRIES})...`;
+                document.getElementById('tpProgressText').textContent = 'Network was interrupted (laptop sleep?). Restarting scan automatically...';
+                setTimeout(() => { if (!_tpEventSource) runTopPicks(method, filter, true); }, 2000);
+            } else {
+                document.getElementById('tpPhaseText').textContent = 'Connection lost';
+                document.getElementById('tpProgressText').textContent = 'Could not reconnect after multiple attempts. Please close and try again.';
+            } }; }
 
     /**
      * Render the Top Picks results — the main display function.
@@ -2792,6 +2803,35 @@
                         <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${mlColor}08;border-left:3px solid ${mlColor}">
                             <strong>What this means for you:</strong> ${mlTakeaway}
                         </div>
+                        ${(function(){
+                            let extra = '';
+                            // SHAP explanation — top features driving this specific prediction
+                            if (pick.ml_explanation && pick.ml_explanation.length > 0) {
+                                extra += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(127,127,127,0.12)">';
+                                extra += '<div style="font-size:0.78rem;font-weight:700;margin-bottom:4px;color:var(--bs-body-color)">Why this score? <span style="font-size:0.65rem;font-weight:400;color:#8b949e">(SHAP Feature Attribution)</span></div>';
+                                extra += '<div style="font-size:0.68rem;color:#8b949e;line-height:1.4;margin-bottom:6px">Each indicator below either pushed this prediction toward WIN (green, up arrow) or LOSS (red, down arrow). The larger the number, the stronger the influence. This is computed using SHAP (SHapley Additive exPlanations) — a game-theory approach that fairly attributes the prediction to each feature.</div>';
+                                const featureLabels = {bbw:'Bollinger Width', rsi14:'RSI (14)', atr14_pct:'ATR %', vol_ratio:'Volume Ratio', close_vs_sma20:'Price vs SMA20', close_vs_upper:'vs Upper Band', close_vs_lower:'vs Lower Band', sma20_slope_5d:'SMA20 Slope', rsi14_slope_5d:'RSI Slope', bbw_percentile_60d:'BB Width Pctl', vol_trend_5d:'Vol Trend', price_momentum_10d:'10d Momentum', price_momentum_20d:'20d Momentum', atr14_percentile_60d:'ATR Pctl'};
+                                extra += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">';
+                                pick.ml_explanation.forEach(e => {
+                                    const dir = e.direction === 'WIN';
+                                    const clr = dir ? '#0ab39c' : '#ef5350';
+                                    const arrow = dir ? '▲' : '▼';
+                                    const label = featureLabels[e.feature] || e.feature;
+                                    extra += `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;background:${clr}11;border:1px solid ${clr}33;font-size:0.68rem"><span style="color:${clr}">${arrow}</span> ${label} <span style="color:${clr};font-weight:600">${e.impact > 0 ? '+' : ''}${(e.impact * 100).toFixed(1)}</span></span>`;
+                                });
+                                extra += '</div></div>';
+                            }
+                            // Downside risk from expectile regression
+                            if (pick.ml_downside_risk != null) {
+                                const dr = (pick.ml_downside_risk * 100).toFixed(1);
+                                const drClr = pick.ml_downside_risk >= 0 ? '#0ab39c' : pick.ml_downside_risk > -0.03 ? '#f7b84b' : '#ef5350';
+                                extra += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(127,127,127,0.12)">';
+                                extra += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:0.78rem;font-weight:700;color:var(--bs-body-color)">Downside Risk Estimate</span><span style="font-size:0.82rem;font-weight:700;color:${drClr}">${dr}%</span></div>`;
+                                extra += `<div style="font-size:0.68rem;color:#8b949e;line-height:1.4">Predicted by a separate XGBoost expectile regression model (25th percentile). This estimates the worst-case expected return: in 75% of similar historical setups, the actual loss was smaller than this number. A value of -3% means you should plan for up to a 3% drawdown on this trade. Use it alongside the win probability — even a high-confidence pick can have meaningful downside, so size your position accordingly.</div>`;
+                                extra += '</div>';
+                            }
+                            return extra;
+                        })()}
                     </div>`;
                 }
 

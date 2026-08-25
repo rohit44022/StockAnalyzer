@@ -297,6 +297,113 @@ def generate_training_data(
 
 
 # ─────────────────────────────────────────────────────────────────
+#  FEEDBACK DATA MERGE — real production outcomes
+# ─────────────────────────────────────────────────────────────────
+
+def _merge_feedback_outcomes(df: pd.DataFrame) -> pd.DataFrame:
+    """Merge resolved feedback outcomes into training data.
+    Real production picks override synthetic backtest labels."""
+    from ai_ml.config import FEEDBACK_DB
+    import sqlite3
+
+    if not os.path.exists(FEEDBACK_DB):
+        return df
+
+    try:
+        conn = sqlite3.connect(FEEDBACK_DB)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM ai_ml_feedback WHERE outcome IN ('WIN','LOSS','EXPIRED')"
+        ).fetchall()
+        conn.close()
+    except Exception:
+        return df
+
+    if not rows:
+        return df
+
+    feedback_samples = []
+    for row in rows:
+        ticker = row["ticker"]
+        entry_date = row["entry_date"]
+        method = row["method"]
+        outcome = row["outcome"]
+
+        # Find CSV for this ticker
+        csv_path = os.path.join(CSV_DIR, f"{ticker}.csv")
+        if not os.path.exists(csv_path):
+            csv_path = os.path.join(CSV_DIR, f"{ticker}.NS.csv")
+        if not os.path.exists(csv_path):
+            continue
+
+        try:
+            stock_df = pd.read_csv(csv_path, parse_dates=["Date"], index_col="Date")
+        except Exception:
+            continue
+
+        if stock_df.empty or "Close" not in stock_df.columns or len(stock_df) < 100:
+            continue
+
+        # Find bar index for entry_date
+        try:
+            entry_ts = pd.Timestamp(entry_date)
+            idx_matches = stock_df.index.get_indexer([entry_ts], method="nearest")
+            bar_idx = idx_matches[0]
+            if bar_idx < 60:
+                continue
+        except Exception:
+            continue
+
+        # Compute indicators and extract features at that bar
+        close  = stock_df["Close"].to_numpy(dtype=float)
+        high_  = stock_df["High"].to_numpy(dtype=float)
+        low_   = stock_df["Low"].to_numpy(dtype=float)
+        volume = stock_df["Volume"].to_numpy(dtype=float)
+
+        sma20  = _sma(close, 20)
+        std20  = _rolling_std(close, 20)
+        upper  = sma20 + 2.0 * std20
+        lower  = sma20 - 2.0 * std20
+        bbw    = np.where(sma20 > 0, (upper - lower) / sma20, np.nan)
+        rsi14  = _rsi(close, 14)
+        atr14  = _atr(high_, low_, close, 14)
+        vol_ma = _sma(volume, 20)
+        bbw_pct60  = _rolling_percentile(bbw, bbw, 60)
+        atr14_pct60 = _rolling_percentile(atr14, atr14, 60)
+
+        ind = {"close": close, "high": high_, "low": low_, "volume": volume,
+               "sma20": sma20, "upper": upper, "lower": lower, "bbw": bbw,
+               "rsi14": rsi14, "atr14": atr14, "vol_ma": vol_ma,
+               "bbw_pct60": bbw_pct60, "atr14_pct60": atr14_pct60}
+
+        feats = _extract_features(ind, bar_idx)
+        if feats is None:
+            continue
+
+        sample = {
+            "ticker": ticker,
+            "method": method,
+            "date": entry_date,
+            "result": 1 if outcome == "WIN" else 0,
+            "r_multiple": 0.0,
+        }
+        sample.update(feats)
+        feedback_samples.append(sample)
+
+    if not feedback_samples:
+        return df
+
+    fb_df = pd.DataFrame(feedback_samples)
+    combined = pd.concat([df, fb_df], ignore_index=True)
+    # Feedback rows take precedence over synthetic ones for same trade
+    combined = combined.drop_duplicates(
+        subset=["ticker", "date", "method"], keep="last"
+    )
+    print(f"  Merged {len(feedback_samples)} feedback outcomes ({sum(s['result'] for s in feedback_samples)} wins)", flush=True)
+    return combined
+
+
+# ─────────────────────────────────────────────────────────────────
 #  XGBoost MODEL TRAINING
 # ─────────────────────────────────────────────────────────────────
 
@@ -307,7 +414,6 @@ def train_signal_filter(df: pd.DataFrame | None = None) -> dict:
     Falls back from XGBoost if libomp is unavailable.
     Returns training metrics dict.
     """
-    from sklearn.model_selection import train_test_split
     from sklearn.metrics import accuracy_score, roc_auc_score
     import joblib
 
@@ -317,23 +423,57 @@ def train_signal_filter(df: pd.DataFrame | None = None) -> dict:
         else:
             raise FileNotFoundError(f"No training data at {TRAINING_DATA_FILE}. Run generate_training_data() first.")
 
+    # Merge real production outcomes from feedback DB
+    df = _merge_feedback_outcomes(df)
+
     feature_cols = [c for c in ML_FEATURES if c in df.columns]
     X = df[feature_cols].copy()
     y = df["result"].astype(int)
 
-    X = X.fillna(X.median())
+    # Convert categorical columns to pandas category dtype for XGBoost native handling
+    from ai_ml.config import ML_CATEGORICAL_FEATURES
+    for cat_col in ML_CATEGORICAL_FEATURES:
+        if cat_col in X.columns:
+            X[cat_col] = X[cat_col].astype("category")
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+    # Save column medians (numeric only) — used at inference for sklearn fallback
+    numeric_cols = X.select_dtypes(include="number").columns
+    col_medians = X[numeric_cols].median().to_dict()
+    X[numeric_cols] = X[numeric_cols].fillna(X[numeric_cols].median())
+
+    # Temporal split: sort by date, oldest 80% train / newest 20% test
+    # Eliminates look-ahead bias vs random stratified split
+    if "date" in df.columns:
+        sort_idx = df["date"].sort_values().index
+        split_pt = int(len(sort_idx) * 0.8)
+        train_idx, test_idx = sort_idx[:split_pt], sort_idx[split_pt:]
+        X_train, X_test = X.loc[train_idx], X.loc[test_idx]
+        y_train, y_test = y.loc[train_idx], y.loc[test_idx]
+        print(f"  Temporal split: train={len(X_train)} (oldest), test={len(X_test)} (newest)", flush=True)
+    else:
+        from sklearn.model_selection import train_test_split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y)
+
+    # Load best hyperparameters if tuning has been run
+    best_params_path = os.path.join(os.path.dirname(SIGNAL_FILTER_MODEL), "best_params.json")
+    xgb_params = {"n_estimators": 300, "max_depth": 6, "learning_rate": 0.05,
+                  "subsample": 0.8, "colsample_bytree": 0.8}
+    if os.path.exists(best_params_path):
+        try:
+            with open(best_params_path) as f:
+                xgb_params.update(json.load(f))
+            print(f"  Loaded tuned params from {best_params_path}", flush=True)
+        except Exception:
+            pass
 
     # Try XGBoost first, fall back to sklearn HistGradientBoosting
     use_xgb = False
     try:
         import xgboost as xgb
-        # Test that the native lib actually loads
+        _test_x = X_train.select_dtypes(include="number").iloc[:10]
         xgb.XGBClassifier(n_estimators=1, verbosity=0).fit(
-            X_train.iloc[:10], y_train.iloc[:10])
+            _test_x, y_train.iloc[:10])
         use_xgb = True
     except Exception:
         pass
@@ -343,38 +483,104 @@ def train_signal_filter(df: pd.DataFrame | None = None) -> dict:
         scale = y_train.value_counts()
         scale_ratio = scale[0] / scale[1] if scale[1] > 0 else 1.0
         model = xgb.XGBClassifier(
-            n_estimators=300, max_depth=6, learning_rate=0.05,
-            subsample=0.8, colsample_bytree=0.8,
+            n_estimators=xgb_params["n_estimators"],
+            max_depth=xgb_params["max_depth"],
+            learning_rate=xgb_params["learning_rate"],
+            subsample=xgb_params["subsample"],
+            colsample_bytree=xgb_params["colsample_bytree"],
+            min_child_weight=xgb_params.get("min_child_weight", 1),
+            gamma=xgb_params.get("gamma", 0),
             scale_pos_weight=scale_ratio, eval_metric="logloss",
+            enable_categorical=True,
             random_state=42, verbosity=0,
         )
-        model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=False)
+        model.fit(X_train, y_train, eval_set=[(X_test, y_test)],
+                  verbose=False)
     else:
         print("  Using sklearn HistGradientBoosting backend", flush=True)
         from sklearn.ensemble import HistGradientBoostingClassifier
+        # sklearn HistGradientBoosting: drop categorical cols, use numeric only
+        cat_cols = [c for c in ML_CATEGORICAL_FEATURES if c in X_train.columns]
+        X_train_sk = X_train.drop(columns=cat_cols, errors="ignore")
+        X_test_sk  = X_test.drop(columns=cat_cols, errors="ignore")
         model = HistGradientBoostingClassifier(
-            max_iter=300, max_depth=6, learning_rate=0.05,
+            max_iter=xgb_params["n_estimators"],
+            max_depth=xgb_params["max_depth"],
+            learning_rate=xgb_params["learning_rate"],
             min_samples_leaf=20, l2_regularization=1.0,
+            n_iter_no_change=30, validation_fraction=0.1,
             random_state=42, verbose=0,
         )
-        model.fit(X_train, y_train)
+        model.fit(X_train_sk, y_train)
+        X_train, X_test = X_train_sk, X_test_sk
+        feature_cols = [c for c in feature_cols if c not in cat_cols]
 
-    y_pred = model.predict(X_test)
+    # Save column medians for inference NaN handling (sklearn fallback)
+    medians_path = os.path.join(os.path.dirname(SIGNAL_FILTER_MODEL), "feature_medians.json")
+    with open(medians_path, "w") as f:
+        json.dump(col_medians, f)
+
+    # Probability calibration — makes predict_proba output real probabilities
+    try:
+        from sklearn.calibration import CalibratedClassifierCV
+        calibrated = CalibratedClassifierCV(model, method="isotonic", cv=5)
+        calibrated.fit(X_train, y_train)
+        raw_model = model
+        model = calibrated
+        print("  Probability calibration: isotonic (5-fold)", flush=True)
+    except Exception as e:
+        raw_model = model
+        logger.warning("Calibration failed, using raw model: %s", e)
+
+    y_pred = raw_model.predict(X_test)
     y_prob = model.predict_proba(X_test)[:, 1]
 
     acc = accuracy_score(y_test, y_pred)
     auc = roc_auc_score(y_test, y_prob)
 
-    # Save model — joblib works for both backends
-    model_path = SIGNAL_FILTER_MODEL.replace(".xgb.json", ".joblib")
+    # Save calibrated model with versioning — keep last 5 versions
+    model_path = SIGNAL_FILTER_MODEL
+    model_dir = os.path.dirname(model_path)
+    version_tag = time.strftime("%Y%m%d_%H%M%S")
+    versioned_path = os.path.join(model_dir, f"signal_filter_{version_tag}.joblib")
+    joblib.dump(model, versioned_path)
     joblib.dump(model, model_path)
-    print(f"\n  Model saved: {model_path}")
+
+    # Prune old versions — keep last 5
+    import glob as _glob
+    old_models = sorted(_glob.glob(os.path.join(model_dir, "signal_filter_*.joblib")))
+    for stale in old_models[:-5]:
+        try:
+            os.remove(stale)
+        except Exception:
+            pass
+
+    # Append to model history
+    history_path = os.path.join(model_dir, "model_history.json")
+    history_entry = {
+        "version": version_tag, "accuracy": round(acc, 4), "auc": round(auc, 4),
+        "train_size": len(y_train), "test_size": len(y_test),
+        "backend": "xgboost" if use_xgb else "sklearn",
+    }
+    try:
+        history = []
+        if os.path.exists(history_path):
+            with open(history_path) as f:
+                history = json.load(f)
+        history.append(history_entry)
+        history = history[-10:]
+        with open(history_path, "w") as f:
+            json.dump(history, f, indent=2)
+    except Exception:
+        pass
+
+    print(f"\n  Model saved: {versioned_path} (calibrated)")
     print(f"  Accuracy: {acc:.4f} | AUC: {auc:.4f}")
     print(f"  Test set: {len(y_test)} samples")
 
-    # Feature importance
-    if hasattr(model, 'feature_importances_'):
-        importance = dict(zip(feature_cols, model.feature_importances_))
+    # Feature importance (from raw model, before calibration wrapper)
+    if hasattr(raw_model, 'feature_importances_'):
+        importance = dict(zip(feature_cols, raw_model.feature_importances_))
     else:
         importance = {c: 0 for c in feature_cols}
     top_feats = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:7]
@@ -391,6 +597,52 @@ def train_signal_filter(df: pd.DataFrame | None = None) -> dict:
             method_metrics[m] = {"accuracy": round(m_acc, 4), "auc": round(m_auc, 4), "samples": int(mask.sum())}
             print(f"  {m}: acc={m_acc:.4f} auc={m_auc:.4f} ({mask.sum()} samples)")
 
+    # Save feature importance history (last 10 training runs)
+    fi_path = os.path.join(os.path.dirname(SIGNAL_FILTER_MODEL), "feature_importance.json")
+    fi_entry = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "accuracy": round(acc, 4),
+        "auc": round(auc, 4),
+        "importance": {k: round(v, 4) for k, v in sorted(importance.items(), key=lambda x: x[1], reverse=True)},
+    }
+    try:
+        fi_history = []
+        if os.path.exists(fi_path):
+            with open(fi_path) as f:
+                fi_history = json.load(f)
+        fi_history.append(fi_entry)
+        fi_history = fi_history[-10:]
+        with open(fi_path, "w") as f:
+            json.dump(fi_history, f, indent=2)
+    except Exception:
+        pass
+
+    # Train expectile regression model for downside risk prediction
+    downside_metrics = {}
+    if use_xgb and "r_multiple" in df.columns:
+        try:
+            y_return = df.loc[X_train.index, "r_multiple"].astype(float)
+            y_return_test = df.loc[X_test.index, "r_multiple"].astype(float)
+            X_train_num = X_train.select_dtypes(include="number")
+            X_test_num = X_test.select_dtypes(include="number")
+            downside_model = xgb.XGBRegressor(
+                objective="reg:expectileerror", expectile_alpha=0.25,
+                n_estimators=200, max_depth=5, learning_rate=0.05,
+                random_state=42, verbosity=0,
+            )
+            downside_model.fit(X_train_num, y_return, eval_set=[(X_test_num, y_return_test)],
+                               verbose=False)
+            downside_path = os.path.join(model_dir, "downside_model.joblib")
+            joblib.dump(downside_model, downside_path)
+            test_pred = downside_model.predict(X_test_num)
+            downside_metrics = {
+                "mean_predicted": round(float(test_pred.mean()), 4),
+                "saved_to": downside_path,
+            }
+            print(f"  Downside risk model saved: {downside_path} (expectile α=0.25)")
+        except Exception as e:
+            logger.warning("Downside model training failed: %s", e)
+
     metrics = {
         "accuracy": round(acc, 4),
         "auc": round(auc, 4),
@@ -399,8 +651,94 @@ def train_signal_filter(df: pd.DataFrame | None = None) -> dict:
         "feature_importance": {k: round(v, 4) for k, v in top_feats},
         "per_method": method_metrics,
         "features_used": feature_cols,
+        "downside_model": downside_metrics,
     }
     return metrics
+
+
+# ─────────────────────────────────────────────────────────────────
+#  HYPERPARAMETER TUNING
+# ─────────────────────────────────────────────────────────────────
+
+def tune_hyperparameters(df: pd.DataFrame | None = None, n_iter: int = 30) -> dict:
+    """
+    Run RandomizedSearchCV with TimeSeriesSplit to find best XGBoost params.
+    Saves best_params.json — loaded automatically by train_signal_filter().
+    """
+    from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
+    from scipy.stats import uniform, randint
+    import joblib
+
+    if df is None:
+        if os.path.exists(TRAINING_DATA_FILE):
+            df = pd.read_parquet(TRAINING_DATA_FILE)
+        else:
+            raise FileNotFoundError("No training data.")
+
+    df = _merge_feedback_outcomes(df)
+
+    feature_cols = [c for c in ML_FEATURES if c in df.columns]
+    X = df[feature_cols].copy()
+    y = df["result"].astype(int)
+
+    from ai_ml.config import ML_CATEGORICAL_FEATURES
+    for cat_col in ML_CATEGORICAL_FEATURES:
+        if cat_col in X.columns:
+            X[cat_col] = X[cat_col].astype("category")
+
+    numeric_cols = X.select_dtypes(include="number").columns
+    X[numeric_cols] = X[numeric_cols].fillna(X[numeric_cols].median())
+
+    if "date" in df.columns:
+        sort_order = df["date"].sort_values().index
+        X = X.loc[sort_order]
+        y = y.loc[sort_order]
+
+    try:
+        import xgboost as xgb
+    except ImportError:
+        print("XGBoost not installed — cannot tune.", flush=True)
+        return {}
+
+    scale = y.value_counts()
+    scale_ratio = scale[0] / scale[1] if scale[1] > 0 else 1.0
+
+    param_dist = {
+        "n_estimators": randint(100, 500),
+        "max_depth": randint(3, 9),
+        "learning_rate": uniform(0.01, 0.14),
+        "subsample": uniform(0.6, 0.4),
+        "colsample_bytree": uniform(0.6, 0.4),
+        "min_child_weight": randint(1, 10),
+        "gamma": uniform(0, 0.3),
+    }
+
+    base = xgb.XGBClassifier(
+        scale_pos_weight=scale_ratio, eval_metric="logloss",
+        enable_categorical=True, random_state=42, verbosity=0,
+    )
+
+    tscv = TimeSeriesSplit(n_splits=5)
+    search = RandomizedSearchCV(
+        base, param_dist, n_iter=n_iter, cv=tscv,
+        scoring="roc_auc", random_state=42, n_jobs=-1, verbose=1,
+    )
+    print(f"  Tuning {n_iter} combinations with 5-fold TimeSeriesSplit...", flush=True)
+    search.fit(X, y)
+
+    best = {k: (int(v) if isinstance(v, (np.integer,)) else
+                round(float(v), 6) if isinstance(v, (float, np.floating)) else v)
+            for k, v in search.best_params_.items()}
+
+    params_path = os.path.join(os.path.dirname(SIGNAL_FILTER_MODEL), "best_params.json")
+    with open(params_path, "w") as f:
+        json.dump(best, f, indent=2)
+
+    print(f"  Best AUC: {search.best_score_:.4f}")
+    print(f"  Best params: {best}")
+    print(f"  Saved to {params_path}")
+
+    return {"best_auc": round(search.best_score_, 4), "best_params": best}
 
 
 # ─────────────────────────────────────────────────────────────────

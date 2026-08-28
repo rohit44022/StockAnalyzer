@@ -1766,6 +1766,54 @@
             if (aiHtml) {
                 summaryEl.innerHTML += aiHtml;
             }
+            // Expanded Correlation Guard section
+            if (corr && corr.diversification_score != null) {
+                const divScore = corr.diversification_score;
+                const divRisk = corr.risk_level || 'UNKNOWN';
+                const divClr = divRisk === 'LOW' ? '#0ab39c' : divRisk === 'MEDIUM' ? '#f7b84b' : '#ef5350';
+                const divIcon = divRisk === 'LOW' ? '🟢' : divRisk === 'MEDIUM' ? '🟡' : '🔴';
+                const pairs = corr.correlated_pairs || [];
+                const avgCorr = corr.avg_correlation ? (corr.avg_correlation * 100).toFixed(0) : null;
+
+                let corrHtml = `<div style="border:1px solid ${divClr}33;border-radius:10px;padding:14px 16px;margin:10px 0 6px 0;background:${divClr}06">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                        <span style="font-size:1.1rem">🔗</span>
+                        <span style="font-size:0.82rem;font-weight:700;color:var(--bs-body-color)">Portfolio Correlation Guard</span>
+                        <span style="font-size:0.72rem;padding:3px 10px;border-radius:5px;background:${divClr}22;color:${divClr};border:1px solid ${divClr}44;font-weight:700">${divRisk} RISK</span>
+                        <span style="font-size:0.82rem;font-weight:700;color:${divClr};margin-left:auto">${divScore}/100</span>
+                    </div>
+                    <div style="height:6px;border-radius:3px;background:rgba(127,127,127,0.15);margin:0 0 8px 0;position:relative;overflow:hidden">
+                        <div style="position:absolute;left:0;top:0;height:100%;width:${divScore}%;background:${divClr};border-radius:3px;transition:width 0.4s"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:#8b949e;margin-bottom:8px">
+                        <span>0 — High correlation risk</span>
+                        <span>100 — Perfectly diversified</span>
+                    </div>`;
+                if (pairs.length > 0) {
+                    corrHtml += `<div style="margin-bottom:8px">${pairs.map(p => {
+                        const pCorr = (p.correlation * 100).toFixed(0);
+                        const pClr = p.correlation > 0.85 ? '#ef5350' : '#f7b84b';
+                        return '<span style="display:inline-block;font-size:0.68rem;padding:2px 8px;border-radius:4px;background:' + pClr + '22;color:' + pClr + ';margin:2px 4px 2px 0;border:1px solid ' + pClr + '33">⚠ ' + p.stock_a.replace('.NS','') + ' ↔ ' + p.stock_b.replace('.NS','') + ': ' + pCorr + '% correlated</span>';
+                    }).join('')}</div>`;
+                }
+                corrHtml += `<div style="font-size:0.73rem;color:#9ca3af;line-height:1.6;margin-bottom:6px">This module computes the <strong>pairwise price correlation</strong> between all stocks in your Top 5 picks over the last <strong>60 trading days</strong>. If two stocks move in lockstep (correlation > 70%), they essentially act as one bet — so even though you see 5 picks, your effective diversification is lower. A score of 100 means all picks move independently (ideal). A low score means your picks are concentrated — if one falls, the others likely fall too.${avgCorr ? ' Average pairwise correlation: <strong>' + avgCorr + '%</strong>.' : ''}</div>
+                    <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${divClr}08;border-left:3px solid ${divClr}">
+                        <strong>What this means for you:</strong> ${divRisk === 'LOW'
+                            ? '<span style="color:#0ab39c;font-weight:600">Well diversified.</span> Your picks are moving independently — you have real diversification, not just different ticker symbols. Each position adds genuine portfolio value.'
+                            : divRisk === 'MEDIUM'
+                            ? '<span style="color:#f7b84b;font-weight:600">Some concentration detected.</span> A few of your picks are correlated — they tend to move together. Consider whether you are comfortable with this concentrated exposure. If one drops, the correlated pair is likely to drop too.'
+                            : '<span style="color:#ef5350;font-weight:600">High correlation risk.</span> Multiple picks are highly correlated — you are effectively making the same bet with different stocks. Consider replacing one of the correlated stocks with a pick from a different sector or market cap to improve diversification.'
+                        }
+                    </div>
+                </div>`;
+                // Insert before pick cards
+                const corrTarget = document.getElementById('tpResults');
+                if (corrTarget) {
+                    const corrDiv = document.createElement('div');
+                    corrDiv.innerHTML = corrHtml;
+                    corrTarget.insertBefore(corrDiv, corrTarget.querySelector('.tp-card'));
+                }
+            }
             // Lazy-fetch feedback stats
             fetch('/api/ai-ml/feedback/stats').then(r=>r.json()).then(fb => {
                 if (fb && fb.total_resolved > 0) {
@@ -2774,12 +2822,19 @@
                     const gaugeColor = gaugeW >= 55 ? '#0ab39c' : gaugeW >= 45 ? '#f7b84b' : '#ef5350';
 
                     let mlExplain, mlTakeaway;
+                    const topShapFeature = (pick.ml_explanation && pick.ml_explanation.length) ? pick.ml_explanation[0] : null;
+                    const shapDriverLabels = {bbw:'Bollinger Width',rsi14:'RSI',atr14_pct:'ATR%',vol_ratio:'Volume Ratio',close_vs_sma20:'Price vs SMA20',close_vs_upper:'vs Upper Band',close_vs_lower:'vs Lower Band',sma20_slope_5d:'SMA20 Slope',rsi14_slope_5d:'RSI Slope',bbw_percentile_60d:'BB Width Pctl',vol_trend_5d:'Vol Trend',price_momentum_10d:'10d Momentum',price_momentum_20d:'20d Momentum'};
                     if (verdict === 'ML_PASS') {
-                        mlExplain = `Our ML model was trained on <strong>3 lakh+ real trades</strong> from 15 years of NSE data. It learned which combinations of indicators (bandwidth, RSI, volume, momentum, etc.) tend to produce winning trades. This particular stock's current setup scored <strong>${pct}%</strong> — meaning out of 100 similar historical setups, roughly ${Math.round(parseFloat(pct))} went on to hit the target price.`;
-                        mlTakeaway = `<span style="color:#0ab39c;font-weight:600">Higher confidence trade.</span> The AI sees a pattern similar to past winners. This doesn't guarantee a win, but historically similar setups worked more often than not.`;
+                        mlExplain = `This stock's current indicators score <strong>${pct}%</strong> — out of 100 similar historical setups, roughly ${Math.round(parseFloat(pct))} hit the target.`;
+                        if (topShapFeature) mlExplain += ` Biggest driver: <strong>${shapDriverLabels[topShapFeature.feature]||topShapFeature.feature}</strong> (${topShapFeature.direction === 'WIN' ? 'pushing toward win' : 'pulling toward loss'}).`;
+                        if (mlPctl) mlExplain += ` This ranks in the top ${(100 - parseFloat(mlPctl)).toFixed(0)}% of all scored picks today.`;
+                        if (pick.ml_downside_risk != null) mlExplain += ` Worst-case downside estimate: <strong>${(pick.ml_downside_risk*100).toFixed(1)}%</strong>.`;
+                        mlTakeaway = `<span style="color:#0ab39c;font-weight:600">Higher confidence trade.</span> The XGBoost model sees a pattern similar to past winners — the current combination of indicators aligns with historically profitable setups.`;
                     } else {
-                        mlExplain = `Our ML model was trained on <strong>3 lakh+ real trades</strong> from 15 years of NSE data. This stock's current setup scored only <strong>${pct}%</strong> — meaning in history, setups like this one hit the target less than 55% of the time.`;
-                        mlTakeaway = `<span style="color:#f7b84b;font-weight:600">Lower confidence — trade with caution.</span> The stock passed all Bollinger Band rules (those are untouched), but the AI thinks the overall setup is weaker than usual. Consider smaller position size or tighter stop-loss.`;
+                        mlExplain = `This stock's current setup scored <strong>${pct}%</strong> — in similar historical setups, the target was hit less than 55% of the time.`;
+                        if (topShapFeature) mlExplain += ` Key concern: <strong>${shapDriverLabels[topShapFeature.feature]||topShapFeature.feature}</strong> is ${topShapFeature.direction === 'LOSS' ? 'dragging the prediction down' : 'the only bullish factor'}.`;
+                        if (pick.ml_downside_risk != null) mlExplain += ` Downside risk estimate: <strong>${(pick.ml_downside_risk*100).toFixed(1)}%</strong>.`;
+                        mlTakeaway = `<span style="color:#f7b84b;font-weight:600">Lower confidence — trade with caution.</span> The Bollinger Band rules are intact, but the AI layer sees a weaker-than-usual setup. Consider smaller position size or tighter stop-loss.`;
                     }
 
                     rows += `<div style="padding:10px 0;border-bottom:1px solid rgba(127,127,127,0.12)">
@@ -2809,7 +2864,9 @@
                             if (pick.ml_explanation && pick.ml_explanation.length > 0) {
                                 extra += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(127,127,127,0.12)">';
                                 extra += '<div style="font-size:0.78rem;font-weight:700;margin-bottom:4px;color:var(--bs-body-color)">Why this score? <span style="font-size:0.65rem;font-weight:400;color:#8b949e">(SHAP Feature Attribution)</span></div>';
-                                extra += '<div style="font-size:0.68rem;color:#8b949e;line-height:1.4;margin-bottom:6px">Each indicator below either pushed this prediction toward WIN (green, up arrow) or LOSS (red, down arrow). The larger the number, the stronger the influence. This is computed using SHAP (SHapley Additive exPlanations) — a game-theory approach that fairly attributes the prediction to each feature.</div>';
+                                const winDrivers = pick.ml_explanation.filter(e => e.direction === 'WIN').length;
+                                const lossDrivers = pick.ml_explanation.length - winDrivers;
+                                extra += `<div style="font-size:0.68rem;color:#8b949e;line-height:1.4;margin-bottom:6px">${winDrivers} feature${winDrivers!==1?'s':''} pushing toward WIN, ${lossDrivers} toward LOSS. Green ▲ = bullish influence, Red ▼ = bearish. Larger number = stronger impact on the prediction.</div>`;
                                 const featureLabels = {bbw:'Bollinger Width', rsi14:'RSI (14)', atr14_pct:'ATR %', vol_ratio:'Volume Ratio', close_vs_sma20:'Price vs SMA20', close_vs_upper:'vs Upper Band', close_vs_lower:'vs Lower Band', sma20_slope_5d:'SMA20 Slope', rsi14_slope_5d:'RSI Slope', bbw_percentile_60d:'BB Width Pctl', vol_trend_5d:'Vol Trend', price_momentum_10d:'10d Momentum', price_momentum_20d:'20d Momentum', atr14_percentile_60d:'ATR Pctl'};
                                 extra += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">';
                                 pick.ml_explanation.forEach(e => {
@@ -2827,7 +2884,7 @@
                                 const drClr = pick.ml_downside_risk >= 0 ? '#0ab39c' : pick.ml_downside_risk > -0.03 ? '#f7b84b' : '#ef5350';
                                 extra += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(127,127,127,0.12)">';
                                 extra += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:0.78rem;font-weight:700;color:var(--bs-body-color)">Downside Risk Estimate</span><span style="font-size:0.82rem;font-weight:700;color:${drClr}">${dr}%</span></div>`;
-                                extra += `<div style="font-size:0.68rem;color:#8b949e;line-height:1.4">Predicted by a separate XGBoost expectile regression model (25th percentile). This estimates the worst-case expected return: in 75% of similar historical setups, the actual loss was smaller than this number. A value of -3% means you should plan for up to a 3% drawdown on this trade. Use it alongside the win probability — even a high-confidence pick can have meaningful downside, so size your position accordingly.</div>`;
+                                extra += `<div style="font-size:0.68rem;color:#8b949e;line-height:1.4">${parseFloat(dr) >= 0 ? 'The model sees no significant downside risk — similar setups historically had positive or flat outcomes at the 25th percentile.' : parseFloat(dr) > -3 ? `In a bad scenario, expect up to a <strong>${Math.abs(parseFloat(dr))}% drawdown</strong>. This is manageable — size your position so this loss stays within your risk budget.` : `Higher downside risk: up to <strong>${Math.abs(parseFloat(dr))}% loss</strong> in unfavourable scenarios. Consider smaller position size or a tighter stop-loss to limit exposure.`}</div>`;
                                 extra += '</div>';
                             }
                             return extra;
@@ -2867,7 +2924,7 @@
                             <span style="font-size:1.1rem">📊</span>
                             <span style="font-size:0.82rem;font-weight:700;color:var(--bs-body-color)">How This Stock Compares to Its Own History</span>
                         </div>
-                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.5;margin-bottom:10px">Instead of using fixed thresholds for every stock, we compare each stock to <strong>its own 250-day (1-year) history</strong>. A squeeze that's tight for Reliance might be normal for a small-cap. These percentiles tell you how unusual today's setup is for <em>this</em> stock:</div>
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.5;margin-bottom:10px">Compared to this stock's own ${ad.lookback_days||250}-day history: squeeze is at the <strong>${Math.round(bbwPct)}th percentile</strong> (${bbwLabel.toLowerCase()})${rsiPct != null ? `, RSI at the <strong>${Math.round(rsiPct)}th percentile</strong>` : ''}${volPct != null ? `, volume at the <strong>${Math.round(volPct)}th percentile</strong>` : ''}${atrPct != null ? `, volatility at the <strong>${Math.round(atrPct)}th percentile</strong>` : ''}. ${bbwPct < 20 ? 'Bands are unusually tight — this is a high-potential squeeze setup.' : bbwPct < 40 ? 'Moderate compression — the squeeze is present but not extreme.' : 'Bands are relatively wide — less breakout energy than ideal.'}</div>
 
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
                             <!-- BBW -->
@@ -2960,10 +3017,7 @@
                         </div>
 
                         <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6;margin-bottom:6px">
-                            <strong>How is this calculated?</strong> We use the <em>Kelly Criterion</em> (a formula used by professional gamblers and hedge funds) to compute the mathematically optimal bet size. We then halve it for safety — this is called <strong>half-Kelly</strong>, which gives 75% of the growth with much lower risk of ruin.
-                        </div>
-                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6;margin-bottom:6px">
-                            <strong>The math behind it:</strong> ${method} historically wins <strong>${winRate}%</strong> of the time. When it wins, the average gain is <strong>${avgWin}R</strong> (R = your risk unit). When it loses, the average loss is <strong>${avgLoss}R</strong>. The Kelly formula uses these numbers to find the size where you grow fastest without risking blowup.${pick.ml_confidence != null ? ` The size is further adjusted based on ML confidence — higher AI confidence = slightly larger position, lower confidence = slightly smaller.` : ''}
+                            Half-Kelly recommends <strong>${sz}%</strong> allocation (${szLabel}) for ${method}, based on its <strong>${winRate}%</strong> historical win rate, average gain of <strong>${avgWin}R</strong> vs average loss of <strong>${avgLoss}R</strong>.${sz >= 15 ? ' Strong edge detected — the strategy\'s track record supports a full-sized position.' : sz >= 8 ? ' Decent edge — moderate sizing balances growth with risk control.' : ' Thin edge — smaller sizing recommended to limit downside.'} That translates to <strong>${sharesTxt} shares (₹${amtTxt})</strong> with a max loss of <strong>₹${riskTxt}</strong> at the stop-loss.${pick.ml_confidence != null ? ` Position further adjusted by ML confidence (${(pick.ml_confidence*100).toFixed(0)}%) — ${pick.ml_confidence >= 0.55 ? 'slightly larger due to higher AI conviction' : 'slightly smaller due to lower AI conviction'}.` : ''}
                         </div>
                         <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${szColor}08;border-left:3px solid ${szColor}">
                             <strong>What this means for you:</strong> If you have ₹5 lakh capital, buy <strong>${sharesTxt} shares</strong> (≈ ₹${amtTxt}). ${risk > 0 ? `If the trade hits stop-loss, you lose ≈ ₹${riskTxt} — a controlled, survivable loss. Never risk more than this on a single trade.` : `Set a stop-loss to know your maximum risk. A good rule: never risk more than 1-2% of your total capital on any single trade.`}
@@ -3019,6 +3073,7 @@
                             <span>NEUTRAL (2-3/5)</span>
                             <span>STRONG BULL (5/5)</span>
                         </div>
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6;margin-bottom:8px">The Indian market is currently <strong>${rl}</strong> with <strong>${regimeScore}/${maxScore} bullish signals</strong>.${sigs.nifty_above_50sma === true ? ' Nifty is above its 50-day SMA (short-term uptrend).' : sigs.nifty_above_50sma === false ? ' Nifty is below its 50-day SMA (short-term weakness).' : ''}${sigs.vix_bullish === true ? ' VIX is calm (low fear).' : sigs.vix_bullish === false ? ' VIX is elevated (market stress).' : ''}${sigs.breadth_bullish === true ? ' More stocks are advancing than declining.' : sigs.breadth_bullish === false ? ' More stocks are declining — broad weakness.' : ''} ${factor > 1 ? `In this bullish regime, ML confidence is <strong>boosted by ${((factor-1)*100).toFixed(0)}%</strong> — signals historically work better when the tide is in your favour.` : factor < 1 ? `In this bearish regime, ML confidence is <strong>reduced by ${((1-factor)*100).toFixed(0)}%</strong> — counter-trend trades are riskier when the market is pulling everything down.` : 'Neutral regime — ML confidence is unchanged.'}${mr.nifty_price ? ` Nifty 50 at ₹${Number(mr.nifty_price).toLocaleString('en-IN',{maximumFractionDigits:0})}.` : ''}</div>
                         <!-- Signal dots -->
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">${dots}</div>
                         <!-- Confidence adjustment -->
@@ -3068,8 +3123,107 @@
                             <span>65+ — EXIT</span>
                         </div>
                         ${activeWarnings.length ? `<div style="margin-bottom:8px">${activeWarnings.map(w => '<span style="display:inline-block;font-size:0.65rem;padding:2px 8px;border-radius:4px;background:#ef535022;color:#ef5350;margin:2px 4px 2px 0">⚠ ' + w + '</span>').join('')}</div>` : ''}
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6;margin-bottom:6px">${activeWarnings.length} of 6 exit signals currently active for this stock. Urgency at <strong>${urgency}/100 (${uLabel.replace('_',' ')})</strong>, momentum is <strong>${momentum}</strong>.${urgency <= 25 ? ' All clear — the trade\'s edge is intact, no exit pressure.' : urgency <= 45 ? ' Early warning signs appearing — stay alert but no action needed yet.' : urgency <= 65 ? ' Meaningful decay detected — consider tightening your stop-loss to protect profits.' : ' Multiple signals confirm the edge is fading — strongly consider taking profits.'}${ei.hold_estimate_days ? ` Typical profitable hold for this method: <strong>${ei.hold_estimate_days} days</strong>.` : ''}</div>
                         <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${uc}08;border-left:3px solid ${uc};margin-bottom:6px">
                             <strong>What to do:</strong> ${ei.explanation || ''}
+                        </div>
+                    </div>`;
+                }
+
+                // ── Regime Cluster (unsupervised) ──
+                if (pick.regime_cluster_id != null && pick.regime_cluster_label) {
+                    const cLabel = pick.regime_cluster_label;
+                    const cConf = pick.regime_cluster_confidence != null ? (pick.regime_cluster_confidence * 100).toFixed(0) : null;
+                    const cId = pick.regime_cluster_id;
+
+                    // Color based on label keywords
+                    const cColor = cLabel.includes('Bullish') ? '#0ab39c'
+                        : cLabel.includes('Bearish') ? '#ef5350'
+                        : cLabel.includes('Oversold') ? '#ef5350'
+                        : cLabel.includes('Overbought') ? '#f7b84b'
+                        : cLabel.includes('Squeeze') || cLabel.includes('Tight') ? '#3b82f6'
+                        : '#7c8aef';
+
+                    const clusterExplain = `This stock's 8 current indicators (BBW, RSI, ATR, volume, price vs SMA, money flow, MFI, momentum) place it in the <strong>"${cLabel}"</strong> regime (cluster #${cId})${cConf ? ` with <strong>${cConf}% match confidence</strong>` : ''}. ${cConf && cConf > 75 ? 'High confidence — the stock strongly matches this cluster\'s historical pattern.' : cConf && cConf > 50 ? 'Moderate match — the stock fits this regime but with some ambiguity.' : 'Weak match — the stock sits between regimes. Consider other signals more heavily.'} Discovered by unsupervised ML (UMAP + KMeans) from 50 lakh+ data points across 2,877 NSE stocks.`;
+
+                    let clusterTakeaway;
+                    if (cLabel.includes('Bullish') || cLabel.includes('Overbought')) {
+                        clusterTakeaway = `<span style="color:#0ab39c;font-weight:600">Bullish cluster detected.</span> Historically, stocks in this regime tend to have upward momentum. The setup aligns with buying signals — but "overbought" clusters can also mean the move is extended, so use the exit intelligence and stop-loss to manage risk.`;
+                    } else if (cLabel.includes('Bearish') || cLabel.includes('Oversold')) {
+                        clusterTakeaway = `<span style="color:#ef5350;font-weight:600">Bearish/Oversold cluster detected.</span> This regime is typically associated with downward pressure or exhaustion. For buy signals, this means the stock is fighting the current — consider smaller position size or wait for the regime to shift. For sell signals, this confirms the bearish setup.`;
+                    } else if (cLabel.includes('Squeeze') || cLabel.includes('Tight')) {
+                        clusterTakeaway = `<span style="color:#3b82f6;font-weight:600">Squeeze/Tight cluster detected.</span> The Bollinger Bands are compressed — historically a precursor to a big move. The direction isn't guaranteed, but the energy is building. This is exactly the type of setup the BB system was designed to catch.`;
+                    } else {
+                        clusterTakeaway = `<span style="color:#7c8aef;font-weight:600">Neutral cluster.</span> No strong directional bias from the clustering model. The stock's current indicators don't strongly match any extreme regime. Rely more on the other signals (ML confidence, exit intelligence) for this trade.`;
+                    }
+
+                    rows += `<div style="padding:10px 0;border-bottom:1px solid rgba(127,127,127,0.12)">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+                            <span style="font-size:1.1rem">🔬</span>
+                            <span style="font-size:0.82rem;font-weight:700;color:var(--bs-body-color)">Market Regime Cluster</span>
+                            <span style="font-size:0.72rem;padding:3px 10px;border-radius:5px;background:${cColor}22;color:${cColor};border:1px solid ${cColor}44;font-weight:700">${cLabel}</span>
+                            ${cConf ? `<span style="font-size:0.65rem;color:#8b949e">Confidence: ${cConf}%</span>` : ''}
+                        </div>
+                        ${cConf ? `<div style="height:6px;border-radius:3px;background:rgba(127,127,127,0.15);margin:6px 0 8px 0;position:relative;overflow:hidden">
+                            <div style="position:absolute;left:0;top:0;height:100%;width:${cConf}%;background:${cColor};border-radius:3px;transition:width 0.4s"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:#8b949e;margin-bottom:8px">
+                            <span>0% (far from cluster center)</span>
+                            <span>100% (strong match)</span>
+                        </div>` : ''}
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6;margin-bottom:6px">${clusterExplain}</div>
+                        <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${cColor}08;border-left:3px solid ${cColor}">
+                            <strong>What this means for you:</strong> ${clusterTakeaway}
+                        </div>
+                    </div>`;
+                }
+
+                // ── LSTM Sequence Scorer ──
+                if (pick.seq_confidence != null) {
+                    const seqPct = (pick.seq_confidence * 100).toFixed(1);
+                    const seqVerdict = pick.seq_verdict || 'SEQ_UNAVAILABLE';
+                    const seqColor = seqVerdict === 'SEQ_PASS' ? '#0ab39c' : seqVerdict === 'SEQ_CAUTION' ? '#f7b84b' : '#8b949e';
+                    const seqGaugeW = Math.min(Math.max(parseFloat(seqPct), 0), 100);
+                    const seqGaugeColor = seqGaugeW >= 55 ? '#0ab39c' : seqGaugeW >= 45 ? '#f7b84b' : '#ef5350';
+
+                    const agreement = pick.seq_agreement;
+                    const agreeColors = {BOTH_AGREE:'#0ab39c', DISAGREE:'#f7b84b', BOTH_CAUTION:'#ef5350'};
+                    const agreeLabels = {BOTH_AGREE:'Both Models Agree', DISAGREE:'Models Disagree', BOTH_CAUTION:'Both Cautious'};
+                    const agClr = agreeColors[agreement] || '#8b949e';
+                    const agLbl = agreeLabels[agreement] || '';
+
+                    const seqExplain = `The LSTM reads this stock's last 20 trading days and scores <strong>${seqPct}%</strong> — ${parseFloat(seqPct) >= 55 ? 'above' : 'below'} the 55% threshold (<strong>${pick.seq_verdict === 'SEQ_PASS' ? 'PASS' : 'CAUTION'}</strong>). ${parseFloat(seqPct) >= 70 ? 'The recent trajectory strongly resembles past winning sequences — the temporal pattern is very favourable.' : parseFloat(seqPct) >= 55 ? 'The price trajectory over the last 20 days matches historical winning patterns with moderate conviction.' : parseFloat(seqPct) >= 40 ? 'The recent trajectory is ambiguous — some elements match winning patterns but not strongly enough.' : 'The price evolution over the last 20 days does not match historical winning sequences.'} Trained on 3 lakh+ 20-bar sequences from 15 years of NSE data.`;
+
+                    let seqTakeaway;
+                    if (agreement === 'BOTH_AGREE') {
+                        seqTakeaway = `<span style="color:#0ab39c;font-weight:600">Both AI models agree — higher conviction.</span> The XGBoost snapshot model AND the LSTM sequence model both see a winning pattern here. When two completely different architectures (tree-based vs neural network) independently reach the same conclusion, the signal is stronger. This doesn't guarantee a win, but historically, dual-agreement setups have higher success rates.`;
+                    } else if (agreement === 'DISAGREE') {
+                        seqTakeaway = `<span style="color:#f7b84b;font-weight:600">The models disagree — mixed signal.</span> One model sees a winning setup while the other doesn't. This typically happens when today's snapshot looks good but the recent trajectory doesn't support it (or vice versa). Consider this a lower-conviction trade — you may want to reduce position size or wait for the models to align.`;
+                    } else if (agreement === 'BOTH_CAUTION') {
+                        seqTakeaway = `<span style="color:#ef5350;font-weight:600">Both models are cautious.</span> Neither the snapshot model nor the sequence model sees a strong winning pattern. The stock passed the Bollinger Band rules (those are untouched), but the AI layer thinks the broader context is weak. Consider a smaller position or tighter stop-loss.`;
+                    } else {
+                        seqTakeaway = `The sequence model scored this stock at <strong>${seqPct}%</strong>. ${parseFloat(seqPct) >= 55 ? 'The temporal pattern looks favourable — the last 20 days of price action resemble past winning sequences.' : 'The temporal pattern is not strongly positive — the recent price action trajectory doesn\'t closely match past winning sequences.'}`;
+                    }
+
+                    rows += `<div style="padding:10px 0;border-bottom:1px solid rgba(127,127,127,0.12)">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+                            <span style="font-size:1.1rem">🧬</span>
+                            <span style="font-size:0.82rem;font-weight:700;color:var(--bs-body-color)">Sequence Pattern (LSTM)</span>
+                            <span style="font-size:0.72rem;padding:3px 10px;border-radius:5px;background:${seqColor}22;color:${seqColor};border:1px solid ${seqColor}44;font-weight:700">${seqPct}% — ${seqVerdict === 'SEQ_PASS' ? 'PASS' : 'CAUTION'}</span>
+                            ${agLbl ? `<span style="font-size:0.65rem;padding:2px 8px;border-radius:4px;background:${agClr}22;color:${agClr};font-weight:600">${agLbl}</span>` : ''}
+                        </div>
+                        <div style="height:6px;border-radius:3px;background:rgba(127,127,127,0.15);margin:6px 0 8px 0;position:relative;overflow:hidden">
+                            <div style="position:absolute;left:0;top:0;height:100%;width:${seqGaugeW}%;background:${seqGaugeColor};border-radius:3px;transition:width 0.4s"></div>
+                            <div style="position:absolute;left:55%;top:-2px;width:1.5px;height:10px;background:#ffffff88;border-radius:1px" title="55% threshold"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:#8b949e;margin-bottom:8px">
+                            <span>0% (weak sequence)</span>
+                            <span>55% threshold</span>
+                            <span>100% (strong sequence)</span>
+                        </div>
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6;margin-bottom:6px">${seqExplain}</div>
+                        <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${agClr}08;border-left:3px solid ${agClr}">
+                            <strong>What this means for you:</strong> ${seqTakeaway}
                         </div>
                     </div>`;
                 }

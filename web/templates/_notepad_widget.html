@@ -193,6 +193,7 @@
   let _drag = null;
   function initDrag() {
     const btn = document.getElementById('npToggle');
+    const hdr = document.querySelector('.np-header');
     if (!btn) return;
 
     function onStart(ex, ey) {
@@ -230,6 +231,14 @@
     btn.addEventListener('touchstart', e => { const t = e.touches[0]; onStart(t.clientX, t.clientY); }, {passive: true});
     document.addEventListener('touchmove', e => { if (_drag) { const t = e.touches[0]; onMove(t.clientX, t.clientY); } }, {passive: false});
     document.addEventListener('touchend', () => { onEnd(); });
+
+    // Header drag (when panel is expanded)
+    if (hdr) {
+      hdr.style.cursor = 'grab';
+      hdr.addEventListener('mousedown', e => { if (e.button === 0 && e.target.closest('.np-icon-btn') === null) { e.preventDefault(); hdr.style.cursor = 'grabbing'; onStart(e.clientX, e.clientY); } });
+      document.addEventListener('mouseup', () => { if (hdr) hdr.style.cursor = 'grab'; });
+      hdr.addEventListener('touchstart', e => { if (e.target.closest('.np-icon-btn') === null) { const t = e.touches[0]; onStart(t.clientX, t.clientY); } }, {passive: true});
+    }
 
     btn.removeAttribute('onclick');
     btn.addEventListener('click', () => {

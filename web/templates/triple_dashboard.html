@@ -99,6 +99,7 @@ nav a.active{color:var(--accent)!important;font-weight:600}
     <div id="wyckoffSection" class="mb-3"></div>
     <div id="marketProfileSection" class="mb-3"></div>
     <div id="tripleCompareSection" class="mb-3"></div>
+    <div id="aimlSection" class="mb-3"></div>
     <div class="row g-3 mb-3">
       <div class="col-lg-6" id="bbMethodsSection"></div>
       <div class="col-lg-6" id="taCategoriesSection"></div>
@@ -183,6 +184,7 @@ function renderAll(d){
   renderWyckoff(d);
   renderMarketProfile(d);
   renderTripleCompare(d);
+  renderAiMl(d);
   renderBBMethods(d);
   renderTACategories(d);
   renderPAComponents(d);
@@ -3542,6 +3544,464 @@ function renderTripleCompare(d){
         </div>
       </div>
     </div>`;
+}
+
+/* ─── AI/ML INTELLIGENCE ─── */
+function renderAiMl(d){
+  const el = document.getElementById('aimlSection');
+  if(!el) return;
+  const ai = d.ai_ml;
+  if(!ai || !ai.available){ el.innerHTML=''; return; }
+  const p = ai.pick || {};
+
+  // gate: hide entire section if no meaningful data
+  const hasExit = p.exit_intelligence && p.exit_intelligence.available !== false && p.exit_intelligence.urgency != null;
+  const hasAdaptive = p.adaptive_context && p.adaptive_context.bbw_percentile != null;
+  const hasMR = !!(p.market_regime || ai.market_regime || {}).regime;
+  if(p.ml_confidence == null && p.seq_confidence == null && p.regime_cluster_id == null
+     && !hasExit && !hasAdaptive && !hasMR && p.size_recommended_pct == null){ el.innerHTML=''; return; }
+
+  const pct = v => v==null ? '—' : (v*100).toFixed(1)+'%';
+  const rupee = v => v==null ? '—' : '₹'+Number(v).toLocaleString('en-IN',{maximumFractionDigits:0});
+
+  let cards = '';
+
+  // ── A. ML Win Probability (XGBoost + SHAP) ────────────────
+  if(p.ml_confidence != null){
+    const conf = (p.ml_confidence*100).toFixed(1);
+    const pass = p.ml_verdict === 'ML_PASS';
+    const clr = pass ? '#0ab39c' : '#f7b84b';
+    const badgeClr = pass ? 'rgba(10,179,156,.2)' : 'rgba(247,184,75,.2)';
+    const gw = Math.min(conf, 100);
+
+    // SHAP drivers
+    let shapHtml = '';
+    if(p.ml_explanation && p.ml_explanation.length){
+      shapHtml = '<div style="margin-top:12px"><div class="mini-label mb-2">TOP SHAP DRIVERS</div>';
+      p.ml_explanation.slice(0,5).forEach(s => {
+        const pos = s.direction === 'positive' || s.impact > 0;
+        const bc = pos ? '#0ab39c' : '#f06548';
+        const imp = Math.min(Math.abs(s.impact||0)*100, 100);
+        shapHtml += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:.78rem">
+          <span style="width:120px;color:#8b949e;text-align:right">${s.feature||''}</span>
+          <div style="flex:1;height:6px;border-radius:3px;background:#222;overflow:hidden">
+            <div style="width:${imp}%;height:100%;background:${bc};border-radius:3px"></div>
+          </div>
+          <span style="color:${bc};font-weight:600;width:40px;font-size:.72rem">${pos?'+':'−'}${imp.toFixed(0)}%</span>
+        </div>`;
+      });
+      shapHtml += '</div>';
+    }
+
+    // Downside risk
+    let drHtml = '';
+    if(p.ml_downside_risk != null){
+      const dr = (p.ml_downside_risk*100).toFixed(1);
+      drHtml = `<div style="margin-top:10px;font-size:.75rem;color:#8b949e">
+        Downside Risk: <strong style="color:${p.ml_downside_risk>0.5?'#f06548':'#0ab39c'}">${dr}%</strong>
+        — ${p.ml_downside_risk>0.6?'elevated adverse exposure; tight stops and smaller size strongly recommended':''}${p.ml_downside_risk>0.3&&p.ml_downside_risk<=0.6?'moderate downside; standard stop-loss discipline should suffice':''}${p.ml_downside_risk<=0.3?'low adverse exposure; the expected worst-case scenario is well contained':''}</div>`;
+    }
+
+    // Dynamic XGBoost insight text
+    let xgbText = '';
+    { const cn=parseFloat(conf);
+      if(cn>=70) xgbText += 'At <strong style="color:#0ab39c">'+conf+'%</strong> win probability, this signal sits in the <strong style="color:#c9d1d9">high-conviction zone</strong> — historically, ~'+Math.round(cn)+' out of 100 similar setups hit target before stop-loss. ';
+      else if(cn>=58) xgbText += 'At <strong style="color:#f7b84b">'+conf+'%</strong> win probability, this signal shows a <strong style="color:#c9d1d9">moderate statistical edge</strong> — roughly '+Math.round(cn)+' out of 100 similar setups historically won, above the 55% actionable threshold but not overwhelmingly strong. ';
+      else if(cn>=50) xgbText += 'At <strong style="color:#f7b84b">'+conf+'%</strong>, the model sees only a <strong style="color:#c9d1d9">marginal edge</strong> — barely above coin-flip odds. Consider waiting for a higher-conviction setup or reducing position size. ';
+      else xgbText += 'At <strong style="color:#f06548">'+conf+'%</strong>, the XGBoost model flags this as <strong style="color:#f06548">statistically unfavourable</strong> — fewer than half of similar setups historically won. ';
+      const shp=p.ml_explanation||[];
+      if(shp.length){
+        const top=shp[0], tpos=top.direction==='positive'||top.impact>0;
+        xgbText += 'The strongest SHAP driver is <strong style="color:#c9d1d9">'+top.feature+'</strong>, '+(tpos?'pushing probability <strong style="color:#0ab39c">upward</strong>':'pulling probability <strong style="color:#f06548">downward</strong>')+'. ';
+        const pc=shp.filter(s=>s.direction==='positive'||s.impact>0).length, nc=shp.length-pc;
+        if(pc>nc) xgbText += 'Of the top '+shp.length+' features, <strong style="color:#0ab39c">'+pc+' favour</strong> vs '+nc+' against — net positive feature landscape. ';
+        else if(nc>pc) xgbText += 'Of the top '+shp.length+' features, <strong style="color:#f06548">'+nc+' push against</strong> vs '+pc+' in favour — more headwinds than tailwinds. ';
+        else xgbText += 'Features split evenly — '+pc+' bullish vs '+nc+' bearish — genuine uncertainty. ';
+      }
+      if(p.ml_percentile!=null){const mp=p.ml_percentile; if(mp>=80) xgbText+='This ranks in the <strong style="color:#0ab39c">top '+(100-mp).toFixed(0)+'%</strong> of all signals scored — unusually strong. '; else if(mp<=30) xgbText+='This ranks in the <strong style="color:#f06548">bottom '+mp.toFixed(0)+'%</strong> of signals scored — well below average. '; else xgbText+='Percentile rank: '+mp.toFixed(0)+'th — mid-range among scored signals. ';}
+      if(p.ml_downside_risk!=null){const drv=(p.ml_downside_risk*100).toFixed(1); if(p.ml_downside_risk>0.6) xgbText+='Downside risk is <strong style="color:#f06548">elevated at '+drv+'%</strong> — meaningful loss potential if this trade goes wrong. '; else if(p.ml_downside_risk>0.3) xgbText+='Downside risk at <strong style="color:#f7b84b">'+drv+'%</strong> is moderate — manageable with disciplined stops. '; else xgbText+='Downside risk is <strong style="color:#0ab39c">low at '+drv+'%</strong> — limited adverse exposure. ';}
+    }
+
+    cards += `<div class="col-lg-6 col-md-12">
+      <div class="method-card" style="border-color:${clr}40;min-height:100%">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <i class="bi bi-robot" style="font-size:1.2rem;color:${clr}"></i>
+          <span class="method-title" style="margin:0">ML Win Probability</span>
+          <span style="padding:2px 10px;border-radius:6px;font-size:.72rem;font-weight:600;background:${badgeClr};color:${clr}">${p.ml_verdict||''}</span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px">
+          <span style="font-size:1.8rem;font-weight:700;color:${clr}">${conf}%</span>
+          <span style="font-size:.75rem;color:#8b949e">confidence of winning trade</span>
+        </div>
+        <div class="score-bar" style="margin-bottom:10px">
+          <div class="score-fill" style="width:${gw}%;background:linear-gradient(90deg,#f06548 0%,#f7b84b 40%,#0ab39c 70%)"></div>
+        </div>
+        <div style="font-size:.73rem;color:#8b949e;line-height:1.65">${xgbText}</div>
+        ${shapHtml}
+        ${drHtml}
+      </div>
+    </div>`;
+  }
+
+  // ── B. Sequence Pattern (LSTM) ────────────────────────────
+  if(p.seq_confidence != null){
+    const sc = (p.seq_confidence*100).toFixed(1);
+    const seqPass = p.seq_verdict === 'SEQ_PASS';
+    const sClr = seqPass ? '#0ab39c' : '#f7b84b';
+    const sw = Math.min(p.seq_confidence*100, 100);
+
+    // Agreement badge
+    let agBadge = '';
+    if(p.seq_agreement === 'BOTH_AGREE') agBadge = '<span style="padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:600;background:rgba(10,179,156,.2);color:#0ab39c">BOTH AGREE</span>';
+    else if(p.seq_agreement === 'DISAGREE') agBadge = '<span style="padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:600;background:rgba(240,101,72,.2);color:#f06548">MODELS DISAGREE</span>';
+    else if(p.seq_agreement === 'BOTH_CAUTION') agBadge = '<span style="padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:600;background:rgba(247,184,75,.2);color:#f7b84b">BOTH CAUTION</span>';
+
+    // Agreement callout
+    let agCallout = '';
+    { const xc=p.ml_confidence!=null?(p.ml_confidence*100).toFixed(1):'—', lc=sc;
+    if(p.seq_agreement === 'BOTH_AGREE') agCallout = `<div style="margin-top:10px;padding:10px 14px;border-left:3px solid #0ab39c;background:rgba(10,179,156,.06);border-radius:0 8px 8px 0;font-size:.73rem;color:#8b949e">
+      <strong style="color:#0ab39c">Dual-model agreement (XGBoost ${xc}% + LSTM ${lc}%):</strong> Two fundamentally different architectures — one analysing today's 25-feature snapshot, the other reading the 20-day temporal sequence — independently predict a positive outcome. This convergence raises effective conviction above either model alone.</div>`;
+    else if(p.seq_agreement === 'DISAGREE') agCallout = `<div style="margin-top:10px;padding:10px 14px;border-left:3px solid #f06548;background:rgba(240,101,72,.06);border-radius:0 8px 8px 0;font-size:.73rem;color:#8b949e">
+      <strong style="color:#f06548">Models diverge (XGBoost ${xc}% vs LSTM ${lc}%):</strong> Today's indicator snapshot and the recent 20-day price trajectory tell different stories. ${parseFloat(xc)>parseFloat(lc)?'Current indicators look favourable but the temporal trend does not support it — the recent trajectory may be deteriorating.':'The temporal pattern looks promising but today\'s snapshot flags concern — a recent shift in indicators may not yet be reflected in the sequence.'} Proceed with caution and tighter stops.</div>`;
+    else if(p.seq_agreement === 'BOTH_CAUTION') agCallout = `<div style="margin-top:10px;padding:10px 14px;border-left:3px solid #f7b84b;background:rgba(247,184,75,.06);border-radius:0 8px 8px 0;font-size:.73rem;color:#8b949e">
+      <strong style="color:#f7b84b">Both models cautious (XGBoost ${xc}% + LSTM ${lc}%):</strong> Neither the current snapshot nor the recent temporal sequence shows strong conviction. The rule-based triple score above may still favour a trade, but the ML layer suggests the statistical edge is thin — consider reduced size or waiting for a clearer setup.</div>`;
+    }
+
+    // Dynamic LSTM insight text
+    let lstmText = '';
+    { const seqPct=p.seq_confidence*100;
+      if(seqPct>=65) lstmText += 'The LSTM reads the last 20 trading days as a temporal sequence and detects a <strong style="color:#0ab39c">strong directional pattern</strong> at <strong style="color:#0ab39c">'+sc+'%</strong> confidence — the price, bandwidth, RSI, and volume trajectory over recent sessions form a recognisable winning setup. ';
+      else if(seqPct>=55) lstmText += 'At <strong style="color:#f7b84b">'+sc+'%</strong>, the LSTM detects a <strong style="color:#c9d1d9">moderate temporal pattern</strong> in the last 20 sessions — the sequence of price movements, bandwidth tightening, and volume changes shows some alignment with historically profitable setups, but the pattern is not fully formed. ';
+      else if(seqPct>=45) lstmText += 'At <strong style="color:#f7b84b">'+sc+'%</strong>, the LSTM finds <strong style="color:#c9d1d9">no clear temporal pattern</strong> — the 20-day sequence across price, bandwidth, RSI, volume, and momentum channels does not resemble historically profitable setups. The time-series evidence is inconclusive. ';
+      else lstmText += 'At <strong style="color:#f06548">'+sc+'%</strong>, the LSTM identifies a <strong style="color:#f06548">negative temporal pattern</strong> — the recent 20-day sequence more closely resembles historically losing setups than winning ones. ';
+      if(p.ml_confidence!=null){
+        const xgb=p.ml_confidence*100, diff=Math.abs(seqPct-xgb).toFixed(0);
+        if(p.seq_agreement==='BOTH_AGREE') lstmText += 'Both the snapshot (XGBoost: '+xgb.toFixed(1)+'%) and temporal (LSTM: '+sc+'%) models converge — this <strong style="color:#0ab39c">dual-architecture agreement</strong> significantly strengthens conviction. ';
+        else if(p.seq_agreement==='DISAGREE') lstmText += 'The snapshot model ('+xgb.toFixed(1)+'%) and temporal model ('+sc+'%) <strong style="color:#f06548">diverge by '+diff+' points</strong> — today\'s indicators may look different from the recent trajectory. This conflict warrants caution. ';
+        else lstmText += 'Both models show <strong style="color:#f7b84b">low conviction</strong> (XGBoost: '+xgb.toFixed(1)+'%, LSTM: '+sc+'%) — neither provides a strong statistical edge. ';
+      }
+    }
+
+    cards += `<div class="col-lg-6 col-md-12">
+      <div class="method-card" style="border-color:${sClr}40;min-height:100%">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <i class="bi bi-soundwave" style="font-size:1.2rem;color:${sClr}"></i>
+          <span class="method-title" style="margin:0">Sequence Pattern (LSTM)</span>
+          <span style="padding:2px 10px;border-radius:6px;font-size:.72rem;font-weight:600;background:${seqPass?'rgba(10,179,156,.2)':'rgba(247,184,75,.2)'};color:${sClr}">${p.seq_verdict||''}</span>
+          ${agBadge}
+        </div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px">
+          <span style="font-size:1.8rem;font-weight:700;color:${sClr}">${sc}%</span>
+          <span style="font-size:.75rem;color:#8b949e">sequence confidence</span>
+        </div>
+        <div class="score-bar" style="margin-bottom:10px;position:relative">
+          <div class="score-fill" style="width:${sw}%;background:${sClr}"></div>
+          <div style="position:absolute;left:55%;top:-2px;bottom:-2px;width:2px;background:#fff;opacity:.5" title="55% threshold"></div>
+        </div>
+        <div style="font-size:.73rem;color:#8b949e;line-height:1.65">${lstmText}</div>
+        ${agCallout}
+      </div>
+    </div>`;
+  }
+
+  // ── C. Market Intelligence (Regime Cluster + Market Regime + Adaptive) ──
+  {
+    let miContent = '';
+    let hasContent = false;
+
+    // Regime cluster
+    if(p.regime_cluster_id != null){
+      hasContent = true;
+      const lbl = p.regime_cluster_label || 'Unknown';
+      const cc = (p.regime_cluster_confidence||0)*100;
+      const kw = lbl.toLowerCase();
+      let lClr = '#7c4dff';
+      if(kw.includes('bullish')) lClr='#0ab39c';
+      else if(kw.includes('bearish')) lClr='#f06548';
+      else if(kw.includes('squeeze')||kw.includes('tight')) lClr='#3b82f6';
+      else if(kw.includes('overbought')) lClr='#f7b84b';
+      else if(kw.includes('oversold')) lClr='#22d3ee';
+
+      // Dynamic regime cluster text
+      let clusterText = 'This stock\'s 8-dimensional indicator profile maps to the <strong style="color:'+lClr+'">\"'+lbl+'\"</strong> cluster with <strong style="color:#c9d1d9">'+cc.toFixed(0)+'% confidence</strong>. ';
+      if(cc>=80) clusterText += 'High cluster match — the current indicator signature closely resembles this regime\'s historical profile. ';
+      else if(cc<50) clusterText += 'Low cluster confidence — this stock sits near the boundary between regimes; its character may be transitioning. ';
+      if(kw.includes('bullish')&&kw.includes('momentum')) clusterText += 'This regime historically shows strong directional moves with expanding bandwidth and elevated RSI — trend-following entries tend to perform well here. ';
+      else if(kw.includes('bullish')) clusterText += 'The unsupervised clustering identifies conditions historically favourable for long entries — positive price-SMA relationship with supportive volume and momentum. ';
+      else if(kw.includes('bearish')) clusterText += 'The cluster signals conditions historically associated with downside — negative momentum, unfavourable volume dynamics. Long entries carry elevated risk. ';
+      else if(kw.includes('squeeze')||kw.includes('tight')) clusterText += 'Tight bandwidth cluster — bands are historically compressed, often preceding a significant directional move. Squeeze-based methods (M1/M2) tend to outperform here. ';
+      else if(kw.includes('overbought')||kw.includes('extended')) clusterText += 'Extended conditions — elevated RSI and price stretched from mean. Mean-reversion setups or tighter stops on momentum entries are advisable. ';
+      else if(kw.includes('oversold')) clusterText += 'Oversold cluster — depressed RSI and price well below mean. Reversal entries from this regime show above-average win rates when confirmed by volume. ';
+      else if(kw.includes('volatile')||kw.includes('high')) clusterText += 'High-volatility cluster — ATR and bandwidth are elevated. Position sizing should be conservative; wider stops needed. ';
+      else clusterText += 'This regime represents a distinct market state discovered from data — evaluate against historical cluster performance. ';
+
+      miContent += `<div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="bi bi-diagram-3" style="color:${lClr}"></i>
+          <span style="font-size:.82rem;font-weight:600;color:#c9d1d9">Regime Cluster</span>
+          <span style="padding:2px 10px;border-radius:6px;font-size:.72rem;font-weight:600;background:${lClr}22;color:${lClr}">${lbl}</span>
+          <span style="font-size:.72rem;color:#8b949e">${cc.toFixed(0)}% match</span>
+        </div>
+        <div style="font-size:.73rem;color:#8b949e;line-height:1.65">${clusterText}</div>
+      </div>`;
+    }
+
+    // Market regime
+    const mr = p.market_regime || ai.market_regime;
+    if(mr && mr.regime){
+      hasContent = true;
+      const rMap = {STRONG_BULL:'#0ab39c',BULL:'#0ab39c',NEUTRAL:'#f7b84b',BEAR:'#f06548',STRONG_BEAR:'#f06548'};
+      const rClr = rMap[mr.regime] || '#8b949e';
+      const cf = mr.confidence_factor != null ? mr.confidence_factor.toFixed(2) : '—';
+      // Dynamic market regime text
+      let regimeText = 'The overall market is currently in a <strong style="color:'+rClr+'">'+mr.regime.replace(/_/g,' ')+'</strong> regime. ';
+      if(mr.explanation) regimeText += mr.explanation+' ';
+      { const cfv=parseFloat(cf)||1;
+        if(cfv>1.05) regimeText += 'The <strong style="color:#0ab39c">'+cf+'× confidence factor</strong> boosts ML win probabilities — individual stock signals historically have a higher success rate in this environment. ';
+        else if(cfv<0.95) regimeText += 'The <strong style="color:#f06548">'+cf+'× confidence factor</strong> discounts ML probabilities — individual signals face macro headwinds that reduce their historical success rate. ';
+        else regimeText += 'The <strong style="color:#f7b84b">'+cf+'× confidence factor</strong> applies minimal adjustment — the macro environment is neither amplifying nor dampening signal quality. ';
+        const rg=mr.regime;
+        if(rg==='STRONG_BULL'||rg==='BULL') regimeText += 'Nifty is trading above key moving averages with healthy breadth — trend-following entries carry a statistical tailwind. ';
+        else if(rg==='BEAR'||rg==='STRONG_BEAR') regimeText += 'Nifty is below key moving averages — long entries must clear a higher bar. Consider reduced position sizes and tighter stops. ';
+        else regimeText += 'Nifty is in a transitional zone — no strong directional bias at the macro level. Individual stock-level conviction matters more than usual. ';
+      }
+
+      miContent += `<div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="bi bi-globe2" style="color:${rClr}"></i>
+          <span style="font-size:.82rem;font-weight:600;color:#c9d1d9">Market Regime</span>
+          <span style="padding:2px 10px;border-radius:6px;font-size:.72rem;font-weight:600;background:${rClr}22;color:${rClr}">${mr.regime}</span>
+          <span style="font-size:.72rem;color:#8b949e">factor: ${cf}×</span>
+        </div>
+        <div style="font-size:.73rem;color:#8b949e;line-height:1.65">${regimeText}</div>
+      </div>`;
+    }
+
+    // Adaptive context (percentiles)
+    const ac = p.adaptive_context;
+    let adaptText = '';
+    if(ac && ac.bbw_percentile != null){
+      hasContent = true;
+      // Dynamic adaptive text
+      const bw=ac.bbw_percentile, rs=ac.rsi_percentile, at=ac.atr_percentile, vl=ac.vol_ratio_percentile;
+      adaptText = 'Compared to its own <strong style="color:#c9d1d9">'+(ac.lookback_days||250)+'-day history</strong>: ';
+      if(bw!=null){ if(bw<=15) adaptText+='BBW at the <strong style="color:#3b82f6">'+bw.toFixed(0)+'th percentile</strong> — bands are tighter than '+(100-bw).toFixed(0)+'% of the past year, signalling a potential <strong style="color:#3b82f6">squeeze buildup</strong>. '; else if(bw>=85) adaptText+='BBW at the <strong style="color:#f06548">'+bw.toFixed(0)+'th percentile</strong> — bands are unusually wide, suggesting a move may be <strong style="color:#f06548">extended or exhausting</strong>. '; else adaptText+='BBW at '+bw.toFixed(0)+'th percentile — bandwidth is in normal range. '; }
+      if(rs!=null){ if(rs>=85) adaptText+='RSI at the <strong style="color:#f06548">'+rs.toFixed(0)+'th percentile</strong> — momentum is at historically extreme levels; <strong style="color:#f06548">exhaustion risk</strong> is elevated. '; else if(rs<=15) adaptText+='RSI at the <strong style="color:#22d3ee">'+rs.toFixed(0)+'th percentile</strong> — momentum is near historic lows; watch for <strong style="color:#22d3ee">reversal signals</strong>. '; else adaptText+='RSI at '+rs.toFixed(0)+'th percentile — momentum is within normal bounds. '; }
+      if(at!=null){ if(at>=80) adaptText+='ATR at the <strong style="color:#f06548">'+at.toFixed(0)+'th percentile</strong> — volatility is elevated; use wider stops and smaller size. '; else if(at<=20) adaptText+='ATR at the <strong style="color:#0ab39c">'+at.toFixed(0)+'th percentile</strong> — low volatility allows tighter stops and more precise entries. '; }
+      if(vl!=null){ if(vl>=75) adaptText+='Volume at the <strong style="color:#0ab39c">'+vl.toFixed(0)+'th percentile</strong> — above-average participation confirms price action. '; else if(vl<=25) adaptText+='Volume at the <strong style="color:#8b949e">'+vl.toFixed(0)+'th percentile</strong> — thin participation; moves may lack conviction. '; }
+      const pctBar = (label, val, pctile, clr) => {
+        if(val == null || pctile == null) return '';
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.75rem">
+          <span style="width:90px;color:#8b949e;text-align:right">${label}</span>
+          <div style="flex:1;height:6px;border-radius:3px;background:#222;overflow:hidden;position:relative">
+            <div style="width:${Math.min(pctile,100)}%;height:100%;background:${clr};border-radius:3px"></div>
+          </div>
+          <span style="width:60px;font-weight:600;color:${clr}">${pctile.toFixed(0)}th %ile</span>
+        </div>`;
+      };
+      miContent += `<div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="bi bi-speedometer" style="color:#7c4dff"></i>
+          <span style="font-size:.82rem;font-weight:600;color:#c9d1d9">Adaptive Context</span>
+          <span style="font-size:.72rem;color:#8b949e">${ac.lookback_days||250}-day percentile ranks</span>
+        </div>
+        ${pctBar('BBW', ac.bbw_current, ac.bbw_percentile, ac.bbw_percentile<20?'#3b82f6':ac.bbw_percentile>80?'#f06548':'#f7b84b')}
+        ${pctBar('RSI', ac.rsi_current, ac.rsi_percentile, ac.rsi_percentile>80?'#f06548':ac.rsi_percentile<20?'#22d3ee':'#0ab39c')}
+        ${pctBar('ATR', ac.atr_current, ac.atr_percentile, ac.atr_percentile>80?'#f06548':'#0ab39c')}
+        ${pctBar('Volume', ac.vol_ratio_current, ac.vol_ratio_percentile, ac.vol_ratio_percentile>70?'#0ab39c':'#8b949e')}
+        <div style="font-size:.73rem;color:#8b949e;line-height:1.65;margin-top:6px">${adaptText}</div>
+      </div>`;
+    }
+
+    if(hasContent){
+      cards += `<div class="col-lg-6 col-md-12">
+        <div class="method-card" style="border-color:rgba(124,77,255,.3);min-height:100%">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <i class="bi bi-cpu" style="font-size:1.2rem;color:#7c4dff"></i>
+            <span class="method-title" style="margin:0">Market Intelligence</span>
+          </div>
+          ${miContent}
+        </div>
+      </div>`;
+    }
+  }
+
+  // ── D. Trade Management (Exit + Sizing + Method Router) ───
+  {
+    let tmContent = '';
+    let hasContent = false;
+
+    // Exit Intelligence
+    const ex = p.exit_intelligence;
+    if(ex && ex.available !== false && ex.urgency != null){
+      hasContent = true;
+      const urgClr = ex.urgency<25?'#0ab39c':ex.urgency<45?'#f7b84b':ex.urgency<65?'#f0883e':'#f06548';
+      const uw = Math.min(ex.urgency, 100);
+      // individual signals
+      let sigHtml = '';
+      if(ex.signals){
+        const sigs = Object.entries(ex.signals).filter(([,v])=>v===true);
+        if(sigs.length){
+          sigHtml = '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">';
+          sigs.forEach(([k])=>{
+            sigHtml += `<span style="padding:2px 8px;border-radius:4px;font-size:.68rem;background:rgba(240,101,72,.15);color:#f06548">${k.replace(/_/g,' ')}</span>`;
+          });
+          sigHtml += '</div>';
+        }
+      }
+      // Dynamic exit text
+      let exitText = ex.explanation || '';
+      if(!exitText){
+        const u=ex.urgency||0, elbl=(ex.urgency_label||'').replace(/_/g,' '), esigs=ex.signals||{};
+        const fired=Object.entries(esigs).filter(function(e){return e[1]}).map(function(e){return e[0]});
+        exitText = 'Exit urgency is at <strong style="color:'+urgClr+'">'+u+'/100 ('+elbl+')</strong> with '+fired.length+' of 6 decay signals active. ';
+        if(u>=70) exitText += 'Multiple exit signals are firing simultaneously — the trade\'s statistical edge is deteriorating rapidly. Consider taking profits or tightening stops immediately. ';
+        else if(u>=40) exitText += 'Some exit signals are active — the trade still has life but monitor closely for further deterioration. ';
+        else exitText += 'Exit signals are quiet — the trade\'s edge appears intact. Continue holding with normal stop discipline. ';
+        if(fired.includes('rsi_exhaustion')) exitText += 'RSI exhaustion detected — momentum has reached unsustainable levels. ';
+        if(fired.includes('bbw_contracting')) exitText += 'Bandwidth is contracting after expansion — the move may be losing steam. ';
+        if(fired.includes('sar_bearish')) exitText += 'SAR has flipped bearish — trend direction indicator is turning against the position. ';
+      }
+
+      tmContent += `<div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="bi bi-door-open" style="color:${urgClr}"></i>
+          <span style="font-size:.82rem;font-weight:600;color:#c9d1d9">Exit Intelligence</span>
+          <span style="padding:2px 10px;border-radius:6px;font-size:.72rem;font-weight:600;background:${urgClr}22;color:${urgClr}">${ex.urgency_label||ex.recommended_action||''}</span>
+          ${ex.momentum_health ? `<span style="font-size:.72rem;color:#8b949e">Momentum: ${ex.momentum_health}</span>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:.75rem;color:#8b949e">Urgency</span>
+          <div class="score-bar" style="flex:1">
+            <div class="score-fill" style="width:${uw}%;background:${urgClr}"></div>
+          </div>
+          <span style="font-size:.82rem;font-weight:600;color:${urgClr}">${ex.urgency}/100</span>
+        </div>
+        ${ex.hold_estimate_days ? `<div style="font-size:.75rem;color:#8b949e;margin-bottom:4px">Estimated hold: <strong style="color:#c9d1d9">${ex.hold_estimate_days} days</strong></div>` : ''}
+        ${sigHtml}
+        <div style="font-size:.73rem;color:#8b949e;line-height:1.65;margin-top:8px">${exitText}</div>
+      </div>`;
+    }
+
+    // Position sizing
+    if(p.size_recommended_pct != null){
+      hasContent = true;
+      const stats = p.size_method_stats || {};
+      // Dynamic kelly text
+      let kellyText = '';
+      { const wr=stats.win_rate, pf=stats.profit_factor, alloc=p.size_recommended_pct;
+        if(wr!=null) kellyText += 'The method\'s historical win rate is <strong style="color:#c9d1d9">'+(wr*100).toFixed(0)+'%</strong>'+(pf!=null?' with a profit factor of <strong style="color:#c9d1d9">'+pf.toFixed(2)+'</strong>':'')+' — ';
+        if(wr!=null&&wr>=0.6) kellyText += 'above average, giving the Kelly formula room for a larger allocation. ';
+        else if(wr!=null&&wr>=0.5) kellyText += 'moderate, so Kelly recommends a measured position. ';
+        else if(wr!=null) kellyText += 'below 50%, so Kelly recommends minimal exposure or no position. ';
+        if(alloc!=null){ if(alloc>=10) kellyText+='The recommended <strong style="color:#22d3ee">'+alloc.toFixed(1)+'% allocation</strong> is on the aggressive side — appropriate only if overall portfolio exposure allows it. '; else if(alloc>=4) kellyText+='The recommended <strong style="color:#22d3ee">'+alloc.toFixed(1)+'% allocation</strong> represents a moderate position — balanced between upside capture and drawdown control. '; else kellyText+='At <strong style="color:#22d3ee">'+alloc.toFixed(1)+'%</strong>, this is a small, conservative position — the model sees limited edge and sizes accordingly. '; }
+        if(p.size_risk_per_trade!=null) kellyText += 'Maximum risk per trade: <strong style="color:#f7b84b">'+rupee(p.size_risk_per_trade)+'</strong> — worst-case loss if stop-loss is hit. ';
+      }
+      tmContent += `<div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="bi bi-pie-chart" style="color:#22d3ee"></i>
+          <span style="font-size:.82rem;font-weight:600;color:#c9d1d9">Position Sizing (Kelly)</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:8px">
+          <div><div class="mini-label">Allocation</div><div class="indicator-val" style="font-size:1.1rem;color:#22d3ee">${p.size_recommended_pct.toFixed(1)}%</div></div>
+          <div><div class="mini-label">Amount</div><div class="indicator-val" style="font-size:1.1rem;color:#22d3ee">${rupee(p.size_recommended_amount)}</div></div>
+          <div><div class="mini-label">Shares</div><div class="indicator-val" style="font-size:1.1rem;color:#c9d1d9">${p.size_shares||'—'}</div></div>
+          <div><div class="mini-label">Risk/Trade</div><div class="indicator-val" style="font-size:1.1rem;color:#f7b84b">${rupee(p.size_risk_per_trade)}</div></div>
+        </div>
+        <div style="font-size:.73rem;color:#8b949e;line-height:1.65">${kellyText}</div>
+      </div>`;
+    }
+
+    // Method router
+    const mr = ai.method_routing;
+    if(mr && mr.available !== false && mr.method_rankings){
+      hasContent = true;
+      let rankHtml = '<div style="margin-top:8px">';
+      mr.method_rankings.slice(0,4).forEach((m,i)=>{
+        const mClr = i===0 ? '#0ab39c' : '#8b949e';
+        const wr = m.win_rate != null ? (m.win_rate*100).toFixed(1)+'%' : '—';
+        rankHtml += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.78rem">
+          <span style="width:16px;text-align:center;font-weight:700;color:${mClr}">${i+1}</span>
+          <span style="width:40px;font-weight:600;color:${mClr}">${m.method||''}</span>
+          <div style="flex:1;height:5px;border-radius:3px;background:#222;overflow:hidden">
+            <div style="width:${Math.min((m.win_rate||0)*100,100)}%;height:100%;background:${mClr};border-radius:3px"></div>
+          </div>
+          <span style="width:50px;text-align:right;color:${mClr};font-weight:600">${wr}</span>
+          <span style="width:60px;text-align:right;color:#666;font-size:.7rem">${m.trades_in_regime||'—'} trades</span>
+        </div>`;
+      });
+      rankHtml += '</div>';
+
+      // Dynamic method router text
+      let routerText = '';
+      { const bm=mr.best_method, rd=mr.regime_detected, ranks=mr.method_rankings||[];
+        if(bm) routerText += 'In the current <strong style="color:#c9d1d9">'+(rd||'detected')+'</strong> regime, <strong style="color:#0ab39c">'+bm+'</strong> has the highest historical win rate. ';
+        if(ranks.length>=2){
+          const top=ranks[0], sec=ranks[1];
+          if(top.win_rate!=null&&sec.win_rate!=null){
+            const gap=((top.win_rate-sec.win_rate)*100).toFixed(1);
+            if(parseFloat(gap)>3) routerText += 'It leads '+(sec.method||'the runner-up')+' by <strong style="color:#0ab39c">'+gap+' percentage points</strong> — a meaningful edge in this regime. ';
+            else routerText += 'The top two methods ('+top.method+', '+sec.method+') are separated by only <strong style="color:#f7b84b">'+gap+' points</strong> — both are viable in this regime. ';
+          }
+          if(top.trades_in_regime) routerText += 'This ranking is based on <strong style="color:#c9d1d9">'+top.trades_in_regime+' historical trades</strong> in similar conditions. ';
+        }
+      }
+
+      tmContent += `<div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="bi bi-signpost-split" style="color:#f0883e"></i>
+          <span style="font-size:.82rem;font-weight:600;color:#c9d1d9">Method Router</span>
+          ${mr.regime_detected ? `<span style="font-size:.72rem;color:#8b949e">${mr.regime_detected}</span>` : ''}
+        </div>
+        <div style="font-size:.73rem;color:#8b949e;line-height:1.65;margin-bottom:6px">${routerText}</div>
+        ${rankHtml}
+      </div>`;
+    }
+
+    if(hasContent){
+      cards += `<div class="col-lg-6 col-md-12">
+        <div class="method-card" style="border-color:rgba(34,211,238,.3);min-height:100%">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <i class="bi bi-sliders" style="font-size:1.2rem;color:#22d3ee"></i>
+            <span class="method-title" style="margin:0">Trade Management</span>
+          </div>
+          ${tmContent}
+        </div>
+      </div>`;
+    }
+  }
+
+  if(!cards){ el.innerHTML=''; return; }
+
+  // Dynamic intro summary
+  let introSummary = '';
+  { const xg=p.ml_confidence!=null?p.ml_confidence*100:null, sq=p.seq_confidence!=null?p.seq_confidence*100:null;
+    if(xg!=null&&sq!=null&&p.seq_agreement==='BOTH_AGREE'&&xg>=60) introSummary='<strong style="color:#0ab39c">Both ML models converge with strong conviction</strong> — data-driven evidence supports the rule-based signal above.';
+    else if(xg!=null&&sq!=null&&p.seq_agreement==='DISAGREE') introSummary='<strong style="color:#f7b84b">ML models conflict</strong> — the data-driven layer sends a mixed signal. Weigh the rule-based triple score more heavily and use tighter risk management.';
+    else if(xg!=null&&xg<50) introSummary='<strong style="color:#f06548">ML models flag concern</strong> — the statistical evidence does not support this setup. Consider waiting for better odds.';
+    else if(xg!=null&&sq!=null&&p.seq_agreement==='BOTH_CAUTION') introSummary='<strong style="color:#f7b84b">Both ML models show thin edge</strong> — data-driven conviction is low. Size conservatively if trading.';
+    else introSummary='These models provide a data-driven 4th opinion beyond the rule-based Triple Conviction scoring above.';
+  }
+
+  el.innerHTML = `<div class="card" style="border-color:rgba(124,77,255,.25)">
+    <div class="card-header" style="background:rgba(124,77,255,.08)">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="section-title"><i class="bi bi-stars me-2" style="color:#7c4dff"></i>AI / ML Intelligence Layer</span>
+        <span style="font-size:.72rem;color:#8b949e">${ai.elapsed_ms||0}ms · ${Object.values(ai.modules||{}).filter(m=>m.status==='ok').length} modules</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div style="font-size:.73rem;color:#8b949e;line-height:1.65;margin-bottom:16px;padding:12px 16px;background:rgba(124,77,255,.06);border-radius:8px;border:1px solid rgba(124,77,255,.15)">
+        ${Object.values(ai.modules||{}).filter(m=>m.status==='ok').length} of 8 AI/ML models ran successfully in <strong style="color:#c9d1d9">${ai.elapsed_ms||0}ms</strong>.
+        ${p.ml_confidence != null ? `XGBoost scores this stock at <strong style="color:#c9d1d9">${(p.ml_confidence*100).toFixed(1)}%</strong> win probability.` : ''}
+        ${p.seq_confidence != null ? `LSTM sequence pattern: <strong style="color:#c9d1d9">${(p.seq_confidence*100).toFixed(1)}%</strong>.` : ''}
+        ${p.seq_agreement ? (p.seq_agreement === 'BOTH_AGREE' ? '<strong style="color:#0ab39c">Both models agree</strong> — higher conviction.' : p.seq_agreement === 'DISAGREE' ? '<strong style="color:#f7b84b">Models disagree</strong> — mixed signal.' : '<strong style="color:#f06548">Both cautious</strong> — thin edge.') : ''}
+        ${(p.market_regime||ai.market_regime||{}).regime ? `Market: <strong style="color:#c9d1d9">${((p.market_regime||ai.market_regime).regime||'').replace('_',' ')}</strong>.` : ''}
+        ${introSummary}
+      </div>
+      <div class="row g-3">${cards}</div>
+    </div>
+  </div>`;
 }
 
 /* ─── BB METHODS DETAIL ─── */

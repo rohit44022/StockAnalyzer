@@ -410,7 +410,7 @@ body.sidebar-collapsed .ticker-strip{left:70px}
             <span class="fw-semibold">Exit Timing Advisor</span>
             <span class="badge font-mono ms-auto" id="aiExitBadge" style="font-size:.75rem"></span>
           </div>
-          <div class="small text-secondary mb-2">Should you keep holding this stock, or is it time to exit? This system checks 6 technical signals to assess how "tired" the current move is.</div>
+          <div class="small text-secondary mb-2" id="aiExitIntro"></div>
           <!-- Urgency gauge -->
           <div class="mb-2">
             <div class="d-flex justify-content-between align-items-center mb-1">
@@ -445,7 +445,7 @@ body.sidebar-collapsed .ticker-strip{left:70px}
             <span class="fw-semibold">Market Regime (Nifty 50)</span>
             <span class="badge font-mono ms-auto" id="aiRegimeBadge" style="font-size:.75rem"></span>
           </div>
-          <div class="small text-secondary mb-2">Is the overall Indian stock market in a bull run or bear phase? This affects how confidently you should hold your positions.</div>
+          <div class="small text-secondary mb-2" id="aiRegimeIntro"></div>
           <!-- 5 signal dots -->
           <div class="d-flex gap-2 flex-wrap mb-2" id="aiRegimeSignals"></div>
           <!-- Confidence adjustment -->
@@ -459,7 +459,7 @@ body.sidebar-collapsed .ticker-strip{left:70px}
             <span class="fw-semibold">ML Win Probability</span>
             <span class="badge font-mono ms-auto" id="aiMlBadge" style="font-size:.75rem"></span>
           </div>
-          <div class="small text-secondary mb-2">Our machine learning model was trained on 3 lakh+ real trades from 15 years of NSE data. It scores how likely this trade pattern is to be a winner.</div>
+          <div class="small text-secondary mb-2" id="aiMlIntro"></div>
           <!-- Gauge -->
           <div class="mb-2">
             <div class="d-flex justify-content-between mb-1">
@@ -484,7 +484,7 @@ body.sidebar-collapsed .ticker-strip{left:70px}
             <span class="fw-semibold">Position Size Check (Kelly)</span>
             <span class="badge font-mono ms-auto" id="aiKellyBadge" style="font-size:.75rem"></span>
           </div>
-          <div class="small text-secondary mb-2">The Kelly Criterion (used by professional traders and hedge funds) calculates the optimal percentage of your capital to risk on this trade. Is your current position too big, too small, or just right?</div>
+          <div class="small text-secondary mb-2" id="aiKellyIntro"></div>
           <div class="row g-2 mb-2">
             <div class="col-4 text-center">
               <div class="small text-secondary">Recommended</div>
@@ -500,6 +500,54 @@ body.sidebar-collapsed .ticker-strip{left:70px}
             </div>
           </div>
           <div class="p-2 rounded" id="aiKellyExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--o);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
+        <!-- REGIME CLUSTER -->
+        <div class="p-3 rounded mb-3" id="aiClusterSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-diagram-3" style="color:var(--b)"></i>
+            <span class="fw-semibold">Market Regime Cluster</span>
+            <span class="badge font-mono ms-auto" id="aiClusterBadge" style="font-size:.75rem"></span>
+          </div>
+          <div class="small text-secondary mb-2" id="aiClusterIntro"></div>
+          <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="small text-secondary">Cluster Confidence</span>
+              <span class="font-mono fw-bold" id="aiClusterScore"></span>
+            </div>
+            <div style="height:8px;border-radius:4px;background:var(--card-border);position:relative">
+              <div id="aiClusterBar" style="height:100%;border-radius:4px;transition:width .5s"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-1" style="font-size:.6rem;color:#596275">
+              <span>0% — Weak match</span><span>100% — Strong match</span>
+            </div>
+          </div>
+          <div class="p-2 rounded" id="aiClusterExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--b);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
+        <!-- LSTM SEQUENCE SCORER -->
+        <div class="p-3 rounded mb-3" id="aiSeqSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-soundwave" style="color:var(--c)"></i>
+            <span class="fw-semibold">Sequence Pattern (LSTM)</span>
+            <span class="badge font-mono ms-auto" id="aiSeqBadge" style="font-size:.75rem"></span>
+            <span class="badge font-mono" id="aiSeqAgreeBadge" style="font-size:.7rem"></span>
+          </div>
+          <div class="small text-secondary mb-2" id="aiSeqIntro"></div>
+          <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="small text-secondary">Sequence Confidence</span>
+              <span class="font-mono fw-bold" id="aiSeqScore"></span>
+            </div>
+            <div style="height:8px;border-radius:4px;background:var(--card-border);position:relative">
+              <div id="aiSeqBar" style="height:100%;border-radius:4px;transition:width .5s"></div>
+              <div style="position:absolute;top:-2px;left:55%;width:2px;height:12px;background:var(--y)" title="55% threshold"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-1" style="font-size:.6rem;color:#596275">
+              <span>0% — Weak</span><span>55% threshold</span><span>100% — Strong</span>
+            </div>
+          </div>
+          <div class="p-2 rounded" id="aiSeqExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--c);font-size:.85rem;line-height:1.7"></div>
         </div>
 
         <!-- AI TRACK RECORD -->
@@ -2334,7 +2382,7 @@ function renderAnalysis(data) {
     renderTrailingStops(data.trailing_stops || {}, data.holding || {});
 
     // ═══════ AI/ML INTELLIGENCE PANEL ═══════
-    renderAiMlPanel(data.ai_ml_intel || {}, data.holding || {}, data.recommendation || {}); }
+    renderAiMlPanel(data.ai_ml_intel || {}, data.holding || {}, data.recommendation || {}, (data.position && data.position.ticker || '').replace('.NS','')); }
 
 function renderMultiSystem(ms) {
     const section = document.getElementById('multiSystemSection');
@@ -4058,10 +4106,10 @@ function renderTrailingStops(ts, holding) {
 // ═══════════════════════════════════════════════════════════════
 //  AI/ML INTELLIGENCE PANEL RENDERER
 // ═══════════════════════════════════════════════════════════════
-function renderAiMlPanel(ai, holding, rec) {
+function renderAiMlPanel(ai, holding, rec, ticker) {
     const panel = document.getElementById('aiMlPanel');
     if (!panel) return;
-    if (!ai || (!ai.exit_intelligence && !ai.market_regime)) {
+    if (!ai || (!ai.exit_intelligence && !ai.market_regime && ai.ml_confidence == null && ai.regime_cluster_id == null && ai.seq_confidence == null)) {
         panel.style.display = 'none';
         return;
     }
@@ -4074,6 +4122,21 @@ function renderAiMlPanel(ai, holding, rec) {
         exSec.style.display = '';
         const u = ei.urgency || 0;
         const lbl = ei.urgency_label || 'HOLD';
+
+        // Dynamic intro text
+        const eiSigs = ei.signals || {};
+        const eiFired = ['rsi_overbought','rsi_declining','bbw_contracting','volume_fading','sar_bearish','below_sma20'].filter(k => eiSigs[k]);
+        const eiSigNames = {rsi_overbought:'RSI overbought (>75)',rsi_declining:'RSI declining from peak',bbw_contracting:'Bollinger squeeze fading',volume_fading:'volume below average',sar_bearish:'SAR turned bearish',below_sma20:'price below 20-day MA'};
+        let eiIntro = `${ticker ? ticker+': ' : ''}${eiFired.length} of 6 exit signals currently active`;
+        if (eiFired.length > 0) eiIntro += ` — ${eiFired.map(k=>eiSigNames[k]||k).join(', ')}`;
+        eiIntro += `. Urgency reads <strong>${u}/100 (${lbl.replace('_',' ')})</strong>`;
+        eiIntro += `, momentum is <strong>${ei.momentum_health || 'N/A'}</strong>.`;
+        if (u <= 25) eiIntro += ' All clear — the trade\'s edge is intact. No exit pressure detected.';
+        else if (u <= 45) eiIntro += ' Early warning signs are appearing. Keep watching but no action needed yet.';
+        else if (u <= 65) eiIntro += ' Meaningful decay detected — consider moving your stop-loss closer to protect profits.';
+        else eiIntro += ' Multiple signals confirm the edge is fading. Strongly consider taking profits or exiting.';
+        if (ei.hold_estimate_days) eiIntro += ` Typical profitable hold for this method: <strong>${ei.hold_estimate_days} days</strong>.`;
+        document.getElementById('aiExitIntro').innerHTML = eiIntro;
         const barClr = u <= 25 ? 'var(--g)' : u <= 45 ? 'var(--b)' : u <= 65 ? 'var(--y)' : 'var(--r)';
         const badgeClr = lbl==='HOLD' ? 'background:rgba(10,179,156,.15);color:#0ab39c'
             : lbl==='MONITOR' ? 'background:rgba(124,138,239,.15);color:#7c8aef'
@@ -4122,6 +4185,21 @@ function renderAiMlPanel(ai, holding, rec) {
     if (mr.regime) {
         regSec.style.display = '';
         const regime = mr.regime || 'NEUTRAL';
+
+        // Dynamic intro text
+        const mrScore = mr.score || 0;
+        const mrSigs = mr.signals || {};
+        const mrGreen = ['nifty_above_50sma','nifty_above_200sma','nifty_rsi_bullish','vix_bullish','breadth_bullish'].filter(k => mrSigs[k] === true);
+        const mrRed = ['nifty_above_50sma','nifty_above_200sma','nifty_rsi_bullish','vix_bullish','breadth_bullish'].filter(k => mrSigs[k] === false);
+        const mrSigLabels = {nifty_above_50sma:'Nifty above 50-SMA',nifty_above_200sma:'Nifty above 200-SMA',nifty_rsi_bullish:'RSI bullish',vix_bullish:'VIX calm',breadth_bullish:'breadth positive'};
+        let mrIntro = `Indian market is currently <strong>${regime.replace('_',' ')}</strong> — ${mrScore}/5 macro signals bullish.`;
+        if (mrGreen.length) mrIntro += ` Bullish: ${mrGreen.map(k=>mrSigLabels[k]).join(', ')}.`;
+        if (mrRed.length) mrIntro += ` Bearish: ${mrRed.map(k=>mrSigLabels[k]).join(', ')}.`;
+        const cf = mr.confidence_factor || 1;
+        if (cf > 1) mrIntro += ` In this regime, ML confidence is <strong>boosted by ${((cf-1)*100).toFixed(0)}%</strong> — signals historically work better when the tide is favourable.`;
+        else if (cf < 1) mrIntro += ` In this regime, ML confidence is <strong>reduced by ${((1-cf)*100).toFixed(0)}%</strong> — counter-trend trades are riskier when the market is weak.`;
+        if (mr.nifty_price) mrIntro += ` Nifty 50 at ₹${Number(mr.nifty_price).toLocaleString('en-IN',{maximumFractionDigits:0})}.`;
+        document.getElementById('aiRegimeIntro').innerHTML = mrIntro;
         const regClr = regime.includes('BULL') ? 'var(--g)' : regime.includes('BEAR') ? 'var(--r)' : 'var(--y)';
         const regBg = regime.includes('BULL') ? 'rgba(10,179,156,.15)' : regime.includes('BEAR') ? 'rgba(240,101,72,.15)' : 'rgba(247,184,75,.15)';
         document.getElementById('aiRegimeBadge').textContent = regime.replace('_',' ');
@@ -4144,7 +4222,6 @@ function renderAiMlPanel(ai, holding, rec) {
         });
         document.getElementById('aiRegimeSignals').innerHTML = regSigHtml;
 
-        const cf = mr.confidence_factor || 1;
         const niftyPrice = mr.nifty_price ? `Nifty at ₹${Number(mr.nifty_price).toLocaleString('en-IN', {maximumFractionDigits:0})}` : '';
         let regExpl = mr.explanation || '';
         if (cf !== 1) {
@@ -4165,6 +4242,21 @@ function renderAiMlPanel(ai, holding, rec) {
         const verdict = ai.ml_verdict || (conf >= 55 ? 'ML_PASS' : 'ML_CAUTION');
         const vClr = verdict === 'ML_PASS' ? 'var(--g)' : 'var(--y)';
         const vBg = verdict === 'ML_PASS' ? 'rgba(10,179,156,.15)' : 'rgba(247,184,75,.15)';
+
+        // Dynamic intro text
+        let mlIntro = `${ticker ? ticker+': ' : ''}XGBoost scores this trade at <strong>${conf}%</strong> — ${conf >= 55 ? 'above' : 'below'} the 55% threshold (${verdict.replace('ML_','')}).`;
+        if (ai.ml_explanation && ai.ml_explanation.length) {
+            const topDriver = ai.ml_explanation[0];
+            const driverLabels = {bbw:'Bollinger Width',rsi14:'RSI',atr14_pct:'ATR%',vol_ratio:'Volume Ratio',close_vs_sma20:'Price vs SMA20',close_vs_upper:'Price vs Upper Band',close_vs_lower:'Price vs Lower Band',sma20_slope_5d:'SMA20 Slope',rsi14_slope_5d:'RSI Slope',bbw_percentile_60d:'BB Width Pctl',vol_trend_5d:'Vol Trend',price_momentum_10d:'10d Momentum',price_momentum_20d:'20d Momentum'};
+            const driverName = driverLabels[topDriver.feature] || topDriver.feature;
+            mlIntro += ` Biggest driver: <strong>${driverName}</strong> (${topDriver.direction === 'WIN' ? 'pushing toward win' : 'pulling toward loss'}).`;
+        }
+        if (ai.ml_percentile != null) mlIntro += ` Ranks in the top ${100 - Math.round(ai.ml_percentile * 100)}% of all scored trades.`;
+        if (ai.ml_downside_risk != null) {
+            const dr = (ai.ml_downside_risk * 100).toFixed(1);
+            mlIntro += ` Worst-case estimate: <strong>${dr}%</strong> (25th percentile).`;
+        }
+        document.getElementById('aiMlIntro').innerHTML = mlIntro;
 
         document.getElementById('aiMlBadge').textContent = verdict.replace('ML_','');
         document.getElementById('aiMlBadge').style.cssText = `background:${vBg};color:${vClr}`;
@@ -4214,6 +4306,18 @@ function renderAiMlPanel(ai, holding, rec) {
         const stClr = st==='ALIGNED'?'var(--g)':st==='OVERSIZED'?'var(--r)':'var(--y)';
         const stBg = st==='ALIGNED'?'rgba(10,179,156,.15)':st==='OVERSIZED'?'rgba(240,101,72,.15)':'rgba(247,184,75,.15)';
 
+        // Dynamic intro text
+        const recPct = (kc.recommended_pct||0).toFixed(1);
+        const actPct = (kc.actual_pct||0).toFixed(1);
+        const stratName = rec.strategy_code || 'this strategy';
+        let kellyIntro = `Half-Kelly formula recommends <strong>${recPct}%</strong> of capital for ${stratName}`;
+        if (kc.win_rate) kellyIntro += ` (based on ${(kc.win_rate*100).toFixed(0)}% historical win rate)`;
+        kellyIntro += `. Your actual allocation is <strong>${actPct}%</strong> — `;
+        if (st === 'ALIGNED') kellyIntro += `<strong style="color:var(--g)">well-matched</strong>. Position size is within the mathematically optimal range.`;
+        else if (st === 'OVERSIZED') kellyIntro += `<strong style="color:var(--r)">oversized</strong>. You're risking more than the edge justifies. Consider trimming to reduce drawdown risk.`;
+        else kellyIntro += `<strong style="color:var(--y)">undersized</strong>. The edge supports a larger position. You have room to add shares if conviction is high.`;
+        document.getElementById('aiKellyIntro').innerHTML = kellyIntro;
+
         document.getElementById('aiKellyBadge').textContent = st;
         document.getElementById('aiKellyBadge').style.cssText = `background:${stBg};color:${stClr}`;
         document.getElementById('aiKellyRec').textContent = (kc.recommended_pct || 0).toFixed(1) + '%';
@@ -4231,6 +4335,107 @@ function renderAiMlPanel(ai, holding, rec) {
         document.getElementById('aiKellyExplain').innerHTML = kellyExpl;
     } else {
         kellySec.style.display = 'none';
+    }
+
+    // ── REGIME CLUSTER ──
+    const clSec = document.getElementById('aiClusterSection');
+    if (ai.regime_cluster_id != null && ai.regime_cluster_label) {
+        clSec.style.display = '';
+        const cLabel = ai.regime_cluster_label;
+        const cConf = ai.regime_cluster_confidence != null ? Math.round(ai.regime_cluster_confidence * 100) : 0;
+
+        // Dynamic intro text
+        let clIntro = `${ticker ? ticker+' ' : ''}is in the <strong>"${cLabel}"</strong> regime (cluster #${ai.regime_cluster_id}) with <strong>${cConf}%</strong> match confidence.`;
+        if (cLabel.includes('Bullish')) clIntro += ' This cluster is historically associated with upward momentum — supports holding.';
+        else if (cLabel.includes('Bearish') || cLabel.includes('Oversold')) clIntro += ' This cluster typically sees downward pressure — consider tightening stops.';
+        else if (cLabel.includes('Squeeze') || cLabel.includes('Tight')) clIntro += ' Bollinger Bands are compressed — a big move is likely coming. Direction not yet confirmed.';
+        else if (cLabel.includes('Overbought')) clIntro += ' Indicators are elevated — the stock may be due for a pullback. Watch exit signals closely.';
+        else clIntro += ' No strong directional bias detected — rely on other signals for decision-making.';
+        clIntro += ' Discovered by unsupervised ML (UMAP + KMeans) from 50 lakh+ data points across 2,877 stocks.';
+        document.getElementById('aiClusterIntro').innerHTML = clIntro;
+
+        const cClr = cLabel.includes('Bullish') ? 'var(--g)'
+            : cLabel.includes('Bearish') || cLabel.includes('Oversold') ? 'var(--r)'
+            : cLabel.includes('Squeeze') || cLabel.includes('Tight') ? 'var(--b)'
+            : cLabel.includes('Overbought') ? 'var(--y)' : 'var(--b)';
+        const cBg = cLabel.includes('Bullish') ? 'rgba(10,179,156,.15)'
+            : cLabel.includes('Bearish') || cLabel.includes('Oversold') ? 'rgba(240,101,72,.15)'
+            : cLabel.includes('Overbought') ? 'rgba(247,184,75,.15)' : 'rgba(124,138,239,.15)';
+
+        document.getElementById('aiClusterBadge').textContent = cLabel;
+        document.getElementById('aiClusterBadge').style.cssText = `background:${cBg};color:${cClr}`;
+        document.getElementById('aiClusterScore').textContent = cConf + '%';
+        document.getElementById('aiClusterScore').style.color = cClr;
+        document.getElementById('aiClusterBar').style.width = cConf + '%';
+        document.getElementById('aiClusterBar').style.background = cClr;
+
+        let clExpl = `This stock is currently in the <strong>"${cLabel}"</strong> regime (cluster #${ai.regime_cluster_id}) with <strong>${cConf}% confidence</strong>. `;
+        if (cLabel.includes('Bullish')) {
+            clExpl += `<strong>Bullish regime</strong> — historically, stocks in this cluster tend to have upward momentum. This supports holding your position. The cluster was discovered by analysing 8 indicators across 50 lakh+ bars from 2,877 stocks using unsupervised ML (UMAP dimensionality reduction + KMeans clustering).`;
+        } else if (cLabel.includes('Bearish') || cLabel.includes('Oversold')) {
+            clExpl += `<strong>Bearish/Oversold regime</strong> — this cluster is typically associated with downward pressure. For existing positions, consider tightening your stop-loss or watching exit intelligence signals more carefully.`;
+        } else if (cLabel.includes('Squeeze') || cLabel.includes('Tight')) {
+            clExpl += `<strong>Squeeze regime</strong> — Bollinger Bands are compressed, which historically precedes a big move. The direction isn't guaranteed — pay close attention to exit intelligence and ML confidence for timing.`;
+        } else {
+            clExpl += `This is a <strong>neutral/moderate</strong> cluster — no strong directional bias detected. The stock's indicators don't match any extreme regime. Rely on other signals for decision-making.`;
+        }
+        document.getElementById('aiClusterExplain').innerHTML = clExpl;
+    } else {
+        clSec.style.display = 'none';
+    }
+
+    // ── LSTM SEQUENCE SCORER ──
+    const seqSec = document.getElementById('aiSeqSection');
+    if (ai.seq_confidence != null) {
+        seqSec.style.display = '';
+        const sConf = Math.round(ai.seq_confidence * 100);
+        const sVerdict = ai.seq_verdict || 'SEQ_UNAVAILABLE';
+        const sClr = sVerdict === 'SEQ_PASS' ? 'var(--g)' : 'var(--y)';
+        const sBg = sVerdict === 'SEQ_PASS' ? 'rgba(10,179,156,.15)' : 'rgba(247,184,75,.15)';
+
+        // Dynamic intro text
+        let seqIntro = `${ticker ? ticker+"'s " : ''}last 20 trading days scored <strong>${sConf}%</strong> by the LSTM — ${sConf >= 55 ? 'above' : 'below'} the 55% threshold.`;
+        if (ai.seq_agreement === 'BOTH_AGREE') seqIntro += ' <strong>Both XGBoost and LSTM independently agree</strong> — higher conviction since two different AI architectures see the same pattern.';
+        else if (ai.seq_agreement === 'DISAGREE') seqIntro += ' <strong>The models disagree</strong> — today\'s snapshot and the recent trajectory tell different stories. Proceed with caution.';
+        else if (ai.seq_agreement === 'BOTH_CAUTION') seqIntro += ' <strong>Both models are cautious</strong> — neither the snapshot nor the sequence pattern shows strong conviction. Consider smaller sizing.';
+        if (sVerdict === 'SEQ_PASS') seqIntro += ' The recent price trajectory resembles temporal patterns that historically led to winning trades.';
+        else seqIntro += ' The recent price action doesn\'t strongly match past winning sequences — the temporal edge is thin.';
+        document.getElementById('aiSeqIntro').innerHTML = seqIntro;
+
+        document.getElementById('aiSeqBadge').textContent = sVerdict.replace('SEQ_','');
+        document.getElementById('aiSeqBadge').style.cssText = `background:${sBg};color:${sClr}`;
+        document.getElementById('aiSeqScore').textContent = sConf + '%';
+        document.getElementById('aiSeqScore').style.color = sClr;
+        document.getElementById('aiSeqBar').style.width = sConf + '%';
+        document.getElementById('aiSeqBar').style.background = sClr;
+
+        // Agreement badge
+        const sAgree = ai.seq_agreement;
+        const agBadge = document.getElementById('aiSeqAgreeBadge');
+        if (sAgree && agBadge) {
+            const agClr = sAgree === 'BOTH_AGREE' ? 'var(--g)' : sAgree === 'BOTH_CAUTION' ? 'var(--r)' : 'var(--y)';
+            const agBg = sAgree === 'BOTH_AGREE' ? 'rgba(10,179,156,.15)' : sAgree === 'BOTH_CAUTION' ? 'rgba(240,101,72,.15)' : 'rgba(247,184,75,.15)';
+            const agLabels = {BOTH_AGREE:'Both Agree', DISAGREE:'Models Disagree', BOTH_CAUTION:'Both Cautious'};
+            agBadge.textContent = agLabels[sAgree] || sAgree;
+            agBadge.style.cssText = `background:${agBg};color:${agClr}`;
+        } else if (agBadge) {
+            agBadge.style.display = 'none';
+        }
+
+        let seqExpl = `The LSTM sequence model scored this stock at <strong>${sConf}%</strong>`;
+        seqExpl += sVerdict === 'SEQ_PASS'
+            ? ` — <strong>above the 55% threshold</strong>. The last 20 days of price action resemble temporal patterns that historically led to winning trades. The LSTM reads 6 channels (normalised price, bandwidth, RSI, ATR, volume ratio, momentum) as a sequence — capturing gradual shifts that the snapshot-based XGBoost model cannot see.`
+            : ` — <strong>below the 55% threshold</strong>. The recent price trajectory doesn't strongly match past winning sequences. This doesn't invalidate the trade (the Bollinger Band rules are unchanged), but the temporal pattern is not ideal.`;
+        if (sAgree === 'BOTH_AGREE') {
+            seqExpl += ` <strong>Both the XGBoost and LSTM models agree</strong> — this is a higher-conviction signal. Two completely different AI architectures independently see a winning pattern.`;
+        } else if (sAgree === 'DISAGREE') {
+            seqExpl += ` <strong>The models disagree</strong> — one sees a winning pattern while the other doesn't. This is a lower-conviction signal. Consider smaller position size.`;
+        } else if (sAgree === 'BOTH_CAUTION') {
+            seqExpl += ` <strong>Both models are cautious</strong> — neither the snapshot nor the sequence model sees a strong winner. Consider tightening your stop-loss.`;
+        }
+        document.getElementById('aiSeqExplain').innerHTML = seqExpl;
+    } else {
+        seqSec.style.display = 'none';
     }
 
     // ── AI TRACK RECORD ──

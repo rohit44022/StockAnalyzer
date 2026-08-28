@@ -70,3 +70,10 @@ skills-lock.json
 bb_squeeze/cache/
 logs/*.pkl
 logs/backtest_*.csv
+
+# ── Large ML model/data files (exceed GitHub 100MB limit) ──
+ai_ml/models/regime_cluster.joblib
+ai_ml/models/training_data.parquet
+ai_ml/models/signal_filter_*.joblib
+backtest_bb_kc_results.json
+backtest_triple_results.json

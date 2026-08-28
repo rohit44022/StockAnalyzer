@@ -128,6 +128,24 @@ def enrich_top_picks(result: dict, capital: float = 500_000) -> dict:
         logger.warning("Exit Intelligence failed: %s", e)
         ai_data["modules"]["exit_intelligence"] = {"status": "error", "error": str(e)}
 
+    # ── 8. Regime Clusters (unsupervised) ─────────────────────────
+    try:
+        from ai_ml.regime_cluster import enrich_picks_with_clusters
+        enrich_picks_with_clusters(picks)
+        ai_data["modules"]["regime_cluster"] = {"status": "ok"}
+    except Exception as e:
+        logger.warning("Regime Cluster failed: %s", e)
+        ai_data["modules"]["regime_cluster"] = {"status": "error", "error": str(e)}
+
+    # ── 9. Sequence Scorer (LSTM) ───────────────────────────────
+    try:
+        from ai_ml.sequence_scorer import score_picks_sequence
+        score_picks_sequence(picks)
+        ai_data["modules"]["sequence_scorer"] = {"status": "ok"}
+    except Exception as e:
+        logger.warning("Sequence Scorer failed: %s", e)
+        ai_data["modules"]["sequence_scorer"] = {"status": "error", "error": str(e)}
+
     elapsed = time.time() - t0
     ai_data["elapsed_ms"] = round(elapsed * 1000)
 

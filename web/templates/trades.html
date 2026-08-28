@@ -13,6 +13,7 @@
      
     --card-bg:#282f36; --card-border:#2f3944;
     --g:#0ab39c; --r:#f06548; --y:#f7b84b; --b:#7c8aef; --p:#c084fc; --o:#f0883e; --c:#39d2c0; }
+.text-green{color:var(--g)!important}.text-red{color:var(--r)!important}.text-yellow{color:var(--y)!important}.text-blue{color:var(--b)!important}.text-purple{color:var(--p)!important}
 body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .font-mono{font-family:'JetBrains Mono',monospace}
 .card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px}
@@ -174,7 +175,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   </div>
   <div class="col-6 col-md-4 col-xl-2">
     <div class="sum-card" style="background:linear-gradient(135deg,var(--bs-tertiary-bg),var(--bs-secondary-bg));border:1px solid var(--card-border)">
-      <div class="sum-val" id="sNetPnl">₹0</div><div class="sum-label">Net Profit</div>
+      <div class="sum-val" id="sNetPnl">₹0</div><div class="sum-label">Post-Tax Profit</div>
     </div>
   </div>
 </div>
@@ -321,11 +322,11 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
             <th data-sort="stock">Stock</th><th data-sort="platform">Platform</th><th data-sort="trade_type">Type</th><th class="text-end" data-sort="quantity">Qty</th>
             <th class="text-end" data-sort="buy_price">Buy ₹</th><th class="text-end" data-sort="sell_price">Sell ₹</th>
             <th class="text-end" data-sort="gross_pnl">Gross P&L</th><th class="text-end">Charges</th>
-            <th class="text-end" data-sort="net_pnl">Net P&L</th><th data-sort="tax_category">Tax</th><th class="text-center">Actions</th>
+            <th class="text-end" data-sort="net_pnl">Net P&L</th><th data-sort="tax_category">Tax</th><th class="text-end" data-sort="post_tax_pnl">Post-Tax P&L</th><th class="text-center">Actions</th>
           </tr>
         </thead>
         <tbody id="tradeBody">
-          <tr id="emptyRow"><td colspan="11" class="text-center text-secondary py-4">
+          <tr id="emptyRow"><td colspan="12" class="text-center text-secondary py-4">
             <i class="bi bi-inbox" style="font-size:2rem"></i><br>No trades yet — add your first trade above
           </td></tr>
         </tbody>
@@ -548,15 +549,8 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
         </div>
       </div>
       <div class="card-footer" style="border-top:1px solid var(--card-border);background:rgba(192,132,252,.03)">
-        <div class="small" style="color:#8b949e;line-height:1.6">
-          <strong style="color:var(--p)">How this works:</strong>
-          An XGBoost gradient-boosted tree classifier is trained on <strong>3 lakh+ real trade signals</strong> from 15 years of NSE stock data (2011–2026).
-          For every Bollinger Band signal (M1 squeeze breakout, M2 trend continuation, M3 reversal, M4 momentum), the model looks at 15 features — RSI, ATR, bandwidth, volume ratio, momentum, and the method itself — to predict whether the trade will hit its target (WIN) or stop-loss (LOSS).
-          Probabilities are <strong>calibrated</strong> using isotonic regression so that a 60% confidence truly means ~60 out of 100 similar setups historically won.
-          The <strong>Market Regime</strong> adjusts confidence based on 5 macro signals (Nifty vs moving averages, RSI, VIX, market breadth).
-          <strong>SHAP values</strong> explain exactly which features pushed each prediction toward WIN or LOSS — no black box.
-          The <strong>downside risk model</strong> (expectile regression at 25th percentile) predicts worst-case expected returns.
-          The system learns from your actual trades — resolved outcomes are merged back into training data on retrain.
+        <div class="small" style="color:#8b949e;line-height:1.6" id="mlFooterSummary">
+          <strong style="color:var(--p)">AI/ML Pipeline:</strong> 8 models running on 15 years of NSE data — loading current performance...
         </div>
       </div>
     </div>
@@ -864,6 +858,7 @@ function tradeSortItems(arr) {
         let av, bv;
         if (k === 'gross_pnl') { av = a.pnl?.gross_pnl||0; bv = b.pnl?.gross_pnl||0; }
         else if (k === 'net_pnl') { av = a.pnl?.net_pnl||0; bv = b.pnl?.net_pnl||0; }
+        else if (k === 'post_tax_pnl') { av = a.pnl?.post_tax_pnl||0; bv = b.pnl?.post_tax_pnl||0; }
         else if (k === 'tax_category') { av = a.pnl?.tax_category||''; bv = b.pnl?.tax_category||''; }
         else { av = a[k]; bv = b[k]; }
         if (av == null && bv == null) return 0;
@@ -915,7 +910,7 @@ function renderTable(){
     badge.textContent = TRADES.length;
 
     if(!TRADES.length){
-        tb.innerHTML = `<tr id="emptyRow"><td colspan="11" class="text-center text-secondary py-4">
+        tb.innerHTML = `<tr id="emptyRow"><td colspan="12" class="text-center text-secondary py-4">
             <i class="bi bi-inbox" style="font-size:2rem"></i><br>No trades yet — add your first trade above</td></tr>`;
         delAll.classList.add('d-none');
         if(expPdf) expPdf.classList.add('d-none');
@@ -930,7 +925,7 @@ function renderTable(){
     countEl.textContent = filtered.length < TRADES.length ? `${filtered.length} of ${TRADES.length}` : `${TRADES.length} trades`;
 
     if (!filtered.length) {
-        tb.innerHTML = `<tr><td colspan="11" class="text-center text-secondary py-4">No trades match your filter</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="12" class="text-center text-secondary py-4">No trades match your filter</td></tr>`;
         document.getElementById('tradePager').style.display = 'none';
         return;
     }
@@ -950,12 +945,13 @@ function renderTable(){
             <td>${platformBadge}</td>
             <td>${typeBadge}</td>
             <td class="text-end font-mono">${t.quantity}</td>
-            <td class="text-end font-mono">${fmtR(t.buy_price)}</td>
-            <td class="text-end font-mono">${fmtR(t.sell_price)}</td>
+            <td class="text-end font-mono text-secondary">${fmtR(t.buy_price)}</td>
+            <td class="text-end font-mono ${t.sell_price>=t.buy_price?'text-green':'text-red'}">${fmtR(t.sell_price)}</td>
             <td class="text-end font-mono ${pnlCls(p.gross_pnl)}">${fmtR(p.gross_pnl)}</td>
             <td class="text-end font-mono text-yellow">${fmtR(p.charges.total)}</td>
             <td class="text-end font-mono ${pnlCls(p.net_pnl)}"><strong>${fmtR(p.net_pnl)}</strong></td>
-            <td>${taxBadge}</td>
+            <td>${taxBadge}<br><small class="text-purple font-mono">${fmtR(p.total_tax)}</small></td>
+            <td class="text-end font-mono ${pnlCls(p.post_tax_pnl)}"><strong>${fmtR(p.post_tax_pnl)}</strong></td>
             <td class="text-center">
                 <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();confirmDelete(${t.id})" title="Delete">
                     <i class="bi bi-trash3"></i>
@@ -2276,7 +2272,7 @@ async function renderMLIntelligence() {
             </div>
             <div class="fw-bold font-mono mb-1" style="font-size:1.3rem;color:${rgClr}">${rg.replace('_',' ')}</div>
             <div class="small text-secondary mb-2">${regime.score || 0}/5 bullish signals</div>
-            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">The market regime is the "tide" of the Indian stock market. It checks 5 macro signals — whether Nifty 50 is above its 50-day and 200-day moving averages, whether RSI is bullish, whether VIX (fear index) is low, and whether market breadth (advance/decline ratio) is positive. A STRONG BULL means all 5 signals are green — the market tide is in your favour. In BEAR regimes, even good setups fail more often because the overall market is pulling everything down.</div>`;
+            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">Indian market is currently <strong style="color:${rgClr}">${rg.replace('_',' ')}</strong> — ${regime.score||0}/5 macro signals bullish.${regime.signals ? ` ${regime.signals.nifty_above_50sma === true ? 'Nifty above 50-SMA ✓' : regime.signals.nifty_above_50sma === false ? 'Nifty below 50-SMA ✗' : ''} ${regime.signals.vix_bullish === true ? 'VIX calm ✓' : regime.signals.vix_bullish === false ? 'VIX stressed ✗' : ''} ${regime.signals.breadth_bullish === true ? 'Breadth positive ✓' : regime.signals.breadth_bullish === false ? 'Breadth weak ✗' : ''}` : ''} ${rg.includes('BULL') ? 'Signals work better in bullish markets — the tide is in your favour.' : rg.includes('BEAR') ? 'Bearish regime — even good setups fail more often. Extra caution needed.' : 'Neutral regime — no strong macro bias either way.'}</div>`;
         if (regime.signals) {
             const s = regime.signals;
             const dot = (v) => v === true ? '<span style="color:var(--g)">&#9679;</span>' : v === false ? '<span style="color:var(--r)">&#9679;</span>' : '<span style="color:#8b949e">&#9679;</span>';
@@ -2301,7 +2297,7 @@ async function renderMLIntelligence() {
               <span class="small text-secondary text-uppercase fw-bold" style="letter-spacing:.4px">Method Ranking</span>
               <span class="ms-auto small text-secondary">${router.regime_detected || ''}</span>
             </div>
-            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">Each Bollinger Band method captures a different price pattern — M1 detects squeeze breakouts (tight bands expanding), M2 finds trend continuations (price riding the upper band), M3 spots reversals (oversold bounces), and M4 catches momentum (strong RSI + volume surges). The model tracks which method wins most often <em>in the current market regime</em>, so the best method changes as market conditions shift.</div>`;
+            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">${router.available && router.best_method ? `In the current <strong>${router.regime_detected || rg.replace('_',' ')}</strong> regime, <strong>${router.best_method}</strong> is the top-performing method${router.method_rankings && router.method_rankings[0] ? ` with a <strong>${(router.method_rankings[0].win_rate*100).toFixed(1)}% win rate</strong> over ${router.method_rankings[0].trades_in_regime || '—'} trades` : ''}. Method performance shifts with market conditions — what works in a bull market may underperform in a bear.` : 'Each BB method captures a different pattern — M1 (squeeze breakouts), M2 (trend continuation), M3 (reversals), M4 (momentum surges). Performance varies by market regime.'}</div>`;
         if (router.available && router.method_rankings) {
             const methodColors = {M1:'var(--g)',M2:'var(--b)',M3:'var(--r)',M4:'var(--y)'};
             router.method_rankings.forEach((m, i) => {
@@ -2329,7 +2325,7 @@ async function renderMLIntelligence() {
               <i class="bi bi-cpu" style="color:var(--g);font-size:1.2rem"></i>
               <span class="small text-secondary text-uppercase fw-bold" style="letter-spacing:.4px">XGBoost Model</span>
             </div>
-            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">This is your live model scorecard. Every Top Picks signal is logged here, then checked against what actually happened — did it hit the target (WIN), stop-loss (LOSS), or expire after 30 days? The win rate shows how often the model's predictions were correct. A well-calibrated model means its confidence numbers are trustworthy: a 60% prediction truly wins about 60% of the time. When enough new outcomes accumulate, the model can retrain itself on real results.</div>`;
+            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">${fb.total_logged > 0 ? `Tracked <strong>${fb.total_logged} signals</strong> so far — ${fb.total_resolved || 0} resolved (WIN/LOSS/EXPIRED), ${fb.total_pending || (fb.total_logged - (fb.total_resolved||0))} still open.${fb.win_rate_overall != null ? ` Overall win rate: <strong>${fb.win_rate_overall}%</strong>.${fb.win_rate_overall >= 55 ? ' The model is performing above its 55% threshold — predictions are reliable.' : ' Win rate is below threshold — the model may need retraining on recent data.'}` : ''}` : 'No signals tracked yet. As picks are generated and resolved (WIN/LOSS/EXPIRED), performance metrics will populate here automatically.'}</div>`;
         if (fb.total_logged > 0) {
             const fwr = fb.win_rate_overall;
             const fwrClr = fwr === null ? '#8b949e' : fwr >= 55 ? 'var(--g)' : fwr >= 45 ? 'var(--y)' : 'var(--r)';
@@ -2440,8 +2436,69 @@ async function renderMLIntelligence() {
             html += '</div></div>';
         }
 
+        // ── Card F: Regime Clustering ──
+        html += `<div class="col-lg-4 col-md-6">
+          <div class="p-3 rounded h-100" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="bi bi-diagram-3" style="color:var(--b);font-size:1.2rem"></i>
+              <span class="small text-secondary text-uppercase fw-bold" style="letter-spacing:.4px">Regime Clustering</span>
+              <span class="ms-auto badge" style="background:rgba(124,138,239,.15);color:var(--b);font-size:.65rem">UMAP + KMeans</span>
+            </div>
+            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">Unlike the rule-based Market Regime filter (which uses 5 hand-picked macro signals), the <strong>Regime Clustering</strong> module uses <strong>unsupervised machine learning</strong> — no human-defined rules. It analysed <strong>50 lakh+ data points</strong> across <strong>2,877 NSE stocks</strong>, measuring 8 dimensions simultaneously (Bollinger Width, RSI, ATR volatility, volume ratio, price vs SMA20, Chaikin Money Flow, Money Flow Index, and 20-day price momentum). The UMAP algorithm compressed these 8 dimensions into 3, preserving the mathematical relationships between indicators. Then KMeans clustering discovered <strong>6 natural groupings</strong> — "regimes" — that the data itself reveals. Each stock on each day falls into one of these 6 clusters, receiving a label (e.g., "Tight Squeeze + Overbought + Bullish") and a confidence score based on how close it is to the cluster centre. This gives you a data-driven, objective view of what "state" the market is in for any given stock — beyond what any single indicator can tell you.</div>
+            <div style="font-size:.72rem;color:#c9d1d9;line-height:1.6"><strong>The 6 discovered clusters:</strong></div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+              <span style="font-size:.65rem;padding:2px 6px;border-radius:3px;background:rgba(10,179,156,.12);color:#0ab39c;border:1px solid rgba(10,179,156,.25)">Overbought + Bullish</span>
+              <span style="font-size:.65rem;padding:2px 6px;border-radius:3px;background:rgba(247,184,75,.12);color:#f7b84b;border:1px solid rgba(247,184,75,.25)">Moderate + Low Vol</span>
+              <span style="font-size:.65rem;padding:2px 6px;border-radius:3px;background:rgba(59,130,246,.12);color:#3b82f6;border:1px solid rgba(59,130,246,.25)">Neutral RSI + Low Vol</span>
+              <span style="font-size:.65rem;padding:2px 6px;border-radius:3px;background:rgba(124,138,239,.12);color:#7c8aef;border:1px solid rgba(124,138,239,.25)">Wide Bands + Bullish</span>
+              <span style="font-size:.65rem;padding:2px 6px;border-radius:3px;background:rgba(240,101,72,.12);color:#f06548;border:1px solid rgba(240,101,72,.25)">Bearish + Low Vol</span>
+              <span style="font-size:.65rem;padding:2px 6px;border-radius:3px;background:rgba(239,83,80,.12);color:#ef5350;border:1px solid rgba(239,83,80,.25)">Oversold + Bearish</span>
+            </div>
+          </div>
+        </div>`;
+
+        // ── Card G: Sequence Patterns (LSTM) ──
+        html += `<div class="col-lg-4 col-md-6">
+          <div class="p-3 rounded h-100" style="background:var(--bs-body-bg);border:1px solid var(--card-border)">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="bi bi-soundwave" style="color:var(--c);font-size:1.2rem"></i>
+              <span class="small text-secondary text-uppercase fw-bold" style="letter-spacing:.4px">Sequence Patterns</span>
+              <span class="ms-auto badge" style="background:rgba(0,200,200,.12);color:var(--c);font-size:.65rem">LSTM Neural Net</span>
+            </div>
+            <div style="font-size:.7rem;color:#8b949e;line-height:1.5;margin-bottom:6px">The XGBoost model (Card C) scores each trade based on today's indicators — a <strong>point-in-time snapshot</strong>. But market moves unfold over days, not instants. The <strong>LSTM Sequence Scorer</strong> is a completely different AI architecture — a <strong>Long Short-Term Memory neural network</strong> — that reads the <strong>last 20 trading days as a time series</strong>. It watches 6 channels evolving simultaneously: normalised price (vs 20-day moving average), Bollinger Bandwidth, RSI, ATR volatility, volume ratio, and 20-day momentum. The LSTM architecture is specifically designed to learn <strong>temporal patterns</strong> — for example, "bandwidth gradually tightened over 10 days while volume quietly rose, then RSI broke 50" is a sequence-level signal that tree models like XGBoost literally cannot detect, because they only see one row at a time. Trained on <strong>3 lakh+ 20-bar sequences</strong> extracted from 15 years of NSE data, the model outputs a confidence score (0–100%). When both XGBoost and LSTM agree (BOTH_AGREE), the signal has higher conviction because two fundamentally different AI architectures independently reached the same conclusion.</div>
+            <div style="font-size:.72rem;color:#c9d1d9;line-height:1.6;margin-top:6px"><strong>Architecture:</strong></div>
+            <div style="font-size:.65rem;color:#8b949e;line-height:1.8;font-family:monospace;padding:6px 8px;background:rgba(255,255,255,.03);border-radius:4px;margin-top:4px">
+              Input: 20 bars x 6 channels<br>
+              LSTM(hidden=64, layers=2, dropout=0.3)<br>
+              FC(64→32) → ReLU → FC(32→1) → Sigmoid<br>
+              Output: P(WIN) ∈ [0, 1]
+            </div>
+          </div>
+        </div>`;
+
         html += '</div>';
         el.innerHTML = html;
+
+        // Dynamic footer summary based on actual data
+        const foot = document.getElementById('mlFooterSummary');
+        if (foot) {
+            const rg = (regime.regime||'UNKNOWN').replace('_',' ');
+            const score = regime.score || 0;
+            const best = router.best_method || '—';
+            const tracked = fb.total_logged || 0;
+            const resolved = fb.total_resolved || 0;
+            const wr = fb.win_rate_overall;
+            let txt = `<strong style="color:var(--p)">Current AI/ML Status:</strong> `;
+            txt += `Market is <strong>${rg}</strong> (${score}/5 bullish). `;
+            if (router.available && router.best_method) txt += `Best method in this regime: <strong>${best}</strong>. `;
+            if (tracked > 0) {
+                txt += `${tracked} signals tracked, ${resolved} resolved`;
+                if (wr != null) txt += ` (${wr}% win rate)`;
+                txt += '. ';
+            }
+            txt += 'The pipeline runs 8 models (XGBoost, LSTM, UMAP+KMeans, regime detector, exit intelligence, Kelly sizer, method router, adaptive thresholds) — all trained on 15 years of NSE data and updated with your actual trade outcomes.';
+            foot.innerHTML = txt;
+        }
     } catch (e) {
         el.innerHTML = '<div class="text-secondary small">ML intelligence unavailable: ' + e.message + '</div>';
     }

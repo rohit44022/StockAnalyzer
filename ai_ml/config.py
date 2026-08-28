@@ -21,6 +21,10 @@ ML_FEATURES = [
     "rsi14_slope_5d", "bbw_percentile_60d", "vol_trend_5d",
     "price_momentum_10d", "price_momentum_20d", "atr14_percentile_60d",
     "method",
+    # Feature Boost — 10 indicators previously computed but not fed to ML
+    "percent_b", "cmf", "mfi", "vwmacd_hist",
+    "ii_pct", "ad_pct", "expansion_up", "expansion_down",
+    "bbw_roc_5d", "rsi_bb_divergence",
 ]
 ML_CATEGORICAL_FEATURES = ["method"]
 
@@ -44,6 +48,17 @@ REGIME_BREADTH_SAMPLE = 200
 
 # Exit Intelligence
 EXIT_URGENCY_THRESHOLDS = {"HOLD": 25, "MONITOR": 45, "TIGHTEN_STOP": 65}
+
+# Regime Cluster (unsupervised)
+REGIME_CLUSTER_MODEL = os.path.join(MODELS_DIR, "regime_cluster.joblib")
+CLUSTER_FEATURES = ["bbw", "rsi14", "atr14_pct", "vol_ratio",
+                    "close_vs_sma20", "cmf", "mfi", "price_momentum_20d"]
+
+# Sequence Scorer (LSTM)
+SEQUENCE_MODEL_PATH = os.path.join(MODELS_DIR, "sequence_lstm.pt")
+SEQ_LOOKBACK = 20
+SEQ_FEATURES = ["close_norm", "bbw", "rsi_norm", "atr_norm", "vol_ratio", "momentum_norm"]
+SEQ_CONFIDENCE_THRESHOLD = 0.55
 
 # Feedback Loop
 FEEDBACK_DB = os.path.join(os.path.dirname(_ROOT), "data", "app.db")

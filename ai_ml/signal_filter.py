@@ -93,6 +93,10 @@ def _extract_features_from_pick(pick: dict) -> dict | None:
         "method":            pick.get("method", "M2"),
     }
 
+    # Feature Boost: add 10 extra features from pick indicators
+    from ai_ml.feature_boost import extract_boost_features_pick
+    feats.update(extract_boost_features_pick(pick))
+
     return feats
 
 
@@ -142,6 +146,9 @@ def score_picks(picks: list[dict]) -> list[dict]:
                         row[cat_col] = row[cat_col].astype("category")
                     else:
                         row = row.drop(columns=[cat_col])
+            # Ensure numeric columns are actually numeric (None → NaN)
+            num_cols = [c for c in row.columns if c not in ML_CATEGORICAL_FEATURES]
+            row[num_cols] = row[num_cols].apply(pd.to_numeric, errors="coerce")
             if not _is_xgb and _feature_medians:
                 row = row.fillna(_feature_medians)
             prob = float(model.predict_proba(row)[0, 1])

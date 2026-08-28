@@ -136,7 +136,7 @@ def _extract_features(ind: dict, i: int) -> dict | None:
 
     vol_ma = ind["vol_ma"][i]
 
-    return {
+    feats = {
         "bbw":               ind["bbw"][i],
         "rsi14":             ind["rsi14"][i],
         "atr14_pct":         atr_val / close[i] * 100 if close[i] > 0 else np.nan,
@@ -152,6 +152,11 @@ def _extract_features(ind: dict, i: int) -> dict | None:
         "price_momentum_20d": (close[i] / close[i-20] - 1) * 100 if close[i-20] > 0 else np.nan,
         "atr14_percentile_60d": ind["atr14_pct60"][i] if "atr14_pct60" in ind else np.nan,
     }
+
+    # Feature Boost: add 10 extra features
+    from ai_ml.feature_boost import compute_boost_features_train
+    feats.update(compute_boost_features_train(ind, i))
+    return feats
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -186,12 +191,21 @@ def _process_stock(csv_path: str, start_date: str, end_date: str,
     bbw_pct60  = _rolling_percentile(bbw, bbw, 60)
     atr14_pct60 = _rolling_percentile(atr14, atr14, 60)
 
+    open_price = df["Open"].to_numpy(dtype=float) if "Open" in df.columns else close
+
     ind = {
         "close": close, "high": high, "low": low, "volume": volume,
+        "open": open_price,
         "sma20": sma20, "upper": upper, "lower": lower, "bbw": bbw,
         "rsi14": rsi14, "atr14": atr14, "vol_ma": vol_ma,
         "bbw_pct60": bbw_pct60, "atr14_pct60": atr14_pct60,
     }
+
+    # Feature Boost: compute extra indicator arrays (CMF, MFI, %b, etc.)
+    from ai_ml.feature_boost import compute_extra_arrays
+    extras = compute_extra_arrays(close, high, low, volume, open_price,
+                                 sma20, upper, lower, bbw, rsi14)
+    ind.update(extras)
 
     dates = df.index
     start_ts = pd.Timestamp(start_date)

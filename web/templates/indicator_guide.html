@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indicator Guide — Bollinger Band System</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--card-bg:#282f36;--card-border:#2f3944;--g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc;--o:#f0883e;
+  --buy-bg:rgba(10,179,156,.08);--sell-bg:rgba(240,101,72,.08);--neutral-bg:rgba(124,138,239,.06);--warn-bg:rgba(247,184,75,.08)}
+body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero h1{font-size:2.2rem;font-weight:800;color:#e6edf3}
+
+/* Layout */
+.guide-wrap{display:flex;gap:24px;margin-top:1.5rem}
+.guide-toc{position:sticky;top:80px;width:210px;flex-shrink:0;max-height:calc(100vh - 100px);overflow-y:auto;font-size:.78rem}
+.guide-toc a{display:block;padding:4px 10px;color:#8b949e;text-decoration:none;border-left:2px solid transparent;transition:all .15s}
+.guide-toc a:hover,.guide-toc a.active{color:var(--b);border-color:var(--b)}
+.guide-toc .toc-head{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:#6e7681;padding:8px 10px 4px;font-weight:600}
+.guide-content{flex:1;min-width:0}
+
+/* Section cards — colored left border per category */
+.ind-section{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;margin-bottom:18px;overflow:hidden;border-left:4px solid var(--card-border)}
+.ind-section.cat-overlay{border-left-color:var(--b)}
+.ind-section.cat-oscillator{border-left-color:var(--p)}
+.ind-section.cat-volatility{border-left-color:var(--o)}
+.ind-section.cat-system{border-left-color:var(--g)}
+.ind-section.cat-setup{border-left-color:var(--y)}
+.ind-header{padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none;transition:background .15s}
+.ind-header:hover{background:rgba(124,138,239,.04)}
+.ind-header h3{margin:0;font-size:1.05rem;font-weight:700;flex:1;color:#e6edf3}
+.ind-header .tv-name{font-size:.72rem;color:var(--b);font-family:'JetBrains Mono',monospace;background:rgba(124,138,239,.1);padding:2px 8px;border-radius:5px}
+.ind-header .cat-badge{font-size:.62rem;padding:2px 8px;border-radius:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.cat-badge-overlay{background:rgba(124,138,239,.12);color:var(--b)}
+.cat-badge-oscillator{background:rgba(192,132,252,.12);color:var(--p)}
+.cat-badge-volatility{background:rgba(240,136,62,.12);color:var(--o)}
+.cat-badge-system{background:rgba(10,179,156,.12);color:var(--g)}
+.ind-header .chevron{color:#8b949e;transition:transform .2s;font-size:.8rem}
+.ind-header.collapsed .chevron{transform:rotate(-90deg)}
+.ind-body{padding:0 18px 18px;display:block}
+.ind-header.collapsed + .ind-body{display:none}
+
+/* Plain English box */
+.plain-box{background:rgba(124,138,239,.06);border:1px solid rgba(124,138,239,.15);border-radius:10px;padding:14px 16px;margin:12px 0;font-size:.86rem;line-height:1.7;color:#c9d1d9}
+.plain-box .plain-label{display:inline-block;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--b);margin-bottom:6px}
+.plain-box strong{color:#e6edf3}
+
+/* Quick takeaway */
+.takeaway{display:flex;align-items:flex-start;gap:10px;background:rgba(10,179,156,.06);border:1px solid rgba(10,179,156,.15);border-radius:10px;padding:12px 16px;margin:10px 0;font-size:.84rem;color:#c9d1d9}
+.takeaway .takeaway-icon{font-size:1.2rem;flex-shrink:0;margin-top:2px}
+
+/* Signal boxes */
+.signal-row{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.signal-box{flex:1;min-width:140px;border-radius:10px;padding:12px 14px;font-size:.82rem}
+.signal-buy{background:var(--buy-bg);border:1px solid rgba(10,179,156,.2)}
+.signal-buy .signal-label{color:var(--g);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.signal-sell{background:var(--sell-bg);border:1px solid rgba(240,101,72,.2)}
+.signal-sell .signal-label{color:var(--r);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.signal-neutral{background:var(--neutral-bg);border:1px solid rgba(124,138,239,.15)}
+.signal-neutral .signal-label{color:var(--b);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.signal-warn{background:var(--warn-bg);border:1px solid rgba(247,184,75,.2)}
+.signal-warn .signal-label{color:var(--y);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+
+/* Param table */
+.param-table{width:100%;font-size:.82rem;border-collapse:collapse;margin:10px 0}
+.param-table th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;padding:6px 10px;border-bottom:1px solid var(--card-border)}
+.param-table td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+.param-table .val{font-family:'JetBrains Mono',monospace;color:var(--b);font-weight:600}
+
+/* Formula */
+.formula{font-family:'JetBrains Mono',monospace;color:var(--p);font-weight:500;background:rgba(192,132,252,.06);padding:10px 14px;border-radius:8px;font-size:.82rem;margin:8px 0;border:1px solid rgba(192,132,252,.12)}
+
+/* Usage box */
+.usage{font-size:.84rem;line-height:1.65;color:#c9d1d9}
+.usage strong{color:#e6edf3}
+.usage .method-tag{display:inline-block;font-size:.68rem;font-weight:600;padding:1px 6px;border-radius:4px;margin-right:4px}
+.m1-tag{background:rgba(10,179,156,.15);color:var(--g)}
+.m2-tag{background:rgba(124,138,239,.15);color:var(--b)}
+.m3-tag{background:rgba(240,101,72,.15);color:var(--r)}
+.m4-tag{background:rgba(247,184,75,.15);color:var(--y)}
+
+/* Levels */
+.levels{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.level-pill{font-family:'JetBrains Mono',monospace;font-size:.75rem;padding:4px 12px;border-radius:6px;font-weight:600}
+.level-g{background:rgba(10,179,156,.12);color:var(--g);border:1px solid rgba(10,179,156,.2)}
+.level-r{background:rgba(240,101,72,.12);color:var(--r);border:1px solid rgba(240,101,72,.2)}
+.level-y{background:rgba(247,184,75,.12);color:var(--y);border:1px solid rgba(247,184,75,.2)}
+.level-b{background:rgba(124,138,239,.12);color:var(--b);border:1px solid rgba(124,138,239,.2)}
+.level-p{background:rgba(192,132,252,.12);color:var(--p);border:1px solid rgba(192,132,252,.2)}
+.level-o{background:rgba(240,136,62,.12);color:var(--o);border:1px solid rgba(240,136,62,.2)}
+
+/* Method ref table */
+.method-table{width:100%;font-size:.82rem;border-collapse:collapse}
+.method-table th{background:rgba(255,255,255,.03);padding:8px 12px;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;border-bottom:2px solid var(--card-border);text-align:left}
+.method-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
+.method-table tr:hover{background:rgba(255,255,255,.02)}
+
+/* Colored table rows */
+.row-buy{background:var(--buy-bg)}
+.row-sell{background:var(--sell-bg)}
+.row-warn{background:var(--warn-bg)}
+
+/* Layout diagram */
+.layout-diagram{font-family:'JetBrains Mono',monospace;font-size:.78rem;background:rgba(0,0,0,.3);padding:14px;border-radius:10px;color:#8b949e;line-height:1.6;white-space:pre;overflow-x:auto}
+.layout-diagram .hi{color:var(--b)}
+
+/* Analogy callout */
+.analogy{display:flex;align-items:flex-start;gap:10px;background:rgba(247,184,75,.06);border:1px solid rgba(247,184,75,.12);border-radius:10px;padding:12px 16px;margin:10px 0;font-size:.84rem;color:#c9d1d9;line-height:1.6}
+.analogy .analogy-icon{font-size:1.1rem;flex-shrink:0;margin-top:2px}
+
+/* Pro tip */
+.pro-tip{display:flex;align-items:flex-start;gap:10px;background:rgba(192,132,252,.06);border:1px solid rgba(192,132,252,.12);border-radius:10px;padding:12px 16px;margin:10px 0;font-size:.82rem;color:#c9d1d9;line-height:1.6}
+.pro-tip .tip-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--p);white-space:nowrap}
+
+/* Urgency tier visual */
+.tier-bar{display:flex;border-radius:8px;overflow:hidden;margin:12px 0;font-size:.72rem;font-weight:600;text-align:center}
+.tier-bar > div{padding:8px 4px;flex:1}
+.tier-hold{background:rgba(10,179,156,.2);color:var(--g)}
+.tier-monitor{background:rgba(247,184,75,.2);color:var(--y)}
+.tier-tighten{background:rgba(240,136,62,.25);color:var(--o)}
+.tier-exit{background:rgba(240,101,72,.3);color:var(--r)}
+
+/* Search */
+.guide-search{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:7px 14px;color:#e6edf3;font-size:.85rem;width:280px}
+.guide-search:focus{outline:none;border-color:var(--b);box-shadow:0 0 0 2px rgba(124,138,239,.15)}
+
+/* Importance badge */
+.importance{font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.3px;vertical-align:middle;margin-left:6px}
+.imp-critical{background:rgba(240,101,72,.2);color:var(--r);border:1px solid rgba(240,101,72,.25)}
+.imp-high{background:rgba(240,136,62,.15);color:var(--o);border:1px solid rgba(240,136,62,.2)}
+.imp-medium{background:rgba(247,184,75,.15);color:var(--y);border:1px solid rgba(247,184,75,.2)}
+.imp-helpful{background:rgba(124,138,239,.12);color:var(--b);border:1px solid rgba(124,138,239,.18)}
+
+/* Responsive */
+@media(max-width:900px){
+  .guide-toc{display:none}
+  .hero h1{font-size:1.5rem}
+  .signal-row{flex-direction:column}
+}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+
+<div class="hero">
+  <div class="container-fluid">
+    <h1><i class="bi bi-book me-2"></i>Indicator Guide</h1>
+    <p class="text-secondary mb-2">Complete reference for every technical indicator in the Bollinger Band system — written so anyone can understand it</p>
+    <div class="levels" style="margin:0">
+      <span class="level-pill level-b" style="font-family:Inter;font-size:.72rem"><i class="bi bi-bar-chart me-1"></i>Price Overlays</span>
+      <span class="level-pill level-p" style="font-family:Inter;font-size:.72rem"><i class="bi bi-speedometer2 me-1"></i>Oscillators</span>
+      <span class="level-pill level-o" style="font-family:Inter;font-size:.72rem"><i class="bi bi-arrows-angle-expand me-1"></i>Volatility &amp; Volume</span>
+      <span class="level-pill level-g" style="font-family:Inter;font-size:.72rem"><i class="bi bi-list-check me-1"></i>System Rules</span>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <div class="mb-3 mt-3">
+    <input type="text" class="guide-search" id="guideSearch" placeholder="Search indicators...">
+  </div>
+  <div class="guide-wrap">
+
+    <!-- TOC -->
+    <nav class="guide-toc" id="guideToc">
+      <div class="toc-head" style="color:var(--y)">Setup</div>
+      <a href="#tv-setup">TradingView Layout</a>
+      <div class="toc-head" style="color:var(--b)">Price Overlays</div>
+      <a href="#bb">Bollinger Bands</a>
+      <a href="#sar">Parabolic SAR</a>
+      <div class="toc-head" style="color:var(--p)">Oscillators</div>
+      <a href="#pctb">Percent B (%b) <span style="color:var(--r);font-size:.6rem">CRITICAL</span></a>
+      <a href="#bbw">Bandwidth (BBW)</a>
+      <a href="#rsi">RSI</a>
+      <a href="#mfi">MFI</a>
+      <a href="#cmf">CMF</a>
+      <a href="#adx">ADX</a>
+      <a href="#vwmacd">VWMACD</a>
+      <div class="toc-head" style="color:var(--o)">Volatility &amp; Volume</div>
+      <a href="#atr">ATR</a>
+      <a href="#volume">Volume</a>
+      <div class="toc-head" style="color:var(--g)">System Rules</div>
+      <a href="#methods">Method Reference</a>
+      <a href="#trailing">Trailing Stops</a>
+      <a href="#exit">Exit Intelligence</a>
+    </nav>
+
+    <!-- Content -->
+    <div class="guide-content">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-setup" id="tv-setup">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-display me-2" style="color:var(--y)"></i>TradingView Setup</h3>
+    <span class="cat-badge cat-badge-volatility">Setup</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">What is this?</div>
+      This is how you should arrange your TradingView chart so all the indicators our system uses are visible at a glance. Think of it like setting up your car dashboard — <strong>speedometer in front, fuel gauge on the side, GPS on top</strong>. Each pane shows a different piece of the puzzle. Save this as a template so you don't have to set it up every time.
+    </div>
+    <p class="usage"><strong>Step-by-step:</strong> Open TradingView &rarr; search each indicator by the exact name below &rarr; set the parameters shown &rarr; click the gear icon on each indicator to add horizontal lines at the key levels &rarr; save the entire layout as a template named <strong>"BB System"</strong>.</p>
+    <div class="layout-diagram"><span class="hi">┌─────────────────────────────────────────┐</span>
+<span class="hi">│</span>  Price + <span class="hi">BB(20,2)</span> + <span class="hi">SAR(0.02,0.02,0.2)</span>  <span class="hi">│</span>  main chart
+<span class="hi">├─────────────────────────────────────────┤</span>
+<span class="hi">│</span>  <span class="hi">%b(20,2)</span>     lines: 0.80  0.50  0.20   <span class="hi">│</span>  key decisions
+<span class="hi">├─────────────────────────────────────────┤</span>
+<span class="hi">│</span>  <span class="hi">BBW(20,2)</span>    line: 8.0               <span class="hi">│</span>  squeeze detect
+<span class="hi">├─────────────────────────────────────────┤</span>
+<span class="hi">│</span>  <span class="hi">RSI(14)</span>      lines: 75  50  45       <span class="hi">│</span>  momentum/exit
+<span class="hi">├─────────────────────────────────────────┤</span>
+<span class="hi">│</span>  <span class="hi">MFI(10)</span>      lines: 80  50  20       <span class="hi">│</span>  money flow
+<span class="hi">├─────────────────────────────────────────┤</span>
+<span class="hi">│</span>  <span class="hi">CMF(20)</span>      lines: +0.10  0  -0.10  <span class="hi">│</span>  accum/distrib
+<span class="hi">├─────────────────────────────────────────┤</span>
+<span class="hi">│</span>  <span class="hi">Volume</span> + SMA(50)                      <span class="hi">│</span>  vol confirm
+<span class="hi">└─────────────────────────────────────────┘</span>
+
+Optional (if screen space allows): ATR(14), ADX(14), MACD(12,26,9)</div>
+    <div class="pro-tip">
+      <span class="tip-label">Pro Tip</span>
+      <span>Right-click any horizontal line on TradingView &rarr; "Add Alert" to get notified on your phone when a level is hit. Set alerts on <strong>%b crossing 0.80</strong> (potential buy) and <strong>RSI crossing 75</strong> (potential exit).</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-overlay" id="bb">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-bar-chart me-2" style="color:var(--b)"></i>Bollinger Bands <span class="importance imp-critical">Foundation</span></h3>
+    <span class="tv-name">Bollinger Bands</span>
+    <span class="cat-badge cat-badge-overlay">Overlay</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Imagine drawing a <strong>rubber band</strong> around a stock's price. When the stock is calm and barely moving, the rubber band gets <strong>tight and narrow</strong>. When the stock gets wild and volatile, the band <strong>stretches wide</strong>. The three lines you see are: the <strong>middle line</strong> (20-day average price), the <strong>upper band</strong> (average + 2 standard deviations), and the <strong>lower band</strong> (average - 2 standard deviations). About <strong>95% of all price action</strong> happens inside these bands — so when price breaks outside, something significant is happening.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#9989;</span>
+      <span><strong>Takeaway:</strong> Bollinger Bands are the backbone of the entire system. Every method (M1-M4) is built on where price sits relative to these bands. Think of them as the "playing field" — all the action happens in reference to these lines.</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>Period (Length)</td><td class="val">20</td><td>How many days to average — 20 is roughly 1 trading month</td></tr>
+      <tr><td>Standard Deviation</td><td class="val">2.0</td><td>How wide the bands are — 2.0 captures ~95% of price movement</td></tr>
+      <tr><td>MA Type</td><td class="val">SMA</td><td>Simple Moving Average — equal weight to each day</td></tr>
+    </table>
+    <div class="formula">Upper Band = SMA(20) + 2.0 &times; StdDev(20)<br>Middle Band = SMA(20)<br>Lower Band = SMA(20) - 2.0 &times; StdDev(20)</div>
+    <p class="usage"><strong>How each method uses Bollinger Bands:</strong></p>
+    <ul class="usage">
+      <li><span class="method-tag m1-tag">M1 Squeeze</span> Bands get extremely narrow (low volatility) &rarr; then price breaks above the upper band = <strong>buy signal</strong>. The squeeze is like a coiled spring — the tighter it gets, the bigger the breakout.</li>
+      <li><span class="method-tag m2-tag">M2 Trend</span> Measures where price sits inside the bands using %b. If it's near the top = strong uptrend.</li>
+      <li><span class="method-tag m3-tag">M3 Reversal</span> Looks for "W" shapes (double bottom) and "M" shapes (double top) relative to the bands — classic reversal patterns.</li>
+      <li><span class="method-tag m4-tag">M4 Walking</span> Price hugging the upper band = very strong trend that's "walking" along the top. Best trends do this.</li>
+    </ul>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> Think of Bollinger Bands like the lanes on a highway. The middle line is the center lane. Most cars (price) stay within the lanes. When a car suddenly swerves outside the lane, it's either about to crash (reversal) or is an ambulance on an emergency (strong breakout). Your job is to figure out which one it is — the other indicators help with that.</span>
+    </div>
+    <div class="pro-tip">
+      <span class="tip-label">TradingView Note</span>
+      <span>Uses population standard deviation (ddof=0), matching Bollinger's original specification. Some platforms default to sample std (ddof=1) — verify your TradingView setting matches.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-overlay" id="sar">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-dot me-2" style="color:var(--o)"></i>Parabolic SAR <span class="importance imp-high">Exit Signal</span></h3>
+    <span class="tv-name">Parabolic SAR</span>
+    <span class="cat-badge cat-badge-overlay">Overlay</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      SAR stands for <strong>"Stop And Reverse"</strong>. You'll see tiny dots on the chart — either <strong>below the candles</strong> (bullish, trend is up) or <strong>above the candles</strong> (bearish, trend has flipped down). When the dots switch from below to above, it's like a <strong>traffic light turning red</strong> — the trend may be over, and it's time to think about getting out.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#128680;</span>
+      <span><strong>Takeaway:</strong> SAR is your <strong>primary sell alarm</strong>. When dots flip from below price to above price = the system awards <strong>+25 exit points</strong>. That's the single biggest exit trigger in the entire scoring system. Pay attention to it.</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>Start (Initial AF)</td><td class="val">0.02</td><td>How quickly the dots start chasing price — 0.02 = conservative start</td></tr>
+      <tr><td>Increment (Step AF)</td><td class="val">0.02</td><td>How much faster dots accelerate each bar — stays modest</td></tr>
+      <tr><td>Maximum AF</td><td class="val">0.20</td><td>Speed cap — dots never chase faster than this</td></tr>
+    </table>
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">&#9679; Dots Below Price = Bullish</div>
+        Trend is up. Hold your position. The dot is your trailing stop level — if price drops to the dot, consider selling.
+      </div>
+      <div class="signal-box signal-sell">
+        <div class="signal-label">&#9679; Dots Above Price = Bearish</div>
+        Trend has flipped. This is a <strong>major exit signal</strong>. The system scores this as +25 exit points — nearly half the threshold to trigger a full exit.
+      </div>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> SAR dots are like a loyal dog on a leash. When the trend is up, the dog walks behind you (dots below). The leash gets shorter over time as the dog speeds up. When the dog suddenly jumps in front of you (dots above), it's pulling you the other way — time to reverse.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-oscillator" id="pctb">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-percent me-2" style="color:var(--g)"></i>Percent B (%b) <span class="importance imp-critical">Most Important</span></h3>
+    <span class="tv-name">Bollinger Bands %B</span>
+    <span class="cat-badge cat-badge-oscillator">Oscillator</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box" style="border-color:rgba(240,101,72,.25);background:rgba(240,101,72,.05)">
+      <div class="plain-label" style="color:var(--r)">&#9888; This is the #1 indicator in the system</div>
+      %b tells you <strong>exactly where the current price is relative to the Bollinger Bands</strong>, expressed as a number between 0 and 1. <strong>%b = 1.0</strong> means price is at the upper band. <strong>%b = 0.0</strong> means price is at the lower band. <strong>%b = 0.50</strong> means price is right at the middle. Think of it as a <strong>thermometer</strong> that tells you how "hot" (near the top) or "cold" (near the bottom) a stock is within its normal range. <em>Every single method in the system</em> — M1, M2, M3, M4 — relies on %b for both entry and exit decisions.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#11088;</span>
+      <span><strong>Takeaway:</strong> If you could only look at ONE indicator, make it %b. It's the decision-maker. Everything else is confirmation. Mark the three horizontal lines (0.80, 0.50, 0.20) on your TradingView chart and you'll see the system's logic come alive.</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>Period</td><td class="val">20</td><td>Same as BB period — derived from the bands themselves</td></tr>
+      <tr><td>StdDev</td><td class="val">2.0</td><td>Same as BB std dev — keeps everything in sync</td></tr>
+    </table>
+    <div class="formula">%b = (Close - Lower Band) / (Upper Band - Lower Band)</div>
+    <p class="usage"><strong>Key levels — draw these horizontal lines on TradingView:</strong></p>
+    <div class="signal-row">
+      <div class="signal-box signal-buy" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">0.80</div>
+        <strong>BUY ZONE</strong><br>
+        <span style="font-size:.78rem">Price near the top of the bands. In a strong uptrend, this confirms momentum. M2 triggers a buy here when MFI also confirms.</span>
+      </div>
+      <div class="signal-box signal-neutral" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">0.50</div>
+        <strong>MIDLINE</strong><br>
+        <span style="font-size:.78rem">Price at the 20-day average. Neutral territory. In M1, dropping below here from above = exit signal. In M4, this is the "dip-buy" zone.</span>
+      </div>
+      <div class="signal-box signal-sell" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">0.20</div>
+        <strong>SELL ZONE</strong><br>
+        <span style="font-size:.78rem">Price near the bottom. In M2, this triggers a sell when MFI also confirms weakness. Stock is under pressure.</span>
+      </div>
+    </div>
+    <p class="usage" style="margin-top:16px"><strong>How each method uses %b:</strong></p>
+    <table class="method-table">
+      <tr><th>Method</th><th>Buy Signal &#128994;</th><th>Sell Signal &#128308;</th></tr>
+      <tr class="row-buy">
+        <td><span class="method-tag m1-tag">M1</span> Squeeze Breakout</td>
+        <td><strong>%b crosses above 0.80</strong> after the bands were squeezed tight. The squeeze is the setup; %b &gt; 0.80 is the trigger.</td>
+        <td>%b drops below 0.50 — momentum has faded back to average.</td>
+      </tr>
+      <tr>
+        <td><span class="method-tag m2-tag">M2</span> Trend Following</td>
+        <td><strong>%b &gt; 0.80 AND MFI &gt; 80</strong> — price is strong AND money is flowing in. Double confirmation.</td>
+        <td>%b &lt; 0.20 AND MFI &lt; 20 — price is weak AND money is flowing out.</td>
+      </tr>
+      <tr class="row-sell">
+        <td><span class="method-tag m3-tag">M3</span> Reversals</td>
+        <td><strong>W-bottom pattern:</strong> 1st dip hits %b &le; 0.05 (very oversold), rallies, 2nd dip stays above %b = 0.20 (showing strength). The 2nd dip being higher means sellers are exhausted.</td>
+        <td><strong>M-top pattern:</strong> 1st peak hits %b &ge; 0.95, dips, 2nd peak only reaches %b &lt; 0.80 (weakening). Sellers taking over.</td>
+      </tr>
+      <tr>
+        <td><span class="method-tag m4-tag">M4</span> Walking Bands</td>
+        <td><strong>%b stays &ge; 0.85</strong> with 3+ touches of upper band in 10 bars. Price is "walking" along the top. <strong>Dip-buy at 0.50-0.65</strong> — pullback to the middle = buying opportunity.</td>
+        <td>%b falls below 0.15 — the walk is over, trend has broken down.</td>
+      </tr>
+    </table>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> %b is like the <strong>floor number in an elevator</strong>. Ground floor (0.0) = stock is at the bottom of its range. Top floor (1.0) = stock is at the top. You want to buy when the elevator is heading up past the 8th floor (0.80) with momentum — and sell when it's heading down past the 2nd floor (0.20) with no brakes.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-oscillator" id="bbw">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-arrows-expand me-2" style="color:var(--y)"></i>Bandwidth (BBW) <span class="importance imp-high">Squeeze Detector</span></h3>
+    <span class="tv-name">Bollinger BandWidth</span>
+    <span class="cat-badge cat-badge-oscillator">Oscillator</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Bandwidth measures <strong>how wide or narrow the Bollinger Bands are</strong>. When the bands get really tight (low BBW), it means the stock has been calm and quiet — like a <strong>coiled spring</strong>. This quietness doesn't last forever. Eventually the stock will make a big move — either up or down. This tight condition is called <strong>"The Squeeze"</strong> and it's the foundation of Method I (M1). When BBW is at its lowest point in 6 months, a breakout is imminent.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#127919;</span>
+      <span><strong>Takeaway:</strong> Low BBW = calm before the storm. The system watches for the <strong>6-month low</strong> in BBW (the squeeze) and then waits for the breakout direction. It's the setup that makes M1 trades possible. You don't trade the squeeze itself — you trade the breakout from it.</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>Period</td><td class="val">20</td><td>Same as BB — keeps it synchronized</td></tr>
+      <tr><td>StdDev</td><td class="val">2.0</td><td>Same as BB</td></tr>
+      <tr><td>Rolling Min Lookback</td><td class="val">126 bars</td><td>~6 months of daily bars. If BBW hits this low, it's a rare event.</td></tr>
+      <tr><td>Absolute Squeeze Trigger</td><td class="val">0.08 (= 8.0 on TV)</td><td>If BBW drops below this, it's a squeeze regardless of history</td></tr>
+      <tr><td>Dynamic Tolerance</td><td class="val">1.05 (5% above)</td><td>BBW within 5% of the 6-month low also counts as a squeeze</td></tr>
+    </table>
+    <div class="formula">BBW = (Upper Band - Lower Band) / Middle Band<br><br>Squeeze = BBW &le; rolling_min(126) &times; 1.05  OR  BBW &le; 0.08</div>
+    <div class="signal-row">
+      <div class="signal-box signal-warn">
+        <div class="signal-label">&#128164; Low BBW = Squeeze (Setup Phase)</div>
+        Bands are tight. Stock is coiling. Don't trade yet — just <strong>watch and wait</strong> for the breakout. This is the "get ready" signal.
+      </div>
+      <div class="signal-box signal-buy">
+        <div class="signal-label">&#128640; BBW Rising = Expansion (Action Phase)</div>
+        Bands are widening. The breakout has begun! If price breaks <strong>upward</strong> (above upper BB), that's the M1 buy signal. This is the "go" signal.
+      </div>
+    </div>
+    <div class="pro-tip">
+      <span class="tip-label">TradingView Tip</span>
+      <span>TradingView displays BBW as a percentage (multiplied by 100). So the absolute trigger of 0.08 appears as <strong>8.0</strong> on the chart. Add a horizontal line at <strong>8.0</strong> — anything below this line = squeeze territory.</span>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> BBW is like watching a <strong>pressure cooker</strong>. As the pressure builds (volatility compresses), the gauge drops lower and lower. At some point, the steam has to escape. The lower the BBW, the more pressure has built up, and the bigger the eventual move. The 6-month low is your "this cooker is about to blow" signal.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-oscillator" id="rsi">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-speedometer2 me-2" style="color:var(--p)"></i>RSI (Relative Strength Index) <span class="importance imp-high">Exit Guard</span></h3>
+    <span class="tv-name">RSI</span>
+    <span class="cat-badge cat-badge-oscillator">Oscillator</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      RSI measures how <strong>fast and how much</strong> a stock's price has gone up recently versus how much it's gone down. It gives you a number from <strong>0 to 100</strong>. A high number (above 75) means the stock has been rising too fast — it's "overbought" and could be due for a pullback. A low number (below 30) means it's been falling too fast — it's "oversold." In our system, RSI is primarily an <strong>exit tool</strong>, not an entry tool — it tells you when to <em>get out</em>, not when to get in.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#128680;</span>
+      <span><strong>Takeaway:</strong> RSI above 75 = the stock has run too hot, a cooldown is likely. This is NOT a sell-everything signal by itself, but it adds <strong>+25 points</strong> to the exit score. Combined with other warnings, it can push you toward selling. Keep it in the "exit radar" category.</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>Period</td><td class="val">14</td><td>Standard 14-day lookback — the most widely used setting worldwide</td></tr>
+      <tr><td>Smoothing</td><td class="val">Wilder's (RMA)</td><td>A special smoothing method that's standard for RSI. TradingView uses this by default.</td></tr>
+    </table>
+    <div class="formula">RSI = 100 - (100 / (1 + RS))<br>RS = Average Gain over 14 days / Average Loss over 14 days</div>
+    <p class="usage"><strong>Key levels — draw these on TradingView:</strong></p>
+    <div class="signal-row">
+      <div class="signal-box signal-sell" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">75</div>
+        <strong>OVERBOUGHT</strong><br>
+        <span style="font-size:.78rem">Stock has risen too fast. Not sustainable. Adds <strong>+25 exit points</strong>. Watch for pullback.</span>
+      </div>
+      <div class="signal-box signal-neutral" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">45 – 70</div>
+        <strong>HEALTHY ZONE</strong><br>
+        <span style="font-size:.78rem">Sweet spot. Stock is trending up but not overheated. <strong>No action needed</strong> — let your winners run.</span>
+      </div>
+      <div class="signal-box signal-warn" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">Below 45</div>
+        <strong>WEAKENING</strong><br>
+        <span style="font-size:.78rem">Momentum is fading. If RSI is also declining (slope &lt; -1.0), that adds another <strong>+15 exit points</strong>.</span>
+      </div>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> RSI is like a <strong>runner's heart rate</strong>. A sprinter can hit a very high heart rate (RSI &gt; 75), but they can't sustain it — they'll have to slow down. A marathon runner with a steady heart rate (RSI 45-70) can keep going for miles. You want your stocks to be marathon runners, not sprinters who collapse.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-oscillator" id="mfi">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-water me-2" style="color:var(--b)"></i>MFI (Money Flow Index) <span class="importance imp-medium">Confirmation</span></h3>
+    <span class="tv-name">Money Flow Index</span>
+    <span class="cat-badge cat-badge-oscillator">Oscillator</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      MFI is like RSI's <strong>smarter cousin</strong> — it does the same thing (measures overbought/oversold) but also considers <strong>how much money</strong> (volume) is flowing in or out. A high MFI (above 80) means lots of money is aggressively buying the stock. A low MFI (below 20) means lots of money is aggressively selling. It answers the question: <strong>"Is real money backing this move, or is it just price floating around?"</strong>
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#128176;</span>
+      <span><strong>Takeaway:</strong> MFI is the <strong>confirmation buddy</strong> for M2 trades. %b says "the stock is strong" and MFI says "yes, real money agrees." Without MFI confirming, you might be fooled by thin-volume moves that fizzle out. Period is set to 10 (half of BB period 20), per Bollinger's own recommendation.</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>Period</td><td class="val">10</td><td>Half the BB period (20/2). Bollinger recommends this pairing for best sensitivity.</td></tr>
+    </table>
+    <div class="formula">Typical Price = (High + Low + Close) / 3<br>Money Flow = Typical Price &times; Volume<br>MFI = 100 - (100 / (1 + Positive Money Flow / Negative Money Flow))</div>
+    <div class="signal-row">
+      <div class="signal-box signal-buy" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">Above 80</div>
+        <strong>BIG MONEY BUYING</strong><br>
+        <span style="font-size:.78rem">Aggressive buying with heavy volume. When paired with %b &gt; 0.80 = M2 buy signal.</span>
+      </div>
+      <div class="signal-box signal-neutral" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">50</div>
+        <strong>BALANCED</strong><br>
+        <span style="font-size:.78rem">Equal buying and selling. Neutral. In M1, MFI &gt; 50 adds +15 to the entry score.</span>
+      </div>
+      <div class="signal-box signal-sell" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">Below 20</div>
+        <strong>BIG MONEY SELLING</strong><br>
+        <span style="font-size:.78rem">Aggressive selling with heavy volume. When paired with %b &lt; 0.20 = M2 sell signal.</span>
+      </div>
+    </div>
+    <p class="usage" style="margin-top:12px"><strong>Special use — MFI Divergence (M3):</strong></p>
+    <div class="plain-box" style="background:rgba(240,101,72,.05);border-color:rgba(240,101,72,.15)">
+      In M3 reversal patterns, the system looks for <strong>MFI divergence</strong>: the stock price makes a <strong>new low</strong>, but MFI makes a <strong>higher low</strong> (doesn't drop as much). This means even though the price looks weak, <strong>the selling pressure is actually drying up</strong> — big money has stopped dumping. This is a bullish sign that a reversal (bounce) is coming. The divergence threshold is <strong>5 MFI points</strong> (second low must be at least 5 points higher than the first).
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-oscillator" id="cmf">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-moisture me-2" style="color:var(--g)"></i>CMF (Chaikin Money Flow) <span class="importance imp-medium">Confirmation</span></h3>
+    <span class="tv-name">Chaikin Money Flow</span>
+    <span class="cat-badge cat-badge-oscillator">Oscillator</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      CMF tells you whether institutional investors (the "big fish") are <strong>accumulating</strong> (quietly buying) or <strong>distributing</strong> (quietly selling) a stock over the past 20 days. It looks at where the stock closes within each day's range — if it consistently closes near the <strong>top</strong> of the day's range on <strong>high volume</strong>, big money is buying. Near the bottom on high volume = big money is selling. CMF oscillates between <strong>-1</strong> and <strong>+1</strong>, but most of the time stays between -0.25 and +0.25.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#128373;</span>
+      <span><strong>Takeaway:</strong> CMF is your <strong>institutional radar</strong>. Positive CMF = big players are buying. Negative = they're selling. In M1 squeeze trades, CMF &gt; 0 is one of the 5 required entry conditions. Think of it as asking: "Are the smart money investors on my side?"</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>Period</td><td class="val">20</td><td>Same as BB period — captures one full month of money flow behavior</td></tr>
+    </table>
+    <div class="formula">CLV = ((Close - Low) - (High - Close)) / (High - Low)<br>CMF = SUM(CLV &times; Volume, 20) / SUM(Volume, 20)</div>
+    <div class="signal-row">
+      <div class="signal-box signal-buy" style="text-align:center">
+        <div class="signal-label">Above +0.10</div>
+        <strong>Strong Accumulation</strong><br>
+        <span style="font-size:.78rem">Big money is aggressively buying. Adds +5 bonus to M1 entry score. Very bullish.</span>
+      </div>
+      <div class="signal-box signal-buy" style="text-align:center">
+        <div class="signal-label">Above 0</div>
+        <strong>Mild Accumulation</strong><br>
+        <span style="font-size:.78rem">Net buying. CMF &gt; 0 is M1 buy condition #4 (adds +15 to entry score).</span>
+      </div>
+      <div class="signal-box signal-sell" style="text-align:center">
+        <div class="signal-label">Below -0.10</div>
+        <strong>Strong Distribution</strong><br>
+        <span style="font-size:.78rem">Big money is aggressively selling. Avoid buying. Adds bearish weight to all methods.</span>
+      </div>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> Think of CMF like watching the <strong>kitchen exit at a party</strong>. If lots of people are coming in through the front door with full plates (closing near highs on high volume) = accumulation. If people are sneaking out the back with empty plates (closing near lows on high volume) = distribution. The party might look fun, but the smart people are already leaving.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-oscillator" id="adx">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-compass me-2" style="color:var(--o)"></i>ADX (Average Directional Index) <span class="importance imp-helpful">Method Picker</span></h3>
+    <span class="tv-name">Average Directional Index</span>
+    <span class="cat-badge cat-badge-oscillator">Oscillator</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      ADX answers one simple question: <strong>"Is this stock trending, or is it going sideways?"</strong> It does NOT tell you whether the trend is up or down — only how strong it is. A high ADX means the stock is making a strong, directional move (great for M1/M2/M4). A low ADX means the stock is drifting sideways with no clear direction (that's where M3 reversals work better).
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#129517;</span>
+      <span><strong>Takeaway:</strong> ADX helps you <strong>pick the right method</strong>. If ADX says "trending" — use trend-following methods (M1, M2, M4). If ADX says "no trend" — use reversal methods (M3). Using the wrong method in the wrong regime is one of the most common mistakes.</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>Period</td><td class="val">14</td><td>Standard 14-day smoothing. Most widely used setting.</td></tr>
+    </table>
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">ADX &ge; 25 (with rising slope)</div>
+        <strong>TRENDING REGIME</strong><br>
+        <span style="font-size:.78rem">Strong directional move in progress. Use <span class="method-tag m1-tag">M1</span> <span class="method-tag m2-tag">M2</span> <span class="method-tag m4-tag">M4</span>. Trend-following strategies work best here.</span>
+      </div>
+      <div class="signal-box signal-warn">
+        <div class="signal-label">ADX 20 – 25</div>
+        <strong>TRANSITION ZONE</strong><br>
+        <span style="font-size:.78rem">Could go either way. Watch if ADX is rising (trend building) or falling (trend dying). Be cautious.</span>
+      </div>
+      <div class="signal-box signal-neutral">
+        <div class="signal-label">ADX &lt; 20</div>
+        <strong>MEAN-REVERTING REGIME</strong><br>
+        <span style="font-size:.78rem">Stock is going sideways, no clear trend. Use <span class="method-tag m3-tag">M3</span> reversal patterns (W-bottoms, M-tops). Trend methods will get chopped up here.</span>
+      </div>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> ADX is like a <strong>wind speed gauge</strong>. It doesn't tell you which direction the wind blows (up or down) — just how strong it is. High wind = set your sails (trend follow). No wind = paddle back and forth in the channel (mean revert). Trying to sail in calm winds is frustrating; trying to paddle in a storm is dangerous.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-oscillator" id="vwmacd">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-activity me-2" style="color:var(--p)"></i>VWMACD (Volume-Weighted MACD) <span class="importance imp-helpful">Direction Lean</span></h3>
+    <span class="tv-name">MACD</span>
+    <span class="cat-badge cat-badge-oscillator">Oscillator</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      MACD compares a <strong>fast-moving average (12-day)</strong> with a <strong>slow-moving average (26-day)</strong>. When the fast one is above the slow one, the stock has recently been rising — bullish. When the fast one is below — bearish. The "histogram" (bar chart) shows how far apart they are. Growing bars = momentum building. Shrinking bars = momentum fading. In our system, MACD provides a <strong>directional lean</strong> — it adds bullish or bearish weight to the overall score but is not a primary buy/sell trigger by itself.
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>Fast Period</td><td class="val">12</td><td>Short-term momentum (roughly 2.5 weeks)</td></tr>
+      <tr><td>Slow Period</td><td class="val">26</td><td>Longer-term trend (roughly 5.5 weeks)</td></tr>
+      <tr><td>Signal Period</td><td class="val">9</td><td>Smoothing for the signal line — triggers crossovers</td></tr>
+    </table>
+    <div class="formula">MACD Line = EMA(12) - EMA(26)<br>Signal Line = EMA(9) of MACD Line<br>Histogram = MACD Line - Signal Line</div>
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">Bullish lean</div>
+        MACD line above signal line + positive histogram = upward momentum. Adds bullish weight to the composite recommendation.
+      </div>
+      <div class="signal-box signal-sell">
+        <div class="signal-label">Bearish lean</div>
+        MACD line below signal line + negative histogram = downward momentum. Adds bearish weight. Not enough to trigger a sell alone.
+      </div>
+    </div>
+    <div class="pro-tip">
+      <span class="tip-label">TradingView Tip</span>
+      <span>On TradingView, search for "MACD" (the built-in indicator). Set Fast Length = 12, Slow Length = 26, Signal = 9. The system uses volume-weighted prices internally, but standard MACD with these params is the closest visual equivalent.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-volatility" id="atr">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-arrows-angle-expand me-2" style="color:var(--r)"></i>ATR (Average True Range) <span class="importance imp-high">Stop Loss Engine</span></h3>
+    <span class="tv-name">Average True Range</span>
+    <span class="cat-badge cat-badge-volatility">Volatility</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      ATR tells you <strong>how much a stock typically moves in a single day</strong>. If a stock's ATR is &#8377;15, that means on an average day it moves about &#8377;15 between its high and low. This is incredibly useful for setting <strong>stop losses</strong> — you don't want your stop so tight that normal daily noise triggers it, but not so wide that you lose too much if you're wrong. ATR gives you a scientific way to set stops based on the stock's actual personality.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#128737;</span>
+      <span><strong>Takeaway:</strong> ATR is the <strong>engine behind all stop-loss calculations</strong> in the system. It adapts to each stock's volatility — a volatile stock gets a wider stop, a calm stock gets a tighter one. The system uses three different ATR periods for different purposes: ATR(14) for general trailing stops, ATR(22) for the Chandelier Exit, and ATR(10) for SuperTrend-style stops.</span>
+    </div>
+    <table class="param-table">
+      <tr><th>ATR Period</th><th>Value</th><th>What it's used for</th></tr>
+      <tr><td>Primary</td><td class="val">14</td><td>Trailing stops (tight and wide), profit tier thresholds, position sizing</td></tr>
+      <tr><td>Chandelier</td><td class="val">22</td><td>Chandelier Exit — a wider stop based on recent highest high</td></tr>
+      <tr><td>SuperTrend</td><td class="val">10</td><td>SuperTrend-style stop — shorter, more responsive</td></tr>
+    </table>
+    <div class="formula">True Range = MAX(High - Low, |High - Previous Close|, |Low - Previous Close|)<br>ATR = Wilder's Moving Average of True Range over N periods</div>
+    <p class="usage"><strong>Trailing stop formulas — the system calculates all of these and picks the highest (safest) value:</strong></p>
+    <table class="method-table">
+      <tr><th>Stop Type</th><th>Formula</th><th>What it means in plain English</th></tr>
+      <tr>
+        <td style="color:var(--r)"><strong>Chandelier Exit</strong></td>
+        <td class="font-mono" style="font-size:.78rem;color:var(--r)">Highest High(22) - 3 &times; ATR(22)</td>
+        <td class="usage">Take the highest price in the last 22 days. Subtract 3 times the average daily movement. If price drops below this, the uptrend is likely broken.</td>
+      </tr>
+      <tr>
+        <td style="color:var(--y)"><strong>ATR Trail — Tight</strong></td>
+        <td class="font-mono" style="font-size:.78rem;color:var(--y)">Close - 2 &times; ATR(14)</td>
+        <td class="usage">Current price minus 2 day's worth of movement. Tighter = less room to breathe. Used for stocks in later stages of a move.</td>
+      </tr>
+      <tr>
+        <td style="color:var(--g)"><strong>ATR Trail — Wide</strong></td>
+        <td class="font-mono" style="font-size:.78rem;color:var(--g)">Close - 3 &times; ATR(14)</td>
+        <td class="usage">Current price minus 3 day's worth of movement. Wider = more breathing room. Used early in a trade when you want to give it space.</td>
+      </tr>
+      <tr>
+        <td style="color:var(--b)"><strong>SuperTrend-style</strong></td>
+        <td class="font-mono" style="font-size:.78rem;color:var(--b)">Close - 2 &times; ATR(10)</td>
+        <td class="usage">Short-period ATR — reacts faster to recent volatility changes.</td>
+      </tr>
+      <tr>
+        <td style="color:#8b949e"><strong>Minimum guard</strong></td>
+        <td class="font-mono" style="font-size:.78rem;color:#8b949e">Close - 1 &times; ATR(14)</td>
+        <td class="usage">Floor level. The system never sets a stop tighter than 1 ATR below current price. Prevents getting stopped out by normal noise.</td>
+      </tr>
+    </table>
+    <div class="pro-tip">
+      <span class="tip-label">How the system picks</span>
+      <span>It calculates ALL of the above stop levels and takes the <strong>highest value</strong> (the most protective one). So if the Chandelier Exit says &#8377;480, the tight trail says &#8377;475, and the wide trail says &#8377;465 — the system uses &#8377;480 as the stop. Stops only move UP, never down.</span>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> ATR is like knowing the <strong>typical turbulence on a flight route</strong>. If you know the route is bumpy (high ATR), you tighten your seatbelt more (wider stop) and don't panic at every wobble. If the route is smooth (low ATR), a sudden jolt means something is actually wrong (tighter stop). Setting stops without considering ATR is like wearing the same seatbelt setting on every flight regardless of conditions.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-volatility" id="volume">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-bar-chart-line me-2" style="color:var(--y)"></i>Volume <span class="importance imp-medium">Confirmation</span></h3>
+    <span class="tv-name">Volume + Moving Average</span>
+    <span class="cat-badge cat-badge-volatility">Volume</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Volume is simply <strong>how many shares were traded</strong> in a day. It's the most basic and most honest indicator — you can't fake volume. A price move on <strong>high volume</strong> is like a crowd cheering — lots of people agree with the move. A price move on <strong>low volume</strong> is like one person clapping — nobody cares, and the move can easily reverse. The system uses a <strong>50-day average</strong> of volume as a benchmark — is today's volume above or below normal?
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#128227;</span>
+      <span><strong>Takeaway:</strong> Volume is the <strong>lie detector</strong> for price moves. A breakout above the Bollinger Band on high volume = real deal. Same breakout on low volume = suspicious, could be a fake-out. The system requires volume above the 50-day SMA for M1 entry (condition #3).</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>Volume SMA Period</td><td class="val">50</td><td>Average volume over ~2.5 months. Smooth enough to filter out single-day spikes.</td></tr>
+      <tr><td>Minimum Volume Filter</td><td class="val">200,000 shares/day</td><td>Stocks below this are filtered out entirely — too thinly traded, prone to manipulation.</td></tr>
+    </table>
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">Volume &gt; 50-day SMA</div>
+        <strong>Above-Average Activity</strong><br>
+        <span style="font-size:.78rem">More people are trading than usual. Price moves are more reliable. In M1, this is buy condition #3 (adds +20 to entry score).</span>
+      </div>
+      <div class="signal-box signal-sell">
+        <div class="signal-label">Volume &lt; 0.8 &times; Average</div>
+        <strong>Fading Volume</strong><br>
+        <span style="font-size:.78rem">Volume dropping below 80% of average = participation dying. Adds <strong>+15 exit points</strong> in Exit Intelligence. The crowd is leaving.</span>
+      </div>
+    </div>
+    <div class="pro-tip">
+      <span class="tip-label">TradingView Setup</span>
+      <span>Add the built-in "Volume" indicator. Then separately add a "Moving Average" indicator, but apply it to the volume pane (not price) — set Length = 50, MA Type = SMA. The SMA line on the volume pane tells you at a glance if today's volume is above or below normal.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-system" id="methods">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-list-check me-2" style="color:var(--g)"></i>Method Quick Reference <span class="importance imp-critical">Core Rules</span></h3>
+    <span class="cat-badge cat-badge-system">System</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      The system has <strong>4 different methods</strong> for finding trades — each designed for a different market condition. Think of them like <strong>4 different plays</strong> in a playbook: you pick the one that matches the current situation. M1 is for explosive breakouts after quiet periods. M2 is for riding strong trends. M3 is for catching reversals (bounces). M4 is for the strongest possible trends.
+    </div>
+    <table class="method-table">
+      <tr><th style="width:14%">Method</th><th style="width:18%">When to Use</th><th>Entry Conditions &#128994;</th><th>Exit Conditions &#128308;</th><th style="width:10%">Hold</th></tr>
+      <tr style="border-left:3px solid var(--g)">
+        <td><span class="method-tag m1-tag" style="font-size:.78rem">M1</span><br><strong>Squeeze Breakout</strong></td>
+        <td class="usage">Stock has been quiet for months. Bands are tight. You're waiting for the explosion.</td>
+        <td class="usage">ALL 5 must be true:<br>
+          <span style="color:var(--g)">1.</span> BBW at 6-month low (squeeze) — <em>+25 pts</em><br>
+          <span style="color:var(--g)">2.</span> Price breaks above upper BB — <em>+25 pts</em><br>
+          <span style="color:var(--g)">3.</span> Volume above 50-SMA — <em>+20 pts</em><br>
+          <span style="color:var(--g)">4.</span> CMF &gt; 0 (money flowing in) — <em>+15 pts</em><br>
+          <span style="color:var(--g)">5.</span> MFI &gt; 50 (buying pressure) — <em>+15 pts</em><br>
+          <em style="color:#8b949e">Total: 100 points = perfect setup</em></td>
+        <td class="usage"><span style="color:var(--r)">&#9679;</span> SAR flips bearish<br><span style="color:var(--r)">&#9679;</span> %b drops below 0.50<br><span style="color:var(--r)">&#9679;</span> Expansion ends (BBW starts falling after rising)</td>
+        <td class="font-mono" style="color:var(--g)">15-20 days</td>
+      </tr>
+      <tr style="border-left:3px solid var(--b)">
+        <td><span class="method-tag m2-tag" style="font-size:.78rem">M2</span><br><strong>Trend Following</strong></td>
+        <td class="usage">Stock is already in a strong uptrend. You want to ride along.</td>
+        <td class="usage"><strong>%b &gt; 0.80 AND MFI &gt; 80</strong><br><br>Both conditions must confirm: price is near the top AND money is flowing in aggressively. Double confirmation prevents false signals.</td>
+        <td class="usage"><span style="color:var(--r)">&#9679;</span> %b &lt; 0.20 AND MFI &lt; 20 (both weak)<br><span style="color:var(--r)">&#9679;</span> SAR flips bearish</td>
+        <td class="font-mono" style="color:var(--b)">20-25 days</td>
+      </tr>
+      <tr style="border-left:3px solid var(--r)">
+        <td><span class="method-tag m3-tag" style="font-size:.78rem">M3</span><br><strong>Reversals</strong></td>
+        <td class="usage">Stock is going sideways or has been falling. You're looking for the bounce.</td>
+        <td class="usage"><strong>W-Bottom (buy):</strong><br>1st dip: %b &le; 0.05 (very oversold)<br>Stock rallies, then dips again<br>2nd dip: %b &gt; 0.20 (sellers exhausted)<br>+ MFI divergence confirms<br><br><strong>M-Top (sell):</strong><br>1st peak: %b &ge; 0.95 → dip → 2nd peak: %b &lt; 0.80</td>
+        <td class="usage"><span style="color:var(--r)">&#9679;</span> Opposite pattern forms<br><span style="color:var(--r)">&#9679;</span> SAR flips<br><span style="color:var(--r)">&#9679;</span> Price target reached</td>
+        <td class="font-mono" style="color:var(--r)">10-15 days</td>
+      </tr>
+      <tr style="border-left:3px solid var(--y)">
+        <td><span class="method-tag m4-tag" style="font-size:.78rem">M4</span><br><strong>Walking the Bands</strong></td>
+        <td class="usage">The strongest trends — stock keeps touching the upper band again and again.</td>
+        <td class="usage"><strong>%b stays &ge; 0.85</strong> with 3+ touches of upper band in 10 bars, 60% zone consistency<br><br><strong>Dip-buy:</strong> %b pulls back to 0.50-0.65 (middle band), then resumes upward. This is a buying opportunity within the trend.</td>
+        <td class="usage"><span style="color:var(--r)">&#9679;</span> %b falls below 0.15<br><span style="color:var(--r)">&#9679;</span> SAR flips<br><span style="color:var(--r)">&#9679;</span> Fails to hold middle band on pullback</td>
+        <td class="font-mono" style="color:var(--y)">20-25 days</td>
+      </tr>
+    </table>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>How to pick the right method:</strong> Check ADX first. ADX &ge; 25 (trending) = M1, M2, or M4. ADX &lt; 20 (sideways) = M3. Then check BBW — if it's at a 6-month low, M1 is the setup. Otherwise, check %b — high %b with high MFI = M2. %b consistently near 0.85+ = M4. Low %b forming a W-pattern = M3.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-system" id="trailing">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-shield-lock me-2" style="color:var(--o)"></i>Trailing Stop Profit Tiers <span class="importance imp-high">Risk Mgmt</span></h3>
+    <span class="cat-badge cat-badge-system">System</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      As your trade makes more and more profit, the system automatically <strong>ratchets up your stop loss</strong> through 4 tiers — like a <strong>safety net that rises with you</strong>. The key idea: <strong>stops only move up, never down</strong>. Once you've locked in profit at a certain level, you'll never give it back. ATR(14) is used to measure how far you've come — each "ATR" is roughly one average day's movement.
+    </div>
+    <table class="method-table">
+      <tr><th style="width:15%">Tier</th><th>When It Triggers</th><th>Where Your Stop Moves</th><th>What This Means For You</th></tr>
+      <tr style="background:rgba(247,184,75,.06);border-left:3px solid var(--y)">
+        <td style="color:var(--y);font-weight:700">&#128310; Tier 1<br>Breakeven</td>
+        <td class="font-mono">Profit &ge; 1 &times; ATR(14)</td>
+        <td class="font-mono" style="color:var(--g)">Entry price (breakeven)</td>
+        <td class="usage"><strong>Risk eliminated.</strong> Even if the trade goes against you now, you lose nothing. This is the most important tier — it turns a risky trade into a free trade.</td>
+      </tr>
+      <tr style="background:rgba(124,138,239,.06);border-left:3px solid var(--b)">
+        <td style="color:var(--b);font-weight:700">&#128311; Tier 2<br>Comfortable</td>
+        <td class="font-mono">Profit &ge; 2 &times; ATR(14)</td>
+        <td class="font-mono" style="color:var(--g)">Entry + 1 &times; ATR(14)</td>
+        <td class="usage"><strong>Profit locked in.</strong> You're guaranteed to walk away with at least 1 ATR of profit. The trade is now working well. Consider booking 1/3 of your position here.</td>
+      </tr>
+      <tr style="background:rgba(192,132,252,.06);border-left:3px solid var(--p)">
+        <td style="color:var(--p);font-weight:700">&#128312; Tier 3<br>Strong Winner</td>
+        <td class="font-mono">Profit &ge; 3 &times; ATR(14)</td>
+        <td class="font-mono" style="color:var(--g)">Entry + 2 &times; ATR(14)</td>
+        <td class="usage"><strong>Substantial profit banked.</strong> The trade has been a solid winner. You have 2 ATR of locked profit. Book another 1/3 of your position.</td>
+      </tr>
+      <tr style="background:rgba(10,179,156,.06);border-left:3px solid var(--g)">
+        <td style="color:var(--g);font-weight:700">&#128313; Tier 4<br>Big Winner</td>
+        <td class="font-mono">Profit &ge; 5 &times; ATR(14)</td>
+        <td class="font-mono" style="color:var(--g)">Entry + 3 &times; ATR(14)</td>
+        <td class="usage"><strong>Exceptional trade.</strong> This is a rare, outsized winner. 3 ATR of profit is locked. Trail the remaining 1/3 with a tight stop and let it run as far as it wants.</td>
+      </tr>
+    </table>
+    <p class="usage" style="margin-top:14px"><strong>Scale-out guidance at each tier:</strong></p>
+    <div class="signal-row">
+      <div class="signal-box signal-buy" style="border-left:3px solid var(--y)">
+        <div class="signal-label">Tier 1 — at BB Upper Band</div>
+        Book <strong>1/3</strong> of position. Take some money off the table while keeping most of the ride.
+      </div>
+      <div class="signal-box signal-buy" style="border-left:3px solid var(--b)">
+        <div class="signal-label">Tier 2 — at 1-sigma above</div>
+        Book another <strong>1/3</strong>. You've now banked 2/3 of the position. House money from here.
+      </div>
+      <div class="signal-box signal-buy" style="border-left:3px solid var(--p)">
+        <div class="signal-label">Tier 3+ — at 3-sigma</div>
+        Trail the remaining <strong>1/3</strong> with a tight stop. Let this runner fly — these are the trades that make your year.
+      </div>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> Think of trailing stops like climbing a mountain with <strong>safety checkpoints</strong>. At each checkpoint (tier), you hammer in a piton — if you slip, you only fall back to the last piton, not all the way to the bottom. Tier 1 = base camp (breakeven). Each tier is a higher camp. The higher you climb, the more of your gains are protected.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-system" id="exit">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-door-open me-2" style="color:var(--r)"></i>Exit Intelligence Scoring <span class="importance imp-critical">When to Sell</span></h3>
+    <span class="cat-badge cat-badge-system">System</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Knowing when to sell is <strong>harder than knowing when to buy</strong>. The Exit Intelligence system solves this by watching <strong>7 different warning signals</strong> simultaneously. Each signal that triggers adds points to a "danger score." The higher the score, the more urgently you should consider selling. It's like a <strong>fire alarm system</strong> with 7 different smoke detectors — one going off might be a false alarm, but if 3 or 4 go off together, there's a real fire.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#128680;</span>
+      <span><strong>Takeaway:</strong> Don't try to remember all 7 signals — the system scores them automatically. Just watch the final score and act according to the tier: HOLD (do nothing), MONITOR (watch closely), TIGHTEN (tighten your stop), or EXIT (strongly consider selling).</span>
+    </div>
+    <table class="method-table">
+      <tr><th style="width:22%">Warning Signal</th><th>What Triggers It</th><th style="width:8%">Points</th><th>Why It Matters</th></tr>
+      <tr style="border-left:3px solid var(--r)">
+        <td style="color:var(--r);font-weight:600">SAR Bearish Flip</td>
+        <td>Parabolic SAR dots flip from below to above price</td>
+        <td class="val" style="text-align:center;font-size:.95rem">+25</td>
+        <td class="usage">The primary trend indicator says "trend is over." This is the single biggest warning.</td>
+      </tr>
+      <tr style="border-left:3px solid var(--r)">
+        <td style="color:var(--r);font-weight:600">RSI Overbought</td>
+        <td>RSI(14) goes above 75</td>
+        <td class="val" style="text-align:center;font-size:.95rem">+25</td>
+        <td class="usage">Stock has risen too fast. Like a sprinter who's been running flat-out — a slowdown is coming.</td>
+      </tr>
+      <tr style="border-left:3px solid var(--o)">
+        <td style="color:var(--o);font-weight:600">Below SMA20</td>
+        <td>Close price drops below the 20-day average</td>
+        <td class="val" style="text-align:center;font-size:.95rem">+20</td>
+        <td class="usage">Price has fallen below its middle Bollinger Band. The trend's anchor has broken.</td>
+      </tr>
+      <tr style="border-left:3px solid var(--y)">
+        <td style="color:var(--y);font-weight:600">RSI Declining</td>
+        <td>RSI slope is less than -1.0 (dropping fast)</td>
+        <td class="val" style="text-align:center;font-size:.95rem">+15</td>
+        <td class="usage">Even if RSI isn't overbought, it's losing altitude fast. Momentum is draining away.</td>
+      </tr>
+      <tr style="border-left:3px solid var(--y)">
+        <td style="color:var(--y);font-weight:600">Volume Fading</td>
+        <td>Volume drops below 0.8 &times; average</td>
+        <td class="val" style="text-align:center;font-size:.95rem">+15</td>
+        <td class="usage">Fewer people are trading. The conviction behind the move is drying up. Crowd is leaving.</td>
+      </tr>
+      <tr style="border-left:3px solid var(--b)">
+        <td style="color:var(--b);font-weight:600">BBW Contracting</td>
+        <td>BBW drops below 0.06 (6.0 on TV)</td>
+        <td class="val" style="text-align:center;font-size:.95rem">+10</td>
+        <td class="usage">Bands are getting very tight after an expansion. The move has exhausted itself.</td>
+      </tr>
+      <tr style="border-left:3px solid var(--b)">
+        <td style="color:var(--b);font-weight:600">Expansion End</td>
+        <td>BBW was rising but has started falling</td>
+        <td class="val" style="text-align:center;font-size:.95rem">+10</td>
+        <td class="usage">The breakout's "energy" has peaked and is now declining. The best of the move is behind you.</td>
+      </tr>
+    </table>
+    <p class="usage" style="margin:16px 0 6px"><strong>Total up the points and look at the urgency tier:</strong></p>
+    <div class="tier-bar">
+      <div class="tier-hold">&#128994; HOLD<br>0–25 pts</div>
+      <div class="tier-monitor">&#128992; MONITOR<br>26–45 pts</div>
+      <div class="tier-tighten">&#128993; TIGHTEN<br>46–65 pts</div>
+      <div class="tier-exit">&#128308; EXIT<br>66+ pts</div>
+    </div>
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">&#128994; Hold (0-25)</div>
+        Everything looks fine. No signals firing or just 1 minor one. Keep your position. Let your winner run.
+      </div>
+      <div class="signal-box signal-warn">
+        <div class="signal-label">&#128992; Monitor (26-45)</div>
+        A couple of warning signs. Nothing urgent, but start paying closer attention. Check the chart daily. Have your exit plan ready.
+      </div>
+    </div>
+    <div class="signal-row">
+      <div class="signal-box" style="background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2)">
+        <div class="signal-label" style="color:var(--o)">&#128993; Tighten Stop (46-65)</div>
+        Multiple warning signs are flashing. Move your stop loss tighter — closer to the current price. Reduce position size if possible. The trade is under stress.
+      </div>
+      <div class="signal-box signal-sell">
+        <div class="signal-label">&#128308; Consider Exit (66+)</div>
+        Most signals are firing. Serious risk of a significant pullback. <strong>Strongly consider selling</strong> your entire position. Preserving capital is more important than catching the last few points.
+      </div>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> Exit Intelligence is like a <strong>car dashboard warning system</strong>. One light (low fuel) might not stop your trip. But if you see low fuel + engine temperature high + oil pressure low + check engine light — you pull over immediately. The more lights that come on, the more urgently you need to act. Don't wait for the engine to blow.</span>
+    </div>
+  </div>
+</div>
+
+    </div><!-- /guide-content -->
+  </div><!-- /guide-wrap -->
+</div>
+
+{% include "_notepad_widget.html" %}
+{% include "_theme_picker.html" %}
+
+<script>
+function toggleSection(header){
+  header.classList.toggle('collapsed');
+}
+
+document.getElementById('guideSearch').addEventListener('input', function(){
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('.ind-section').forEach(s => {
+    s.style.display = (!q || s.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  });
+});
+
+document.querySelectorAll('.guide-toc a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const id = a.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({behavior:'smooth', block:'start'});
+      const h = el.querySelector('.ind-header');
+      if (h && h.classList.contains('collapsed')) h.classList.remove('collapsed');
+    }
+  });
+});
+
+const tocLinks = document.querySelectorAll('.guide-toc a[href^="#"]');
+const sections = Array.from(tocLinks).map(a => document.getElementById(a.getAttribute('href').slice(1))).filter(Boolean);
+window.addEventListener('scroll', () => {
+  let current = '';
+  for (const s of sections) {
+    if (s.getBoundingClientRect().top <= 120) current = s.id;
+  }
+  tocLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+}, {passive: true});
+</script>
+</body>
+</html>

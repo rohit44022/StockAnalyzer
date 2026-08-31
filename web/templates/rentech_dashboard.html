@@ -117,6 +117,11 @@ body{background:var(--bg);font-family:var(--bs-body-font-family);color:var(--bs-
     <div class="col-lg-4" id="riskPanel"></div>
   </div>
 
+  <!-- ML CONFIDENCE -->
+  <div class="row g-3 mb-3">
+    <div class="col-12" id="mlPanel"></div>
+  </div>
+
   <!-- ROW 2: Alpha Signals -->
   <div class="row g-3 mb-3">
     <div class="col-12" id="alphaPanel"></div>
@@ -300,6 +305,7 @@ function renderAll(d){
   renderScore(d.verdict, d.signals);
   renderRegime(d.regime);
   renderRisk(d.risk);
+  renderMLScore(d.ml_scoring, d.verdict);
   renderAlphas(d.signals);
   renderStats(d.statistical_profile);
   renderLevels(d.risk);
@@ -308,11 +314,70 @@ function renderAll(d){
   renderMicro(d.regime);
 }
 
+function renderMLScore(ml, v){
+  if(!ml){qs('#mlPanel').innerHTML='';return;}
+  if(!ml.model_available){
+    qs('#mlPanel').innerHTML=`
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="section-title"><i class="bi bi-cpu me-1"></i>ML Confidence Engine</span>
+          <span class="badge bg-secondary">Not Trained</span>
+        </div>
+        <div class="card-body text-center" style="padding:20px;color:rgba(255,255,255,.4)">
+          <i class="bi bi-robot" style="font-size:2rem"></i>
+          <p class="mt-2 mb-1" style="font-size:.85rem">ML model not yet trained. Run: <code>python -m rentech.ml_scorer</code></p>
+          <p style="font-size:.75rem">The ML engine learns from historical alpha scores to predict signal reliability.</p>
+        </div>
+      </div>`;
+    return;
+  }
+  const conf=ml.ml_confidence;
+  const edge=ml.ml_edge;
+  const edgeCol=edge==='ML_PASS'?'var(--bull)':edge==='ML_CAUTION'?'var(--bear)':'var(--neutral)';
+  const edgeBg=edge==='ML_PASS'?'var(--green-dim)':edge==='ML_CAUTION'?'var(--red-dim)':'rgba(255,193,7,.1)';
+  const confCol=conf>=60?'var(--bull)':conf>=45?'var(--neutral)':'var(--bear)';
+  const winP=ml.win_probability||conf;
+  const lossP=ml.loss_probability||(100-conf);
+  const gradeCol=v&&v.grade?`grade-${v.grade}`:'';
+  qs('#mlPanel').innerHTML=`
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="section-title"><i class="bi bi-cpu me-1"></i>ML Confidence Engine</span>
+        <span class="badge" style="background:${edgeBg};color:${edgeCol};font-size:.8rem;padding:5px 12px">${edge.replace('_',' ')}</span>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-md-3">
+            <div class="stat-val" style="color:${confCol};font-size:2rem">${conf.toFixed(0)}%</div>
+            <div class="stat-label">ML Confidence</div>
+            <div class="score-bar mt-2"><div class="score-fill" style="width:${conf}%;background:${confCol}"></div></div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-val" style="color:var(--bull)">${winP.toFixed(1)}%</div>
+            <div class="stat-label">Win Probability</div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-val" style="color:var(--bear)">${lossP.toFixed(1)}%</div>
+            <div class="stat-label">Loss Probability</div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-val ${gradeCol}">${v?v.grade:'—'}</div>
+            <div class="stat-label">ML-Adjusted Grade</div>
+          </div>
+        </div>
+        <div class="help-box">
+          <h6><i class="bi bi-info-circle me-1"></i>What is the ML Engine?</h6>
+          <p style="margin:0">A <strong>HistGradientBoosting</strong> model trained on historical alpha scores across 50+ Nifty stocks. It learns which combinations of the 11 alpha signals historically led to profitable trades. <strong style="color:var(--bull)">ML PASS (≥60%)</strong> = the pattern has historically been profitable. <strong style="color:var(--bear)">ML CAUTION (<45%)</strong> = similar setups often lost money. The model judges the <em>ensemble</em>, not individual indicators.</p>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderIntro(d){
   qs('#introPanel').innerHTML = `
     <div class="intro-card">
       <h5><i class="bi bi-lightbulb me-2"></i>How to Read This Dashboard</h5>
-      <p>This dashboard uses <strong style="color:var(--accent)">7 mathematical models</strong> — inspired by Renaissance Technologies, the most successful quant hedge fund in history — to analyze whether a stock is worth buying, selling, or holding. Think of it as a <strong style="color:var(--accent)">doctor's report for a stock</strong>: each test checks a different "vital sign" of the stock's health.</p>
+      <p>This dashboard uses <strong style="color:var(--accent)">11 mathematical models + ML confidence scoring</strong> — inspired by Renaissance Technologies — to analyze whether a stock is worth buying, selling, or holding. Think of it as a <strong style="color:var(--accent)">doctor's report for a stock</strong>: each test checks a different "vital sign", and a trained ML model judges the overall diagnosis.</p>
       <div class="row mt-3">
         <div class="col-md-4 mb-2">
           <div style="font-size:.78rem;color:rgba(255,255,255,.5)">
@@ -426,10 +491,10 @@ function renderScore(v, sig){
         <div class="help-box">
           <h6><i class="bi bi-info-circle me-1"></i>Understanding the Composite Signal</h6>
           <ul>
-            <li><strong class="term">Score (−100 to +100):</strong> This is the "master score" — a weighted average of all 7 alpha models. <span class="good">Above +30 is bullish</span>, <span class="bad">below −30 is bearish</span>, and anything in between is <span class="mid">neutral (no clear edge)</span>.</li>
+            <li><strong class="term">Score (−100 to +100):</strong> This is the "master score" — a weighted average of all 11 alpha models. <span class="good">Above +30 is bullish</span>, <span class="bad">below −30 is bearish</span>, and anything in between is <span class="mid">neutral (no clear edge)</span>.</li>
             <li><strong class="term">Direction:</strong> Which way the math says the stock is headed — LONG (going up), SHORT (going down), or NEUTRAL (sideways).</li>
             <li><strong class="term">Conviction (0–100%):</strong> How strongly the models agree with each other. Think of it as "how sure is the system?" — <span class="good">above 70% = high confidence</span>, <span class="mid">40–70% = moderate</span>, <span class="bad">below 40% = low confidence</span>.</li>
-            <li><strong class="term">Quality (0–100):</strong> How many of the 7 models are giving valid, non-conflicting signals. Higher = more models are working and agree.</li>
+            <li><strong class="term">Quality (0–100):</strong> How many of the 11 models are giving valid, non-conflicting signals. Higher = more models are working and agree.</li>
             <li><strong class="term">Stat Edge (0–100):</strong> The statistical advantage you have over random chance. A higher edge means the signal is more reliable — like having better odds at a card game.</li>
             <li><strong class="term">Sharpe Estimate:</strong> Expected return-per-unit-of-risk. <span class="good">Above 1.0 is good</span>, <span class="good">above 2.0 is excellent</span>. It answers: "Is the potential profit worth the risk?"</li>
           </ul>
@@ -591,26 +656,28 @@ function renderAlphas(sig){
   qs('#alphaPanel').innerHTML = `
     <div class="card">
       <div class="card-header">
-        <span class="section-title"><i class="bi bi-diagram-3 me-1"></i>Alpha Signal Ensemble (7 Sources)</span>
+        <span class="section-title"><i class="bi bi-diagram-3 me-1"></i>Alpha Signal Ensemble (${alphas.length} Sources)</span>
       </div>
       <div class="card-body p-0">${rows}
         <div class="help-box" style="margin:14px;border-radius:8px">
           <h6><i class="bi bi-info-circle me-1"></i>What are Alpha Signals?</h6>
-          <p style="margin:0 0 8px">"Alpha" means <em>excess return above the market average</em>. Each row above is a different mathematical model that looks at the stock from a unique angle — like getting 7 different expert opinions. The system combines all 7 to reach its final verdict.</p>
+          <p style="margin:0 0 8px">"Alpha" means <em>excess return above the market average</em>. Each row above is a different mathematical model that looks at the stock from a unique angle. The system combines all ${alphas.length} to reach its final verdict.</p>
           <ul>
             <li><strong class="term">Score (−100 to +100):</strong> Each model's individual opinion. <span class="good">Positive = bullish</span>, <span class="bad">negative = bearish</span>.</li>
-            <li><strong class="term">Weight (w=X%):</strong> How much importance this model gets in the final score. Models with higher weight have more influence on the verdict. Weights are adjusted based on the current market regime.</li>
-            <li><strong class="term">Direction (LONG / SHORT / NEUTRAL):</strong> This model's recommended action — <span class="good">LONG = buy</span>, <span class="bad">SHORT = sell</span>, NEUTRAL = no opinion.</li>
-            <li><strong class="term">The 7 Models Explained:</strong></li>
-            <li><strong>1. Mean Reversion:</strong> "What goes up must come down." This model checks if the stock is overextended and due for a pullback (or recovery).</li>
-            <li><strong>2. Momentum:</strong> "The trend is your friend." Measures if the stock has strong upward or downward momentum that is likely to continue.</li>
-            <li><strong>3. Statistical Arbitrage:</strong> Finds mathematical mispricings using z-scores and half-life calculations.</li>
-            <li><strong>4. Volatility:</strong> Analyzes price swings. Expanding volatility can mean breakouts; contracting volatility (squeeze) can signal imminent big moves.</li>
-            <li><strong>5. Microstructure:</strong> Looks at volume patterns and price-volume relationships to detect hidden buying or selling pressure.</li>
-            <li><strong>6. Regime:</strong> Adjusts signals based on whether the market is in a bull, bear, or sideways phase.</li>
-            <li><strong>7. Entropy:</strong> Measures randomness. Low entropy = predictable patterns the system can exploit. High entropy = chaotic, harder to trade.</li>
+            <li><strong class="term">Weight (w=X%):</strong> How much importance this model gets. Weights shift by market regime.</li>
+            <li><strong>1. Mean Reversion:</strong> Checks if the stock is overextended and due for a pullback or recovery.</li>
+            <li><strong>2. Momentum:</strong> Measures if the stock has strong directional momentum likely to continue.</li>
+            <li><strong>3. Microstructure:</strong> Volume patterns and price-volume relationships to detect hidden buying/selling.</li>
+            <li><strong>4. Volatility:</strong> Analyzes price swings — squeezes signal imminent big moves.</li>
+            <li><strong>5. Seasonality:</strong> Day-of-week, month, and FY-end calendar effects on Indian markets.</li>
+            <li><strong>6. Patterns:</strong> Statistical z-score based candlestick patterns (not subjective).</li>
+            <li><strong>7. Statistical Arb:</strong> AR(5) regression residuals — mathematical mispricing detection.</li>
+            <li><strong>8. ConnorsRSI:</strong> Composite RSI(3) + streak + percentile rank — 56-59% win rate on 15yr NSE data.</li>
+            <li><strong>9. KST:</strong> Weighted multi-period ROC oscillator — catches momentum shifts earlier than MACD.</li>
+            <li><strong>10. CMO:</strong> Chande Momentum Oscillator — measures directional momentum with 57-59% win rate.</li>
+            <li><strong>11. Vortex:</strong> Directional trend detection — complements ADX with directional crossovers.</li>
           </ul>
-          <p style="margin:4px 0 0;font-style:italic;color:rgba(255,255,255,.4)">When most models agree (e.g., 5 out of 7 say LONG), the composite signal and conviction are high — this is a stronger signal.</p>
+          <p style="margin:4px 0 0;font-style:italic;color:rgba(255,255,255,.4)">When most models agree (e.g., 8 out of 11 say LONG), the composite signal and conviction are high — this is a stronger signal.</p>
         </div>
       </div>
     </div>

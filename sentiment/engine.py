@@ -23,6 +23,8 @@ import logging
 import re
 import time
 import threading
+from collections import defaultdict
+from datetime import datetime
 from typing import Dict, Any, Optional
 
 from sentiment.config import (
@@ -110,22 +112,7 @@ def _build_timeline(all_posts: list) -> list:
         pub = post.get("published", "")
         compound = post.get("sentiment", {}).get("compound", 0)
         label = post.get("sentiment", {}).get("label", "NEUTRAL")
-
-        # Try to parse various date formats
-        dt = None
-        for fmt in (
-            "%a, %d %b %Y %H:%M:%S %Z",
-            "%a, %d %b %Y %H:%M:%S %z",
-            "%Y-%m-%dT%H:%M:%S%z",
-            "%Y-%m-%dT%H:%M:%SZ",
-            "%Y-%m-%d %H:%M:%S",
-            "%Y-%m-%d",
-        ):
-            try:
-                dt = datetime.strptime(pub.strip(), fmt)
-                break
-            except (ValueError, AttributeError):
-                continue
+        dt = _try_parse_date(pub)
 
         timeline.append({
             "time": dt.isoformat() if dt else pub,
@@ -141,21 +128,79 @@ def _build_timeline(all_posts: list) -> list:
 
 
 # ═══════════════════════════════════════════════════════════════
+#  MONTHLY SENTIMENT TREND
+# ═══════════════════════════════════════════════════════════════
+
+def _build_monthly_trend(all_posts: list) -> list:
+    """Group posts by month and compute avg sentiment per month."""
+    buckets = defaultdict(list)
+    for post in all_posts:
+        pub = post.get("published", "")
+        compound = post.get("sentiment", {}).get("compound", 0)
+        dt = _try_parse_date(pub)
+        if dt:
+            key = dt.strftime("%Y-%m")
+            buckets[key].append(compound)
+
+    trend = []
+    for month in sorted(buckets.keys()):
+        scores = buckets[month]
+        avg = sum(scores) / len(scores) if scores else 0
+        label = classify_sentiment(avg)
+        trend.append({
+            "month": month,
+            "avg_score": round(avg, 4),
+            "label": label,
+            "color": sentiment_color(label),
+            "post_count": len(scores),
+        })
+    return trend
+
+
+def _compute_data_span(all_posts: list) -> int:
+    """Compute how many days of data we have."""
+    dates = []
+    for post in all_posts:
+        dt = _try_parse_date(post.get("published", ""))
+        if dt:
+            # Strip timezone info for safe comparison
+            dates.append(dt.replace(tzinfo=None) if dt.tzinfo else dt)
+    if len(dates) < 2:
+        return 0
+    return (max(dates) - min(dates)).days
+
+
+def _try_parse_date(pub: str):
+    """Try to parse various date formats, return datetime or None."""
+    if not pub:
+        return None
+    for fmt in (
+        "%a, %d %b %Y %H:%M:%S %Z",
+        "%a, %d %b %Y %H:%M:%S %z",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+    ):
+        try:
+            return datetime.strptime(pub.strip(), fmt)
+        except (ValueError, AttributeError):
+            continue
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════
 #  TOP POSTS (most impactful — highest absolute sentiment)
 # ═══════════════════════════════════════════════════════════════
 
-def _get_top_posts(all_posts: list, top_n: int = 15) -> list:
-    """Get the most sentiment-impactful posts."""
-    sorted_posts = sorted(
-        all_posts,
-        key=lambda p: abs(p.get("sentiment", {}).get("compound", 0)),
-        reverse=True,
-    )
-
-    top = []
-    for p in sorted_posts[:top_n]:
+def _get_top_posts(all_posts: list, top_n: int = 30) -> list:
+    """
+    Get top posts ensuring every source is represented.
+    Takes the top 2 from each platform first, then fills with highest impact.
+    """
+    def _fmt(p):
         s = p.get("sentiment", {})
-        top.append({
+        return {
             "title": p.get("title", ""),
             "text": p.get("text", "")[:200],
             "url": p.get("url", ""),
@@ -166,8 +211,35 @@ def _get_top_posts(all_posts: list, top_n: int = 15) -> list:
             "label": s.get("label", "NEUTRAL"),
             "color": s.get("color", "#ffc107"),
             "metadata": p.get("metadata", {}),
-        })
+        }
 
+    # Group by platform, pick top 2 per source by absolute score
+    by_platform = defaultdict(list)
+    for p in all_posts:
+        by_platform[p.get("platform", "unknown")].append(p)
+
+    seen_titles = set()
+    top = []
+    for plat, posts in by_platform.items():
+        posts.sort(key=lambda p: abs(p.get("sentiment", {}).get("compound", 0)), reverse=True)
+        for p in posts[:2]:
+            title = p.get("title", "")
+            if title not in seen_titles:
+                seen_titles.add(title)
+                top.append(_fmt(p))
+
+    # Fill remaining slots with highest-impact posts across all sources
+    all_sorted = sorted(all_posts, key=lambda p: abs(p.get("sentiment", {}).get("compound", 0)), reverse=True)
+    for p in all_sorted:
+        if len(top) >= top_n:
+            break
+        title = p.get("title", "")
+        if title not in seen_titles:
+            seen_titles.add(title)
+            top.append(_fmt(p))
+
+    # Sort final list by absolute score
+    top.sort(key=lambda x: abs(x["compound"]), reverse=True)
     return top
 
 
@@ -378,6 +450,18 @@ def analyze_stock_sentiment(
             logger.info("Deduped %d → %d posts for %s",
                         pre_dedup, len(all_posts), ticker)
 
+        # Step 2c: Persist fresh posts + merge with stored history
+        try:
+            from sentiment.storage import save_posts, load_posts, merge_with_fresh
+            save_posts(ticker, all_posts)
+            stored = load_posts(ticker, months=3)
+            if stored:
+                all_posts = merge_with_fresh(stored, all_posts)
+                logger.info("Merged %d stored posts for %s (total: %d)",
+                            len(stored), ticker, len(all_posts))
+        except Exception as e:
+            logger.warning("Storage integration skipped: %s", e)
+
         total_posts = len(all_posts)
 
         if total_posts == 0:
@@ -414,6 +498,12 @@ def analyze_stock_sentiment(
             themes=themes,
         )
 
+        # Step 8: Monthly sentiment trend
+        monthly_trend = _build_monthly_trend(all_posts)
+
+        # Step 9: Data span (how many days of history we have)
+        data_span_days = _compute_data_span(all_posts)
+
         elapsed = round(time.time() - t0, 2)
 
         result = {
@@ -433,6 +523,8 @@ def analyze_stock_sentiment(
             "top_posts": top_posts,
             "themes": themes,
             "timeline": timeline,
+            "monthly_trend": monthly_trend,
+            "data_span_days": data_span_days,
             "sources": get_source_status(),
             "elapsed_seconds": elapsed,
             "from_cache": False,

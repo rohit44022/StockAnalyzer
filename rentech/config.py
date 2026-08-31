@@ -99,6 +99,18 @@ FACTOR_WEIGHT_MICRO    = 0.15    # microstructure / volume
 FACTOR_WEIGHT_STAT     = 0.20    # statistical (Hurst, OU, cointegration)
 FACTOR_WEIGHT_REGIME   = 0.15    # regime alignment bonus
 
+# Research-backed additions (15-year NSE backtest, 29 stocks)
+FACTOR_WEIGHT_CRSI     = 0.10    # ConnorsRSI (56-59% WR, 1.70 PF)
+FACTOR_WEIGHT_KST      = 0.08    # KST — Know Sure Thing (55-58% WR, 1.78 PF)
+FACTOR_WEIGHT_CMO      = 0.08    # Chande Momentum Oscillator (57-59% WR)
+FACTOR_WEIGHT_VORTEX   = 0.08    # Vortex Indicator (56-58% WR)
+
+# ─── ML Scorer ──────────────────────────────────────────────
+ML_MODEL_DIR           = ROOT_DIR / "rentech" / "models"
+ML_FORWARD_DAYS        = 5       # forward return horizon for training labels
+ML_CONFIDENCE_PASS     = 60      # ML confidence >= 60 → ML_PASS
+ML_TRAIN_TICKERS       = 50      # number of stocks for quick training
+
 # ─── Risk Management ─────────────────────────────────────────
 CAPITAL_DEFAULT       = 1_000_000  # ₹10 Lakh default portfolio
 MAX_POSITION_PCT      = 0.10       # max 10% of capital in one stock

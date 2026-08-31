@@ -15,6 +15,7 @@ from bb_squeeze.config import (
     SCORE_BBW_SQUEEZE, SCORE_PRICE_BREAKOUT,
     SCORE_VOLUME_CONFIRM, SCORE_CMF_POSITIVE,
     SCORE_MFI_ABOVE_50, SCORE_CMF_ABOVE_10, SCORE_MFI_ABOVE_80,
+    SCORE_KC_T7_BONUS, KC_SQUEEZE_INTENSITY_MIN,
 )
 
 
@@ -98,6 +99,13 @@ class SignalResult:
 
     # ── Direction Lean ──
     direction_lean: str = "NEUTRAL"    # "BULLISH" | "BEARISH" | "NEUTRAL"
+
+    # ── T7 Keltner Channel Squeeze ──
+    kc_squeeze:           bool  = False
+    kc_had_squeeze:       bool  = False
+    kc_squeeze_duration:  int   = 0
+    kc_squeeze_intensity: float = 0.0
+    kc_t7_pass:           bool  = False
 
     # ── Human-readable summary ──
     summary:        str = ""
@@ -292,6 +300,12 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     result.rsi_norm      = _nan_safe(row.get("RSI_Norm", 0.5), 0.5)
     result.mfi_norm      = _nan_safe(row.get("MFI_Norm", 0.5), 0.5)
 
+    # ── T7 Keltner Channel Squeeze ──
+    result.kc_squeeze           = bool(row.get("KC_Squeeze", False))
+    result.kc_had_squeeze       = bool(row.get("KC_Had_Squeeze", False))
+    result.kc_squeeze_duration  = int(_nan_safe(row.get("KC_Squeeze_Duration", 0), 0))
+    result.kc_squeeze_intensity = _nan_safe(row.get("KC_Squeeze_Intensity", 0), 0)
+
     # ── Phase Detection ──
     result.phase         = _phase_detection(row, prev_df)
     result.direction_lean = _direction_lean(row)
@@ -333,6 +347,13 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     # Bonus
     if result.cmf > CMF_UPPER_LINE:  score += SCORE_CMF_ABOVE_10
     if result.mfi > MFI_OVERBOUGHT:  score += SCORE_MFI_ABOVE_80
+    # T7 Keltner Channel deep squeeze bonus
+    result.kc_t7_pass = (
+        result.kc_had_squeeze
+        and result.cond4_cmf_positive
+        and result.kc_squeeze_intensity >= KC_SQUEEZE_INTENSITY_MIN
+    )
+    if result.kc_t7_pass:  score += SCORE_KC_T7_BONUS
     result.confidence = min(score, 100)
 
     # ──────────────────────────────────────────────────────────

@@ -472,24 +472,24 @@ def compute_risk_assessment(
     n = len(ret)
 
     if direction in ("LONG", "STRONG_LONG"):
-        # Historical win rate for positive returns
         win_rate = _safe((ret > 0).sum() / max(n, 1))
-        avg_win = _safe(ret[ret > 0].mean()) if (ret > 0).any() else 0.01
-        avg_loss = _safe(abs(ret[ret < 0].mean())) if (ret < 0).any() else 0.01
+        avg_win = _safe(ret[ret > 0].mean(), 0.01) if (ret > 0).any() else 0.01
+        avg_loss = _safe(abs(ret[ret < 0].mean()), 0.01) if (ret < 0).any() else 0.01
     elif direction in ("SHORT", "STRONG_SHORT"):
         win_rate = _safe((ret < 0).sum() / max(n, 1))
-        avg_win = _safe(abs(ret[ret < 0].mean())) if (ret < 0).any() else 0.01
-        avg_loss = _safe(ret[ret > 0].mean()) if (ret > 0).any() else 0.01
+        avg_win = _safe(abs(ret[ret < 0].mean()), 0.01) if (ret < 0).any() else 0.01
+        avg_loss = _safe(ret[ret > 0].mean(), 0.01) if (ret > 0).any() else 0.01
     else:
         win_rate = 0.50
-        avg_win = _safe(abs(ret).mean()) if len(ret) > 0 else 0.01
+        avg_win = _safe(abs(ret).mean(), 0.01) if len(ret) > 0 else 0.01
         avg_loss = avg_win
 
-    # Adjust win rate by signal strength
-    signal_boost = (abs(composite_score) / 100) * 0.10  # up to 10% boost
+    avg_win = max(avg_win, 1e-6)
+    avg_loss = max(avg_loss, 1e-6)
+
+    signal_boost = (abs(composite_score) / 100) * 0.10
     adj_win_rate = min(0.85, max(0.10, win_rate + signal_boost))
 
-    # Guard: NaN win rate (empty return data)
     if np.isnan(adj_win_rate):
         adj_win_rate = 0.50
 

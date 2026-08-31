@@ -268,13 +268,13 @@ def collect_reddit(ticker: str, max_results: int = 25) -> List[Post]:
     for subreddit in INDIAN_SUBREDDITS:
         if len(posts) >= max_results:
             break
-        url = f"https://www.reddit.com/r/{subreddit}/search.json"
+        url = f"https://old.reddit.com/r/{subreddit}/search.json"
         params = {
             "q": clean_ticker,
             "restrict_sr": "on",  # Search within subreddit only
             "sort": "new",
-            "limit": 15,
-            "t": "month",
+            "limit": 25,
+            "t": "year",
         }
         resp = _safe_get(url, params=params)
         if resp:
@@ -285,7 +285,7 @@ def collect_reddit(ticker: str, max_results: int = 25) -> List[Post]:
 
     # Strategy 2: Global Reddit search with EXACT match (quoted query)
     if len(posts) < max_results:
-        url = "https://www.reddit.com/search.json"
+        url = "https://old.reddit.com/search.json"
         # Use quoted query for exact match — prevents garbage
         query = f'"{clean_ticker}" stock'
         params = {
@@ -639,17 +639,215 @@ def collect_bing_news(ticker: str, max_results: int = 15) -> List[Post]:
 
 
 # ═══════════════════════════════════════════════════════════════
+#  GOOGLE NEWS SITE-SCOPED HELPER (reused by multiple collectors)
+# ═══════════════════════════════════════════════════════════════
+
+def _collect_via_gnews_site(
+    ticker: str, site_domain: str, platform: str,
+    default_source: str, max_results: int = 20,
+) -> List[Post]:
+    """
+    Generic collector: Google News RSS with site:{domain} query.
+    Bypasses bot-blocking on the target site by going through Google.
+    """
+    try:
+        import feedparser
+    except ImportError:
+        return []
+
+    company_name = get_company_name(ticker)
+    query = f"{company_name} site:{site_domain}"
+    url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en-IN&gl=IN&ceid=IN:en"
+    resp = _safe_get(url, retries=1)
+    if resp is None:
+        return []
+
+    posts = []
+    seen = set()
+    try:
+        feed = feedparser.parse(resp.text)
+        for entry in feed.entries:
+            if len(posts) >= max_results:
+                break
+            title = entry.get("title", "").strip()
+            if not title or title in seen:
+                continue
+
+            source_name = default_source
+            if " - " in title:
+                parts = title.rsplit(" - ", 1)
+                if len(parts) == 2 and len(parts[1]) < 40:
+                    source_name = parts[1].strip()
+                    title = parts[0].strip()
+
+            if not _is_relevant(title, ticker, company_name):
+                continue
+
+            seen.add(title)
+            desc = _clean_html(entry.get("description", ""))
+            published = entry.get("published", "")
+
+            posts.append({
+                "title": title,
+                "text": _truncate(desc),
+                "url": entry.get("link", ""),
+                "published": published,
+                "source_name": source_name,
+                "platform": platform,
+                "metadata": {},
+            })
+    except Exception as e:
+        logger.warning("%s collection failed: %s", default_source, e)
+
+    return posts[:max_results]
+
+
+# ═══════════════════════════════════════════════════════════════
+#  8. MONEYCONTROL (free, India-specific stock news)
+# ═══════════════════════════════════════════════════════════════
+
+def collect_moneycontrol(ticker: str, max_results: int = 20) -> List[Post]:
+    """MoneyControl stock news via Google News site: scoping."""
+    return _collect_via_gnews_site(ticker, "moneycontrol.com", "moneycontrol", "MoneyControl", max_results)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  9. YAHOO FINANCE NEWS (free, .NS tickers supported)
+# ═══════════════════════════════════════════════════════════════
+
+def collect_yahoo_finance(ticker: str, max_results: int = 15) -> List[Post]:
+    """
+    Collect stock-specific news from Yahoo Finance.
+    Yahoo Finance has excellent coverage for .NS (NSE) tickers.
+    Uses the RSS feed endpoint which is free and reliable.
+    """
+    try:
+        import feedparser
+    except ImportError:
+        return []
+
+    # Ensure .NS suffix
+    yf_ticker = ticker if ticker.endswith((".NS", ".BO")) else f"{ticker}.NS"
+
+    url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={yf_ticker}&region=IN&lang=en-IN"
+    resp = _safe_get(url, retries=1)
+    if resp is None:
+        return []
+
+    posts = []
+    try:
+        feed = feedparser.parse(resp.text)
+        company_name = get_company_name(ticker)
+        seen = set()
+
+        for entry in feed.entries:
+            if len(posts) >= max_results:
+                break
+            title = entry.get("title", "").strip()
+            if not title or title in seen:
+                continue
+            seen.add(title)
+
+            desc = _clean_html(entry.get("description", entry.get("summary", "")))
+            published = entry.get("published", "")
+
+            source_name = "Yahoo Finance"
+            if " - " in title:
+                parts = title.rsplit(" - ", 1)
+                if len(parts) == 2 and len(parts[1]) < 40:
+                    source_name = parts[1].strip()
+                    title = parts[0].strip()
+
+            posts.append({
+                "title": title,
+                "text": _truncate(desc),
+                "url": entry.get("link", ""),
+                "published": published,
+                "source_name": source_name,
+                "platform": "yahoo_finance",
+                "metadata": {},
+            })
+
+    except Exception as e:
+        logger.warning("Yahoo Finance collection failed: %s", e)
+
+    return posts[:max_results]
+
+
+# ═══════════════════════════════════════════════════════════════
+#  10. ECONOMIC TIMES MARKETS (free, via Google News site:)
+# ═══════════════════════════════════════════════════════════════
+
+def collect_et_markets(ticker: str, max_results: int = 20) -> List[Post]:
+    """Economic Times stock news via Google News site: scoping."""
+    return _collect_via_gnews_site(ticker, "economictimes.indiatimes.com", "et_markets", "Economic Times", max_results)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  11. TRENDLYNE (free, Indian stock analysis/research)
+# ═══════════════════════════════════════════════════════════════
+
+def collect_trendlyne(ticker: str, max_results: int = 15) -> List[Post]:
+    """Trendlyne stock analysis via Google News site: scoping."""
+    return _collect_via_gnews_site(ticker, "trendlyne.com", "trendlyne", "Trendlyne", max_results)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  12. NDTV PROFIT (free, major Indian business news)
+# ═══════════════════════════════════════════════════════════════
+
+def collect_ndtv_profit(ticker: str, max_results: int = 15) -> List[Post]:
+    """NDTV Profit business news via Google News site: scoping."""
+    return _collect_via_gnews_site(ticker, "ndtvprofit.com", "ndtv_profit", "NDTV Profit", max_results)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  13. CAPITALMIND (free, Indian investment research)
+# ═══════════════════════════════════════════════════════════════
+
+def collect_capitalmind(ticker: str, max_results: int = 15) -> List[Post]:
+    """Capitalmind stock research via Google News site: scoping."""
+    return _collect_via_gnews_site(ticker, "capitalmind.in", "capitalmind", "Capitalmind", max_results)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  14. 5PAISA (free, Indian broker stock research)
+# ═══════════════════════════════════════════════════════════════
+
+def collect_5paisa(ticker: str, max_results: int = 15) -> List[Post]:
+    """5paisa broker research via Google News site: scoping."""
+    return _collect_via_gnews_site(ticker, "5paisa.com", "fivepaisa", "5paisa", max_results)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  15. REUTERS (free, global financial authority)
+# ═══════════════════════════════════════════════════════════════
+
+def collect_reuters(ticker: str, max_results: int = 15) -> List[Post]:
+    """Reuters financial news via Google News site: scoping."""
+    return _collect_via_gnews_site(ticker, "reuters.com", "reuters", "Reuters", max_results)
+
+
+# ═══════════════════════════════════════════════════════════════
 #  MASTER COLLECTOR — runs all enabled sources
 # ═══════════════════════════════════════════════════════════════
 
 _COLLECTOR_MAP = {
-    "google_news": collect_google_news,
-    "reddit":      collect_reddit,
-    "rss_india":   collect_indian_rss,
-    "bing_news":   collect_bing_news,
-    "stocktwits":  collect_stocktwits,
-    "twitter":     collect_twitter,
-    "newsapi":     collect_newsapi,
+    "google_news":    collect_google_news,
+    "reddit":         collect_reddit,
+    "rss_india":      collect_indian_rss,
+    "bing_news":      collect_bing_news,
+    "moneycontrol":   collect_moneycontrol,
+    "yahoo_finance":  collect_yahoo_finance,
+    "et_markets":     collect_et_markets,
+    "trendlyne":      collect_trendlyne,
+    "ndtv_profit":    collect_ndtv_profit,
+    "capitalmind":    collect_capitalmind,
+    "fivepaisa":      collect_5paisa,
+    "reuters":        collect_reuters,
+    "stocktwits":     collect_stocktwits,
+    "twitter":        collect_twitter,
+    "newsapi":        collect_newsapi,
 }
 
 

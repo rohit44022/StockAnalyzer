@@ -443,6 +443,39 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
   </div>
 </div>
 
+<!-- 13. PER-ACCOUNT P&L BREAKDOWN -->
+<div class="row g-3 mb-3" id="analyticsRow8" style="display:none">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex align-items-center">
+        <i class="bi bi-bank2 me-2"></i>
+        <span>Per-Account P&L Breakdown</span>
+        <span class="ms-auto small text-secondary">across all trades in selected date range</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-dark table-hover mb-0" id="accountPnlTable" style="background:transparent">
+            <thead>
+              <tr>
+                <th>Broker</th>
+                <th>Owner</th>
+                <th class="text-end">Trades</th>
+                <th class="text-end">Gross P&L</th>
+                <th class="text-end">Charges</th>
+                <th class="text-end">Net P&L (pre-tax)</th>
+                <th class="text-end">Tax</th>
+                <th class="text-end">Post-Tax P&L</th>
+              </tr>
+            </thead>
+            <tbody id="accountPnlBody"></tbody>
+            <tfoot id="accountPnlFoot"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 3 + 4: STRATEGY DOUGHNUT + HOLDING-PERIOD BARS -->
 <div class="row g-3 mb-3" id="analyticsRow2" style="display:none">
   <div class="col-lg-6">
@@ -1465,7 +1498,7 @@ function _daysHeld(t) {
 function renderAnalytics() {
     const have = (TRADES || []).length > 0;
     document.getElementById('analyticsEmpty').style.display = have ? 'none' : 'block';
-    ['kpiRow','analyticsRow1','analyticsRow1b','analyticsRow2','analyticsRow3','analyticsRow4','analyticsRow5','analyticsRow6','analyticsRow7']
+    ['kpiRow','analyticsRow1','analyticsRow1b','analyticsRow2','analyticsRow3','analyticsRow4','analyticsRow5','analyticsRow6','analyticsRow7','analyticsRow8']
         .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = have ? '' : 'none'; });
     if (!have) {
         [equityChartInstance, strategyChartInstance, holdingChartInstance,
@@ -1489,6 +1522,7 @@ function renderAnalytics() {
     renderHoldingWinLossChart();
     renderAIInsights();
     renderMLIntelligence();
+    renderAccountPnl();
 }
 
 // ── 1. KPI TILES ────────────────────────────────────────────────
@@ -1904,6 +1938,51 @@ function renderCalendarHeatmap() {
     });
     html += '</div>';
 
+    // ── Monthly & Yearly P&L Summary ──
+    const monthlyPnl = {};
+    const yearlyPnl = {};
+    Object.entries(byDate).forEach(([d, pnl]) => {
+        const mk = d.slice(0, 7); // "2026-06"
+        const yk = d.slice(0, 4); // "2026"
+        monthlyPnl[mk] = (monthlyPnl[mk] || 0) + pnl;
+        yearlyPnl[yk] = (yearlyPnl[yk] || 0) + pnl;
+    });
+
+    // Monthly summary table
+    const monthKeys = Object.keys(monthlyPnl).sort();
+    if (monthKeys.length) {
+        html += `<div style="margin-top:14px;display:flex;gap:24px;flex-wrap:wrap">`;
+        // Monthly
+        html += `<div style="flex:1;min-width:280px"><div class="small fw-semibold mb-1" style="color:var(--bs-body-color)">Monthly P&L</div>`;
+        html += `<div style="display:flex;flex-wrap:wrap;gap:6px">`;
+        monthKeys.forEach(mk => {
+            const v = monthlyPnl[mk];
+            const clr = v >= 0 ? '#0ab39c' : '#f06548';
+            const bg = v >= 0 ? 'rgba(10,179,156,.12)' : 'rgba(240,101,72,.12)';
+            const [yy, mm] = mk.split('-');
+            const label = MONTH_NAMES[Number(mm)-1] + ' ' + yy;
+            html += `<div style="padding:4px 10px;border-radius:6px;background:${bg};border:1px solid ${clr}33;font-size:.75rem;line-height:1.3;text-align:center">
+                <div class="text-secondary">${label}</div>
+                <div style="color:${clr};font-weight:600">${v >= 0 ? '+' : ''}${fmtR(v)}</div>
+            </div>`;
+        });
+        html += `</div></div>`;
+        // Yearly
+        const yearKeys = Object.keys(yearlyPnl).sort();
+        html += `<div style="min-width:140px"><div class="small fw-semibold mb-1" style="color:var(--bs-body-color)">Yearly P&L</div>`;
+        html += `<div style="display:flex;flex-wrap:wrap;gap:6px">`;
+        yearKeys.forEach(yk => {
+            const v = yearlyPnl[yk];
+            const clr = v >= 0 ? '#0ab39c' : '#f06548';
+            const bg = v >= 0 ? 'rgba(10,179,156,.12)' : 'rgba(240,101,72,.12)';
+            html += `<div style="padding:4px 14px;border-radius:6px;background:${bg};border:1px solid ${clr}33;font-size:.75rem;line-height:1.3;text-align:center">
+                <div class="text-secondary">${yk}</div>
+                <div style="color:${clr};font-weight:700;font-size:.85rem">${v >= 0 ? '+' : ''}${fmtR(v)}</div>
+            </div>`;
+        });
+        html += `</div></div></div>`;
+    }
+
     // Legend
     html += `<div class="small text-secondary mt-2 d-flex align-items-center gap-2 flex-wrap">
         Legend:
@@ -1961,6 +2040,7 @@ function renderCalendarHeatmap() {
             let y = ev.clientY - h - pad;
             if (x + w + 8 > vw) x = ev.clientX - w - pad;
             if (y < 4) y = ev.clientY + pad;
+            if (y + h + 4 > vh) y = ev.clientY - h - pad;
             tooltip.style.left = x + 'px';
             tooltip.style.top  = y + 'px';
         });
@@ -2502,6 +2582,51 @@ async function renderMLIntelligence() {
     } catch (e) {
         el.innerHTML = '<div class="text-secondary small">ML intelligence unavailable: ' + e.message + '</div>';
     }
+}
+
+// ── 13. PER-ACCOUNT P&L BREAKDOWN ──────────────────────────────
+function renderAccountPnl() {
+    const body = document.getElementById('accountPnlBody');
+    const foot = document.getElementById('accountPnlFoot');
+    if (!body) return;
+    const accts = {};
+    TRADES.forEach(t => {
+        const p = t.pnl;
+        const plat = t.platform || 'unknown';
+        const owner = t.owner || 'Self';
+        const key = plat + '|' + owner;
+        if (!accts[key]) accts[key] = { platform: plat, owner, trades: 0, gross: 0, charges: 0, net: 0, tax: 0, postTax: 0 };
+        const a = accts[key];
+        a.trades++;
+        a.gross += p.gross_pnl;
+        a.charges += p.charges.total;
+        a.net += p.net_pnl;
+        a.tax += p.total_tax;
+        a.postTax += p.post_tax_pnl;
+    });
+    const rows = Object.values(accts).sort((a, b) => b.postTax - a.postTax);
+    const brokerName = p => p === 'zerodha' ? 'Zerodha' : p === 'groww' ? 'Groww' : p === 'dhan' ? 'Dhan' : (p || '—');
+    const brokerColor = p => p === 'zerodha' ? '#e74c3c' : p === 'groww' ? '#00d09c' : p === 'dhan' ? '#2962ff' : '#8b949e';
+    body.innerHTML = rows.map(r => `<tr>
+        <td><span class="badge" style="background:${brokerColor(r.platform)}22;color:${brokerColor(r.platform)}">${brokerName(r.platform)}</span></td>
+        <td><span class="badge" style="background:rgba(124,138,239,.12);color:#7c8aef">${r.owner}</span></td>
+        <td class="text-end">${r.trades}</td>
+        <td class="text-end ${pnlCls(r.gross)}">${fmtR(r.gross)}</td>
+        <td class="text-end text-yellow">${fmtR(r.charges)}</td>
+        <td class="text-end ${pnlCls(r.net)}">${fmtR(r.net)}</td>
+        <td class="text-end text-yellow">${fmtR(r.tax)}</td>
+        <td class="text-end ${pnlCls(r.postTax)}"><strong>${fmtR(r.postTax)}</strong></td>
+    </tr>`).join('');
+    const tot = rows.reduce((s, r) => ({ trades: s.trades + r.trades, gross: s.gross + r.gross, charges: s.charges + r.charges, net: s.net + r.net, tax: s.tax + r.tax, postTax: s.postTax + r.postTax }), { trades: 0, gross: 0, charges: 0, net: 0, tax: 0, postTax: 0 });
+    foot.innerHTML = `<tr style="border-top:2px solid var(--card-border)">
+        <td colspan="2"><strong>Total</strong></td>
+        <td class="text-end"><strong>${tot.trades}</strong></td>
+        <td class="text-end ${pnlCls(tot.gross)}"><strong>${fmtR(tot.gross)}</strong></td>
+        <td class="text-end text-yellow"><strong>${fmtR(tot.charges)}</strong></td>
+        <td class="text-end ${pnlCls(tot.net)}"><strong>${fmtR(tot.net)}</strong></td>
+        <td class="text-end text-yellow"><strong>${fmtR(tot.tax)}</strong></td>
+        <td class="text-end ${pnlCls(tot.postTax)}"><strong>${fmtR(tot.postTax)}</strong></td>
+    </tr>`;
 }
 </script>
 {% include "_theme_picker.html" %}

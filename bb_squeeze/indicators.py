@@ -19,6 +19,8 @@ from bb_squeeze.config import (
     EXPANSION_LOOKBACK,
     NORM_RSI_PERIOD, NORM_RSI_BB_LEN, NORM_RSI_BB_STD,
     NORM_MFI_BB_LEN, NORM_MFI_BB_STD,
+    KC_EMA_PERIOD, KC_ATR_PERIOD, KC_ATR_MULT,
+    KC_SQUEEZE_LOOKBACK, KC_SQUEEZE_MIN_BARS,
 )
 
 
@@ -479,5 +481,53 @@ def compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # ── Normalised Indicators (Book Ch.21 Table 21.1) ──
     df["RSI_Norm"] = normalize_indicator(rsi_series, NORM_RSI_BB_LEN, NORM_RSI_BB_STD)
     df["MFI_Norm"] = normalize_indicator(df["MFI"], NORM_MFI_BB_LEN, NORM_MFI_BB_STD)
+
+    # ── Keltner Channels & T7 Squeeze (additive — never modifies above) ──
+    try:
+        tr1 = high - low
+        tr2 = (high - close.shift(1)).abs()
+        tr3 = (low - close.shift(1)).abs()
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        atr = tr.rolling(KC_ATR_PERIOD).mean()
+        df["ATR"] = atr
+
+        kc_mid = close.ewm(span=KC_EMA_PERIOD, adjust=False).mean()
+        kc_upper = kc_mid + KC_ATR_MULT * atr
+        kc_lower = kc_mid - KC_ATR_MULT * atr
+        df["KC_Mid"]   = kc_mid
+        df["KC_Upper"] = kc_upper
+        df["KC_Lower"] = kc_lower
+
+        kc_sq = (upper < kc_upper) & (lower > kc_lower)
+        df["KC_Squeeze"] = kc_sq.fillna(False)
+
+        # Consecutive duration of KC squeeze
+        groups = (kc_sq != kc_sq.shift()).cumsum()
+        dur = kc_sq.groupby(groups).cumsum().astype(int)
+        df["KC_Squeeze_Duration"] = dur
+
+        # Had squeeze: ≥ KC_SQUEEZE_MIN_BARS consecutive True in last KC_SQUEEZE_LOOKBACK bars
+        def _had_squeeze(s):
+            if len(s) < KC_SQUEEZE_MIN_BARS:
+                return False
+            return int(s.max()) >= KC_SQUEEZE_MIN_BARS
+        df["KC_Had_Squeeze"] = dur.rolling(
+            window=KC_SQUEEZE_LOOKBACK, min_periods=1
+        ).apply(_had_squeeze, raw=False).fillna(0).astype(bool)
+
+        # Squeeze intensity: how much narrower BB is compared to KC
+        kc_width = kc_upper - kc_lower
+        bb_width = upper - lower
+        intensity = (1 - bb_width / kc_width.replace(0, np.nan)).clip(0, 1)
+        df["KC_Squeeze_Intensity"] = intensity.where(kc_sq, 0).fillna(0)
+    except Exception:
+        df["ATR"] = np.nan
+        df["KC_Mid"] = np.nan
+        df["KC_Upper"] = np.nan
+        df["KC_Lower"] = np.nan
+        df["KC_Squeeze"] = False
+        df["KC_Squeeze_Duration"] = 0
+        df["KC_Had_Squeeze"] = False
+        df["KC_Squeeze_Intensity"] = 0.0
 
     return df

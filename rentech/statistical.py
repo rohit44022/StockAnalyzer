@@ -209,9 +209,9 @@ def ornstein_uhlenbeck(close: pd.Series, lookback: int = None) -> OUResult:
         )
 
     theta = -b / dt
-    mu = a / theta if theta > 1e-10 else _safe(np.mean(series))
+    mu = _safe(a / theta) if theta > 1e-10 else _safe(np.mean(series))
     sigma = _safe(np.std(dX) / np.sqrt(dt))
-    half_life = _safe(np.log(2) / theta) if theta > 1e-10 else 999.0
+    half_life = _safe(np.log(2) / theta, 999.0) if theta > 1e-10 else 999.0
 
     is_tradeable = C.OU_HALF_LIFE_MIN <= half_life <= C.OU_HALF_LIFE_MAX
 

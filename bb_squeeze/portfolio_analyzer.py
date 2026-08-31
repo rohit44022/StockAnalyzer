@@ -2052,6 +2052,12 @@ def analyze_position(position: dict, light: bool = False) -> dict:
         "bbw_6m_min":      _safe(float(last.get("BBW_6M_Min", 0)), 6),
         "percent_b_slope": _safe(float(_recent5["Percent_B"].iloc[-1] - _recent5["Percent_B"].iloc[0]), 3),
         "rsi_slope":       _safe(float(_recent5["RSI"].iloc[-1] - _recent5["RSI"].iloc[0]), 2),
+        # Keltner Channel fields
+        "kc_squeeze":           bool(last.get("KC_Squeeze", False)),
+        "kc_had_squeeze":       bool(last.get("KC_Had_Squeeze", False)),
+        "kc_squeeze_duration":  int(last.get("KC_Squeeze_Duration", 0)) if not pd.isna(last.get("KC_Squeeze_Duration", 0)) else 0,
+        "kc_squeeze_intensity": _safe(float(last.get("KC_Squeeze_Intensity", 0)), 4),
+        "kc_t7_pass":           bool(sig.kc_t7_pass),
     }
 
     # 8. Holding info
@@ -2073,6 +2079,34 @@ def analyze_position(position: dict, light: bool = False) -> dict:
     vince_risk = _compute_vince_risk(
         ticker, buy_price, int(position["quantity"]),
     )
+
+    # Price Action engine is cheap (~20ms, CPU-only) and R4 needs it for
+    # accurate sell detection. Run in BOTH modes so the table ACTION badge
+    # matches the full position analysis — eliminates the HOLD-vs-SELL
+    # inconsistency between light-mode table and full-mode detail view.
+    try:
+        if len(df_with_ind) >= 30:
+            pa_result = run_price_action_analysis(df_with_ind, ticker=ticker)
+            multi_sys["price_action"] = {
+                "signal":     pa_result.signal_type,
+                "setup":      pa_result.setup_type,
+                "strength":   pa_result.strength,
+                "confidence": pa_result.confidence,
+                "pa_score":   _safe(pa_result.pa_score),
+                "always_in":  pa_result.always_in,
+                "trend":      pa_result.trend_direction,
+                "stop_loss":  _safe(pa_result.stop_loss),
+                "target_1":   _safe(pa_result.target_1),
+                "target_2":   _safe(pa_result.target_2),
+                "risk_reward": _safe(pa_result.risk_reward),
+                "bar_type":   pa_result.last_bar_type,
+                "bar_desc":   pa_result.last_bar_description,
+                "patterns":   pa_result.active_patterns[:5] if pa_result.active_patterns else [],
+                "context":    pa_result.al_brooks_context,
+                "reasons":    pa_result.reasons[:5] if pa_result.reasons else [],
+            }
+    except Exception as e:
+        _pa_logger.debug("PA engine failed for %s: %s", ticker, e)
 
     if not light:
         # Multi-system engines compute their own indicators, so they need raw
@@ -2158,11 +2192,28 @@ def analyze_position(position: dict, light: bool = False) -> dict:
     # ── AI/ML Intelligence (purely additive) ──────────────────────
     ai_ml_intel = {}
     try:
+        # Build aliased indicator copy so AI/ML modules find the keys they expect
+        _ind = dict(indicators)
+        if "rsi14" not in _ind and "rsi" not in _ind:
+            _ind["rsi14"] = indicators.get("rsi")
+        if "sma20" not in _ind:
+            _ind["sma20"] = indicators.get("bb_mid")
+        if "upper_band" not in _ind:
+            _ind["upper_band"] = indicators.get("bb_upper")
+        if "lower_band" not in _ind:
+            _ind["lower_band"] = indicators.get("bb_lower")
+        if "vol_avg" not in _ind:
+            _ind["vol_avg"] = indicators.get("vol_sma50")
+        if "atr14" not in _ind:
+            _ind["atr14"] = indicators.get("atr_14")
+        _ind["current_price"] = current_price
+
         pick_proxy = {
             "ticker": ticker,
             "price": current_price,
+            "current_price": current_price,
             "method": strategy_code,
-            "bb_data": {"indicators": indicators},
+            "bb_data": {"indicators": _ind},
             "stop_loss": targets.get("stop_loss"),
             "target_upside": targets.get("target_3_sigma"),
             "composite_score": None,
@@ -2189,6 +2240,8 @@ def analyze_position(position: dict, light: bool = False) -> dict:
                     ai_ml_intel["ml_confidence"] = pick_proxy.get("ml_confidence")
                     ai_ml_intel["ml_verdict"] = pick_proxy.get("ml_verdict")
                     ai_ml_intel["ml_percentile"] = pick_proxy.get("ml_percentile")
+                    ai_ml_intel["ml_explanation"] = pick_proxy.get("ml_explanation")
+                    ai_ml_intel["ml_downside_risk"] = pick_proxy.get("ml_downside_risk")
             except Exception:
                 pass
 
@@ -2220,7 +2273,66 @@ def analyze_position(position: dict, light: bool = False) -> dict:
                     "recommended_pct": kelly_pct,
                     "actual_pct": round(actual_pct, 1),
                     "status": status,
+                    "method_win_rate": ai_ml_intel.get("feedback", {}).get("method_win_rate"),
                 }
+            except Exception:
+                pass
+
+            # Adaptive Thresholds
+            try:
+                from ai_ml.adaptive_thresholds import enrich_picks_with_adaptive
+                enrich_picks_with_adaptive([pick_proxy])
+                ai_ml_intel["adaptive_context"] = pick_proxy.get("adaptive_context")
+            except Exception:
+                pass
+
+            # Regime Cluster (UMAP + KMeans)
+            try:
+                from ai_ml.regime_cluster import enrich_picks_with_clusters
+                enrich_picks_with_clusters([pick_proxy])
+                ai_ml_intel["regime_cluster_id"] = pick_proxy.get("regime_cluster_id")
+                ai_ml_intel["regime_cluster_label"] = pick_proxy.get("regime_cluster_label")
+                ai_ml_intel["regime_cluster_confidence"] = pick_proxy.get("regime_cluster_confidence")
+            except Exception:
+                pass
+
+            # Sequence Scorer (LSTM)
+            try:
+                from ai_ml.sequence_scorer import score_picks_sequence
+                score_picks_sequence([pick_proxy])
+                ai_ml_intel["seq_confidence"] = pick_proxy.get("seq_confidence")
+                ai_ml_intel["seq_verdict"] = pick_proxy.get("seq_verdict")
+                ai_ml_intel["seq_agreement"] = pick_proxy.get("seq_agreement")
+            except Exception:
+                pass
+
+            # Keltner Squeeze (T7)
+            try:
+                from ai_ml.keltner_squeeze import enrich_picks_with_keltner
+                enrich_picks_with_keltner([pick_proxy])
+                ai_ml_intel["kc_squeeze"] = pick_proxy.get("kc_squeeze_data")
+            except Exception:
+                pass
+
+            # Method Router
+            try:
+                from ai_ml.method_router import get_method_recommendation
+                rsi_val = indicators.get("rsi")
+                bbw_pct = None
+                adaptive = pick_proxy.get("adaptive_context") or {}
+                if isinstance(adaptive, dict) and adaptive.get("bbw_percentile"):
+                    bbw_pct = adaptive["bbw_percentile"] / 100.0
+                ai_ml_intel["method_routing"] = get_method_recommendation(
+                    current_rsi=rsi_val, current_bbw_pct=bbw_pct,
+                )
+            except Exception:
+                pass
+
+            # Enrich with regime filter per-pick data
+            try:
+                from ai_ml.regime_filter import enrich_picks_with_regime
+                enrich_picks_with_regime([pick_proxy], regime)
+                ai_ml_intel["pick_regime"] = pick_proxy.get("market_regime")
             except Exception:
                 pass
 
@@ -2290,6 +2402,18 @@ def analyze_position(position: dict, light: bool = False) -> dict:
                 "status": time_status,
                 "method": strategy_code,
             }
+        except Exception:
+            pass
+
+        # ── Position Outlook (ensemble — runs LAST) ────────────────
+        try:
+            from ai_ml.position_outlook import compute_position_outlook
+            ai_ml_intel["position_outlook"] = compute_position_outlook(
+                ai_ml_intel,
+                {"days": days, "pnl_pct": pnl_pct,
+                 "current_price": current_price, "buy_price": buy_price},
+                indicators, strategy_code,
+            )
         except Exception:
             pass
 

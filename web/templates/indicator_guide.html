@@ -183,6 +183,7 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
       <a href="#vwmacd">VWMACD</a>
       <div class="toc-head" style="color:var(--o)">Volatility &amp; Volume</div>
       <a href="#atr">ATR</a>
+      <a href="#kc">Keltner Channels <span style="color:var(--g);font-size:.6rem">NEW</span></a>
       <a href="#volume">Volume</a>
       <div class="toc-head" style="color:var(--g)">System Rules</div>
       <a href="#methods">Method Reference</a>
@@ -222,6 +223,7 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
 <span class="hi">│</span>  <span class="hi">Volume</span> + SMA(50)                      <span class="hi">│</span>  vol confirm
 <span class="hi">└─────────────────────────────────────────┘</span>
 
+Optional (recommended): <span class="hi">KC(20,1.5,14)</span> on main chart — when BB fits inside KC = squeeze
 Optional (if screen space allows): ATR(14), ADX(14), MACD(12,26,9)</div>
     <div class="pro-tip">
       <span class="tip-label">Pro Tip</span>
@@ -424,6 +426,10 @@ Optional (if screen space allows): ATR(14), ADX(14), MACD(12,26,9)</div>
       <span class="tip-label">TradingView Tip</span>
       <span>TradingView displays BBW as a percentage (multiplied by 100). So the absolute trigger of 0.08 appears as <strong>8.0</strong> on the chart. Add a horizontal line at <strong>8.0</strong> — anything below this line = squeeze territory.</span>
     </div>
+    <div class="pro-tip">
+      <span class="tip-label">See also</span>
+      <span><strong><a href="#kc" style="color:var(--p)">Keltner Channels</a></strong> — BBW tells you "bands are narrow." The KC Squeeze tells you "bands are narrow <em>relative to what the stock's range suggests</em>." Together they form the T7 strategy, which backtested to 53% WR / 1.72 PF — a meaningful edge over BBW squeeze alone.</span>
+    </div>
     <div class="analogy">
       <span class="analogy-icon">&#128161;</span>
       <span><strong>Real-world analogy:</strong> BBW is like watching a <strong>pressure cooker</strong>. As the pressure builds (volatility compresses), the gauge drops lower and lower. At some point, the steam has to escape. The lower the BBW, the more pressure has built up, and the bigger the eventual move. The 6-month low is your "this cooker is about to blow" signal.</span>
@@ -567,6 +573,10 @@ Optional (if screen space allows): ATR(14), ADX(14), MACD(12,26,9)</div>
     <div class="analogy">
       <span class="analogy-icon">&#128161;</span>
       <span><strong>Real-world analogy:</strong> Think of CMF like watching the <strong>kitchen exit at a party</strong>. If lots of people are coming in through the front door with full plates (closing near highs on high volume) = accumulation. If people are sneaking out the back with empty plates (closing near lows on high volume) = distribution. The party might look fun, but the smart people are already leaving.</span>
+    </div>
+    <div class="pro-tip">
+      <span class="tip-label">T7 Role</span>
+      <span>CMF &gt; 0 is one of the three gates in the <strong><a href="#kc" style="color:var(--p)">T7 Keltner Channel Squeeze</a></strong> strategy. A deep KC squeeze without positive CMF has higher head-fake risk — the compression is real, but no institutional money is backing the expected breakout direction.</span>
     </div>
   </div>
 </div>
@@ -713,6 +723,97 @@ Optional (if screen space allows): ATR(14), ADX(14), MACD(12,26,9)</div>
     <div class="analogy">
       <span class="analogy-icon">&#128161;</span>
       <span><strong>Real-world analogy:</strong> ATR is like knowing the <strong>typical turbulence on a flight route</strong>. If you know the route is bumpy (high ATR), you tighten your seatbelt more (wider stop) and don't panic at every wobble. If the route is smooth (low ATR), a sudden jolt means something is actually wrong (tighter stop). Setting stops without considering ATR is like wearing the same seatbelt setting on every flight regardless of conditions.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-volatility" id="kc">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-bullseye me-2" style="color:var(--g)"></i>Keltner Channels &amp; T7 Squeeze <span class="importance imp-high">Squeeze Validator</span></h3>
+    <span class="tv-name">Keltner Channels</span>
+    <span class="cat-badge cat-badge-volatility">Volatility</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Keltner Channels are another set of bands drawn around price — but instead of using <strong>standard deviation</strong> (like Bollinger Bands), they use <strong>ATR (Average True Range)</strong>. This makes them smoother and less jumpy. On their own, KC is just a volatility envelope. But when you <strong>combine KC with Bollinger Bands</strong>, something powerful happens: you can detect <strong>genuine volatility compression</strong> — the kind that precedes the biggest breakout moves. When Bollinger Bands contract <em>inside</em> the wider Keltner Channels, it means statistical volatility has dropped below range-based volatility. That's a real coiled spring, not just a quiet day.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#127919;</span>
+      <span><strong>Takeaway:</strong> BBW alone tells you "bands are narrow." KC Squeeze tells you "bands are narrow <em>relative to what's normal for this stock's range</em>." It's the difference between a genuinely coiled spring and a stock that just happens to be quiet. The system's <strong>T7 strategy</strong> — which requires deep KC squeeze + duration + CMF confirmation — achieved <strong>53.0% win rate, 1.72 profit factor</strong> across 1,795 trades on 2,183 NSE stocks over 15 years, versus the baseline 49.8% / 1.49.</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>What it controls</th></tr>
+      <tr><td>EMA Period</td><td class="val">20</td><td>Center line — 20-day Exponential Moving Average (smoother than SMA, reacts faster to recent prices)</td></tr>
+      <tr><td>ATR Period</td><td class="val">14</td><td>Same ATR used for stop losses — measures the stock's average daily range</td></tr>
+      <tr><td>ATR Multiplier</td><td class="val">1.5</td><td>Width of the channels. 1.5&times; ATR on each side of the EMA. Wider than BB's 2&sigma; in calm markets, narrower in volatile ones.</td></tr>
+      <tr><td>Min Squeeze Duration</td><td class="val">6 bars</td><td>BB must sit inside KC for at least 6 consecutive days to qualify as a genuine squeeze (not noise)</td></tr>
+      <tr><td>Min Squeeze Intensity</td><td class="val">30%</td><td>BB width must be at least 30% narrower than KC width — shallow compressions don't count</td></tr>
+    </table>
+    <div class="formula">KC Upper = EMA(20) + 1.5 &times; ATR(14)<br>KC Lower = EMA(20) - 1.5 &times; ATR(14)<br><br>KC Squeeze = (BB Upper &lt; KC Upper) AND (BB Lower &gt; KC Lower)<br>Squeeze Intensity = 1 - (BB Width / KC Width)  &times; 100%</div>
+    <p class="usage"><strong>The 5 squeeze states — what each means:</strong></p>
+    <div class="signal-row">
+      <div class="signal-box signal-buy" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">&#127919; T7 PASS</div>
+        <strong>Highest Conviction</strong><br>
+        <span style="font-size:.78rem">Squeeze &ge;6 bars, intensity &ge;30%, CMF positive. All conditions met. <strong>+10 bonus points</strong> to entry score. This is the setup that backtested to 53% WR and 1.72 PF.</span>
+      </div>
+      <div class="signal-box signal-warn" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">&#128992; BUILDING</div>
+        <strong>Squeeze Active</strong><br>
+        <span style="font-size:.78rem">BB is inside KC but duration or intensity hasn't hit the T7 threshold yet. The spring is coiling — watch for the conditions to fill.</span>
+      </div>
+    </div>
+    <div class="signal-row">
+      <div class="signal-box signal-neutral" style="text-align:center">
+        <div class="signal-label" style="font-size:.9rem">&#128993; PARTIAL</div>
+        <strong>Squeeze Released</strong><br>
+        <span style="font-size:.78rem">A squeeze was recently active and bands have started expanding. If CMF is positive, the breakout direction is probably bullish. If negative — higher head-fake risk.</span>
+      </div>
+      <div class="signal-box" style="text-align:center;background:rgba(139,148,158,0.04);border:1px solid rgba(139,148,158,0.1)">
+        <div class="signal-label" style="color:#8b949e;font-size:.9rem">&#9898; NO SQUEEZE</div>
+        <strong>Normal State</strong><br>
+        <span style="font-size:.78rem">BB bands are wider than or equal to KC. No compression in play. This is the default state for most stocks most of the time.</span>
+      </div>
+    </div>
+    <p class="usage" style="margin-top:14px"><strong>T7 strategy — the three gates:</strong></p>
+    <table class="method-table">
+      <tr><th style="width:22%">Gate</th><th>Condition</th><th>Why It Matters</th></tr>
+      <tr style="border-left:3px solid var(--y)">
+        <td style="color:var(--y);font-weight:600">Duration &ge; 6 bars</td>
+        <td>BB must sit inside KC for at least 6 consecutive trading days</td>
+        <td class="usage">Short squeezes (1-3 bars) are often noise. 6+ bars separates genuine volatility compression from random quiet patches. Backtested: 48.7% WR for 1-3 bar squeezes vs 51.2% WR for 10+ bar squeezes.</td>
+      </tr>
+      <tr style="border-left:3px solid var(--o)">
+        <td style="color:var(--o);font-weight:600">Intensity &ge; 30%</td>
+        <td>BB width must be at least 30% narrower than KC width</td>
+        <td class="usage">Shallow compressions (10-20%) don't store enough energy. Deep compressions (30%+) mean the stock is genuinely coiled — BB is much tighter than what ATR-based range suggests.</td>
+      </tr>
+      <tr style="border-left:3px solid var(--g)">
+        <td style="color:var(--g);font-weight:600">CMF &gt; 0</td>
+        <td>Chaikin Money Flow must be positive (institutional buying)</td>
+        <td class="usage">A squeeze without institutional support can break in either direction (or head-fake). Positive CMF confirms that big money is positioning for the upside before the release. Without CMF, max consecutive losses jumped from 8 to 10.</td>
+      </tr>
+    </table>
+    <p class="usage" style="margin-top:14px"><strong>Backtest results (2,183 NSE stocks, 15 years):</strong></p>
+    <table class="method-table">
+      <tr><th>Strategy</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Avg PnL/Trade</th><th>Max Consec Losses</th></tr>
+      <tr style="background:rgba(139,148,158,0.04)">
+        <td>M1 Baseline (no KC)</td><td class="font-mono">13,357</td><td class="font-mono">49.8%</td><td class="font-mono">1.49</td><td class="font-mono">+1.38%</td><td class="font-mono">13</td>
+      </tr>
+      <tr style="background:rgba(10,179,156,0.06);border-left:3px solid var(--g)">
+        <td style="color:var(--g);font-weight:600">T7 (deep KC + CMF)</td><td class="font-mono" style="color:var(--g)">1,795</td><td class="font-mono" style="color:var(--g)">53.0%</td><td class="font-mono" style="color:var(--g)">1.72</td><td class="font-mono" style="color:var(--g)">+2.20%</td><td class="font-mono" style="color:var(--g)">8</td>
+      </tr>
+    </table>
+    <div class="pro-tip">
+      <span class="tip-label">TradingView Setup</span>
+      <span>Search for <strong>"Keltner Channels"</strong> (built-in indicator). Set: Length = 20, Multiplier = 1.5, ATR Length = 14, Use EMA = Yes. When BB bands (already on your chart) fit <em>inside</em> the Keltner Channels, you're looking at a squeeze. The system detects this automatically — on TradingView you can see it visually by comparing the two envelopes.</span>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Real-world analogy:</strong> Bollinger Bands are like a <strong>heartbeat monitor</strong> — they track every little twitch and spike (standard deviation). Keltner Channels are like a <strong>blood pressure cuff</strong> — they measure the overall range of movement (ATR). When the heartbeat is calmer than even the blood pressure range suggests, the patient is <em>unusually</em> still. In stocks, that "stillness" is the coiled spring. The T7 strategy adds one more check: is the hospital's financial department (CMF) still investing in this patient? If yes — the spring has real energy behind it.</span>
     </div>
   </div>
 </div>

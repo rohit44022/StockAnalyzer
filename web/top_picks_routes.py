@@ -332,18 +332,12 @@ def top_picks_stream(method):
 
 @top_picks_bp.route("/api/top-picks/cache/stats", methods=["GET"])
 def top_picks_cache_stats():
-    """Snapshot for the UI: how many entries, total bytes, oldest age."""
-    from top_picks import cache as _triple_cache
-    return jsonify(_triple_cache.stats())
+    return jsonify({"enabled": False, "count": 0, "bytes": 0})
 
 
 @top_picks_bp.route("/api/top-picks/cache/clear", methods=["POST"])
 def top_picks_cache_clear():
-    """Wipe every cached triple-analysis result. Next Top Picks run
-    recomputes from scratch — no stale data risk."""
-    from top_picks import cache as _triple_cache
-    removed = _triple_cache.clear_all()
-    return jsonify({"status": "ok", "removed": removed})
+    return jsonify({"status": "ok", "removed": 0})
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -288,6 +288,12 @@ def _signal_dict(sig):
         "cond_short_volume":    sig.cond_short_volume,
         "cond_short_ii_neg":    sig.cond_short_ii_neg,
         "cond_short_mfi_low":   sig.cond_short_mfi_low,
+        # ── T7 Keltner Channel Squeeze ──
+        "kc_squeeze":           sig.kc_squeeze,
+        "kc_had_squeeze":       sig.kc_had_squeeze,
+        "kc_squeeze_duration":  sig.kc_squeeze_duration,
+        "kc_squeeze_intensity": _safe(sig.kc_squeeze_intensity, 4),
+        "kc_t7_pass":           sig.kc_t7_pass,
     }
 
 
@@ -914,6 +920,13 @@ def api_analyze(ticker_raw):
     except Exception:
         pass
 
+    fii_dii = None
+    try:
+        from bb_squeeze.fii_dii_tracker import get_fii_dii_activity
+        fii_dii = get_fii_dii_activity(days=30)
+    except Exception:
+        pass
+
     return jsonify({
         "signal":       _signal_dict(sig),
         "strategies":   [strategy_result_to_dict(sr) for sr in strategies],
@@ -928,6 +941,7 @@ def api_analyze(ticker_raw):
         "weekly":       weekly,
         "sector_rs":    sector_rs,
         "earnings_warning": earnings_warning,
+        "fii_dii":      fii_dii,
     })
 
 
@@ -1490,6 +1504,11 @@ def api_bhavcopy_update():
 @app.route("/indicator-guide")
 def indicator_guide_page():
     return render_template("indicator_guide.html")
+
+
+@app.route("/rentech-guide")
+def rentech_guide_page():
+    return render_template("rentech_guide.html")
 
 
 @app.route("/trades")

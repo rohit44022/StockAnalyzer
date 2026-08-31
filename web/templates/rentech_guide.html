@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RenTech Quant Guide — Complete Reference</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--card-bg:#282f36;--card-border:#2f3944;--g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc;--o:#f0883e;
+  --buy-bg:rgba(10,179,156,.08);--sell-bg:rgba(240,101,72,.08);--neutral-bg:rgba(124,138,239,.06);--warn-bg:rgba(247,184,75,.08)}
+body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero h1{font-size:2.2rem;font-weight:800;color:#e6edf3}
+
+.guide-wrap{display:flex;gap:24px;margin-top:1.5rem}
+.guide-toc{position:sticky;top:80px;width:220px;flex-shrink:0;max-height:calc(100vh - 100px);overflow-y:auto;font-size:.78rem}
+.guide-toc a{display:block;padding:4px 10px;color:#8b949e;text-decoration:none;border-left:2px solid transparent;transition:all .15s}
+.guide-toc a:hover,.guide-toc a.active{color:var(--b);border-color:var(--b)}
+.guide-toc .toc-head{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:#6e7681;padding:8px 10px 4px;font-weight:600}
+.guide-content{flex:1;min-width:0}
+
+.ind-section{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;margin-bottom:18px;overflow:hidden;border-left:4px solid var(--card-border)}
+.ind-section.cat-stat{border-left-color:var(--p)}
+.ind-section.cat-alpha{border-left-color:var(--b)}
+.ind-section.cat-regime{border-left-color:var(--o)}
+.ind-section.cat-risk{border-left-color:var(--r)}
+.ind-section.cat-ml{border-left-color:var(--g)}
+.ind-section.cat-system{border-left-color:var(--y)}
+.ind-header{padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none;transition:background .15s}
+.ind-header:hover{background:rgba(124,138,239,.04)}
+.ind-header h3{margin:0;font-size:1.05rem;font-weight:700;flex:1;color:#e6edf3}
+.ind-header .cat-badge{font-size:.62rem;padding:2px 8px;border-radius:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.cat-badge-stat{background:rgba(192,132,252,.12);color:var(--p)}
+.cat-badge-alpha{background:rgba(124,138,239,.12);color:var(--b)}
+.cat-badge-regime{background:rgba(240,136,62,.12);color:var(--o)}
+.cat-badge-risk{background:rgba(240,101,72,.12);color:var(--r)}
+.cat-badge-ml{background:rgba(10,179,156,.12);color:var(--g)}
+.cat-badge-system{background:rgba(247,184,75,.12);color:var(--y)}
+.ind-header .chevron{color:#8b949e;transition:transform .2s;font-size:.8rem}
+.ind-header.collapsed .chevron{transform:rotate(-90deg)}
+.ind-body{padding:0 18px 18px;display:block}
+.ind-header.collapsed + .ind-body{display:none}
+
+.plain-box{background:rgba(124,138,239,.06);border:1px solid rgba(124,138,239,.15);border-radius:10px;padding:14px 16px;margin:12px 0;font-size:.86rem;line-height:1.7;color:#c9d1d9}
+.plain-box .plain-label{display:inline-block;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--b);margin-bottom:6px}
+.plain-box strong{color:#e6edf3}
+
+.takeaway{display:flex;align-items:flex-start;gap:10px;background:rgba(10,179,156,.06);border:1px solid rgba(10,179,156,.15);border-radius:10px;padding:12px 16px;margin:10px 0;font-size:.84rem;color:#c9d1d9}
+.takeaway .takeaway-icon{font-size:1.2rem;flex-shrink:0;margin-top:2px}
+
+.signal-row{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.signal-box{flex:1;min-width:140px;border-radius:10px;padding:12px 14px;font-size:.82rem}
+.signal-buy{background:var(--buy-bg);border:1px solid rgba(10,179,156,.2)}
+.signal-buy .signal-label{color:var(--g);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.signal-sell{background:var(--sell-bg);border:1px solid rgba(240,101,72,.2)}
+.signal-sell .signal-label{color:var(--r);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.signal-neutral{background:var(--neutral-bg);border:1px solid rgba(124,138,239,.15)}
+.signal-neutral .signal-label{color:var(--b);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.signal-warn{background:var(--warn-bg);border:1px solid rgba(247,184,75,.2)}
+.signal-warn .signal-label{color:var(--y);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+
+.param-table{width:100%;font-size:.82rem;border-collapse:collapse;margin:10px 0}
+.param-table th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;padding:6px 10px;border-bottom:1px solid var(--card-border)}
+.param-table td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+.param-table .val{font-family:'JetBrains Mono',monospace;color:var(--b);font-weight:600}
+
+.formula{font-family:'JetBrains Mono',monospace;color:var(--p);font-weight:500;background:rgba(192,132,252,.06);padding:10px 14px;border-radius:8px;font-size:.82rem;margin:8px 0;border:1px solid rgba(192,132,252,.12)}
+
+.usage{font-size:.84rem;line-height:1.65;color:#c9d1d9}
+.usage strong{color:#e6edf3}
+
+.levels{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.level-pill{font-family:'JetBrains Mono',monospace;font-size:.75rem;padding:4px 12px;border-radius:6px;font-weight:600}
+.level-g{background:rgba(10,179,156,.12);color:var(--g);border:1px solid rgba(10,179,156,.2)}
+.level-r{background:rgba(240,101,72,.12);color:var(--r);border:1px solid rgba(240,101,72,.2)}
+.level-y{background:rgba(247,184,75,.12);color:var(--y);border:1px solid rgba(247,184,75,.2)}
+.level-b{background:rgba(124,138,239,.12);color:var(--b);border:1px solid rgba(124,138,239,.2)}
+.level-p{background:rgba(192,132,252,.12);color:var(--p);border:1px solid rgba(192,132,252,.2)}
+.level-o{background:rgba(240,136,62,.12);color:var(--o);border:1px solid rgba(240,136,62,.2)}
+
+.method-table{width:100%;font-size:.82rem;border-collapse:collapse}
+.method-table th{background:rgba(255,255,255,.03);padding:8px 12px;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;border-bottom:2px solid var(--card-border);text-align:left}
+.method-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
+.method-table tr:hover{background:rgba(255,255,255,.02)}
+
+.analogy{display:flex;align-items:flex-start;gap:10px;background:rgba(247,184,75,.06);border:1px solid rgba(247,184,75,.12);border-radius:10px;padding:12px 16px;margin:10px 0;font-size:.84rem;color:#c9d1d9;line-height:1.6}
+.analogy .analogy-icon{font-size:1.1rem;flex-shrink:0;margin-top:2px}
+
+.pro-tip{display:flex;align-items:flex-start;gap:10px;background:rgba(192,132,252,.06);border:1px solid rgba(192,132,252,.12);border-radius:10px;padding:12px 16px;margin:10px 0;font-size:.82rem;color:#c9d1d9;line-height:1.6}
+.pro-tip .tip-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--p);white-space:nowrap}
+
+.importance{font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.3px;vertical-align:middle;margin-left:6px}
+.imp-critical{background:rgba(240,101,72,.2);color:var(--r);border:1px solid rgba(240,101,72,.25)}
+.imp-high{background:rgba(240,136,62,.15);color:var(--o);border:1px solid rgba(240,136,62,.2)}
+.imp-medium{background:rgba(247,184,75,.15);color:var(--y);border:1px solid rgba(247,184,75,.2)}
+.imp-helpful{background:rgba(124,138,239,.12);color:var(--b);border:1px solid rgba(124,138,239,.18)}
+
+.guide-search{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:7px 14px;color:#e6edf3;font-size:.85rem;width:280px}
+.guide-search:focus{outline:none;border-color:var(--b);box-shadow:0 0 0 2px rgba(124,138,239,.15)}
+
+.grade-pill{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:.85rem;font-weight:700;width:28px;height:28px;line-height:28px;text-align:center;border-radius:6px}
+.grade-a{background:rgba(10,179,156,.2);color:var(--g);border:1px solid rgba(10,179,156,.3)}
+.grade-b{background:rgba(124,138,239,.2);color:var(--b);border:1px solid rgba(124,138,239,.3)}
+.grade-c{background:rgba(247,184,75,.2);color:var(--y);border:1px solid rgba(247,184,75,.3)}
+.grade-d{background:rgba(240,101,72,.2);color:var(--r);border:1px solid rgba(240,101,72,.3)}
+
+@media(max-width:900px){
+  .guide-toc{display:none}
+  .hero h1{font-size:1.5rem}
+  .signal-row{flex-direction:column}
+}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+
+<div class="hero">
+  <div class="container-fluid">
+    <h1><i class="bi bi-mortarboard me-2"></i>RenTech Quant Engine Guide</h1>
+    <p class="text-secondary mb-2">Complete reference for the statistical quant analysis system &mdash; 11 alpha signals, ML confidence scoring, regime detection &amp; risk management</p>
+    <div class="levels" style="margin:0">
+      <span class="level-pill level-p" style="font-family:Inter;font-size:.72rem"><i class="bi bi-graph-up me-1"></i>Statistical Profile</span>
+      <span class="level-pill level-b" style="font-family:Inter;font-size:.72rem"><i class="bi bi-lightning me-1"></i>Alpha Signals</span>
+      <span class="level-pill level-o" style="font-family:Inter;font-size:.72rem"><i class="bi bi-bezier2 me-1"></i>Regime Detection</span>
+      <span class="level-pill level-g" style="font-family:Inter;font-size:.72rem"><i class="bi bi-cpu me-1"></i>ML Scoring</span>
+      <span class="level-pill level-r" style="font-family:Inter;font-size:.72rem"><i class="bi bi-shield me-1"></i>Risk Management</span>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <div class="mb-3 mt-3">
+    <input type="text" class="guide-search" id="guideSearch" placeholder="Search RenTech guide...">
+  </div>
+  <div class="guide-wrap">
+
+    <!-- TOC -->
+    <nav class="guide-toc d-none d-lg-block">
+      <div class="toc-head" style="color:var(--y)">Overview</div>
+      <a href="#philosophy">Philosophy</a>
+      <a href="#pipeline">Pipeline Flow</a>
+      <a href="#verdict">Verdict &amp; Grades</a>
+      <div class="toc-head" style="color:var(--p)">Statistical Profile</div>
+      <a href="#hurst">Hurst Exponent</a>
+      <a href="#ou">Ornstein-Uhlenbeck</a>
+      <a href="#vr">Variance Ratio</a>
+      <a href="#adf">ADF Stationarity</a>
+      <a href="#entropy">Entropy</a>
+      <a href="#vol-cluster">Vol Clustering</a>
+      <div class="toc-head" style="color:var(--b)">Alpha Signals (11)</div>
+      <a href="#alpha-mr">Mean Reversion</a>
+      <a href="#alpha-mom">Momentum</a>
+      <a href="#alpha-micro">Microstructure</a>
+      <a href="#alpha-vol">Volatility</a>
+      <a href="#alpha-season">Seasonality</a>
+      <a href="#alpha-pattern">Patterns</a>
+      <a href="#alpha-statarb">Stat-Arb</a>
+      <a href="#alpha-crsi">ConnorsRSI <span style="color:var(--g);font-size:.6rem">NEW</span></a>
+      <a href="#alpha-kst">KST <span style="color:var(--g);font-size:.6rem">NEW</span></a>
+      <a href="#alpha-cmo">CMO <span style="color:var(--g);font-size:.6rem">NEW</span></a>
+      <a href="#alpha-vortex">Vortex <span style="color:var(--g);font-size:.6rem">NEW</span></a>
+      <div class="toc-head" style="color:var(--o)">Regime Detection</div>
+      <a href="#regime-macro">Macro Regime</a>
+      <a href="#regime-micro">Micro Regime</a>
+      <a href="#regime-transition">Transitions</a>
+      <div class="toc-head" style="color:var(--g)">ML Scoring</div>
+      <a href="#ml-overview">How It Works</a>
+      <a href="#ml-features">Features</a>
+      <a href="#ml-interpret">Interpreting Scores</a>
+      <div class="toc-head" style="color:var(--r)">Risk Management</div>
+      <a href="#risk-kelly">Kelly Criterion</a>
+      <a href="#risk-atr">ATR Stops</a>
+      <a href="#risk-drawdown">Drawdown Control</a>
+      <a href="#risk-costs">Transaction Costs</a>
+    </nav>
+
+    <!-- CONTENT -->
+    <div class="guide-content">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- PHILOSOPHY -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-system" id="philosophy">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-lightbulb me-2" style="color:var(--y)"></i>Philosophy &mdash; What Is RenTech?</h3>
+    <span class="cat-badge cat-badge-system">Overview</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      RenTech is a <strong>quantitative analysis engine</strong> inspired by Renaissance Technologies, Jim Simons' legendary hedge fund. Instead of relying on one indicator or gut feeling, it runs <strong>6 statistical tests</strong> on the stock&rsquo;s price history, generates <strong>11 independent alpha signals</strong>, feeds them through a <strong>machine learning confidence scorer</strong>, and produces a single actionable verdict with risk-adjusted position sizing.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#127919;</span>
+      <span><strong>Core principle:</strong> No single signal is reliable enough to trade on its own. RenTech combines many weak signals into a strong ensemble &mdash; the same approach that made the Medallion Fund the most successful hedge fund in history. Each alpha source has a small edge (51-56% win rate individually); combined with ML validation and regime awareness, the system produces higher-conviction setups.</span>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>How this differs from the real Medallion Fund:</strong> Simons' operation uses tick-level data across all asset classes, custom hardware, hundreds of PhDs, and sub-millisecond execution. This system captures the <em>mathematical philosophy</em> &mdash; ensemble of weak edges, statistical testing, regime awareness, Kelly sizing &mdash; but operates on daily Indian equity data for retail trading. Think of it as &ldquo;the Medallion playbook adapted for NSE.&rdquo;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- PIPELINE -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-system" id="pipeline">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-diagram-3 me-2" style="color:var(--y)"></i>Pipeline Flow</h3>
+    <span class="cat-badge cat-badge-system">Overview</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <p class="usage">When you analyze a stock, the engine runs these 7 steps in sequence:</p>
+    <table class="method-table">
+      <tr><th style="width:8%">Step</th><th style="width:25%">Module</th><th>What It Does</th></tr>
+      <tr><td class="val">1</td><td><strong>Data Validation</strong></td><td>Checks for missing columns, NaN gaps, negative prices. Requires &ge;252 bars (1 year). Forward-fills small gaps.</td></tr>
+      <tr><td class="val">2</td><td><strong>Statistical Profile</strong></td><td>Runs 6 tests (Hurst, OU, VR, ADF, entropy, vol clustering) to understand the stock&rsquo;s mathematical personality.</td></tr>
+      <tr><td class="val">3</td><td><strong>Regime Detection</strong></td><td>Classifies current market state: BULL, BEAR, SIDEWAYS, or HIGH_VOL. Also detects micro-regime (trend strength, vol compression, breadth, flow).</td></tr>
+      <tr><td class="val">4</td><td><strong>Signal Generation</strong></td><td>Runs 11 independent alpha signals. Each returns a score (-100 to +100), direction, and confidence. Combined into weighted ensemble.</td></tr>
+      <tr><td class="val">5</td><td><strong>ML Scoring</strong></td><td>HistGradientBoosting classifier trained on 5.3M samples validates the signal. Returns ML confidence (0-100%) and edge assessment.</td></tr>
+      <tr><td class="val">6</td><td><strong>Risk Assessment</strong></td><td>Kelly position sizing, ATR-based stops/targets, drawdown control, Indian market transaction costs.</td></tr>
+      <tr><td class="val">7</td><td><strong>Final Verdict</strong></td><td>Combines signal + regime + risk + ML into action (STRONG_BUY / BUY / HOLD / SELL / STRONG_SELL / WATCH / HALT / AVOID) with grade (A-D).</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- VERDICT & GRADES -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="ind-section cat-system" id="verdict">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-award me-2" style="color:var(--y)"></i>Verdict Actions &amp; Confidence Grades</h3>
+    <span class="cat-badge cat-badge-system">Overview</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <p class="usage"><strong>Actions</strong> &mdash; the system produces one of 8 possible recommendations:</p>
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">STRONG_BUY</div>
+        <strong>Conviction &gt;60%, STRONG_LONG direction, BULL or SIDEWAYS regime.</strong> The best setup the system can produce.
+      </div>
+      <div class="signal-box signal-buy">
+        <div class="signal-label">BUY</div>
+        <strong>Conviction &gt;40%, LONG direction, non-BEAR regime.</strong> Moderate bullish signal with reasonable agreement across alphas.
+      </div>
+    </div>
+    <div class="signal-row">
+      <div class="signal-box signal-sell">
+        <div class="signal-label">STRONG_SELL</div>
+        <strong>Conviction &gt;60%, STRONG_SHORT direction.</strong> Strong bearish consensus across multiple alpha signals.
+      </div>
+      <div class="signal-box signal-sell">
+        <div class="signal-label">SELL</div>
+        <strong>Conviction &gt;40%, SHORT direction, non-BULL regime.</strong> Moderate bearish signal.
+      </div>
+    </div>
+    <div class="signal-row">
+      <div class="signal-box signal-warn">
+        <div class="signal-label">WATCH</div>
+        Signal conflicts with regime. Bullish signal in BEAR regime, or bearish signal in BULL regime. Wait for confirmation.
+      </div>
+      <div class="signal-box signal-neutral">
+        <div class="signal-label">HOLD</div>
+        No clear signal. Score or conviction too low for action. Wait for a higher-conviction setup.
+      </div>
+    </div>
+    <div class="signal-row">
+      <div class="signal-box signal-sell">
+        <div class="signal-label">HALT</div>
+        Drawdown exceeds 8% safety threshold. All trading suspended regardless of signal quality.
+      </div>
+      <div class="signal-box signal-sell">
+        <div class="signal-label">AVOID</div>
+        Risk rating is EXTREME. No trade recommended regardless of signal.
+      </div>
+    </div>
+
+    <p class="usage" style="margin-top:18px"><strong>Confidence Grades</strong> &mdash; how reliable is this verdict?</p>
+    <table class="method-table">
+      <tr><th style="width:10%">Grade</th><th style="width:30%">Criteria</th><th>What It Means</th></tr>
+      <tr>
+        <td><span class="grade-pill grade-a">A</span></td>
+        <td class="val">Conviction &ge;70% AND |score| &gt;50</td>
+        <td>Highest confidence. Most alpha signals agree strongly. Rare &mdash; maybe 10-15% of analyses. Full position size.</td>
+      </tr>
+      <tr>
+        <td><span class="grade-pill grade-b">B</span></td>
+        <td class="val">Conviction &ge;50% AND |score| &gt;30</td>
+        <td>Good confidence. Solid agreement across alphas. Standard position size.</td>
+      </tr>
+      <tr>
+        <td><span class="grade-pill grade-c">C</span></td>
+        <td class="val">Conviction &ge;30% AND |score| &gt;15</td>
+        <td>Moderate confidence. Some disagreement among alphas. Reduce position size.</td>
+      </tr>
+      <tr>
+        <td><span class="grade-pill grade-d">D</span></td>
+        <td class="val">Below C thresholds</td>
+        <td>Low confidence. Alphas disagree or signals are weak. Consider sitting out.</td>
+      </tr>
+    </table>
+    <div class="pro-tip">
+      <span class="tip-label">ML Adjustment</span>
+      <span>When the ML model is available, it can promote or demote grades by one level. If ML confidence &ge;70% and agrees with the signal direction, the grade improves (B&rarr;A). If ML confidence &lt;30% and disagrees, the grade drops (B&rarr;C). This adds an independent validation layer.</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- STATISTICAL PROFILE -->
+<!-- ═══════════════════════════════════════════════════ -->
+
+<div class="ind-section cat-stat" id="hurst">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-rulers me-2" style="color:var(--p)"></i>Hurst Exponent <span class="importance imp-critical">Foundation</span></h3>
+    <span class="cat-badge cat-badge-stat">Statistical</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      The Hurst exponent measures whether a stock&rsquo;s price movements have <strong>memory</strong>. Is today&rsquo;s move related to yesterday&rsquo;s, or is it random? This single number (0 to 1) tells you the most fundamental thing about a stock: should you use <strong>mean-reversion</strong> strategies or <strong>momentum</strong> strategies?
+    </div>
+    <div class="formula">H = Hurst Exponent (Rescaled Range method, 252-day lookback)<br><br>H &lt; 0.40 &rarr; Mean-reverting (prices tend to snap back)<br>0.40 &le; H &le; 0.60 &rarr; Random walk (no statistical edge)<br>H &gt; 0.60 &rarr; Trending (prices continue in same direction)</div>
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">H &lt; 0.40 &mdash; Mean-Reverting</div>
+        <strong>RenTech&rsquo;s sweet spot.</strong> Price overshoots and reverts. Mean-reversion strategies (RSI extremes, Bollinger bounces, ConnorsRSI) have a mathematical edge. The lower the H, the stronger the rubber-band effect.
+      </div>
+      <div class="signal-box signal-warn">
+        <div class="signal-label">0.40&ndash;0.60 &mdash; Random Walk</div>
+        No strong statistical edge in either direction. Both MR and momentum are coin-flips here. RenTech reduces position size or sits out.
+      </div>
+      <div class="signal-box signal-neutral">
+        <div class="signal-label">H &gt; 0.60 &mdash; Trending</div>
+        Price tends to continue in the same direction. <strong>Momentum strategies</strong> (KST, Vortex, trend-following) work best. Mean-reversion is dangerous.
+      </div>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Analogy:</strong> Think of a stock as a drunk walking down a street. H=0.5 means he walks randomly (random walk). H&lt;0.4 means he keeps correcting himself &mdash; if he drifts left, he stumbles back right (mean-reverting). H&gt;0.6 means once he starts going left, he keeps going left (trending). You trade differently based on which drunk you&rsquo;re watching.</span>
+    </div>
+  </div>
+</div>
+
+<div class="ind-section cat-stat" id="ou">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-arrow-repeat me-2" style="color:var(--p)"></i>Ornstein-Uhlenbeck (Mean Reversion Speed) <span class="importance imp-high">Speed Check</span></h3>
+    <span class="cat-badge cat-badge-stat">Statistical</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Hurst tells you <em>whether</em> a stock reverts. OU tells you <em>how fast</em>. The <strong>half-life</strong> is how many days it takes for price to revert halfway back to its mean. Too fast (&lt;2 days) = microstructure noise. Too slow (&gt;30 days) = capital is tied up waiting. The sweet spot is <strong>3&ndash;20 days</strong>.
+    </div>
+    <div class="formula">dX = &theta;(&mu; - X)dt + &sigma;dW<br><br>Half-life = ln(2) / &theta;<br>&theta; = mean reversion speed<br>&mu; = long-run mean price level<br>&sigma; = process volatility</div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>Meaning</th></tr>
+      <tr><td>Lookback</td><td class="val">60 days</td><td>Window for OU parameter estimation</td></tr>
+      <tr><td>Min Half-Life</td><td class="val">2 days</td><td>Below this = noise, not signal</td></tr>
+      <tr><td>Max Half-Life</td><td class="val">30 days</td><td>Above this = too slow to trade actively</td></tr>
+      <tr><td>Sweet Spot</td><td class="val">3&ndash;20 days</td><td>Fast enough to profit, slow enough to be real</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="ind-section cat-stat" id="vr">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-bar-chart-steps me-2" style="color:var(--p)"></i>Variance Ratio Test <span class="importance imp-medium">Efficiency Check</span></h3>
+    <span class="cat-badge cat-badge-stat">Statistical</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      The Lo-MacKinlay Variance Ratio Test asks: &ldquo;If the market were perfectly efficient (random walk), the variance of 5-day returns should be exactly 5&times; the variance of 1-day returns. Is it?&rdquo; If the ratio is <strong>less than 1</strong>, returns are negatively autocorrelated (mean-reverting). If <strong>greater than 1</strong>, positively autocorrelated (trending).
+    </div>
+    <div class="formula">VR(q) = Var(q-period returns) / (q &times; Var(1-period returns))<br><br>VR &lt; 0.85 &rarr; Mean-reverting<br>0.85 &le; VR &le; 1.15 &rarr; Random walk<br>VR &gt; 1.15 &rarr; Trending</div>
+  </div>
+</div>
+
+<div class="ind-section cat-stat" id="adf">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-stoplights me-2" style="color:var(--p)"></i>Augmented Dickey-Fuller (Stationarity) <span class="importance imp-medium">Tradability Test</span></h3>
+    <span class="cat-badge cat-badge-stat">Statistical</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      ADF tests whether the stock price is <strong>stationary</strong> &mdash; does it wander without bounds, or does it stay within a range? A stationary series is tradeable with mean-reversion strategies because you know it will come back. Most stock <em>prices</em> are non-stationary (they trend), but <em>spreads</em> and <em>ratios</em> between related stocks often are.
+    </div>
+    <div class="formula">ADF Test: &Delta;Y(t) = &alpha; + &beta;&middot;Y(t-1) + &Sigma;&gamma;&middot;&Delta;Y(t-i) + &epsilon;<br><br>If p-value &lt; 0.05 &rarr; Stationary (reject random walk hypothesis)<br>If p-value &ge; 0.05 &rarr; Non-stationary (cannot reject random walk)</div>
+  </div>
+</div>
+
+<div class="ind-section cat-stat" id="entropy">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-shuffle me-2" style="color:var(--p)"></i>Shannon Entropy <span class="importance imp-helpful">Predictability</span></h3>
+    <span class="cat-badge cat-badge-stat">Statistical</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Entropy measures <strong>disorder</strong> in price movements. High entropy = chaotic, unpredictable, random. Low entropy = orderly, patterned, predictable. The system converts entropy into a <strong>predictability score</strong> (0&ndash;100). Higher predictability means the stock&rsquo;s behaviour is more structured and alpha signals are more likely to work.
+    </div>
+    <div class="formula">H = -&Sigma; p(x) &middot; log&#8322;(p(x))<br>Normalized Entropy = H / log&#8322;(n)<br>Predictability = (1 - Normalized Entropy) &times; 100</div>
+  </div>
+</div>
+
+<div class="ind-section cat-stat" id="vol-cluster">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-bricks me-2" style="color:var(--p)"></i>Volatility Clustering (ARCH) <span class="importance imp-medium">Vol State</span></h3>
+    <span class="cat-badge cat-badge-stat">Statistical</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Volatility clusters &mdash; big moves follow big moves, calm follows calm. This test measures <strong>persistence</strong> (how long vol regimes last) and <strong>ARCH ratio</strong> (strength of clustering). A stock in a <strong>HIGH_VOL</strong> state with strong persistence means the wild swings aren&rsquo;t over yet. This drives position sizing &mdash; reduce exposure when vol is high and persistent.
+    </div>
+    <div class="signal-row">
+      <div class="signal-box signal-buy"><div class="signal-label">LOW VOL</div>Calm period. Normal position sizing. Breakout potential is building.</div>
+      <div class="signal-box signal-warn"><div class="signal-label">MEDIUM VOL</div>Average volatility. Standard risk levels apply.</div>
+      <div class="signal-box signal-sell"><div class="signal-label">HIGH VOL</div>Elevated volatility. Reduce position size. Widen stops to avoid noise.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ALPHA SIGNALS -->
+<!-- ═══════════════════════════════════════════════════ -->
+
+<div class="ind-section cat-alpha" id="alpha-mr">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-arrow-down-up me-2" style="color:var(--b)"></i>Alpha 1: Mean Reversion <span class="importance imp-critical">Core</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Uses <strong>RSI(2)</strong> (ultra-short RSI), <strong>Bollinger Band position</strong>, and <strong>Z-score</strong> to detect when price has stretched too far from its mean. When RSI(2) drops below 10, price is below the lower Bollinger Band, and z-score is below -2, the rubber band is stretched &mdash; expect a snapback. Weight is dynamically adjusted based on Hurst exponent (higher weight when H indicates mean-reverting regime).
+    </div>
+    <table class="param-table">
+      <tr><th>Component</th><th>Threshold</th><th>Signal</th></tr>
+      <tr><td>RSI(2)</td><td class="val">&lt;10 / &gt;90</td><td>Deeply oversold / overbought</td></tr>
+      <tr><td>BB Position</td><td class="val">Below lower / Above upper</td><td>Price at band extremes</td></tr>
+      <tr><td>Z-Score</td><td class="val">&lt;-2.0 / &gt;+2.0</td><td>Statistically extreme deviation</td></tr>
+    </table>
+    <div class="formula">Weight: 0.25 (base) &mdash; increased when Hurst &lt; 0.40</div>
+  </div>
+</div>
+
+<div class="ind-section cat-alpha" id="alpha-mom">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-rocket-takeoff me-2" style="color:var(--b)"></i>Alpha 2: Momentum <span class="importance imp-critical">Core</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Multi-timeframe momentum across <strong>3 horizons</strong>: fast (10-day), medium (21-day), and slow (63-day). When all three align, momentum is strong. Volume confirmation (current volume &gt;1.5&times; average) adds conviction. Score is highest when fast+medium+slow all agree and volume confirms.
+    </div>
+    <table class="param-table">
+      <tr><th>Timeframe</th><th>Lookback</th><th>Role</th></tr>
+      <tr><td>Fast</td><td class="val">10 days</td><td>Short-term direction (2 weeks)</td></tr>
+      <tr><td>Medium</td><td class="val">21 days</td><td>Monthly trend (1 month)</td></tr>
+      <tr><td>Slow</td><td class="val">63 days</td><td>Quarterly trend (3 months)</td></tr>
+      <tr><td>Volume Confirm</td><td class="val">1.5&times; avg</td><td>Volume must be above average to validate</td></tr>
+    </table>
+    <div class="formula">Weight: 0.25 (base) &mdash; increased when Hurst &gt; 0.60</div>
+  </div>
+</div>
+
+<div class="ind-section cat-alpha" id="alpha-micro">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-binoculars me-2" style="color:var(--b)"></i>Alpha 3: Microstructure <span class="importance imp-medium">Volume</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Reads <strong>volume patterns</strong> and <strong>order flow proxies</strong> from daily data. OBV (On-Balance Volume) divergence &mdash; price making new highs but OBV isn&rsquo;t &mdash; is a classic warning sign. Volume spikes relative to the 20-day average can signal institutional activity. Spread proxy (High-Low range relative to Close) indicates liquidity conditions.
+    </div>
+    <div class="formula">Weight: 0.15</div>
+  </div>
+</div>
+
+<div class="ind-section cat-alpha" id="alpha-vol">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-activity me-2" style="color:var(--b)"></i>Alpha 4: Volatility <span class="importance imp-medium">Vol Regime</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Uses the statistical profile&rsquo;s volatility clustering data and current vol state to generate a signal. High vol + mean-reverting stock = potential snapback opportunity. High vol + trending stock = potential continuation. Vol compression (squeeze) often precedes big moves.
+    </div>
+    <div class="formula">Weight: 0.10</div>
+  </div>
+</div>
+
+<div class="ind-section cat-alpha" id="alpha-season">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-calendar-event me-2" style="color:var(--b)"></i>Alpha 5: Seasonality &amp; Calendar <span class="importance imp-helpful">Calendar</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Indian market has strong seasonal patterns: <strong>Diwali rally</strong> (Oct-Nov), <strong>budget rally</strong> (Jan-Feb), <strong>monsoon impact</strong> (Jul-Aug). Also incorporates day-of-week effects and F&amp;O expiry proximity. Historical same-month performance over 5 years provides empirical backing. Capped at low confidence since seasonal patterns are weak predictors.
+    </div>
+    <table class="param-table">
+      <tr><th>Month</th><th>Bias</th><th>Reason</th></tr>
+      <tr><td>Jan-Feb</td><td class="val">+5 to +7</td><td>Budget rally, new year flows</td></tr>
+      <tr><td>Mar-Apr</td><td class="val">-5 to -3</td><td>Year-end selling, tax harvesting</td></tr>
+      <tr><td>Jun-Aug</td><td class="val">-3 to -5</td><td>Monsoon uncertainty</td></tr>
+      <tr><td>Oct-Nov</td><td class="val">+5</td><td>Diwali rally, Samvat new year</td></tr>
+    </table>
+    <div class="formula">Weight: 0.05 (intentionally low &mdash; seasonal signals are noisy)</div>
+  </div>
+</div>
+
+<div class="ind-section cat-alpha" id="alpha-pattern">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-puzzle me-2" style="color:var(--b)"></i>Alpha 6: Statistical Patterns <span class="importance imp-medium">Structure</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Detects statistical patterns in price data: <strong>autocorrelation structure</strong> (do returns predict future returns?), <strong>distribution shape</strong> (skewness and kurtosis), and <strong>momentum persistence</strong> measured through lag correlations. Unlike chart patterns, these are mathematically rigorous tests.
+    </div>
+    <div class="formula">Weight: 0.10</div>
+  </div>
+</div>
+
+<div class="ind-section cat-alpha" id="alpha-statarb">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-graph-down-arrow me-2" style="color:var(--b)"></i>Alpha 7: Statistical Arbitrage <span class="importance imp-high">Stat Edge</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Uses the full statistical profile (Hurst, OU, variance ratio, ADF) to generate a direct trading signal. If the stock is mathematically mean-reverting (Hurst &lt; 0.40, ADF confirms stationarity, OU half-life is in the tradeable range), and price is currently away from the OU mean, this alpha fires with high confidence. It&rsquo;s the most &ldquo;quant&rdquo; of all the alpha sources.
+    </div>
+    <div class="formula">Weight: 0.20 &mdash; dynamically boosted when statistical profile shows strong edge</div>
+  </div>
+</div>
+
+<!-- New Research-Backed Alphas -->
+
+<div class="ind-section cat-alpha" id="alpha-crsi">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-bullseye me-2" style="color:var(--g)"></i>Alpha 8: ConnorsRSI <span class="importance imp-high">Research</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      ConnorsRSI is a <strong>three-component composite</strong> designed specifically for mean-reversion trading. It combines RSI(3) (short-term overbought/oversold), <strong>streak RSI</strong> (how many consecutive up or down days, measured via RSI), and <strong>percentile rank of ROC</strong> (how today&rsquo;s rate of change compares to the last 100 days). When all three components say &ldquo;oversold,&rdquo; the bounce probability is higher than any single component alone.
+    </div>
+    <div class="formula">ConnorsRSI = (RSI(3) + Streak_RSI + Percentile_Rank_ROC) / 3<br><br>Streak = consecutive up days (+) or down days (-)<br>Streak_RSI = RSI(streak, 2) applied to the streak series<br>Percentile_Rank = % of 100-day ROC values below today&rsquo;s ROC</div>
+    <table class="param-table">
+      <tr><th>Level</th><th>CRSI Value</th><th>Signal</th></tr>
+      <tr><td>Deeply Oversold</td><td class="val">&lt;10</td><td>Strong buy signal (+50 to +80 score)</td></tr>
+      <tr><td>Oversold</td><td class="val">10&ndash;20</td><td>Moderate buy signal (+30 to +50)</td></tr>
+      <tr><td>Overbought</td><td class="val">80&ndash;90</td><td>Moderate sell signal (-30 to -50)</td></tr>
+      <tr><td>Deeply Overbought</td><td class="val">&gt;90</td><td>Strong sell signal (-50 to -80)</td></tr>
+    </table>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#127919;</span>
+      <span><strong>Backtest result:</strong> 56-59% win rate, 1.70 profit factor across 29 Nifty-50 stocks over 15 years of NSE data. This significantly outperforms standard RSI(14).</span>
+    </div>
+    <div class="formula">Weight: 0.10 | Type: Mean Reversion</div>
+  </div>
+</div>
+
+<div class="ind-section cat-alpha" id="alpha-kst">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-layers me-2" style="color:var(--g)"></i>Alpha 9: KST (Know Sure Thing) <span class="importance imp-high">Research</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      KST is a <strong>smoothed, weighted rate-of-change oscillator</strong> that synthesizes momentum across 4 timeframes. It weights longer-term momentum more heavily (the 30-day ROC has 4&times; the weight of the 10-day ROC), making it a trend-confirmation tool. Signal generation comes from the <strong>KST/Signal line crossover</strong> &mdash; similar to MACD but across more timeframes.
+    </div>
+    <div class="formula">KST = SMA(ROC(10),10) + 2&times;SMA(ROC(15),10) + 3&times;SMA(ROC(20),10) + 4&times;SMA(ROC(30),15)<br>Signal = SMA(KST, 9)<br><br>Bullish crossover: KST crosses above Signal line &rarr; +40 base score<br>Bearish crossover: KST crosses below Signal line &rarr; -40 base score<br>Magnitude bonus: difference between KST and Signal &times; 5000</div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#127919;</span>
+      <span><strong>Backtest result:</strong> 55-58% win rate, 1.78 profit factor. Higher profit factor than ConnorsRSI because it catches larger moves (momentum type vs mean-reversion type).</span>
+    </div>
+    <div class="formula">Weight: 0.08 | Type: Momentum</div>
+  </div>
+</div>
+
+<div class="ind-section cat-alpha" id="alpha-cmo">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-arrows me-2" style="color:var(--g)"></i>Alpha 10: Chande Momentum Oscillator <span class="importance imp-medium">Research</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      CMO measures the <strong>ratio of up-moves to down-moves</strong> over a lookback period, naturally bounded between -100 and +100. Unlike RSI (which uses smoothed averages and lives mostly between 30-70), CMO&rsquo;s wider range makes extreme readings more meaningful. It&rsquo;s especially good at detecting <strong>overbought/oversold extremes</strong> and <strong>zero-line crossovers</strong>.
+    </div>
+    <div class="formula">CMO = (Sum_Up - Sum_Down) / (Sum_Up + Sum_Down) &times; 100<br><br>CMO &lt; -50 &rarr; Oversold (buy signal, +30 base)<br>CMO &gt; +50 &rarr; Overbought (sell signal, -30 base)<br>Zero-line cross &rarr; Momentum shift (&plusmn;15 bonus)</div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#127919;</span>
+      <span><strong>Backtest result:</strong> 57-59% win rate across NSE stocks. CMO&rsquo;s advantage over RSI is its unsmoothed nature &mdash; it reacts faster to genuine momentum shifts while maintaining clear overbought/oversold zones.</span>
+    </div>
+    <div class="formula">Weight: 0.08 | Type: Mean Reversion</div>
+  </div>
+</div>
+
+<div class="ind-section cat-alpha" id="alpha-vortex">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-tornado me-2" style="color:var(--g)"></i>Alpha 11: Vortex Indicator <span class="importance imp-medium">Research</span></h3>
+    <span class="cat-badge cat-badge-alpha">Alpha</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      The Vortex Indicator measures <strong>positive (VI+) and negative (VI-) directional movement</strong> using true range. When VI+ crosses above VI-, it signals a bullish trend change. When VI- crosses above VI+, bearish. The <strong>spread</strong> between VI+ and VI- indicates trend strength &mdash; a widening spread confirms the trend is accelerating.
+    </div>
+    <div class="formula">VM+ = |High(t) - Low(t-1)|<br>VM- = |Low(t) - High(t-1)|<br>VI+ = Sum(VM+, 14) / Sum(TR, 14)<br>VI- = Sum(VM-, 14) / Sum(TR, 14)<br><br>Bullish crossover: VI+ crosses above VI- &rarr; +40 base<br>Bearish crossover: VI- crosses above VI+ &rarr; -40 base<br>Spread bonus: |VI+ - VI-| &times; 150 (max &plusmn;30)</div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#127919;</span>
+      <span><strong>Backtest result:</strong> 56-58% win rate. Works best as a trend-confirmation tool alongside KST and Momentum. The crossover is most reliable after vol compression (squeeze) periods.</span>
+    </div>
+    <div class="formula">Weight: 0.08 | Type: Momentum / Trend</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- REGIME DETECTION -->
+<!-- ═══════════════════════════════════════════════════ -->
+
+<div class="ind-section cat-regime" id="regime-macro">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-compass me-2" style="color:var(--o)"></i>Macro Regime Detection <span class="importance imp-critical">Context</span></h3>
+    <span class="cat-badge cat-badge-regime">Regime</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      The regime classifier determines the market&rsquo;s <strong>current state</strong> using multiple evidence points: EMA alignment (20/50/200), ADX trend strength, volatility percentile, and volume trends. This is crucial because <strong>the same signal means different things in different regimes</strong>. A bullish RSI signal in a bear regime is a trap; in a bull regime, it&rsquo;s an opportunity.
+    </div>
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">&#128994; BULL</div>
+        <strong>Price above 50 EMA &amp; 200 EMA.</strong> Trend is up. Momentum and buy-the-dip strategies favoured. MR-type alphas get weight reduction.
+      </div>
+      <div class="signal-box signal-sell">
+        <div class="signal-label">&#128308; BEAR</div>
+        <strong>Price below 50 EMA &amp; 200 EMA.</strong> Trend is down. Short signals and defensive positioning. Bullish signals overridden to WATCH.
+      </div>
+    </div>
+    <div class="signal-row">
+      <div class="signal-box signal-warn">
+        <div class="signal-label">&#128992; SIDEWAYS</div>
+        <strong>No clear trend. ADX &lt; 25.</strong> Range-bound. Mean-reversion type alphas get weight boost. Breakout signals need extra confirmation.
+      </div>
+      <div class="signal-box signal-neutral">
+        <div class="signal-label">&#127754; HIGH_VOL</div>
+        <strong>Volatility in top quartile.</strong> Elevated risk. Position sizes reduced automatically. Wider stops required. All signals treated with extra scepticism.
+      </div>
+    </div>
+    <p class="usage" style="margin-top:12px"><strong>How regime affects alpha weights:</strong></p>
+    <table class="method-table">
+      <tr><th>Regime</th><th>MR-Type Alphas</th><th>Momentum-Type Alphas</th></tr>
+      <tr><td>BULL</td><td>Reduced (-20%)</td><td>Boosted (+20%)</td></tr>
+      <tr><td>BEAR</td><td>Normal</td><td>Normal (but bullish signals &rarr; WATCH)</td></tr>
+      <tr><td>SIDEWAYS</td><td>Boosted (+30%)</td><td>Reduced (-20%)</td></tr>
+      <tr><td>HIGH_VOL</td><td>Reduced (-20%)</td><td>Normal</td></tr>
+    </table>
+    <div class="pro-tip">
+      <span class="tip-label">MR-Type vs Momentum-Type</span>
+      <span><strong>MR-Type:</strong> Mean Reversion, ConnorsRSI, CMO. <strong>Momentum-Type:</strong> Momentum, KST, Vortex. The system dynamically rebalances weights based on which strategy type fits the current regime.</span>
+    </div>
+  </div>
+</div>
+
+<div class="ind-section cat-regime" id="regime-micro">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-zoom-in me-2" style="color:var(--o)"></i>Micro Regime (Short-Term Context) <span class="importance imp-medium">Nuance</span></h3>
+    <span class="cat-badge cat-badge-regime">Regime</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      While macro regime captures the big picture, micro regime looks at <strong>short-term conditions</strong> that affect the next few days. Four dimensions:
+    </div>
+    <table class="method-table">
+      <tr><th style="width:22%">Dimension</th><th>What It Measures</th><th>Impact</th></tr>
+      <tr><td><strong>Trend Strength</strong></td><td>ADX value — how strong is the current directional move?</td><td>ADX &gt;25 = trending, &lt;20 = ranging. Determines if breakout signals are trustworthy.</td></tr>
+      <tr><td><strong>Vol Compression</strong></td><td>Whether Bollinger Bandwidth is at historical lows</td><td>Compression precedes expansion. A squeeze state means a big move is imminent (direction unknown).</td></tr>
+      <tr><td><strong>Breadth</strong></td><td>Advance/decline ratio proxy</td><td>Narrow breadth in a rally = warning. Broad participation = healthy trend.</td></tr>
+      <tr><td><strong>Flow Proxy</strong></td><td>Volume pattern analysis (smart money indicator)</td><td>Institutional accumulation or distribution detected through volume anomalies.</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="ind-section cat-regime" id="regime-transition">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-signpost-split me-2" style="color:var(--o)"></i>Regime Transitions <span class="importance imp-helpful">Forward Look</span></h3>
+    <span class="cat-badge cat-badge-regime">Regime</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      The system estimates the probability of transitioning to each regime based on current conditions. If you&rsquo;re in BULL but transition probability to BEAR is rising, it&rsquo;s a warning to tighten stops. The <strong>most likely next regime</strong> is displayed with percentage probabilities for each possible state.
+    </div>
+    <div class="formula">Transition estimates based on:<br>- Current regime persistence (longer = higher probability of change)<br>- Price relative to moving averages (crossing signals)<br>- Volatility expansion/contraction<br>- Volume trend (distribution vs accumulation)</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ML SCORING -->
+<!-- ═══════════════════════════════════════════════════ -->
+
+<div class="ind-section cat-ml" id="ml-overview">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-cpu me-2" style="color:var(--g)"></i>ML Confidence Engine <span class="importance imp-critical">Intelligence</span></h3>
+    <span class="cat-badge cat-badge-ml">ML</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      The ML scorer is a <strong>meta-learner</strong> that answers one question: &ldquo;Given all the alpha scores, regime, and statistical profile, how likely is this signal to result in a profitable trade?&rdquo; It doesn&rsquo;t generate its own signals &mdash; it <strong>validates</strong> the ensemble output. Think of it as a senior trader reviewing the junior analysts&rsquo; recommendations.
+    </div>
+    <div class="takeaway">
+      <span class="takeaway-icon">&#127919;</span>
+      <span><strong>Model:</strong> <code>HistGradientBoostingClassifier</code> (scikit-learn). Trained on <strong>5.3 million samples</strong> across <strong>2,884 NSE stocks</strong>. Walk-forward labelling: if the 5-day forward return exceeds round-trip transaction costs (0.20%), label = WIN. 55.8% test accuracy. Handles NaN features natively (no imputation needed).</span>
+    </div>
+    <table class="param-table">
+      <tr><th>Hyperparameter</th><th>Value</th><th>Why</th></tr>
+      <tr><td>max_iter</td><td class="val">300</td><td>Enough trees to capture patterns without overfitting</td></tr>
+      <tr><td>max_depth</td><td class="val">5</td><td>Shallow trees = better generalization on noisy financial data</td></tr>
+      <tr><td>learning_rate</td><td class="val">0.05</td><td>Small steps for stability — financial signals are weak</td></tr>
+      <tr><td>min_samples_leaf</td><td class="val">50</td><td>Prevents fitting to small groups of outlier trades</td></tr>
+      <tr><td>l2_regularization</td><td class="val">1.0</td><td>L2 penalty reduces overfitting</td></tr>
+    </table>
+    <div class="pro-tip">
+      <span class="tip-label">Self-Training</span>
+      <span>The model trains itself by scanning all stock CSV files, computing fast alpha features, and labelling with actual 5-day forward returns. Run <code>python3 -m rentech.ml_scorer</code> to retrain on the latest data. The model is saved to <code>rentech/models/rentech_scorer.joblib</code>.</span>
+    </div>
+  </div>
+</div>
+
+<div class="ind-section cat-ml" id="ml-features">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-list-columns me-2" style="color:var(--g)"></i>ML Feature Set (25 Features) <span class="importance imp-high">Inputs</span></h3>
+    <span class="cat-badge cat-badge-ml">ML</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <p class="usage">The model receives 25 features organized into 4 groups:</p>
+    <table class="method-table">
+      <tr><th style="width:25%">Group</th><th>Features</th><th>Count</th></tr>
+      <tr>
+        <td><strong>Alpha Scores</strong></td>
+        <td>Raw score from each of the 11 alpha signals, plus individual confidence values</td>
+        <td class="val">11</td>
+      </tr>
+      <tr>
+        <td><strong>Ensemble Output</strong></td>
+        <td>Composite score, conviction %, signal quality, number of LONG alphas, number of SHORT alphas</td>
+        <td class="val">5</td>
+      </tr>
+      <tr>
+        <td><strong>Statistical Profile</strong></td>
+        <td>Hurst exponent, OU half-life, ADF p-value, entropy predictability, vol cluster persistence</td>
+        <td class="val">5</td>
+      </tr>
+      <tr>
+        <td><strong>Regime</strong></td>
+        <td>One-hot encoded: is_BULL, is_BEAR, is_SIDEWAYS, is_HIGH_VOL</td>
+        <td class="val">4</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="ind-section cat-ml" id="ml-interpret">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-speedometer me-2" style="color:var(--g)"></i>Interpreting ML Scores <span class="importance imp-critical">Action</span></h3>
+    <span class="cat-badge cat-badge-ml">ML</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <p class="usage"><strong>ML Confidence</strong> (0&ndash;100%) is the model&rsquo;s estimated probability that the signal leads to a profitable trade:</p>
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">ML_PASS (&ge;60%)</div>
+        <strong>ML agrees with the signal.</strong> The model sees historical patterns that support this trade. Grade may be promoted one level (B&rarr;A).
+      </div>
+      <div class="signal-box signal-neutral">
+        <div class="signal-label">ML_NEUTRAL (40&ndash;60%)</div>
+        <strong>Coin flip territory.</strong> The model has no strong opinion. Signal stands on its own merits without ML adjustment.
+      </div>
+      <div class="signal-box signal-sell">
+        <div class="signal-label">ML_CAUTION (&lt;40%)</div>
+        <strong>ML disagrees with the signal.</strong> Historical patterns suggest this setup often fails. Grade may be demoted one level (B&rarr;C). Consider reducing position size.
+      </div>
+    </div>
+    <div class="pro-tip">
+      <span class="tip-label">ML Edge</span>
+      <span><strong>ML Edge</strong> shows the model&rsquo;s directional lean. ML_PASS when confidence &ge;60% means the ML model actively supports the trade. Win probability and loss probability show the class probabilities from the model. The system also shows whether ML agreement/disagreement adjusted the confidence grade.</span>
+    </div>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Think of ML like a second opinion:</strong> Your 11 analysts (alpha signals) looked at the stock and gave their views. The ML model has seen 5.3 million similar situations before and says &ldquo;in my experience, when the numbers look like this, it works X% of the time.&rdquo; You don&rsquo;t have to follow the ML, but when it strongly agrees or disagrees, that&rsquo;s worth noting.</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- RISK MANAGEMENT -->
+<!-- ═══════════════════════════════════════════════════ -->
+
+<div class="ind-section cat-risk" id="risk-kelly">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-calculator me-2" style="color:var(--r)"></i>Kelly Criterion Position Sizing <span class="importance imp-critical">Sizing</span></h3>
+    <span class="cat-badge cat-badge-risk">Risk</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      The Kelly Criterion calculates the <strong>mathematically optimal bet size</strong> given your edge and odds. Full Kelly is too aggressive for real trading (one bad streak wipes you out), so the system uses <strong>quarter-Kelly</strong> &mdash; 25% of the theoretical optimum. This sacrifices some theoretical return for much better survival.
+    </div>
+    <div class="formula">Kelly% = (Win_Rate &times; Avg_Win - (1 - Win_Rate) &times; Avg_Loss) / Avg_Win<br>Position = Capital &times; Kelly% &times; 0.25 (quarter-Kelly)<br><br>Capped at: max 10% of capital in one stock, max 20 concurrent positions</div>
+    <table class="param-table">
+      <tr><th>Parameter</th><th>Value</th><th>Purpose</th></tr>
+      <tr><td>Kelly Fraction</td><td class="val">0.25</td><td>Quarter-Kelly for conservative sizing</td></tr>
+      <tr><td>Max Position</td><td class="val">10%</td><td>No single stock exceeds 10% of capital</td></tr>
+      <tr><td>Max Positions</td><td class="val">20</td><td>Diversification floor</td></tr>
+      <tr><td>Max Sector</td><td class="val">30%</td><td>Sector concentration limit</td></tr>
+    </table>
+    <div class="analogy">
+      <span class="analogy-icon">&#128161;</span>
+      <span><strong>Why quarter-Kelly?</strong> Full Kelly assumes you know your exact edge and odds — you don&rsquo;t. In practice, overestimating your edge by even a small amount with full Kelly leads to ruin. Quarter-Kelly captures ~75% of the growth rate with dramatically lower drawdown risk. Simons reportedly used a similar fractional approach.</span>
+    </div>
+  </div>
+</div>
+
+<div class="ind-section cat-risk" id="risk-atr">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-shield-exclamation me-2" style="color:var(--r)"></i>ATR-Based Stop Loss &amp; Targets <span class="importance imp-critical">Exits</span></h3>
+    <span class="cat-badge cat-badge-risk">Risk</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Stop losses and profit targets are set using <strong>ATR(14)</strong> — the stock&rsquo;s average daily range over 14 days. This makes stops adaptive: volatile stocks get wider stops (so you&rsquo;re not stopped out by normal noise), calm stocks get tighter stops (so you don&rsquo;t give back too much profit).
+    </div>
+    <table class="method-table">
+      <tr><th>Level</th><th>Formula (Long)</th><th>Risk-Reward</th></tr>
+      <tr><td><strong style="color:var(--r)">Stop Loss</strong></td><td>Entry - 2.0 &times; ATR</td><td>1.0R</td></tr>
+      <tr><td><strong style="color:var(--y)">Target 1</strong></td><td>Entry + 3.0 &times; ATR</td><td>1.5R</td></tr>
+      <tr><td><strong style="color:var(--b)">Target 2</strong></td><td>Entry + 5.0 &times; ATR</td><td>2.5R</td></tr>
+      <tr><td><strong style="color:var(--g)">Target 3</strong></td><td>Entry + 8.0 &times; ATR</td><td>4.0R</td></tr>
+      <tr><td><strong style="color:var(--p)">Trailing Stop</strong></td><td>Entry - 1.5 &times; ATR</td><td>&mdash;</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="ind-section cat-risk" id="risk-drawdown">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-graph-down me-2" style="color:var(--r)"></i>Drawdown Control <span class="importance imp-critical">Survival</span></h3>
+    <span class="cat-badge cat-badge-risk">Risk</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      As the stock drops from its peak, the system <strong>automatically reduces position size</strong>. This is a survival mechanism &mdash; the deeper the drawdown, the more capital is preserved. If drawdown exceeds <strong>8%</strong>, trading is <strong>halted entirely</strong> regardless of how good the signal looks.
+    </div>
+    <table class="param-table">
+      <tr><th>Drawdown</th><th>Exposure</th><th>Action</th></tr>
+      <tr><td class="val">&lt;2%</td><td class="val">100%</td><td>Normal trading. Full position sizes.</td></tr>
+      <tr><td class="val">2&ndash;4%</td><td class="val">75%</td><td>Mild stress. Position sizes reduced 25%.</td></tr>
+      <tr><td class="val">4&ndash;6%</td><td class="val">50%</td><td>Significant stress. Half position sizes.</td></tr>
+      <tr><td class="val">6&ndash;8%</td><td class="val">25%</td><td>Major stress. Quarter positions only.</td></tr>
+      <tr><td class="val">&gt;8%</td><td class="val">0%</td><td>HALTED. No new trades. Verdict = HALT.</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="ind-section cat-risk" id="risk-costs">
+  <div class="ind-header" onclick="toggleSection(this)">
+    <h3><i class="bi bi-cash-stack me-2" style="color:var(--r)"></i>Indian Market Transaction Costs <span class="importance imp-high">Friction</span></h3>
+    <span class="cat-badge cat-badge-risk">Risk</span>
+    <span class="chevron"><i class="bi bi-chevron-down"></i></span>
+  </div>
+  <div class="ind-body">
+    <div class="plain-box">
+      <div class="plain-label">Plain English</div>
+      Every trade has real costs that eat into your edge. The system models the <strong>complete Indian market cost structure</strong>. Your signal needs to overcome these costs before it&rsquo;s profitable. The breakeven move is approximately <strong>0.20%</strong> — any signal predicting less than this is unprofitable after costs.
+    </div>
+    <table class="method-table">
+      <tr><th>Cost Component</th><th>Rate</th><th>Side</th></tr>
+      <tr><td><strong>STT (Delivery)</strong></td><td class="val">0.100%</td><td>Sell only</td></tr>
+      <tr><td><strong>Stamp Duty</strong></td><td class="val">0.015%</td><td>Buy only</td></tr>
+      <tr><td><strong>Exchange Fees</strong></td><td class="val">0.00345%</td><td>Both sides</td></tr>
+      <tr><td><strong>SEBI Turnover Fee</strong></td><td class="val">&#8377;10 per crore</td><td>Both sides</td></tr>
+      <tr><td><strong>GST on Brokerage</strong></td><td class="val">18%</td><td>On brokerage amount</td></tr>
+      <tr><td colspan="3" style="border-top:2px solid var(--card-border);font-weight:700;color:var(--r)">Total Round-Trip: ~0.20%</td></tr>
+    </table>
+    <div class="pro-tip">
+      <span class="tip-label">ML Label Threshold</span>
+      <span>The ML model uses this 0.20% round-trip cost as the profitability threshold. A 5-day forward return is labelled WIN only if it exceeds 0.20%. This prevents the model from learning to trade on moves that would be profitable before costs but unprofitable after.</span>
+    </div>
+  </div>
+</div>
+
+
+    </div><!-- /guide-content -->
+  </div><!-- /guide-wrap -->
+</div><!-- /container-fluid -->
+
+{% include "_theme_picker.html" %}
+{% include "_command_palette.html" %}
+
+<script>
+function toggleSection(header){
+  header.classList.toggle('collapsed');
+}
+document.getElementById('guideSearch').addEventListener('input',function(){
+  var q=this.value.toLowerCase();
+  document.querySelectorAll('.ind-section').forEach(function(s){
+    var text=s.textContent.toLowerCase();
+    s.style.display=text.includes(q)?'':'none';
+  });
+});
+// TOC active tracking
+var tocLinks=document.querySelectorAll('.guide-toc a[href^="#"]');
+var sections=[];
+tocLinks.forEach(function(a){var t=document.getElementById(a.getAttribute('href').slice(1));if(t)sections.push({el:t,link:a})});
+window.addEventListener('scroll',function(){
+  var top=window.scrollY+120;
+  var active=null;
+  sections.forEach(function(s){if(s.el.offsetTop<=top)active=s});
+  tocLinks.forEach(function(a){a.classList.remove('active')});
+  if(active)active.link.classList.add('active');
+});
+</script>
+</div><!-- /sc-main -->
+</body>
+</html>

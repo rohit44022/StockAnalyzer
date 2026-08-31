@@ -107,6 +107,18 @@ NORM_MFI_BB_LEN    = 40   # BB length on 10-period MFI (Table 21.1)
 NORM_MFI_BB_STD    = 2.0  # BB width on 10-period MFI (Table 21.1)
 
 # ─────────────────────────────────────────────────────────────────
+#  KELTNER CHANNEL — T7 Squeeze Filter
+#  BB inside KC = genuine volatility compression (not just low BBW).
+#  Backtested: 1,795 trades, 53% WR, 1.72 PF vs baseline 49.8% / 1.49.
+# ─────────────────────────────────────────────────────────────────
+KC_EMA_PERIOD           = 20    # EMA period for KC midline
+KC_ATR_PERIOD           = 14    # ATR period for KC width
+KC_ATR_MULT             = 1.5   # ATR multiplier (Linda Raschke standard)
+KC_SQUEEZE_LOOKBACK     = 10    # Look back N bars for recent KC squeeze
+KC_SQUEEZE_MIN_BARS     = 6     # Min consecutive bars BB inside KC
+KC_SQUEEZE_INTENSITY_MIN = 0.30 # BB must be ≥30% narrower than KC
+
+# ─────────────────────────────────────────────────────────────────
 #  DATA SETTINGS
 # ─────────────────────────────────────────────────────────────────
 HISTORY_START  = "2020-01-01"
@@ -126,6 +138,7 @@ SCORE_MFI_ABOVE_50   = 15   # MFI above 50
 # Bonus scores
 SCORE_CMF_ABOVE_10   = 5    # CMF > +0.10 (strong accumulation)
 SCORE_MFI_ABOVE_80   = 5    # MFI > 80 (maximum fuel)
+SCORE_KC_T7_BONUS    = 10   # T7 Keltner Channel deep squeeze bonus
 
 # ─────────────────────────────────────────────────────────────────
 #  FUNDAMENTAL DATA SOURCES

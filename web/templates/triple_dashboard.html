@@ -3813,6 +3813,57 @@ function renderAiMl(d){
       </div>`;
     }
 
+    // Keltner Channel Squeeze (T7)
+    const kc = p.kc_squeeze_data;
+    if(kc && kc.available !== false){
+      hasContent = true;
+      const kcT7 = kc.kc_t7_pass;
+      const kcInt = kc.kc_intensity_pct || 0;
+      const kcDur = kc.kc_duration || 0;
+      const kcActive = kc.kc_squeeze_active;
+
+      let kcClr = '#8b949e';
+      if(kcT7) kcClr = '#0ab39c';
+      else if(kc.verdict === 'PARTIAL') kcClr = '#f7b84b';
+      else if(kc.verdict === 'BUILDING') kcClr = '#3b82f6';
+
+      const kcBadge = kcT7 ? 'T7 PASS' : (kc.verdict||'').replace(/_/g,' ');
+      const intW = Math.min(kcInt, 100);
+      const intClr = kcInt >= 50 ? '#0ab39c' : kcInt >= 30 ? '#f7b84b' : '#8b949e';
+
+      let btHtml = '';
+      if(kcT7 && kc.backtest_stats){
+        const bs = kc.backtest_stats;
+        btHtml = `<div style="margin-top:10px;padding:10px 14px;border-left:3px solid #0ab39c;background:rgba(10,179,156,.06);border-radius:0 8px 8px 0;font-size:.73rem;color:#8b949e">
+          <strong style="color:#0ab39c">T7 Backtest (${bs.trades.toLocaleString()} trades across 2,183 stocks, 15 years):</strong>
+          Win rate <strong style="color:#c9d1d9">${bs.win_rate}%</strong> vs baseline ${bs.baseline_win_rate}% |
+          Profit factor <strong style="color:#c9d1d9">${bs.profit_factor}</strong> vs ${bs.baseline_pf} |
+          Expectancy <strong style="color:#c9d1d9">+${bs.expectancy_r}R</strong> |
+          Avg winner <strong style="color:#0ab39c">+${bs.avg_winner_pct}%</strong> vs avg loser <strong style="color:#f06548">${bs.avg_loser_pct}%</strong> |
+          Max consecutive losses: <strong style="color:#c9d1d9">${bs.max_consec_losses}</strong> (baseline: 13)
+        </div>`;
+      }
+
+      miContent += `<div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="bi bi-bullseye" style="color:${kcClr}"></i>
+          <span style="font-size:.82rem;font-weight:600;color:#c9d1d9">Keltner Squeeze (T7)</span>
+          <span style="padding:2px 10px;border-radius:6px;font-size:.72rem;font-weight:600;background:${kcClr}22;color:${kcClr}">${kcBadge}</span>
+          ${kcDur > 0 ? '<span style="font-size:.72rem;color:#8b949e">'+kcDur+' bars</span>' : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.75rem">
+          <span style="width:90px;color:#8b949e;text-align:right">Intensity</span>
+          <div style="flex:1;height:6px;border-radius:3px;background:#222;overflow:hidden;position:relative">
+            <div style="width:${intW}%;height:100%;background:${intClr};border-radius:3px"></div>
+            <div style="position:absolute;left:30%;top:-2px;bottom:-2px;width:2px;background:#fff;opacity:.3" title="30% T7 threshold"></div>
+          </div>
+          <span style="width:60px;font-weight:600;color:${intClr}">${kcInt.toFixed(0)}%</span>
+        </div>
+        <div style="font-size:.73rem;color:#8b949e;line-height:1.65">${kc.insight||''}</div>
+        ${btHtml}
+      </div>`;
+    }
+
     if(hasContent){
       cards += `<div class="col-lg-6 col-md-12">
         <div class="method-card" style="border-color:rgba(124,77,255,.3);min-height:100%">

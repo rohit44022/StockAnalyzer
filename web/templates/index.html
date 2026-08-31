@@ -23,20 +23,20 @@
 
         /* ── Hero ── */
         .hero-section {
-            position: relative; overflow: hidden;
-            padding: 3rem 0 2rem;
+            position: relative; overflow: visible;
+            padding: 1.5rem 0 1.8rem;
             background: linear-gradient(135deg, #22282e 0%, #282f36 50%, #2a3140 100%);
             border-bottom: 1px solid #2f3944;
         }
         .hero-section::before {
             content:''; position:absolute; top:-50%; right:-20%; width:500px; height:500px;
             background: radial-gradient(circle, rgba(124,138,239,.06) 0%, transparent 70%);
-            pointer-events:none;
+            pointer-events:none; z-index:0;
         }
         .hero-section::after {
             content:''; position:absolute; bottom:-30%; left:-10%; width:400px; height:400px;
             background: radial-gradient(circle, rgba(10,179,156,.04) 0%, transparent 70%);
-            pointer-events:none;
+            pointer-events:none; z-index:0;
         }
         .hero-title {
             font-size: 2.5rem; font-weight: 700; letter-spacing: -0.04em; line-height: 1.05;
@@ -45,7 +45,7 @@
         .hero-subtitle {
             font-size: 0.92rem; color: #8b949e; max-width: 480px; margin: 0 auto; line-height: 1.6;
         }
-        .search-box { max-width: 560px; margin: 2.2rem auto 0; }
+        .search-box { max-width: 560px; }
         .search-box .form-control {
             background: #22282e; border: 1px solid rgba(255,255,255,.08);
             color: #aab8c5; font-size: 1rem; padding: 0.9rem 1.4rem;
@@ -403,22 +403,24 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <section class="hero-section">
         <div class="container" style="position:relative;z-index:1">
-            <div class="text-center" style="max-width:600px;margin:0 auto">
-                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2" style="font-size:0.7rem;color:#8b949e;letter-spacing:1px;text-transform:uppercase;font-weight:500">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1" style="font-size:0.7rem;color:#8b949e;letter-spacing:1px;text-transform:uppercase;font-weight:500">
                         <span class="live-dot"></span> NSE / BSE · INR ₹ · Live Analysis
                     </div>
-                    <h1 class="hero-title mb-2">Welcome back</h1>
-                    <p class="hero-subtitle mb-4">Multi-strategy signals, sentiment analysis, and portfolio tracking — all in one place.</p>
-                    <form class="search-box d-flex position-relative mx-auto" id="searchForm" autocomplete="off" style="max-width:480px">
-                        <div class="flex-grow-1 position-relative">
-                            <input type="text" class="form-control" id="tickerInput"
-                                   placeholder="Search any NSE ticker — RELIANCE, TCS, HDFC ..." autofocus>
-                            <div class="autocomplete-list" id="autocompleteList" style="display:none;"></div>
-                        </div>
-                        <button class="btn btn-primary" type="submit" id="analyzeBtn">
-                            <i class="bi bi-search me-1"></i> Analyze
-                        </button>
-                    </form>
+                    <h1 class="hero-title mb-0" style="font-size:2rem">Welcome back</h1>
+                    <p class="hero-subtitle mb-0" style="font-size:.82rem;max-width:380px">Multi-strategy signals, sentiment analysis, and portfolio tracking.</p>
+                </div>
+                <form class="search-box d-flex position-relative" id="searchForm" autocomplete="off" style="min-width:340px;max-width:480px;flex:1;margin:0">
+                    <div class="flex-grow-1 position-relative">
+                        <input type="text" class="form-control" id="tickerInput"
+                               placeholder="Search ticker — RELIANCE, TCS ..." autofocus>
+                        <div class="autocomplete-list" id="autocompleteList" style="display:none;"></div>
+                    </div>
+                    <button class="btn btn-primary" type="submit" id="analyzeBtn">
+                        <i class="bi bi-search me-1"></i> Analyze
+                    </button>
+                </form>
             </div>
         </div>
     </section>
@@ -1105,11 +1107,6 @@
           <div class="modal-footer border-0 pt-0 d-flex justify-content-between align-items-center">
             <small class="text-secondary" id="tpFooter"></small>
             <div class="d-flex gap-2 align-items-center">
-              <button type="button" class="btn btn-sm btn-outline-warning"
-                      id="tpClearCacheBtn" onclick="tpClearCache(this)"
-                      title="Wipe cached analysis so the next run recomputes from scratch">
-                <i class="bi bi-arrow-clockwise"></i> Clear cache <span id="tpCacheStat" class="text-muted small"></span>
-              </button>
               <button type="button" class="btn btn-sm btn-outline-success d-none"
                       id="tpExportXlsxBtn" onclick="tpExportXlsx(this)"
                       title="Download all 5 picks with full analysis as a colour-coded Excel workbook">
@@ -1605,13 +1602,12 @@
         _tpLastFilter = filter;
 
         _getTopPicksModal().show();
-        tpRefreshCacheStat();
 
         // Close any previous SSE connection
         tpAbort();
 
         // Connect to the streaming API
-        const url = `/api/top-picks/stream/${method}?filter=${filter}`;
+        const url = `/api/top-picks/stream/${method}?filter=${filter}&_t=${Date.now()}`;
         _tpEventSource = new EventSource(url);
 
         _tpEventSource.onmessage = function(ev) {
@@ -1696,6 +1692,9 @@
         const results = document.getElementById('tpResults');
         results.style.display = '';
 
+        // Remove any previous correlation guard divs
+        results.querySelectorAll('.tp-corr-guard').forEach(el => el.remove());
+
         // Summary bar
         const summaryEl = document.getElementById('tpSummary');
         summaryEl.innerHTML = `
@@ -1766,12 +1765,24 @@
             if (aiHtml) {
                 summaryEl.innerHTML += aiHtml;
             }
-            // Expanded Correlation Guard section
+            // Lazy-fetch feedback stats
+            fetch('/api/ai-ml/feedback/stats').then(r=>r.json()).then(fb => {
+                if (fb && fb.total_resolved > 0) {
+                    summaryEl.innerHTML += `<span class="tp-summary-item" title="AI tracks real outcomes of past picks. Win rate: ${fb.win_rate_overall||0}%. Resolved: ${fb.total_resolved}, Open: ${fb.total_open}." style="color:#7c8aef">📊 AI Track Record: <strong>${fb.win_rate_overall||0}%</strong> win (${fb.total_resolved} trades)</span>`;
+                }
+            }).catch(()=>{});
+        }
+
+        // Render each pick card (MUST happen before correlation guard insert)
+        picksList.innerHTML = picks.map(pick => tpRenderCard(pick, method, data)).join('');
+
+        // Expanded Correlation Guard section (inserted after cards are rendered)
+        if (data.ai_ml && data.ai_ml.available) {
+            const corr = data.ai_ml.correlation;
             if (corr && corr.diversification_score != null) {
                 const divScore = corr.diversification_score;
                 const divRisk = corr.risk_level || 'UNKNOWN';
                 const divClr = divRisk === 'LOW' ? '#0ab39c' : divRisk === 'MEDIUM' ? '#f7b84b' : '#ef5350';
-                const divIcon = divRisk === 'LOW' ? '🟢' : divRisk === 'MEDIUM' ? '🟡' : '🔴';
                 const pairs = corr.correlated_pairs || [];
                 const avgCorr = corr.avg_correlation ? (corr.avg_correlation * 100).toFixed(0) : null;
 
@@ -1806,24 +1817,12 @@
                         }
                     </div>
                 </div>`;
-                // Insert before pick cards
-                const corrTarget = document.getElementById('tpResults');
-                if (corrTarget) {
-                    const corrDiv = document.createElement('div');
-                    corrDiv.innerHTML = corrHtml;
-                    corrTarget.insertBefore(corrDiv, corrTarget.querySelector('.tp-card'));
-                }
+                const corrDiv = document.createElement('div');
+                corrDiv.className = 'tp-corr-guard';
+                corrDiv.innerHTML = corrHtml;
+                picksList.parentNode.insertBefore(corrDiv, picksList);
             }
-            // Lazy-fetch feedback stats
-            fetch('/api/ai-ml/feedback/stats').then(r=>r.json()).then(fb => {
-                if (fb && fb.total_resolved > 0) {
-                    summaryEl.innerHTML += `<span class="tp-summary-item" title="AI tracks real outcomes of past picks. Win rate: ${fb.win_rate_overall||0}%. Resolved: ${fb.total_resolved}, Open: ${fb.total_open}." style="color:#7c8aef">📊 AI Track Record: <strong>${fb.win_rate_overall||0}%</strong> win (${fb.total_resolved} trades)</span>`;
-                }
-            }).catch(()=>{});
         }
-
-        // Render each pick card
-        picksList.innerHTML = picks.map(pick => tpRenderCard(pick, method, data)).join('');
         const _weeklyNote = data.total_weekly_rejected ? ` · ${data.total_weekly_rejected} dropped by weekly filter` : '';
         document.getElementById('tpFooter').textContent =
             `Analysis complete · ${picks.length} top pick${picks.length>1?'s':''} from ${data.total_analyzed} analyzed stocks${_weeklyNote}`;
@@ -1836,45 +1835,6 @@
        a browser download. Re-runs the engine on the server so the
        file always reflects the current scan + scoring rules.
        ────────────────────────────────────────────────────────── */
-    /* ──────────────────────────────────────────────────────────
-       ANALYSIS CACHE — status label + manual clear (with confirm).
-       Cache is invalidated automatically on data or code change plus
-       24h TTL, but this button lets you wipe it on demand.
-       ────────────────────────────────────────────────────────── */
-    async function tpRefreshCacheStat() {
-        const el = document.getElementById('tpCacheStat');
-        if (!el) return;
-        try {
-            const r = await fetch('/api/top-picks/cache/stats');
-            const j = await r.json();
-            if (!j.enabled) { el.textContent = '(disabled)'; return; }
-            if (!j.count) { el.textContent = '(empty)'; return; }
-            const ageH = Math.round((j.oldest_age_seconds || 0) / 3600);
-            const mb = (j.bytes / 1024 / 1024).toFixed(1);
-            el.textContent = `(${j.count} entries · ${mb} MB · oldest ${ageH}h)`;
-        } catch (_) { el.textContent = ''; }
-    }
-
-    async function tpClearCache(btn) {
-        const stat = document.getElementById('tpCacheStat').textContent || '';
-        if (!confirm(`Clear cached analysis${stat ? ' ' + stat : ''}?\n\n` +
-                     `The next Top Picks run will recompute every stock from scratch. ` +
-                     `Use this if you suspect you're seeing stale results.`)) return;
-        const original = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Clearing…';
-        try {
-            const r = await fetch('/api/top-picks/cache/clear', { method: 'POST' });
-            const j = await r.json();
-            btn.innerHTML = `<i class="bi bi-check-lg"></i> Cleared ${j.removed || 0}`;
-            setTimeout(() => { btn.innerHTML = original; btn.disabled = false; tpRefreshCacheStat(); }, 1500);
-        } catch (ex) {
-            alert('Clear cache failed: ' + (ex.message || ex));
-            btn.innerHTML = original;
-            btn.disabled = false;
-        }
-    }
-
     async function tpExportXlsx(btn) {
         if (!_tpLastMethod || !_tpLastFilter) return;
         const original = btn.innerHTML;
@@ -3225,6 +3185,42 @@
                         <div style="font-size:0.73rem;line-height:1.5;padding:6px 10px;border-radius:6px;background:${agClr}08;border-left:3px solid ${agClr}">
                             <strong>What this means for you:</strong> ${seqTakeaway}
                         </div>
+                    </div>`;
+                }
+
+                // ── KC Squeeze (T7) ──
+                const kcd = pick.kc_squeeze_data;
+                if (kcd && kcd.available) {
+                    const kcColor = kcd.verdict === 'T7_PASS' ? '#0ab39c' : kcd.verdict === 'BUILDING' ? '#f7b84b' : kcd.verdict === 'PARTIAL' ? '#7c8aef' : '#8b949e';
+                    const kcLabel = kcd.verdict === 'T7_PASS' ? 'T7 PASS' : kcd.verdict === 'BUILDING' ? 'BUILDING' : kcd.verdict === 'PARTIAL' ? 'PARTIAL' : 'NO SQUEEZE';
+                    const kcIntensity = kcd.kc_intensity_pct || 0;
+                    const kcGaugeW = Math.min(Math.max(kcIntensity, 0), 100);
+                    const kcGaugeColor = kcIntensity >= 30 ? '#0ab39c' : kcIntensity >= 15 ? '#f7b84b' : '#8b949e';
+
+                    rows += `<div style="padding:10px 0;border-bottom:1px solid rgba(127,127,127,0.12)">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+                            <span style="font-size:1.1rem">🎯</span>
+                            <span style="font-size:0.82rem;font-weight:700;color:var(--bs-body-color)">Keltner Channel Squeeze (T7)</span>
+                            <span style="font-size:0.72rem;padding:3px 10px;border-radius:5px;background:${kcColor}22;color:${kcColor};border:1px solid ${kcColor}44;font-weight:700">${kcLabel}</span>
+                            ${kcd.verdict === 'T7_PASS' ? '<span style="font-size:0.65rem;padding:2px 8px;border-radius:4px;background:#0ab39c22;color:#0ab39c;font-weight:600">+10 BONUS</span>' : ''}
+                        </div>
+                        <div style="display:flex;gap:16px;font-size:0.72rem;color:#9ca3af;margin-bottom:6px">
+                            <span>Duration: <strong style="color:var(--bs-body-color)">${kcd.kc_duration} bars</strong></span>
+                            <span>Intensity: <strong style="color:var(--bs-body-color)">${kcIntensity.toFixed(0)}%</strong></span>
+                        </div>
+                        <div style="height:6px;border-radius:3px;background:rgba(127,127,127,0.15);margin:4px 0 8px 0;position:relative;overflow:hidden">
+                            <div style="position:absolute;left:0;top:0;height:100%;width:${kcGaugeW}%;background:${kcGaugeColor};border-radius:3px;transition:width 0.4s"></div>
+                            <div style="position:absolute;left:30%;top:-2px;width:1.5px;height:10px;background:#ffffff88;border-radius:1px" title="30% T7 threshold"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:#8b949e;margin-bottom:8px">
+                            <span>0% (shallow)</span>
+                            <span>30% T7 threshold</span>
+                            <span>100% (extreme)</span>
+                        </div>
+                        <div style="font-size:0.73rem;color:#9ca3af;line-height:1.6">${kcd.insight}</div>
+                        ${kcd.backtest_stats ? `<div style="font-size:0.68rem;margin-top:6px;padding:6px 10px;border-radius:6px;background:#0ab39c08;border-left:3px solid #0ab39c;color:#9ca3af;line-height:1.5">
+                            <strong>Backtest:</strong> ${kcd.backtest_stats.trades} trades · ${kcd.backtest_stats.win_rate}% WR · ${kcd.backtest_stats.profit_factor} PF · +${kcd.backtest_stats.avg_winner_pct}% avg winner vs ${kcd.backtest_stats.avg_loser_pct}% avg loser
+                        </div>` : ''}
                     </div>`;
                 }
 

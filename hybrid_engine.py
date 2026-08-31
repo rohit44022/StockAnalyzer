@@ -592,6 +592,12 @@ def run_hybrid_analysis(df: pd.DataFrame, ticker: str = "UNKNOWN", capital: floa
             "expansion_up": bb_signal.expansion_up,
             "expansion_down": bb_signal.expansion_down,
             "expansion_end": bb_signal.expansion_end,
+            "kc_squeeze": bb_signal.kc_squeeze,
+            "kc_had_squeeze": bb_signal.kc_had_squeeze,
+            "kc_squeeze_duration": bb_signal.kc_squeeze_duration,
+            "kc_squeeze_intensity": _safe(bb_signal.kc_squeeze_intensity),
+            "kc_t7_pass": bb_signal.kc_t7_pass,
+            "atr": _safe(float(df_bb["ATR"].iloc[-1])) if "ATR" in df_bb.columns else None,
         },
         "conditions": {
             "squeeze": bb_signal.cond1_squeeze_on,

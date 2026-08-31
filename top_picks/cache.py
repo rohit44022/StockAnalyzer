@@ -30,7 +30,7 @@ from bb_squeeze.config import CACHE_DIR
 #  Configuration
 # ─────────────────────────────────────────────────────────────────────
 
-TRIPLE_CACHE_ENABLED = True
+TRIPLE_CACHE_ENABLED = False
 
 # 24-hour TTL. User's explicit requirement — "invalidate after 24 hours".
 TTL_SECONDS = 24 * 60 * 60

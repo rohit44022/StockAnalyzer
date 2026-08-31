@@ -144,6 +144,27 @@ body{background:var(--bg);font-family:var(--bs-body-font-family)}
       </div>
     </div>
 
+    <!-- ROW 3b: Monthly Sentiment Trend + Source Health -->
+    <div class="row g-3 mb-3" id="monthlyTrendRow" style="display:none">
+      <div class="col-lg-8">
+        <div class="card p-4 h-100">
+          <div class="mini-label mb-2"><i class="bi bi-calendar-range me-1"></i>MONTHLY SENTIMENT TREND</div>
+          <div style="height:200px"><canvas id="monthlyTrendChart"></canvas></div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.35);margin-top:6px">
+            Average sentiment score per month. Green = bullish, Red = bearish. Accumulates over time — more runs = deeper history.
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card p-4 h-100">
+          <div class="mini-label mb-2"><i class="bi bi-hdd-stack me-1"></i>DATA DEPTH</div>
+          <div id="dataDepthInfo" class="mb-3"></div>
+          <div class="mini-label mb-2"><i class="bi bi-broadcast me-1"></i>SOURCE HEALTH</div>
+          <div id="sourceHealthPills" class="d-flex flex-wrap gap-1"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ROW 4: Key Themes -->
     <div class="card p-4 mb-3">
       <div class="mini-label mb-2"><i class="bi bi-tags me-1"></i>KEY THEMES — WHAT ARE PEOPLE TALKING ABOUT?</div>
@@ -165,12 +186,20 @@ body{background:var(--bg);font-family:var(--bs-body-font-family)}
             <div class="col-md-6">
               <strong style="color:var(--accent)">Data Collection</strong><br>
               Posts are collected from multiple sources in parallel:<br>
-              <strong style="color:#4285f4">Google News RSS</strong> (25% weight) — free, reliable, excellent Indian stock coverage.<br>
-              <strong style="color:#ff4500">Reddit</strong> (20% weight) — r/IndianStockMarket, r/IndianStreetBets, etc.<br>
-              <strong style="color:#ff9800">Indian Financial RSS</strong> (20% weight) — MoneyControl, ET Markets, LiveMint, Biz Standard.<br>
-              <strong style="color:#1da1f2">StockTwits</strong> (15% weight) — free, stock-specific social platform where traders tag posts as Bullish/Bearish.<br>
-              <strong style="color:#1d9bf0">X / Twitter</strong> (15% weight) — optional, needs Bearer Token in .env ($100+/month API).<br>
-              <strong style="color:#26a69a">NewsAPI</strong> (15% weight) — optional, needs API key in .env file.<br>
+              <strong style="color:#4285f4">Google News</strong> (13%) — free, reliable, excellent Indian stock coverage.<br>
+              <strong style="color:#ff6b00">MoneyControl</strong> (12%) — India's largest financial portal.<br>
+              <strong style="color:#1565c0">Economic Times</strong> (10%) — India's #1 business newspaper.<br>
+              <strong style="color:#ff9800">Indian Financial RSS</strong> (10%) — 13 feeds: ET, LiveMint, BS, Financial Express, Hindu BL, NDTV, Zee Biz, CNBCTV18, News18, ThePrint, Investing.com.<br>
+              <strong style="color:#ff4500">Reddit</strong> (8%) — r/IndianStockMarket, r/IndianStreetBets, etc.<br>
+              <strong style="color:#e53935">NDTV Profit</strong> (7%) — major Indian business &amp; market news.<br>
+              <strong style="color:#ff8f00">Reuters</strong> (7%) — global financial authority, India coverage.<br>
+              <strong style="color:#00809d">Bing News</strong> (6%) — free, complements Google with different ranking.<br>
+              <strong style="color:#ff7043">Capitalmind</strong> (6%) — Indian investment research &amp; deep analysis.<br>
+              <strong style="color:#43a047">Trendlyne</strong> (5%) — Indian stock analysis platform.<br>
+              <strong style="color:#2196f3">5paisa</strong> (5%) — Indian broker research &amp; stock reports.<br>
+              <strong style="color:#7b1fa2">Yahoo Finance</strong> (4%) — stock-specific news, .NS tickers.<br>
+              <strong style="color:#1da1f2">StockTwits</strong> (3%) — stock-specific social (limited India).<br>
+              Data is persisted in SQLite — each run accumulates history. After 3 months of use, you'll have 3 months of sentiment depth.<br>
             </div>
             <div class="col-md-6">
               <strong style="color:var(--accent)">NLP Scoring</strong><br>
@@ -326,6 +355,9 @@ function renderResults(d) {
   // ── Timeline ──
   renderTimeline(d.timeline);
 
+  // ── Monthly Trend + Data Depth ──
+  renderMonthlyTrend(d.monthly_trend, d.data_span_days, d.total_posts, d.source_breakdown);
+
   // ── Key Themes ──
   renderThemes(d.themes);
 
@@ -345,6 +377,14 @@ function renderSourceBreakdown(sources) {
     reddit: '<i class="bi bi-reddit" style="color:#ff4500"></i>',
     rss_india: '<i class="bi bi-rss" style="color:#ff9800"></i>',
     bing_news: '<i class="bi bi-search" style="color:#00809d"></i>',
+    moneycontrol: '<i class="bi bi-currency-rupee" style="color:#ff6b00"></i>',
+    et_markets: '<i class="bi bi-journal-text" style="color:#1565c0"></i>',
+    ndtv_profit: '<i class="bi bi-broadcast" style="color:#e53935"></i>',
+    trendlyne: '<i class="bi bi-bar-chart-line" style="color:#43a047"></i>',
+    capitalmind: '<i class="bi bi-lightbulb" style="color:#ff7043"></i>',
+    fivepaisa: '<i class="bi bi-bank" style="color:#2196f3"></i>',
+    reuters: '<i class="bi bi-globe2" style="color:#ff8f00"></i>',
+    yahoo_finance: '<i class="bi bi-graph-up" style="color:#7b1fa2"></i>',
     stocktwits: '<i class="bi bi-chat-dots" style="color:#1da1f2"></i>',
     twitter: '<i class="bi bi-twitter-x" style="color:#1d9bf0"></i>',
     newsapi: '<i class="bi bi-newspaper" style="color:#26a69a"></i>',
@@ -471,6 +511,81 @@ function renderTimeline(timeline) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   MONTHLY SENTIMENT TREND + DATA DEPTH
+   ═══════════════════════════════════════════════════════════════ */
+let monthlyTrendChartObj = null;
+
+function renderMonthlyTrend(trend, spanDays, totalPosts, sourceBreakdown) {
+  const row = document.getElementById('monthlyTrendRow');
+  if (!trend || !trend.length) { row.style.display = 'none'; return; }
+  row.style.display = '';
+
+  // Chart
+  if (monthlyTrendChartObj) monthlyTrendChartObj.destroy();
+  const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
+  const labels = trend.map(t => t.month);
+  const scores = trend.map(t => t.avg_score);
+  const colors = scores.map(v => v > 0.1 ? '#00c853' : v < -0.1 ? '#ff1744' : '#ffc107');
+
+  monthlyTrendChartObj = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Avg Sentiment',
+        data: scores,
+        backgroundColor: colors,
+        borderRadius: 4,
+        barPercentage: 0.6,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: item => {
+              const t = trend[item.dataIndex];
+              return `${t.avg_score >= 0 ? '+' : ''}${t.avg_score.toFixed(3)} (${t.post_count} posts)`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,.05)' } },
+        y: { min: -1, max: 1, ticks: { color: '#888', stepSize: 0.5 }, grid: { color: 'rgba(255,255,255,.05)' } },
+      },
+    },
+  });
+
+  // Data depth info
+  const depthEl = document.getElementById('dataDepthInfo');
+  const spanText = spanDays > 0 ? `${spanDays} days` : 'today only';
+  depthEl.innerHTML = `
+    <div class="d-flex flex-column gap-2">
+      <div><span style="color:rgba(255,255,255,.5);font-size:.78rem">Total Posts</span><br>
+        <span style="font-size:1.3rem;font-weight:700;color:var(--accent)">${totalPosts}</span></div>
+      <div><span style="color:rgba(255,255,255,.5);font-size:.78rem">Data Span</span><br>
+        <span style="font-size:1.1rem;font-weight:600">${spanText}</span></div>
+      <div><span style="color:rgba(255,255,255,.5);font-size:.78rem">Months</span><br>
+        <span style="font-size:1.1rem;font-weight:600">${trend.length}</span></div>
+    </div>`;
+
+  // Source health pills
+  const pillsEl = document.getElementById('sourceHealthPills');
+  const allSources = ['google_news','moneycontrol','et_markets','reddit','rss_india','ndtv_profit','bing_news','trendlyne','capitalmind','fivepaisa','reuters','yahoo_finance','stocktwits'];
+  const activeMap = {};
+  (sourceBreakdown || []).forEach(s => { activeMap[s.source] = s.count; });
+  const nameMap = {google_news:'Google',reddit:'Reddit',rss_india:'RSS India',bing_news:'Bing',moneycontrol:'MC',et_markets:'ET Markets',ndtv_profit:'NDTV',trendlyne:'Trendlyne',capitalmind:'CM',fivepaisa:'5paisa',reuters:'Reuters',yahoo_finance:'Yahoo',stocktwits:'StockTwits'};
+  pillsEl.innerHTML = allSources.map(k => {
+    const count = activeMap[k];
+    if (count) return `<span class="badge" style="background:rgba(10,179,156,.15);color:#0ab39c;font-size:.7rem">${nameMap[k]} (${count})</span>`;
+    return `<span class="badge" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3);font-size:.7rem">${nameMap[k]} —</span>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
    KEY THEMES
    ═══════════════════════════════════════════════════════════════ */
 function renderThemes(themes) {
@@ -495,6 +610,14 @@ function renderPosts(posts) {
     reddit: '<i class="bi bi-reddit" style="color:#ff4500"></i>',
     rss_india: '<i class="bi bi-rss" style="color:#ff9800"></i>',
     bing_news: '<i class="bi bi-search" style="color:#00809d"></i>',
+    moneycontrol: '<i class="bi bi-currency-rupee" style="color:#ff6b00"></i>',
+    et_markets: '<i class="bi bi-journal-text" style="color:#1565c0"></i>',
+    ndtv_profit: '<i class="bi bi-broadcast" style="color:#e53935"></i>',
+    trendlyne: '<i class="bi bi-bar-chart-line" style="color:#43a047"></i>',
+    capitalmind: '<i class="bi bi-lightbulb" style="color:#ff7043"></i>',
+    fivepaisa: '<i class="bi bi-bank" style="color:#2196f3"></i>',
+    reuters: '<i class="bi bi-globe2" style="color:#ff8f00"></i>',
+    yahoo_finance: '<i class="bi bi-graph-up" style="color:#7b1fa2"></i>',
     stocktwits: '<i class="bi bi-chat-dots" style="color:#1da1f2"></i>',
     twitter: '<i class="bi bi-twitter-x" style="color:#1d9bf0"></i>',
     newsapi: '<i class="bi bi-newspaper" style="color:#26a69a"></i>',

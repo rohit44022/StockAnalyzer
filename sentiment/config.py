@@ -32,43 +32,91 @@ import os
 SOURCES = {
     "google_news": {
         "enabled": True,
-        "weight": 0.25,
+        "weight": 0.13,
         "max_results": 20,
         "description": "Google News (free, reliable)",
     },
     "reddit": {
         "enabled": True,
-        "weight": 0.20,
+        "weight": 0.08,
         "max_results": 25,
         "description": "Reddit (free JSON API)",
     },
     "rss_india": {
         "enabled": True,
-        "weight": 0.20,
-        "max_results": 15,
-        "description": "Indian Financial News (RSS feeds)",
+        "weight": 0.10,
+        "max_results": 25,
+        "description": "Indian Financial News (10+ RSS feeds)",
     },
     "bing_news": {
         "enabled": True,
-        "weight": 0.15,
+        "weight": 0.06,
         "max_results": 15,
         "description": "Bing News (free, no API key)",
     },
-    "stocktwits": {
+    "moneycontrol": {
+        "enabled": True,
+        "weight": 0.12,
+        "max_results": 20,
+        "description": "MoneyControl (India-specific)",
+    },
+    "et_markets": {
         "enabled": True,
         "weight": 0.10,
+        "max_results": 20,
+        "description": "Economic Times Markets (India's top biz news)",
+    },
+    "ndtv_profit": {
+        "enabled": True,
+        "weight": 0.07,
+        "max_results": 15,
+        "description": "NDTV Profit (major Indian business news)",
+    },
+    "trendlyne": {
+        "enabled": True,
+        "weight": 0.05,
+        "max_results": 15,
+        "description": "Trendlyne (Indian stock analysis)",
+    },
+    "capitalmind": {
+        "enabled": True,
+        "weight": 0.06,
+        "max_results": 15,
+        "description": "Capitalmind (Indian investment research)",
+    },
+    "fivepaisa": {
+        "enabled": True,
+        "weight": 0.05,
+        "max_results": 15,
+        "description": "5paisa (Indian broker research)",
+    },
+    "reuters": {
+        "enabled": True,
+        "weight": 0.07,
+        "max_results": 15,
+        "description": "Reuters (global financial authority)",
+    },
+    "yahoo_finance": {
+        "enabled": True,
+        "weight": 0.04,
+        "max_results": 15,
+        "description": "Yahoo Finance News",
+    },
+    "stocktwits": {
+        "enabled": True,
+        "weight": 0.03,
         "max_results": 30,
         "description": "StockTwits (free, stock-specific social)",
     },
     "twitter": {
         "enabled": bool(os.environ.get("TWITTER_BEARER_TOKEN")),
-        "weight": 0.15,
+        "weight": 0.04,
         "max_results": 30,
         "description": "X / Twitter (needs Bearer Token)",
     },
     "newsapi": {
         "enabled": bool(os.environ.get("NEWSAPI_KEY")),
-        "weight": 0.15,
+        "weight": 0.06,
         "max_results": 20,
         "description": "NewsAPI (needs API key)",
     },
@@ -105,7 +153,7 @@ MIN_POSTS_FOR_CONFIDENCE = 5
 # ─────────────────────────────────────────────────────────────
 
 REQUEST_TIMEOUT = 10  # seconds per HTTP request
-USER_AGENT = "StockAnalyzer/1.0 (Sentiment Module)"
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 # ─────────────────────────────────────────────────────────────
 #  INDIAN FINANCIAL RSS FEEDS
@@ -117,6 +165,14 @@ INDIAN_RSS_FEEDS = {
     "economic_times_stocks": "https://economictimes.indiatimes.com/markets/stocks/rssfeeds/2146842.cms",
     "livemint": "https://www.livemint.com/rss/markets",
     "business_standard": "https://www.business-standard.com/rss/markets-106.rss",
+    "financial_express": "https://www.financialexpress.com/market/feed/",
+    "hindu_business_line": "https://www.thehindubusinessline.com/markets/feeder/default.rss",
+    "ndtv_profit": "https://feeds.feedburner.com/ndtvprofit-latest",
+    "zee_business": "https://zeenews.india.com/rss/business.xml",
+    "cnbctv18": "https://www.cnbctv18.com/commonfeeds/v1/cne/rss/market.xml",
+    "news18_business": "https://www.news18.com/rss/business.xml",
+    "theprint_economy": "https://theprint.in/category/economy/feed/",
+    "investing_com": "https://www.investing.com/rss/news.rss",
 }
 
 # ─────────────────────────────────────────────────────────────

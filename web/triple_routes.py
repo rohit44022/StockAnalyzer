@@ -216,6 +216,15 @@ def _enrich_triple_with_aiml(result, ticker, capital):
         logger.warning("Position Sizer: %s", e)
         ai_data["modules"]["position_sizer"] = {"status": "error", "error": str(e)}
 
+    # 9. Keltner Squeeze Intelligence (T7)
+    try:
+        from ai_ml.keltner_squeeze import enrich_picks_with_keltner
+        enrich_picks_with_keltner(picks)
+        ai_data["modules"]["keltner_squeeze"] = {"status": "ok"}
+    except Exception as e:
+        logger.warning("Keltner Squeeze: %s", e)
+        ai_data["modules"]["keltner_squeeze"] = {"status": "error", "error": str(e)}
+
     ai_data["elapsed_ms"] = round((time.time() - t0) * 1000)
 
     # Flatten pick-level fields into ai_data for easy template access
@@ -240,6 +249,7 @@ def _enrich_triple_with_aiml(result, ticker, capital):
         "size_shares": pick.get("size_shares"),
         "size_risk_per_trade": pick.get("size_risk_per_trade"),
         "size_method_stats": pick.get("size_method_stats"),
+        "kc_squeeze_data": pick.get("kc_squeeze_data"),
     }
 
     result["ai_ml"] = ai_data

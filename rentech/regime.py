@@ -227,6 +227,7 @@ def _detect_hmm_regime(close: pd.Series, volume: pd.Series) -> Tuple[str, float,
             else:
                 break
 
+    duration = min(duration, 504)
     return regime, confidence, duration
 
 

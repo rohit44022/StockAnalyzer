@@ -146,6 +146,15 @@ def enrich_top_picks(result: dict, capital: float = 500_000) -> dict:
         logger.warning("Sequence Scorer failed: %s", e)
         ai_data["modules"]["sequence_scorer"] = {"status": "error", "error": str(e)}
 
+    # ── 10. Keltner Squeeze Intelligence (T7) ────────────────────
+    try:
+        from ai_ml.keltner_squeeze import enrich_picks_with_keltner
+        enrich_picks_with_keltner(picks)
+        ai_data["modules"]["keltner_squeeze"] = {"status": "ok"}
+    except Exception as e:
+        logger.warning("Keltner Squeeze failed: %s", e)
+        ai_data["modules"]["keltner_squeeze"] = {"status": "error", "error": str(e)}
+
     elapsed = time.time() - t0
     ai_data["elapsed_ms"] = round(elapsed * 1000)
 

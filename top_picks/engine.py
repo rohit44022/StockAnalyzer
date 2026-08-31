@@ -690,16 +690,7 @@ def _deep_analyze_stock(
             return None
 
         # Step 2: Run Triple Conviction Engine (BB + TA + PA + Wyckoff).
-        # Cached on (ticker, csv_mtime+size, capital, code_version). Any
-        # data or indicator-code change invalidates automatically; 24h TTL
-        # is a belt-and-braces. Cache is invisible to correctness — a miss
-        # falls straight through to the live call below.
-        from top_picks import cache as _triple_cache
-        csv_path = os.path.join(CSV_DIR, f"{ticker}.csv")
-        triple = _triple_cache.read(ticker, csv_path, capital)
-        if triple is None:
-            triple = run_triple_analysis(df, ticker=ticker, capital=capital)
-            _triple_cache.write(ticker, csv_path, capital, triple)
+        triple = run_triple_analysis(df, ticker=ticker, capital=capital)
 
         if "error" in triple:
             return None

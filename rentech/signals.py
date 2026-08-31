@@ -686,7 +686,7 @@ def _alpha_seasonality(df: pd.DataFrame) -> AlphaSignal:
         "day_of_week": ["Mon", "Tue", "Wed", "Thu", "Fri"][dow] if dow < 5 else "Weekend",
         "month": last_date.strftime("%B"),
         "seasonal_bias": seasonal_bias.get(month, 0),
-        "historical_month_avg": _safe(np.mean(same_month_returns)) if same_month_returns else 0,
+        "historical_month_avg": _safe(np.nanmean(same_month_returns)) if same_month_returns else 0,
     }
 
     explanation = (
@@ -893,8 +893,8 @@ def _alpha_stat_arb(
         X_with_const = np.column_stack([np.ones(len(X_train)), X_train])
         params = np.linalg.lstsq(X_with_const, Y_train, rcond=None)[0]
         X_test_const = np.column_stack([np.ones(len(X_test)), X_test])
-        predicted = float(X_test_const @ params)
-    except (np.linalg.LinAlgError, ValueError):
+        predicted = float((X_test_const @ params).item())
+    except (np.linalg.LinAlgError, ValueError, TypeError):
         return AlphaSignal("Statistical Arbitrage", 0, C.FACTOR_WEIGHT_STAT, 0,
                            "NEUTRAL", {}, "Regression failed")
 
@@ -958,6 +958,247 @@ def _alpha_stat_arb(
 
 
 # ═══════════════════════════════════════════════════════════════
+# ALPHA 8: CONNORS RSI  (composite mean-reversion oscillator)
+# ═══════════════════════════════════════════════════════════════
+
+def _alpha_connors_rsi(df: pd.DataFrame) -> AlphaSignal:
+    close = df["Close"]
+    n = len(close)
+    if n < 110:
+        return AlphaSignal("ConnorsRSI", 0, C.FACTOR_WEIGHT_CRSI, 0,
+                           "NEUTRAL", {}, "Insufficient data for ConnorsRSI")
+
+    # Component 1: RSI(3)
+    rsi3 = _rsi(close, 3)
+
+    # Component 2: Streak RSI — consecutive up/down close streak, then RSI(2) of that
+    streak = pd.Series(0.0, index=close.index)
+    vals = close.values
+    for i in range(1, n):
+        if vals[i] > vals[i - 1]:
+            streak.iloc[i] = max(streak.iloc[i - 1], 0) + 1
+        elif vals[i] < vals[i - 1]:
+            streak.iloc[i] = min(streak.iloc[i - 1], 0) - 1
+    streak_rsi = _rsi(streak, 2)
+
+    # Component 3: Percentile rank of 1-day ROC over last 100 bars
+    roc1 = close.pct_change()
+    pct_rank = roc1.rolling(100).apply(
+        lambda x: (x.iloc[-1] > x.iloc[:-1]).sum() / (len(x) - 1) * 100
+        if len(x) > 1 else 50, raw=False
+    )
+
+    crsi = (rsi3 + streak_rsi + pct_rank) / 3
+    crsi_now = _safe(crsi.iloc[-1], 50)
+    crsi_prev = _safe(crsi.iloc[-2], 50) if n > 1 else crsi_now
+
+    # Score: extreme readings → strong signal
+    score = 0
+    if crsi_now < 10:
+        score = 50 + (10 - crsi_now) * 3
+    elif crsi_now < 20:
+        score = 20 + (20 - crsi_now) * 3
+    elif crsi_now > 90:
+        score = -50 - (crsi_now - 90) * 3
+    elif crsi_now > 80:
+        score = -20 - (crsi_now - 80) * 3
+    else:
+        score = (50 - crsi_now) * 0.5
+
+    # Reversal bonus: was extreme, now turning
+    if crsi_prev < 10 and crsi_now > crsi_prev:
+        score += 15
+    elif crsi_prev > 90 and crsi_now < crsi_prev:
+        score -= 15
+
+    score = _clamp(score)
+    direction = "LONG" if score > 10 else ("SHORT" if score < -10 else "NEUTRAL")
+    confidence = min(abs(score), 100)
+
+    return AlphaSignal(
+        name="ConnorsRSI", raw_score=_safe(score),
+        weight=C.FACTOR_WEIGHT_CRSI, confidence=_safe(confidence),
+        direction=direction,
+        metrics={"connors_rsi": crsi_now, "rsi3": _safe(rsi3.iloc[-1]),
+                 "streak": _safe(streak.iloc[-1])},
+        explanation=f"ConnorsRSI={crsi_now:.1f} (RSI3+Streak+PctRank composite). "
+                    f"{'Deeply oversold — reversal expected.' if crsi_now < 15 else ''}"
+                    f"{'Deeply overbought — pullback expected.' if crsi_now > 85 else ''}"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
+# ALPHA 9: KST  (Know Sure Thing — weighted multi-period ROC)
+# ═══════════════════════════════════════════════════════════════
+
+def _alpha_kst(df: pd.DataFrame) -> AlphaSignal:
+    close = df["Close"]
+    n = len(close)
+    if n < 60:
+        return AlphaSignal("KST", 0, C.FACTOR_WEIGHT_KST, 0,
+                           "NEUTRAL", {}, "Insufficient data for KST")
+
+    roc10 = close.pct_change(10).rolling(10).mean()
+    roc15 = close.pct_change(15).rolling(10).mean()
+    roc20 = close.pct_change(20).rolling(10).mean()
+    roc30 = close.pct_change(30).rolling(15).mean()
+
+    kst = roc10 + 2 * roc15 + 3 * roc20 + 4 * roc30
+    kst_signal = kst.rolling(9).mean()
+
+    kst_now = _safe(kst.iloc[-1])
+    sig_now = _safe(kst_signal.iloc[-1])
+    kst_prev = _safe(kst.iloc[-2]) if n > 1 else kst_now
+    sig_prev = _safe(kst_signal.iloc[-2]) if n > 1 else sig_now
+
+    # Score: crossover + distance from signal line
+    score = 0
+    diff = kst_now - sig_now
+
+    # Bullish cross
+    if kst_prev <= sig_prev and kst_now > sig_now:
+        score += 40
+    # Bearish cross
+    elif kst_prev >= sig_prev and kst_now < sig_now:
+        score -= 40
+
+    # Magnitude bonus
+    score += _clamp(diff * 5000, -40, 40)
+
+    # Rising/falling KST
+    if kst_now > kst_prev:
+        score += 10
+    elif kst_now < kst_prev:
+        score -= 10
+
+    score = _clamp(score)
+    direction = "LONG" if score > 10 else ("SHORT" if score < -10 else "NEUTRAL")
+    confidence = min(abs(score), 100)
+
+    return AlphaSignal(
+        name="KST", raw_score=_safe(score),
+        weight=C.FACTOR_WEIGHT_KST, confidence=_safe(confidence),
+        direction=direction,
+        metrics={"kst": kst_now, "kst_signal": sig_now,
+                 "kst_diff": _safe(diff)},
+        explanation=f"KST={kst_now:.6f} vs Signal={sig_now:.6f}. "
+                    f"{'Bullish crossover — multi-period momentum turning up.' if kst_prev <= sig_prev and kst_now > sig_now else ''}"
+                    f"{'Bearish crossover — momentum fading.' if kst_prev >= sig_prev and kst_now < sig_now else ''}"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
+# ALPHA 10: CMO  (Chande Momentum Oscillator)
+# ═══════════════════════════════════════════════════════════════
+
+def _alpha_cmo(df: pd.DataFrame) -> AlphaSignal:
+    close = df["Close"]
+    n = len(close)
+    if n < 30:
+        return AlphaSignal("CMO", 0, C.FACTOR_WEIGHT_CMO, 0,
+                           "NEUTRAL", {}, "Insufficient data for CMO")
+
+    diff = close.diff()
+    su = diff.clip(lower=0).rolling(14).sum()
+    sd = (-diff.clip(upper=0)).rolling(14).sum()
+    denom = su + sd
+    cmo = (su - sd) / denom.replace(0, np.nan) * 100
+
+    cmo_now = _safe(cmo.iloc[-1])
+    cmo_prev = _safe(cmo.iloc[-2]) if n > 1 else cmo_now
+
+    score = 0
+    # Extreme oversold/overbought
+    if cmo_now < -50:
+        score = 30 + (-50 - cmo_now) * 0.7
+    elif cmo_now < -30:
+        score = (cmo_now + 30) * -1.5
+    elif cmo_now > 50:
+        score = -30 - (cmo_now - 50) * 0.7
+    elif cmo_now > 30:
+        score = -(cmo_now - 30) * 1.5
+    else:
+        score = -cmo_now * 0.3
+
+    # Zero-line cross momentum
+    if cmo_prev <= 0 < cmo_now:
+        score += 15
+    elif cmo_prev >= 0 > cmo_now:
+        score -= 15
+
+    score = _clamp(score)
+    direction = "LONG" if score > 10 else ("SHORT" if score < -10 else "NEUTRAL")
+    confidence = min(abs(score), 100)
+
+    return AlphaSignal(
+        name="CMO", raw_score=_safe(score),
+        weight=C.FACTOR_WEIGHT_CMO, confidence=_safe(confidence),
+        direction=direction,
+        metrics={"cmo": cmo_now, "cmo_prev": cmo_prev},
+        explanation=f"CMO(14)={cmo_now:.1f}. "
+                    f"{'Oversold — up-momentum expected.' if cmo_now < -50 else ''}"
+                    f"{'Overbought — exhaustion likely.' if cmo_now > 50 else ''}"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
+# ALPHA 11: VORTEX INDICATOR  (directional trend detection)
+# ═══════════════════════════════════════════════════════════════
+
+def _alpha_vortex(df: pd.DataFrame) -> AlphaSignal:
+    n = len(df)
+    if n < 30:
+        return AlphaSignal("Vortex", 0, C.FACTOR_WEIGHT_VORTEX, 0,
+                           "NEUTRAL", {}, "Insufficient data for Vortex")
+
+    high, low, close = df["High"], df["Low"], df["Close"]
+    tr = pd.concat([high - low, (high - close.shift()).abs(),
+                     (low - close.shift()).abs()], axis=1).max(axis=1)
+    vm_plus = (high - low.shift()).abs()
+    vm_minus = (low - high.shift()).abs()
+
+    tr_sum = tr.rolling(14).sum()
+    vi_plus = vm_plus.rolling(14).sum() / tr_sum.replace(0, np.nan)
+    vi_minus = vm_minus.rolling(14).sum() / tr_sum.replace(0, np.nan)
+
+    vip = _safe(vi_plus.iloc[-1], 1.0)
+    vim = _safe(vi_minus.iloc[-1], 1.0)
+    vip_prev = _safe(vi_plus.iloc[-2], 1.0) if n > 1 else vip
+    vim_prev = _safe(vi_minus.iloc[-2], 1.0) if n > 1 else vim
+
+    score = 0
+    diff = vip - vim
+
+    # Crossover detection
+    if vip_prev <= vim_prev and vip > vim:
+        score += 40
+    elif vip_prev >= vim_prev and vip < vim:
+        score -= 40
+
+    # Magnitude
+    score += _clamp(diff * 150, -40, 40)
+
+    # Widening spread confirms trend
+    prev_diff = vip_prev - vim_prev
+    if abs(diff) > abs(prev_diff):
+        score += 10 if diff > 0 else -10
+
+    score = _clamp(score)
+    direction = "LONG" if score > 10 else ("SHORT" if score < -10 else "NEUTRAL")
+    confidence = min(abs(score), 100)
+
+    return AlphaSignal(
+        name="Vortex", raw_score=_safe(score),
+        weight=C.FACTOR_WEIGHT_VORTEX, confidence=_safe(confidence),
+        direction=direction,
+        metrics={"vi_plus": vip, "vi_minus": vim, "vi_diff": _safe(diff)},
+        explanation=f"VI+={vip:.3f}, VI-={vim:.3f}. "
+                    f"{'Bullish crossover — uptrend confirmed.' if vip_prev <= vim_prev and vip > vim else ''}"
+                    f"{'Bearish crossover — downtrend confirmed.' if vip_prev >= vim_prev and vip < vim else ''}"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
 # ENSEMBLE: COMPOSITE SIGNAL
 # ═══════════════════════════════════════════════════════════════
 
@@ -985,24 +1226,29 @@ def generate_composite_signal(
         _alpha_seasonality(df),
         _alpha_patterns(df),
         _alpha_stat_arb(df, profile),
+        _alpha_connors_rsi(df),
+        _alpha_kst(df),
+        _alpha_cmo(df),
+        _alpha_vortex(df),
     ]
 
-    # Regime-adjusted weights (align regime names from regime.py)
+    # Regime-adjusted weights
+    _MR_NAMES = {"Mean Reversion", "ConnorsRSI", "CMO"}
+    _MOM_NAMES = {"Momentum", "KST", "Vortex"}
     for a in alphas:
         if regime in ("BULL", "BEAR"):
-            if "Momentum" in a.name:
+            if a.name in _MOM_NAMES:
                 a.weight *= 1.5
-            elif "Mean Reversion" in a.name:
+            elif a.name in _MR_NAMES:
                 a.weight *= 0.5
         elif regime == "SIDEWAYS":
-            if "Mean Reversion" in a.name or "Statistical" in a.name:
+            if a.name in _MR_NAMES or "Statistical" in a.name:
                 a.weight *= 1.5
-            elif "Momentum" in a.name:
+            elif a.name in _MOM_NAMES:
                 a.weight *= 0.5
         elif regime == "HIGH_VOLATILITY":
             if "Volatility" in a.name:
                 a.weight *= 1.5
-            # Reduce all signals in high vol
             a.weight *= 0.7
 
     # Normalize weights

@@ -34,6 +34,7 @@ from rentech.statistical import build_statistical_profile, _safe
 from rentech.signals import generate_composite_signal, AlphaSignal, CompositeSignal
 from rentech.regime import detect_regime, RegimeAnalysis
 from rentech.risk import compute_risk_assessment, RiskAssessment
+from rentech.ml_scorer import score_analysis as _ml_score
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -104,6 +105,7 @@ def _generate_verdict(
     regime: RegimeAnalysis,
     risk: RiskAssessment,
     profile_edge: float,
+    ml_result: dict | None = None,
 ) -> Dict[str, Any]:
     """
     Final verdict combining signal, regime, and risk.
@@ -158,6 +160,16 @@ def _generate_verdict(
         grade = "C"
     else:
         grade = "D"
+
+    # ML grade adjustment
+    if ml_result and ml_result.get("model_available"):
+        ml_conf = ml_result.get("ml_confidence", 50)
+        is_long = score > 0
+        ml_agrees = ml_conf >= 60 if is_long else ml_conf < 40
+        if ml_conf >= 70 and ml_agrees and grade != "A":
+            grade = chr(ord(grade) - 1)  # promote one level
+        elif ml_conf < 30 and not ml_agrees and grade != "D":
+            grade = chr(ord(grade) + 1)  # demote one level
 
     # Edge assessment
     if profile_edge > 70:
@@ -389,16 +401,19 @@ def run_rentech_analysis(
             df, profile, regime.current.regime
         )
 
-        # ── 5. RISK ASSESSMENT ──
+        # ── 5. ML SCORING ──
+        ml_result = _ml_score(composite, profile, regime)
+
+        # ── 6. RISK ASSESSMENT ──
         risk = compute_risk_assessment(
             df, composite.composite_score,
             composite.direction, capital
         )
 
-        # ── 6. FINAL VERDICT ──
+        # ── 7. FINAL VERDICT ──
         verdict = _generate_verdict(
             composite, regime, risk,
-            profile.statistical_edge
+            profile.statistical_edge, ml_result
         )
 
         elapsed = time.time() - start
@@ -429,6 +444,8 @@ def run_rentech_analysis(
             },
 
             "risk": _risk_to_dict(risk),
+
+            "ml_scoring": ml_result,
         }
 
     except Exception as e:

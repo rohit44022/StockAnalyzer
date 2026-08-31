@@ -562,6 +562,7 @@
                     <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#tabFinancials">Financials</a></li>
                     <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#tabShareholding">Shareholding</a></li>
                     <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#tabConviction">Conviction</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#tabFiiDii">FII/DII Flow</a></li>
                 </ul>
                 <div class="tab-content" id="fundTabContent">
                     <div class="tab-pane fade show active" id="tabValuation"></div>
@@ -572,6 +573,7 @@
                     <div class="tab-pane fade" id="tabFinancials"></div>
                     <div class="tab-pane fade" id="tabShareholding"></div>
                     <div class="tab-pane fade" id="tabConviction"></div>
+                    <div class="tab-pane fade" id="tabFiiDii"></div>
                 </div>
             </div>
         </div>
@@ -983,7 +985,8 @@
             renderQuarterlyTab(f);
             renderFinancialsTab(f);
             renderShareholdingTab(f);
-            renderConvictionTab(f); }
+            renderConvictionTab(f);
+            renderFiiDiiTab(DATA.fii_dii); }
 
         /* ─── Quantitative Trading Strategy (separate system) ─── */
         if(DATA.quant) {
@@ -1209,6 +1212,13 @@
                     <span>Squeeze Active: <strong>${s.wait_signal || s.cond1 ? `YES — ${s.squeeze_days} day(s)` : 'No'}</strong></span>
                     <span>SAR: <strong class="${s.sar_bull?'text-green':'text-red'}">${s.sar_bull?'Uptrend ↑':'Downtrend ↓'}</strong></span>
                 </div>
+                ${s.kc_squeeze || s.kc_had_squeeze || s.kc_t7_pass ? `
+                <div class="mt-2 p-2 rounded d-flex align-items-center gap-3 flex-wrap" style="background:${s.kc_t7_pass?'rgba(10,179,156,0.08)':'rgba(247,184,75,0.06)'};border:1px solid ${s.kc_t7_pass?'rgba(10,179,156,0.2)':'rgba(247,184,75,0.12)'};">
+                    <span style="font-size:1.1rem">${s.kc_t7_pass?'🎯':'🔵'}</span>
+                    <span class="small"><strong style="color:${s.kc_t7_pass?'var(--g)':'var(--y)'}">KC Squeeze ${s.kc_t7_pass?'— T7 PASS':'Active'}</strong></span>
+                    <span class="small font-mono text-secondary">Duration: ${s.kc_squeeze_duration} bars · Intensity: ${(s.kc_squeeze_intensity*100).toFixed(0)}%</span>
+                    ${s.kc_t7_pass ? '<span class="badge" style="background:rgba(10,179,156,0.15);color:var(--g);font-size:.65rem">+10 BONUS</span>' : ''}
+                </div>` : ''}
             </div>`;
 
         // If no head fake, let phase panel take full width
@@ -1277,7 +1287,31 @@
                 ${met===5 ? '🚀 ALL 5 CONDITIONS MET — BUY SIGNAL ACTIVE!' :
                   met>=3  ? `⏳ ${met}/5 conditions met — Getting close. Watch for remaining conditions.` :
                             `❌ Only ${met}/5 conditions met — No buy signal. Wait for setup.`}
-            </div>`;
+            </div>
+            ${s.kc_t7_pass ? `
+            <div class="mt-3 p-3 rounded" style="background:rgba(10,179,156,0.06);border:1px solid rgba(10,179,156,0.15);">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span style="font-size:1.1rem">🎯</span>
+                    <span class="fw-bold" style="color:var(--g)">T7 Keltner Channel Squeeze Bonus — +10 Points</span>
+                </div>
+                <p class="small mb-1 text-secondary" style="line-height:1.6">
+                    Bollinger Bands are sitting inside Keltner Channels for <strong>${s.kc_squeeze_duration} bars</strong>
+                    with <strong>${(s.kc_squeeze_intensity*100).toFixed(0)}%</strong> squeeze intensity and
+                    <strong>positive CMF</strong> (institutional buying confirmed).
+                    This is a deep volatility compression — the kind that historically produces the most explosive breakout moves.
+                </p>
+                <div class="small font-mono" style="color:var(--g);opacity:0.8">
+                    Backtested: 1,795 trades · 53.0% WR · 1.72 PF · +0.291R expectancy vs baseline 49.8% WR / 1.49 PF
+                </div>
+            </div>` : s.kc_squeeze ? `
+            <div class="mt-3 p-2 rounded small" style="background:rgba(247,184,75,0.05);border:1px solid rgba(247,184,75,0.1);">
+                <span style="color:var(--y)">🔵 KC Squeeze Active</span>
+                — BB inside Keltner for <strong>${s.kc_squeeze_duration}</strong> bars
+                (intensity: ${(s.kc_squeeze_intensity*100).toFixed(0)}%).
+                ${s.kc_squeeze_duration < 6 ? 'Needs 6+ bars for T7 qualification.' :
+                  s.kc_squeeze_intensity < 0.30 ? 'Intensity below 30% threshold for T7.' :
+                  'Waiting for CMF confirmation to qualify as T7.'}
+            </div>` : ''}`;
 
         // ── Short-Side (Bearish) Conditions — Book Ch.16 ──
         if(s.cond1 || s.short_signal) {
@@ -1797,6 +1831,12 @@
         h += metricRow('ADX (Trend Strength)', fmt(reg.adx));
         h += metricRow('Bollinger Squeeze', reg.bb_squeeze ? '<span style="color:#f7b84b;">ON</span>' : '<span style="color:#0ab39c;">OFF</span>');
         h += metricRow('Keltner Squeeze', reg.keltner_squeeze ? '<span style="color:#f7b84b;">Yes</span>' : 'No');
+        const _s = DATA && DATA.signal || {};
+        if(_s.kc_t7_pass) {
+            h += metricRow('T7 Deep Squeeze', `<span style="color:#0ab39c;font-weight:600;">PASS</span> <span class="text-secondary" style="font-size:.72rem">${_s.kc_squeeze_duration}bar · ${((_s.kc_squeeze_intensity||0)*100).toFixed(0)}%</span>`);
+        } else if(_s.kc_squeeze) {
+            h += metricRow('KC Squeeze', `<span style="color:#f7b84b;">${_s.kc_squeeze_duration} bars · ${((_s.kc_squeeze_intensity||0)*100).toFixed(0)}%</span>`);
+        }
         h += metricRow('BBW Percentile (6M)', fmt(reg.bbw_percentile, 1), '%');
         h += `</div><div class="col-md-6">`;
         h += metricRow('Trend Slope (20-SMA)', fmt(reg.trend_slope, 2), '%/10d');
@@ -1831,8 +1871,11 @@
             (BBW at less than the 15th percentile), volatility is "squeezed" like a coiled spring.
             This almost always precedes a big move. The catch: you don't know the direction until it breaks out.<br><br>
             <strong>Keltner Squeeze</strong> — A more specific version: when Bollinger Bands contract <em>inside</em> the Keltner Channels
-            (another envelope based on ATR instead of standard deviation). When BB is inside Keltner, volatility is
-            extremely compressed. This is the "squeeze" that traders watch for explosive breakouts.<br><br>
+            (EMA(20) ± 1.5×ATR(14) — a range-based envelope). When BB sits inside KC, statistical volatility has
+            contracted below range-based volatility — genuine energy compression, not just market quietness.
+            The <strong>T7 setup</strong> requires: 6+ bar squeeze duration, ≥30% intensity, and positive CMF.
+            Backtested on 2,183 NSE stocks over 15 years: <strong>53.0% WR, 1.72 profit factor</strong>
+            vs baseline 49.8% / 1.49. Adds +10 to the entry score when all T7 conditions are met.<br><br>
             <strong>BBW Percentile</strong> — Bollinger Band Width (BBW) measures how wide the bands are.
             The percentile shows where today's width ranks vs the last 6 months. A 10th percentile means
             bands are narrower than 90% of the last 6 months — extremely compressed, big move likely.<br><br>
@@ -3918,6 +3961,92 @@
                 <span class="text-red fw-bold">🔴 AVOID</span> — Weak fundamentals. Capital at risk. Only trade with strict stop-loss using technical signals.<br>
                 Score <strong class="text-green">≥65</strong> = Strong &nbsp; <strong class="text-yellow">45-64</strong> = Average &nbsp; <strong class="text-red">&lt;45</strong> = Weak</small>
             </div>`; }
+
+    // ── FII/DII Flow Tab ──
+    let fiiDiiChartInstance = null;
+    function renderFiiDiiTab(fd) {
+        const el = document.getElementById('tabFiiDii');
+        if (!fd || !fd.available) {
+            el.innerHTML = '<p class="text-secondary small">FII/DII flow data unavailable. NSE may be blocking requests — try again later.</p>';
+            return; }
+        const daily = fd.daily_data || [];
+        if (!daily.length) { el.innerHTML = '<p class="text-secondary small">No daily flow data returned.</p>'; return; }
+
+        const sigColor = fd.flow_signal==='BULLISH'?'var(--g)':fd.flow_signal==='BEARISH'?'var(--r)':'var(--y)';
+        const sigIcon = fd.flow_signal==='BULLISH'?'bi-arrow-up-circle-fill':fd.flow_signal==='BEARISH'?'bi-arrow-down-circle-fill':'bi-dash-circle-fill';
+        const fiiTrColor = fd.fii_trend==='BUYING'?'var(--g)':fd.fii_trend==='SELLING'?'var(--r)':'var(--y)';
+        const diiTrColor = fd.dii_trend==='BUYING'?'var(--g)':fd.dii_trend==='SELLING'?'var(--r)':'var(--y)';
+
+        el.innerHTML = `
+            ${sectionIntro('FII/DII Institutional Flow',
+                'FIIs (Foreign) and DIIs (Domestic mutual funds, LIC, EPFO) together move 60-70% of NSE volume. ' +
+                'This is <strong>market-wide</strong> data — when big players are buying the market, individual stocks benefit too.')}
+            <div class="text-center mb-3 p-3 rounded-3" style="background:${fd.flow_signal==='BULLISH'?'rgba(10,179,156,0.08)':fd.flow_signal==='BEARISH'?'rgba(240,101,72,0.08)':'rgba(247,184,75,0.08)'};border:1px solid ${fd.flow_signal==='BULLISH'?'rgba(10,179,156,0.3)':fd.flow_signal==='BEARISH'?'rgba(240,101,72,0.3)':'rgba(247,184,75,0.3)'}">
+                <h4 class="fw-bold mb-1" style="color:${sigColor}"><i class="bi ${sigIcon} me-2"></i>${fd.flow_signal}</h4>
+                <small class="text-secondary">Institutional Flow Signal</small>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-md-3 text-center">
+                    <small class="text-secondary d-block">FII Today</small>
+                    <strong style="color:${fd.fii_net_today>=0?'var(--g)':'var(--r)'}">${fd.fii_net_today>=0?'+':''}${fd.fii_net_today.toLocaleString('en-IN')} Cr</strong>
+                </div>
+                <div class="col-md-3 text-center">
+                    <small class="text-secondary d-block">DII Today</small>
+                    <strong style="color:${fd.dii_net_today>=0?'var(--g)':'var(--r)'}">${fd.dii_net_today>=0?'+':''}${fd.dii_net_today.toLocaleString('en-IN')} Cr</strong>
+                </div>
+                <div class="col-md-3 text-center">
+                    <small class="text-secondary d-block">FII 5-Day</small>
+                    <strong style="color:${fd.fii_5d_cumulative>=0?'var(--g)':'var(--r)'}">${fd.fii_5d_cumulative>=0?'+':''}${fd.fii_5d_cumulative.toLocaleString('en-IN')} Cr</strong>
+                </div>
+                <div class="col-md-3 text-center">
+                    <small class="text-secondary d-block">DII 5-Day</small>
+                    <strong style="color:${fd.dii_5d_cumulative>=0?'var(--g)':'var(--r)'}">${fd.dii_5d_cumulative>=0?'+':''}${fd.dii_5d_cumulative.toLocaleString('en-IN')} Cr</strong>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mb-3 justify-content-center">
+                <span class="badge" style="background:${fiiTrColor}22;color:${fiiTrColor}">FII Trend: ${fd.fii_trend}</span>
+                <span class="badge" style="background:${diiTrColor}22;color:${diiTrColor}">DII Trend: ${fd.dii_trend}</span>
+                ${fd.consecutive_days_fii_buy>0?`<span class="badge" style="background:rgba(10,179,156,.12);color:var(--g)">FII buying ${fd.consecutive_days_fii_buy} days straight</span>`:''}
+                ${fd.consecutive_days_fii_sell>0?`<span class="badge" style="background:rgba(240,101,72,.12);color:var(--r)">FII selling ${fd.consecutive_days_fii_sell} days straight</span>`:''}
+            </div>
+            <div style="height:300px"><canvas id="fiiDiiChart"></canvas></div>
+            <div class="mt-3 p-3 rounded" style="background:rgba(124,138,239,0.05);border:1px solid rgba(124,138,239,0.15)">
+                <small><i class="bi bi-info-circle text-blue me-1"></i>${fd.explanation}</small>
+            </div>
+            <div class="mt-2 text-end"><small class="text-secondary">Source: NSE India (market-wide FII/DII activity, last ${daily.length} days)</small></div>`;
+
+        // Bar chart
+        const ctx = document.getElementById('fiiDiiChart');
+        if (!ctx) return;
+        if (fiiDiiChartInstance) fiiDiiChartInstance.destroy();
+        const labels = daily.map(d => d.date);
+        const fiiData = daily.map(d => d.fii_net);
+        const diiData = daily.map(d => d.dii_net);
+        fiiDiiChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'FII Net (₹ Cr)', data: fiiData,
+                      backgroundColor: fiiData.map(v => v >= 0 ? 'rgba(10,179,156,0.7)' : 'rgba(240,101,72,0.7)'),
+                      borderRadius: 3 },
+                    { label: 'DII Net (₹ Cr)', data: diiData,
+                      backgroundColor: diiData.map(v => v >= 0 ? 'rgba(124,138,239,0.7)' : 'rgba(247,184,75,0.7)'),
+                      borderRadius: 3 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { labels: { color: '#8b949e' } },
+                           tooltip: { callbacks: { label: c => c.dataset.label + ': ' + (c.parsed.y>=0?'+':'') + c.parsed.y.toLocaleString('en-IN') + ' Cr' } } },
+                scales: {
+                    x: { ticks: { color: '#8b949e', maxTicksLimit: 15 }, grid: { color: 'rgba(48,54,61,.4)' } },
+                    y: { ticks: { color: '#8b949e', callback: v => (v>=0?'+':'') + v.toLocaleString('en-IN') }, grid: { color: 'rgba(48,54,61,.4)' } }
+                }
+            }
+        });
+    }
 
     // ── Refresh Live Data ──
     function refreshLiveData() {

@@ -477,6 +477,40 @@ body.sidebar-collapsed .ticker-strip{left:70px}
           <div class="p-2 rounded" id="aiMlExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--g);font-size:.85rem;line-height:1.7"></div>
         </div>
 
+        <!-- POSITION OUTLOOK (ensemble) -->
+        <div class="p-3 rounded mb-3" id="aiOutlookSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-binoculars" style="color:var(--c)"></i>
+            <span class="fw-semibold">Position Outlook</span>
+            <span class="badge font-mono ms-auto" id="aiOutlookBadge" style="font-size:.75rem"></span>
+          </div>
+          <div class="small text-secondary mb-2">AI/ML ensemble prediction combining <span id="aiOutlookCount">0</span> models. This is NOT a price forecast — it estimates the probability that current market conditions favor continued gains for this position.</div>
+          <div class="row g-2 mb-2">
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Outlook Score</div>
+              <div class="font-mono fw-bold" id="aiOutlookScore" style="font-size:1.3rem"></div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Expected Return</div>
+              <div class="font-mono fw-bold" id="aiOutlookExpRet" style="font-size:1.1rem"></div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Upside Est.</div>
+              <div class="font-mono fw-bold" id="aiOutlookGain" style="font-size:1.1rem;color:var(--g)"></div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Downside Est.</div>
+              <div class="font-mono fw-bold" id="aiOutlookLoss" style="font-size:1.1rem;color:var(--r)"></div>
+            </div>
+          </div>
+          <div class="mb-2">
+            <div class="small text-secondary mb-1">Signal Breakdown</div>
+            <div id="aiOutlookSignals" class="d-flex flex-wrap gap-1"></div>
+          </div>
+          <div class="small mb-2" id="aiOutlookRemaining" style="color:var(--text-secondary)"></div>
+          <div class="p-2 rounded" id="aiOutlookExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--c);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
         <!-- KELLY POSITION CHECK -->
         <div class="p-3 rounded mb-3" id="aiKellySection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
           <div class="d-flex align-items-center gap-2 mb-2">
@@ -548,6 +582,45 @@ body.sidebar-collapsed .ticker-strip{left:70px}
             </div>
           </div>
           <div class="p-2 rounded" id="aiSeqExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--c);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
+        <!-- KC SQUEEZE (T7) -->
+        <div class="p-3 rounded mb-3" id="aiKcSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-bullseye" style="color:var(--c)"></i>
+            <span class="fw-semibold">Keltner Channel Squeeze (T7)</span>
+            <span class="badge ms-auto" id="aiKcBadge" style="font-size:.75rem"></span>
+          </div>
+          <div class="small mb-2" id="aiKcIntro"></div>
+          <div class="row g-2 mb-2">
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Intensity</div>
+              <div class="font-mono fw-bold" id="aiKcIntensity" style="font-size:1.1rem"></div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Duration</div>
+              <div class="font-mono fw-bold" id="aiKcDuration" style="font-size:1.1rem"></div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">T7 Pass</div>
+              <div class="font-mono fw-bold" id="aiKcT7Pass" style="font-size:1.1rem"></div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+              <div class="small text-secondary">Squeeze</div>
+              <div class="font-mono fw-bold" id="aiKcActive" style="font-size:1.1rem"></div>
+            </div>
+          </div>
+          <div class="p-2 rounded" id="aiKcExplain" style="background:rgba(255,255,255,.03);border-left:3px solid var(--c);font-size:.85rem;line-height:1.7"></div>
+        </div>
+
+        <!-- ADAPTIVE THRESHOLDS + METHOD ROUTER -->
+        <div class="p-3 rounded mb-3" id="aiAdaptiveSection" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;display:none">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-sliders" style="color:var(--c)"></i>
+            <span class="fw-semibold">Adaptive Context & Method Routing</span>
+          </div>
+          <div class="small mb-2" id="aiAdaptiveIntro"></div>
+          <div id="aiAdaptiveContent"></div>
         </div>
 
         <!-- AI TRACK RECORD -->
@@ -2173,6 +2246,14 @@ function renderAnalysis(data) {
     recEl.className = 'rec-action ' + rec.action;
     document.getElementById('recStrength').textContent = rec.strength;
     document.getElementById('recStrategy').textContent = STRATEGY_NAMES[rec.strategy_code] || rec.strategy_code;
+
+    // Sync table ACTION badge with the full analysis (light-mode table may
+    // differ because it skips multi-system safety overrides R2/R3/R4).
+    const pid = data.position && data.position.id;
+    if (pid) {
+        const tableActEl = document.getElementById(`act_${pid}`);
+        if (tableActEl) tableActEl.innerHTML = actionBadge(rec.action);
+    }
 
     // Layman explanation for the recommendation
     const recExpl = document.getElementById('recExplain');
@@ -4297,6 +4378,52 @@ function renderAiMlPanel(ai, holding, rec, ticker) {
         mlSec.style.display = 'none';
     }
 
+    // ── POSITION OUTLOOK (ensemble) ──
+    const outlook = ai.position_outlook || {};
+    const outlookSec = document.getElementById('aiOutlookSection');
+    if (outlook.available) {
+        outlookSec.style.display = '';
+        const oScore = Math.round((outlook.outlook_score || 0) * 100);
+        const oVerdict = outlook.verdict || 'NEUTRAL';
+        const oColor = oVerdict === 'BULLISH' ? 'var(--g)' : oVerdict === 'NEUTRAL' ? 'var(--y)' : 'var(--r)';
+        const oBg = oVerdict === 'BULLISH' ? 'rgba(0,200,83,.15)' : oVerdict === 'NEUTRAL' ? 'rgba(255,193,7,.15)' : 'rgba(255,82,82,.15)';
+
+        document.getElementById('aiOutlookBadge').textContent = oVerdict;
+        document.getElementById('aiOutlookBadge').style.cssText = `background:${oBg};color:${oColor}`;
+        document.getElementById('aiOutlookCount').textContent = outlook.signals_used || 0;
+        document.getElementById('aiOutlookScore').textContent = oScore + '%';
+        document.getElementById('aiOutlookScore').style.color = oColor;
+
+        const expRet = outlook.expected_return_pct || 0;
+        const erEl = document.getElementById('aiOutlookExpRet');
+        erEl.textContent = (expRet >= 0 ? '+' : '') + expRet.toFixed(1) + '%';
+        erEl.style.color = expRet >= 0 ? 'var(--g)' : 'var(--r)';
+
+        document.getElementById('aiOutlookGain').textContent = '+' + (outlook.expected_gain_pct || 0).toFixed(1) + '%';
+        document.getElementById('aiOutlookLoss').textContent = (outlook.expected_loss_pct || 0).toFixed(1) + '%';
+
+        // Signal breakdown pills
+        const sigs = outlook.signals || {};
+        let sigHtml = '';
+        Object.entries(sigs).forEach(([k, v]) => {
+            const pct = Math.round(v.score * 100);
+            const sc = pct >= 60 ? 'var(--g)' : pct >= 45 ? 'var(--y)' : 'var(--r)';
+            sigHtml += `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;background:${sc}15;border:1px solid ${sc}33;font-size:.72rem"><span style="color:${sc};font-weight:600">${pct}%</span> <span>${v.source}</span></span>`;
+        });
+        document.getElementById('aiOutlookSignals').innerHTML = sigHtml;
+
+        // Remaining time
+        if (outlook.remaining_days_hi > 0) {
+            document.getElementById('aiOutlookRemaining').textContent = `Estimated ${outlook.remaining_days_lo}-${outlook.remaining_days_hi} trading days remaining in typical holding period.`;
+        } else {
+            document.getElementById('aiOutlookRemaining').textContent = `Past typical holding period — time-based exit pressure elevated.`;
+        }
+
+        document.getElementById('aiOutlookExplain').innerHTML = outlook.explanation || '';
+    } else {
+        outlookSec.style.display = 'none';
+    }
+
     // ── KELLY CHECK ──
     const kc = ai.kelly_check || {};
     const kellySec = document.getElementById('aiKellySection');
@@ -4311,7 +4438,7 @@ function renderAiMlPanel(ai, holding, rec, ticker) {
         const actPct = (kc.actual_pct||0).toFixed(1);
         const stratName = rec.strategy_code || 'this strategy';
         let kellyIntro = `Half-Kelly formula recommends <strong>${recPct}%</strong> of capital for ${stratName}`;
-        if (kc.win_rate) kellyIntro += ` (based on ${(kc.win_rate*100).toFixed(0)}% historical win rate)`;
+        if (kc.method_win_rate) kellyIntro += ` (based on ${(kc.method_win_rate*100).toFixed(0)}% historical win rate)`;
         kellyIntro += `. Your actual allocation is <strong>${actPct}%</strong> — `;
         if (st === 'ALIGNED') kellyIntro += `<strong style="color:var(--g)">well-matched</strong>. Position size is within the mathematically optimal range.`;
         else if (st === 'OVERSIZED') kellyIntro += `<strong style="color:var(--r)">oversized</strong>. You're risking more than the edge justifies. Consider trimming to reduce drawdown risk.`;
@@ -4436,6 +4563,87 @@ function renderAiMlPanel(ai, holding, rec, ticker) {
         document.getElementById('aiSeqExplain').innerHTML = seqExpl;
     } else {
         seqSec.style.display = 'none';
+    }
+
+    // ── KC SQUEEZE (T7) ──
+    const kcSq = ai.kc_squeeze || {};
+    const kcSec = document.getElementById('aiKcSection');
+    if (kcSq.available) {
+        kcSec.style.display = '';
+        const t7 = !!kcSq.kc_t7_pass;
+        const active = !!kcSq.kc_squeeze_active;
+        const dur = kcSq.kc_duration || 0;
+        const intPct = kcSq.kc_intensity_pct || 0;
+        const verdict = kcSq.verdict || 'NO_SQUEEZE';
+        const vClr = t7 ? 'var(--g)' : active ? 'var(--b)' : 'var(--y)';
+        const vBg = t7 ? 'rgba(10,179,156,.15)' : active ? 'rgba(124,138,239,.15)' : 'rgba(247,184,75,.15)';
+
+        document.getElementById('aiKcBadge').textContent = verdict.replace(/_/g,' ');
+        document.getElementById('aiKcBadge').style.cssText = `background:${vBg};color:${vClr}`;
+        document.getElementById('aiKcIntensity').textContent = intPct + '%';
+        document.getElementById('aiKcIntensity').style.color = intPct >= 30 ? 'var(--g)' : 'var(--y)';
+        document.getElementById('aiKcDuration').textContent = dur + ' bars';
+        document.getElementById('aiKcDuration').style.color = dur >= 6 ? 'var(--g)' : 'var(--y)';
+        document.getElementById('aiKcT7Pass').textContent = t7 ? 'YES' : 'NO';
+        document.getElementById('aiKcT7Pass').style.color = t7 ? 'var(--g)' : 'var(--r)';
+        document.getElementById('aiKcActive').textContent = active ? 'ON' : 'OFF';
+        document.getElementById('aiKcActive').style.color = active ? 'var(--g)' : 'var(--y)';
+
+        let kcIntro = kcSq.insight || '';
+        if (t7) kcIntro += ' T7 backtested: 53.0% WR, 1.72 PF across 1,795 trades (+10 scoring bonus active).';
+        document.getElementById('aiKcIntro').innerHTML = kcIntro;
+
+        let kcExpl = `<strong>Keltner Channel Squeeze</strong> detects when Bollinger Bands trade INSIDE the wider Keltner Channels — extreme volatility compression. `;
+        if (t7) kcExpl += `This stock currently passes all three T7 gates: squeeze ≥6 bars (${dur}), intensity ≥30% (${intPct}%), and CMF positive. This adds a +10 scoring bonus. Backtest: 53.0% WR vs 49.8% baseline.`;
+        else if (active) kcExpl += `Squeeze is active (${dur} bars, ${intPct}% intensity) but hasn't met all T7 requirements yet. Watch for CMF to turn positive and duration to reach 6 bars.`;
+        else kcExpl += 'No active KC squeeze detected. Bands are not compressed enough for a T7 setup.';
+        document.getElementById('aiKcExplain').innerHTML = kcExpl;
+    } else {
+        kcSec.style.display = 'none';
+    }
+
+    // ── ADAPTIVE CONTEXT + METHOD ROUTER ──
+    const adapt = ai.adaptive_context || {};
+    const mRoute = ai.method_routing || {};
+    const adaptSec = document.getElementById('aiAdaptiveSection');
+    if ((adapt && adapt.bbw_percentile != null) || mRoute.best_method) {
+        adaptSec.style.display = '';
+        let adaptParts = [];
+        if (adapt.bbw_percentile != null) {
+            const bbwP = Math.round(adapt.bbw_percentile);
+            adaptParts.push(`<span class="ind-pill"><span class="text-secondary">BBW Percentile</span><span class="ind-val">${bbwP}%</span></span>`);
+        }
+        if (adapt.vol_percentile != null) {
+            const volP = Math.round(adapt.vol_percentile);
+            adaptParts.push(`<span class="ind-pill"><span class="text-secondary">Vol Percentile</span><span class="ind-val">${volP}%</span></span>`);
+        }
+        if (adapt.atr_percentile != null) {
+            const atrP = Math.round(adapt.atr_percentile);
+            adaptParts.push(`<span class="ind-pill"><span class="text-secondary">ATR Percentile</span><span class="ind-val">${atrP}%</span></span>`);
+        }
+        if (mRoute.best_method) {
+            const mClr = mRoute.best_method === rec.strategy_code ? 'var(--g)' : 'var(--y)';
+            adaptParts.push(`<span class="ind-pill"><span class="text-secondary">Best Method</span><span class="ind-val" style="color:${mClr}">${mRoute.best_method}</span></span>`);
+        }
+        if (mRoute.confidence != null) {
+            adaptParts.push(`<span class="ind-pill"><span class="text-secondary">Router Conf</span><span class="ind-val">${Math.round(mRoute.confidence * 100)}%</span></span>`);
+        }
+
+        let adaptIntro = '';
+        if (adapt.bbw_percentile != null) {
+            adaptIntro += `Current BB Width is at the <strong>${Math.round(adapt.bbw_percentile)}th percentile</strong> of the last 60 days. `;
+            if (adapt.bbw_percentile < 20) adaptIntro += 'Very tight bands — squeeze conditions. ';
+            else if (adapt.bbw_percentile > 80) adaptIntro += 'Wide bands — high volatility, breakout already happened. ';
+        }
+        if (mRoute.best_method) {
+            adaptIntro += `Method Router recommends <strong>${mRoute.best_method}</strong>`;
+            if (mRoute.best_method === rec.strategy_code) adaptIntro += ' — <strong style="color:var(--g)">matches your strategy</strong>.';
+            else adaptIntro += ` — differs from your ${rec.strategy_code} entry.`;
+        }
+        document.getElementById('aiAdaptiveIntro').innerHTML = adaptIntro;
+        document.getElementById('aiAdaptiveContent').innerHTML = `<div class="d-flex flex-wrap gap-2">${adaptParts.join('')}</div>`;
+    } else {
+        adaptSec.style.display = 'none';
     }
 
     // ── AI TRACK RECORD ──
@@ -4713,7 +4921,7 @@ function promptClosePosition(pid) {
     // Prefer the analyzer's current price ONLY if it's for this same position;
     // otherwise fall back to the live-quote already in the row cell.
     let livePx = '';
-    if (currentAnalysis && currentAnalysis.holding && currentAnalysis.holding.id === targetPid) {
+    if (currentAnalysis && currentAnalysis.position && currentAnalysis.position.id === targetPid) {
         livePx = currentAnalysis?.targets?.current_price || '';
     }
     if (!livePx) {

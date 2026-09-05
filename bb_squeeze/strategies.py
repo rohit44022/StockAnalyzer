@@ -189,6 +189,18 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
                 "This divergence often precedes a pullback. Book says: "
                 "'When %b and MFI disagree, believe MFI.'"
             )
+        else:
+            # Buy zone (%b + MFI thresholds met) but volume not confirming
+            signal_type = "WATCH"
+            strength = "MODERATE"
+            vol_ratio = vol / vol_sma if vol_sma > 0 else 0
+            confidence = max(25, min(int(30 + (pct_b - 0.8) * 100 + (mfi - 80) * 0.5), 55))
+            reason = f"Buy zone met but volume thin ({vol_ratio:.1f}x avg)"
+            details_lines.append(
+                f"%b at {pct_b:.2f} and MFI at {mfi:.0f} meet buy thresholds, "
+                f"but volume is only {vol_ratio:.1f}x the 50-day average. "
+                "Wait for volume confirmation before adding."
+            )
 
     # Strong Sell: %b in lower zone + MFI confirms
     elif pct_b < M2_PCT_B_SELL_THRESHOLD and mfi < M2_MFI_CONFIRM_SELL:
@@ -885,18 +897,21 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
     else:
         # No recent pattern — describe current position
         if pct_b < 0.1:
+            confidence = 15
             details_lines.append(
                 f"Price near lower band (%b = {pct_b:.2f}). "
                 "If price bounces from here and makes another low that "
                 "holds ABOVE the lower band, that would form a W-Bottom."
             )
         elif pct_b > 0.9:
+            confidence = 15
             details_lines.append(
                 f"Price near upper band (%b = {pct_b:.2f}). "
                 "If price pulls back and then rallies again without "
                 "reaching the upper band, that would form an M-Top."
             )
         else:
+            confidence = 10
             details_lines.append(
                 f"No W-Bottom or M-Top pattern detected in the last "
                 f"{M3_W_LOOKBACK} trading days. %b = {pct_b:.2f}."
@@ -1363,18 +1378,21 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
         # No walk detected
         reason = "No band walk detected"
         if pct_b > 0.7:
+            confidence = 20
             details_lines.append(
                 f"Price is near the upper band (%b = {pct_b:.2f}) but not consistently "
                 f"walking it (fewer than {M4_WALK_MIN_TOUCHES} touches in {M4_WALK_LOOKBACK} bars). "
                 "May develop into a walk if trend strengthens."
             )
         elif pct_b < 0.3:
+            confidence = 20
             details_lines.append(
                 f"Price is near the lower band (%b = {pct_b:.2f}) but not consistently "
                 f"walking it. A lower band walk (bearish) would need {M4_WALK_MIN_TOUCHES}+ "
                 f"touches in {M4_WALK_LOOKBACK} bars."
             )
         else:
+            confidence = 15
             details_lines.append(
                 f"Price is in the middle of the bands (%b = {pct_b:.2f}). "
                 "No walking pattern detected. This is a neutral zone."

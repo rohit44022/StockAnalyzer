@@ -138,7 +138,14 @@ def _build_explanation(label: str, momentum: str, signals: dict) -> str:
     parts = []
 
     if label == "HOLD":
-        parts.append("Momentum is strong — no exit signals firing. Let the trade run and trail your stop-loss as planned.")
+        _sig_names = {"rsi_overbought": "RSI is overbought", "rsi_declining": "RSI is declining",
+                      "bbw_contracting": "BB width contracting", "volume_fading": "volume is fading",
+                      "sar_bearish": "SAR turned bearish", "below_sma20": "price below SMA20"}
+        active = [_sig_names[k] for k in _sig_names if signals.get(k)]
+        if active:
+            parts.append(f"Minor flag: {', '.join(active)} — but not enough to trigger an exit. Hold the position and trail your stop-loss as planned.")
+        else:
+            parts.append("No exit signals firing. Let the trade run and trail your stop-loss as planned.")
     elif label == "MONITOR":
         parts.append("Some early warning signs are appearing.")
         if signals.get("rsi_declining"):
@@ -147,7 +154,7 @@ def _build_explanation(label: str, momentum: str, signals: dict) -> str:
             parts.append(f"Volume has dropped to {signals.get('volume_ratio', '?')}x average — fewer buyers participating.")
         parts.append("Consider tightening your stop-loss to protect profits.")
     elif label == "TIGHTEN_STOP":
-        parts.append("Multiple warning signs are firing — momentum is fading.")
+        parts.append("Multiple warning signs are firing — structural damage detected.")
         if signals.get("rsi_overbought"):
             parts.append("RSI is above 75 (overbought) — the stock may be due for a pullback.")
         if signals.get("bbw_contracting"):
@@ -156,7 +163,7 @@ def _build_explanation(label: str, momentum: str, signals: dict) -> str:
             parts.append("Price has fallen below the 20-day moving average — the short-term trend is weakening.")
         parts.append("Move your stop-loss to breakeven or take partial profits.")
     else:
-        parts.append("Multiple exit signals are firing simultaneously — the trade may be over.")
+        parts.append("Multiple exit signals are firing simultaneously — the setup is breaking down.")
         if signals.get("sar_bearish"):
             parts.append("Parabolic SAR has flipped bearish — this is a classic exit signal.")
         if signals.get("rsi_overbought"):

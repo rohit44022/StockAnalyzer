@@ -22,5 +22,13 @@
     "train_size": 242850,
     "test_size": 60713,
     "backend": "xgboost"
+  },
+  {
+    "version": "20260903_182839",
+    "accuracy": 0.5353,
+    "auc": 0.5363,
+    "train_size": 326224,
+    "test_size": 81556,
+    "backend": "xgboost"
   }
 ]

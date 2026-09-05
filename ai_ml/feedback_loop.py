@@ -381,6 +381,17 @@ def retrain_model() -> dict:
         return {"status": "error", "error": str(e)}
 
 
+def retrain_conviction() -> dict:
+    """Retrain the ML conviction model with latest data + feedback outcomes."""
+    try:
+        from ai_ml.conviction_scorer import train_conviction_model
+        metrics = train_conviction_model()
+        return {"status": "ok", "metrics": metrics}
+    except Exception as e:
+        logger.error("Conviction retrain failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
 if __name__ == "__main__":
     init_feedback_db()
     fake = [{

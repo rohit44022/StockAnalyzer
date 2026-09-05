@@ -719,6 +719,8 @@ body.sidebar-collapsed .ticker-strip{left:70px}
             <div class="text-secondary small text-uppercase mb-1">Recommendation</div>
             <div class="rec-action" id="recAction"></div>
             <div id="recExplain" class="small mt-2 mb-2" style="line-height:1.6;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,.03)"></div>
+            <div id="recConviction" class="small mt-1 mb-2" style="display:none;line-height:1.5;padding:6px 12px;border-radius:6px;border-left:3px solid var(--b);background:rgba(255,255,255,.02)"></div>
+            <div id="recMLCard" class="mt-2 mb-2" style="display:none;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);overflow:hidden"></div>
             <div id="recLayman" class="small mt-2 mb-2" style="display:none"></div>
             <div class="text-secondary small mt-1">Strength: <span class="font-mono fw-bold" id="recStrength"></span></div>
             <div class="text-secondary small">Strategy: <span class="font-mono" id="recStrategy"></span></div>
@@ -1539,9 +1541,31 @@ const daysBetween = (a,b) => { try { return Math.floor((new Date(b||new Date())-
 
 function stratBadge(code) {
     return `<span class="badge badge-${code.toLowerCase()}">${code}</span>`; }
-function actionBadge(action) {
+function actionBadge(action, rec) {
     const cls = action==='SELL'?'sell':action==='BUY'||action==='ADD'?'buy':action==='HOLD'?'hold':'wait';
-    return `<span class="badge badge-${cls}">${action}</span>`; }
+    let html = `<span class="badge badge-${cls}">${action}</span>`;
+    if (rec && rec.dampened) {
+        html = `<span class="badge badge-${cls}" style="opacity:.7" title="Raw signal: ${rec.original_action}">${action}</span>`;
+        html += `<div style="font-size:.55rem;color:var(--y);margin-top:1px" title="Signal dampened — position is young">DAMPENED</div>`;
+    }
+    if (rec && rec.lifecycle_phase) {
+        const ph = rec.lifecycle_phase;
+        const phClr = ph==='FRESH'?'var(--b)':ph==='EARLY'?'var(--b)':ph==='MATURE'?'var(--o)':'var(--text-muted, #888)';
+        html += `<div style="font-size:.55rem;color:${phClr};margin-top:1px">Day ${rec.days_held||''} · ${ph}</div>`;
+    }
+    if (rec && rec.ml_conviction && rec.ml_conviction.model_available) {
+        const s = rec.ml_conviction.ml_conviction;
+        const c = s>=70?'var(--g)':s>=40?'var(--y)':'var(--r)';
+        const bg = s>=70?'rgba(10,179,156,.12)':s>=40?'rgba(247,184,75,.12)':'rgba(240,101,72,.12)';
+        const bdr = s>=70?'rgba(10,179,156,.25)':s>=40?'rgba(247,184,75,.25)':'rgba(240,101,72,.25)';
+        const lbl = s>=70?'HIGH':s>=40?'MOD':'LOW';
+        html += `<div style="display:inline-flex;align-items:center;gap:3px;margin-top:3px;padding:1px 6px;border-radius:4px;background:${bg};border:1px solid ${bdr}">
+            <i class="bi bi-cpu" style="font-size:.55rem;color:${c}"></i>
+            <span style="font-size:.65rem;font-weight:700;color:${c};font-family:'JetBrains Mono',monospace">${Math.round(s)}%</span>
+            <span style="font-size:.5rem;color:${c};font-weight:600">${lbl}</span>
+        </div>`;
+    }
+    return html; }
 
 // ═══════════════════════════════════════════════════════════════
 //  CLOCK
@@ -1805,7 +1829,7 @@ async function fetchLiveUpdates(openPositions) {
         if (pnlEl) { pnlEl.textContent = `${pnlSign(h.pnl_amount)}${fmtINR2(h.pnl_amount)}`; pnlEl.style.color = pnlColor(h.pnl_amount); }
         if (pnlpEl) { pnlpEl.textContent = `${pnlSign(h.pnl_pct)}${fmt(h.pnl_pct)}%`; pnlpEl.style.color = pnlColor(h.pnl_pct); }
         if (actEl) {
-            let actHtml = actionBadge(a.recommendation.action);
+            let actHtml = actionBadge(a.recommendation.action, a.recommendation);
             const ei = (a.ai_ml_intel || {}).exit_intelligence || {};
             const elbl = ei.urgency_label || '';
             if (elbl && elbl !== 'HOLD') {
@@ -2252,7 +2276,7 @@ function renderAnalysis(data) {
     const pid = data.position && data.position.id;
     if (pid) {
         const tableActEl = document.getElementById(`act_${pid}`);
-        if (tableActEl) tableActEl.innerHTML = actionBadge(rec.action);
+        if (tableActEl) tableActEl.innerHTML = actionBadge(rec.action, rec);
     }
 
     // Layman explanation for the recommendation
@@ -2277,6 +2301,146 @@ function renderAnalysis(data) {
         const txt = actionMap[rec.strength] || actionMap['_default'] || actionMap['MODERATE'] || '';
         recExpl.innerHTML = txt; }
 
+    // Conviction note (position-aware context)
+    const convEl = document.getElementById('recConviction');
+    if (convEl && rec.conviction_note) {
+        const borderClr = rec.thesis_status==='INTACT'?'var(--g)':rec.thesis_status==='WEAKENING'?'var(--y)':'var(--r)';
+        convEl.style.borderLeftColor = borderClr;
+        let convHtml = `<i class="bi bi-shield-check me-1"></i>${rec.conviction_note}`;
+        if (rec && rec.dampened && rec.original_action) convHtml += `<br><small style="color:var(--y)"><i class="bi bi-funnel me-1"></i>Raw signal: <strong>${rec.original_action}</strong> — dampened (position is young)</small>`;
+        convEl.innerHTML = convHtml;
+        convEl.style.display = '';
+    } else if (convEl) { convEl.style.display = 'none'; }
+
+    // ML Conviction Card — unified score + drivers
+    const mlCard = document.getElementById('recMLCard');
+    if (mlCard && rec.ml_conviction && rec.ml_conviction.model_available) {
+        const ml = rec.ml_conviction;
+        const s = ml.ml_conviction;
+        const c = s>=70?'var(--g)':s>=40?'var(--y)':'var(--r)';
+        const bg = s>=70?'rgba(10,179,156,.08)':s>=40?'rgba(247,184,75,.08)':'rgba(240,101,72,.08)';
+        const ringBg = s>=70?'rgba(10,179,156,.2)':s>=40?'rgba(247,184,75,.2)':'rgba(240,101,72,.2)';
+        const bulls = (ml.drivers||[]).filter(d => d.direction==='bullish');
+        const bears = (ml.drivers||[]).filter(d => d.direction==='bearish');
+
+        let h = `<div style="padding:14px 16px;background:${bg};border-bottom:1px solid var(--card-border)">
+            <div style="display:flex;align-items:center;gap:14px">
+                <div style="position:relative;width:56px;height:56px;flex-shrink:0">
+                    <svg viewBox="0 0 36 36" style="width:56px;height:56px;transform:rotate(-90deg)">
+                        <circle cx="18" cy="18" r="15.5" fill="none" stroke="${ringBg}" stroke-width="3"/>
+                        <circle cx="18" cy="18" r="15.5" fill="none" stroke="${c}" stroke-width="3"
+                            stroke-dasharray="${s * 0.974} 100" stroke-linecap="round"/>
+                    </svg>
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:.95rem;font-weight:800;color:${c}">${Math.round(s)}</div>
+                </div>
+                <div style="flex:1">
+                    <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#8b949e"><i class="bi bi-cpu me-1"></i>ML Conviction Score</div>
+                    <div style="font-size:1.1rem;font-weight:700;color:${c};margin-top:2px">${ml.ml_conviction_label} <span style="font-size:.8rem;font-weight:400;color:#8b949e">— ${Math.round(s)}% confidence${ml.confidence_range ? ` (${Math.round(ml.confidence_range[0])}-${Math.round(ml.confidence_range[1])}% range)` : ''}</span></div>
+                    <div style="font-size:.78rem;color:#8b949e;margin-top:2px">${ml.summary||''}</div>
+                </div>
+            </div>
+        </div>`;
+
+        if (bulls.length || bears.length) {
+            h += `<div style="padding:10px 16px">
+                <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;margin-bottom:8px">Key Drivers</div>
+                <div style="display:flex;gap:16px;flex-wrap:wrap">`;
+            if (bulls.length) {
+                h += `<div style="flex:1;min-width:180px">
+                    <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--g);margin-bottom:4px"><i class="bi bi-arrow-up-circle me-1"></i>Supporting</div>`;
+                bulls.forEach(d => {
+                    h += `<div style="padding:6px 10px;margin-bottom:4px;border-radius:6px;background:rgba(10,179,156,.06);border:1px solid rgba(10,179,156,.1)">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span style="font-size:.82rem;font-weight:600;color:#e6edf3">${d.name}</span>
+                            <span class="font-mono" style="font-size:.78rem;font-weight:700;color:var(--g)">${d.value}</span>
+                        </div>
+                        ${d.explain ? `<div style="font-size:.75rem;color:#8b949e;margin-top:3px;line-height:1.4">${d.explain}</div>` : ''}
+                    </div>`;
+                });
+                h += `</div>`;
+            }
+            if (bears.length) {
+                h += `<div style="flex:1;min-width:180px">
+                    <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--r);margin-bottom:4px"><i class="bi bi-arrow-down-circle me-1"></i>Weighing Against</div>`;
+                bears.forEach(d => {
+                    h += `<div style="padding:6px 10px;margin-bottom:4px;border-radius:6px;background:rgba(240,101,72,.06);border:1px solid rgba(240,101,72,.1)">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span style="font-size:.82rem;font-weight:600;color:#e6edf3">${d.name}</span>
+                            <span class="font-mono" style="font-size:.78rem;font-weight:700;color:var(--r)">${d.value}</span>
+                        </div>
+                        ${d.explain ? `<div style="font-size:.75rem;color:#8b949e;margin-top:3px;line-height:1.4">${d.explain}</div>` : ''}
+                    </div>`;
+                });
+                h += `</div>`;
+            }
+            h += `</div></div>`;
+        }
+
+        // Narrative — layman paragraph explaining the full score
+        if (ml.narrative) {
+            h += `<div style="padding:10px 16px;border-top:1px solid var(--card-border);background:rgba(255,255,255,.015)">
+                <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;margin-bottom:6px"><i class="bi bi-chat-text me-1"></i>What This Means</div>
+                <div style="font-size:.84rem;line-height:1.65;color:#c9d1d9">${ml.narrative}</div>
+            </div>`;
+        }
+
+        // Confidence Interval bar
+        if (ml.confidence_range) {
+            const lo = Math.round(ml.confidence_range[0]);
+            const hi = Math.round(ml.confidence_range[1]);
+            const spread = hi - lo;
+            const ciColor = s>=70?'rgba(10,179,156,.35)':s>=40?'rgba(247,184,75,.35)':'rgba(240,101,72,.35)';
+            const ciText = spread <= 15 ? 'Tight — model is confident' : spread <= 30 ? 'Moderate spread' : 'Wide — model is uncertain';
+            h += `<div style="padding:10px 16px;border-top:1px solid var(--card-border)">
+                <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;margin-bottom:8px"><i class="bi bi-rulers me-1"></i>Confidence Range</div>
+                <div style="position:relative;height:22px;background:rgba(255,255,255,.04);border-radius:11px;overflow:hidden">
+                    <div style="position:absolute;left:${lo}%;width:${spread}%;top:0;height:100%;background:${ciColor};border-radius:11px"></div>
+                    <div style="position:absolute;left:${s}%;top:2px;width:4px;height:18px;background:${c};border-radius:2px;transform:translateX(-2px)"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:4px">
+                    <span style="font-size:.72rem;color:#8b949e">${lo}%</span>
+                    <span style="font-size:.72rem;color:#8b949e;font-style:italic">${ciText}</span>
+                    <span style="font-size:.72rem;color:#8b949e">${hi}%</span>
+                </div>
+            </div>`;
+        }
+
+        // Sector Position
+        if (ml.sector_rs != null || ml.stock_vs_sector_rs != null) {
+            h += `<div style="padding:10px 16px;border-top:1px solid var(--card-border)">
+                <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;margin-bottom:8px"><i class="bi bi-globe me-1"></i>Sector Position</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap">`;
+            if (ml.sector_rs != null) {
+                const sclr = ml.sector_rs >= 0 ? 'var(--g)' : 'var(--r)';
+                const sbg = ml.sector_rs >= 0 ? 'rgba(10,179,156,.08)' : 'rgba(240,101,72,.08)';
+                h += `<div style="flex:1;min-width:140px;padding:8px 12px;border-radius:8px;background:${sbg};border:1px solid ${ml.sector_rs>=0?'rgba(10,179,156,.15)':'rgba(240,101,72,.15)'}">
+                    <div style="font-size:.65rem;color:#8b949e;text-transform:uppercase;letter-spacing:.3px">Sector vs Nifty</div>
+                    <div style="font-size:1rem;font-weight:700;color:${sclr};margin-top:2px;font-family:'JetBrains Mono',monospace">${ml.sector_rs>=0?'+':''}${ml.sector_rs}%</div>
+                    <div style="font-size:.68rem;color:#8b949e;margin-top:2px">Sector's 20d relative strength vs broad market</div>
+                </div>`;
+            }
+            if (ml.stock_vs_sector_rs != null) {
+                const vclr = ml.stock_vs_sector_rs >= 0 ? 'var(--g)' : 'var(--r)';
+                const vbg = ml.stock_vs_sector_rs >= 0 ? 'rgba(10,179,156,.08)' : 'rgba(240,101,72,.08)';
+                h += `<div style="flex:1;min-width:140px;padding:8px 12px;border-radius:8px;background:${vbg};border:1px solid ${ml.stock_vs_sector_rs>=0?'rgba(10,179,156,.15)':'rgba(240,101,72,.15)'}">
+                    <div style="font-size:.65rem;color:#8b949e;text-transform:uppercase;letter-spacing:.3px">Stock vs Sector</div>
+                    <div style="font-size:1rem;font-weight:700;color:${vclr};margin-top:2px;font-family:'JetBrains Mono',monospace">${ml.stock_vs_sector_rs>=0?'+':''}${ml.stock_vs_sector_rs}%</div>
+                    <div style="font-size:.68rem;color:#8b949e;margin-top:2px">Stock's 20d momentum vs its sector peers</div>
+                </div>`;
+            }
+            h += `</div></div>`;
+        }
+
+        // Model info footer
+        h += `<div style="padding:8px 16px;border-top:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.02)">
+            <span style="font-size:.68rem;color:#6e7681"><i class="bi bi-cpu me-1"></i>${ml.model_version||'v2'} · ${ml.model_arch||'LightGBM'} · ${ml.feature_count||46} features · SHAP-validated</span>
+            <a href="/ml-conviction-guide" style="font-size:.68rem;color:var(--b);text-decoration:none" target="_blank">Guide <i class="bi bi-box-arrow-up-right" style="font-size:.6rem"></i></a>
+        </div>`;
+
+        mlCard.innerHTML = h;
+        mlCard.style.display = '';
+    } else if (mlCard) { mlCard.style.display = 'none'; }
+
     // ──────────────────────────────────────────────────────────────
     // PLAIN-ENGLISH DEEP EXPLANATION — strictly derived from engine output
     // (rec.action / rec.strength / rec.strategy_code / rec.entry_quality /
@@ -2294,7 +2458,21 @@ function renderAnalysis(data) {
         const mm = rec.momentum || {};
         const eqClr = eq.zone==='EXCELLENT'?'var(--g)':eq.zone==='GOOD'?'var(--b)':eq.zone==='FAIR'?'var(--y)':'var(--r)';
         const mmClr = mm.label?.includes('BULLISH')?'var(--g)':mm.label?.includes('BEARISH')?'var(--r)':'var(--y)';
+        const thClr = rec.thesis_status==='INTACT'?'var(--g)':rec.thesis_status==='WEAKENING'?'var(--y)':'var(--r)';
+        const phClr2 = rec.lifecycle_phase==='MATURE'?'var(--o)':'var(--b)';
+        let mlPill = '';
+        if (rec.ml_conviction && rec.ml_conviction.model_available) {
+            const ms = rec.ml_conviction.ml_conviction;
+            const mc = ms>=70?'var(--g)':ms>=40?'var(--y)':'var(--r)';
+            const mbg = ms>=70?'rgba(10,179,156,.1)':ms>=40?'rgba(247,184,75,.1)':'rgba(240,101,72,.1)';
+            const mbdr = ms>=70?'rgba(10,179,156,.25)':ms>=40?'rgba(247,184,75,.25)':'rgba(240,101,72,.25)';
+            const mlbl = ms>=70?'HIGH':ms>=40?'MODERATE':'LOW';
+            mlPill = `<span class="ind-pill" style="background:${mbg};border-color:${mbdr}"><span style="color:${mc};font-weight:600"><i class="bi bi-cpu me-1"></i>ML</span><span class="ind-val" style="color:${mc};font-size:.9rem">${Math.round(ms)}% ${mlbl}</span></span>`;
+        }
         recMeta.innerHTML = `
+            <span class="ind-pill"><span class="text-secondary">Thesis</span><span class="ind-val" style="color:${thClr}">${rec.thesis_status||'N/A'}</span></span>
+            <span class="ind-pill"><span class="text-secondary">Phase</span><span class="ind-val" style="color:${phClr2}">Day ${rec.days_held||'?'} · ${rec.lifecycle_phase||'N/A'}</span></span>
+            ${mlPill}
             <span class="ind-pill"><span class="text-secondary">Entry</span><span class="ind-val" style="color:${eqClr}">${eq.zone||'N/A'}</span></span>
             <span class="ind-pill"><span class="text-secondary">Momentum</span><span class="ind-val" style="color:${mmClr}">${mm.label||'N/A'}</span></span>
             <span class="ind-pill"><span class="text-secondary">Volume</span><span class="ind-val">${mm.volume_trend||'N/A'}</span></span>
@@ -2302,12 +2480,12 @@ function renderAnalysis(data) {
 
     // Reasons
     const rDiv = document.getElementById('recReasons');
-    rDiv.innerHTML = rec.reasons.map(r => `<div class="confirm-item blue"><i class="bi bi-info-circle me-1"></i>${r}</div>`).join('');
+    rDiv.innerHTML = (rec.reasons || []).map(r => `<div class="confirm-item blue"><i class="bi bi-info-circle me-1"></i>${r}</div>`).join('');
 
     // Warnings
     const wDiv = document.getElementById('recWarnings');
     const wWrap = document.getElementById('recWarningsWrap');
-    if (rec.warnings.length) {
+    if (rec.warnings && rec.warnings.length) {
         wWrap.style.display = 'block';
         wDiv.innerHTML = rec.warnings.map(w => `<div class="confirm-item yellow"><i class="bi bi-exclamation-triangle me-1"></i>${w}</div>`).join(''); } else {
         wWrap.style.display = 'none'; }
@@ -2409,7 +2587,7 @@ function renderAnalysis(data) {
             <div class="d-flex align-items-center gap-2 mb-1">
                 ${stratBadge(rec.strategy_code)}
                 ${actionBadge(sigType)}
-                <span class="font-mono small text-secondary">Confidence: ${conf}%</span>
+                <span class="font-mono small text-secondary">${conf === 0 && (sigType === 'NONE' || sigType === 'WAIT') ? '—' : `Confidence: ${conf}%`}</span>
             </div>
             <p class="small mb-0">${reason}</p>
         `; } else {
@@ -2417,11 +2595,11 @@ function renderAnalysis(data) {
 
     // Cross-strategy confirmations
     const cDiv = document.getElementById('confirmList');
-    cDiv.innerHTML = rec.confirms.map(c => {
+    cDiv.innerHTML = (rec.confirms || []).map(c => {
         let cls = 'blue';
-        if (c.includes('BUY') || c.includes('HOLD') || c.includes('W-Bottom') || c.includes('supportive')) cls = 'green';
+        if (c.includes('BUY') || c.includes('HOLD') || c.includes('W-Bottom') || c.includes('supportive') || c.includes('supports')) cls = 'green';
         if (c.includes('SELL') || c.includes('EXIT') || c.includes('M-Top') || c.includes('fading')) cls = 'red';
-        if (c.includes('WATCH') || c.includes('WAIT')) cls = 'yellow';
+        if (c.includes('WATCH') || c.includes('WAIT') || c.includes('caution') || c.includes('mixed')) cls = 'yellow';
         return `<div class="confirm-item ${cls}"><i class="bi bi-${cls==='green'?'check-circle':cls==='red'?'x-circle':cls==='yellow'?'exclamation-circle':'info-circle'} me-1"></i>${c}</div>`; }).join('');
 
     // All strategies at a glance
@@ -2440,7 +2618,7 @@ function renderAnalysis(data) {
             <div class="p-2 rounded" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border)">
                 <div class="d-flex align-items-center gap-2 mb-1">${stratBadge(s.code)} ${actionBadge(s.type)}</div>
                 <div class="font-mono small" style="color:${STRATEGY_COLORS[s.code]}">${STRATEGY_NAMES[s.code]}</div>
-                <div class="small text-secondary">Conf: ${s.conf}%${s.phase?' • '+s.phase:''}</div>
+                <div class="small text-secondary">${s.conf === 0 && (s.type === 'NONE' || s.type === 'WAIT') ? '—' : `Conf: ${s.conf}%`}${s.phase?' • '+s.phase:''}</div>
             </div>
         </div>
     `).join('');
@@ -3898,7 +4076,7 @@ function renderExpertCommentary(ec) {
         'STRONGLY BEARISH': {bg:'rgba(240,101,72,.15)',fg:'var(--r)',icon:'bi-arrow-down-circle-fill'},
     };
     const tc = toneColors[ec.tone] || toneColors['NEUTRAL'];
-    badge.innerHTML = `<i class="bi ${tc.icon} me-1"></i>${ec.tone}`;
+    badge.innerHTML = `<i class="bi ${tc.icon} me-1"></i>${ec.tone}${ec.ml_aligned ? ' <span style="font-size:.6rem;opacity:.7;margin-left:4px"><i class="bi bi-cpu"></i> ML</span>' : ''}`;
     badge.style.background = tc.bg;
     badge.style.color = tc.fg;
     badge.style.border = `1px solid ${tc.fg}`;
@@ -4255,7 +4433,15 @@ function renderAiMlPanel(ai, holding, rec, ticker) {
 
         const borderClr = u <= 25 ? 'var(--g)' : u <= 45 ? 'var(--b)' : u <= 65 ? 'var(--y)' : 'var(--r)';
         document.getElementById('aiExitExplain').style.borderLeftColor = borderClr;
-        document.getElementById('aiExitExplain').innerHTML = `<strong>What to do:</strong> ${ei.explanation || 'No data available.'}`;
+        let eiExplText = `<strong>What to do:</strong> ${ei.explanation || 'No data available.'}`;
+        // Context note when exit advisor and strategy recommendation disagree
+        const recAction = (rec.action || '').toUpperCase();
+        if (lbl === 'HOLD' && recAction === 'SELL') {
+            eiExplText += `<div class="mt-1" style="font-size:.72rem;color:var(--y)"><i class="bi bi-info-circle me-1"></i>Note: the overall recommendation is <strong>SELL</strong> based on Bollinger Band rules (%B, MFI), not momentum decay. This exit advisor tracks momentum signals only — a HOLD here means momentum hasn't collapsed yet, not that you should ignore the strategy's sell signal.</div>`;
+        } else if ((lbl === 'TIGHTEN_STOP' || lbl === 'CONSIDER_EXIT') && recAction === 'HOLD') {
+            eiExplText += `<div class="mt-1" style="font-size:.72rem;color:var(--y)"><i class="bi bi-info-circle me-1"></i>Note: the strategy says HOLD based on Bollinger Band positioning, but momentum signals are flashing warning. Consider tightening your stop even though the strategy hasn't triggered a sell yet.</div>`;
+        }
+        document.getElementById('aiExitExplain').innerHTML = eiExplText;
     } else {
         exSec.style.display = 'none';
     }
@@ -4328,11 +4514,11 @@ function renderAiMlPanel(ai, holding, rec, ticker) {
         let mlIntro = `${ticker ? ticker+': ' : ''}XGBoost scores this trade at <strong>${conf}%</strong> — ${conf >= 55 ? 'above' : 'below'} the 55% threshold (${verdict.replace('ML_','')}).`;
         if (ai.ml_explanation && ai.ml_explanation.length) {
             const topDriver = ai.ml_explanation[0];
-            const driverLabels = {bbw:'Bollinger Width',rsi14:'RSI',atr14_pct:'ATR%',vol_ratio:'Volume Ratio',close_vs_sma20:'Price vs SMA20',close_vs_upper:'Price vs Upper Band',close_vs_lower:'Price vs Lower Band',sma20_slope_5d:'SMA20 Slope',rsi14_slope_5d:'RSI Slope',bbw_percentile_60d:'BB Width Pctl',vol_trend_5d:'Vol Trend',price_momentum_10d:'10d Momentum',price_momentum_20d:'20d Momentum'};
+            const driverLabels = {bbw:'Bollinger Width',rsi14:'RSI',atr14_pct:'ATR%',vol_ratio:'Volume Ratio',close_vs_sma20:'Price vs SMA20',close_vs_upper:'Price vs Upper Band',close_vs_lower:'Price vs Lower Band',sma20_slope_5d:'SMA20 Slope',rsi14_slope_5d:'RSI Slope',bbw_percentile_60d:'BB Width Pctl',vol_trend_5d:'Vol Trend',price_momentum_10d:'10d Momentum',price_momentum_20d:'20d Momentum',percent_b:'%B',cmf:'Chaikin MF',mfi:'Money Flow',vwmacd_hist:'VWMACD',ii_pct:'Intraday Intensity',ad_pct:'Accum/Dist',expansion_up:'Expansion Up',expansion_down:'Expansion Down',bbw_roc_5d:'BBW RoC',rsi_bb_divergence:'RSI-BB Div'};
             const driverName = driverLabels[topDriver.feature] || topDriver.feature;
             mlIntro += ` Biggest driver: <strong>${driverName}</strong> (${topDriver.direction === 'WIN' ? 'pushing toward win' : 'pulling toward loss'}).`;
         }
-        if (ai.ml_percentile != null) mlIntro += ` Ranks in the top ${100 - Math.round(ai.ml_percentile * 100)}% of all scored trades.`;
+        // ml_percentile removed — single-position scoring always yields 1.0
         if (ai.ml_downside_risk != null) {
             const dr = (ai.ml_downside_risk * 100).toFixed(1);
             mlIntro += ` Worst-case estimate: <strong>${dr}%</strong> (25th percentile).`;
@@ -4349,7 +4535,7 @@ function renderAiMlPanel(ai, holding, rec, ticker) {
         let mlExpl = verdict === 'ML_PASS'
             ? `<strong>Good news:</strong> This trade pattern scores ${conf}% — above the 55% threshold. The ML model (trained on 3 lakh+ real NSE trades) considers this a higher-probability setup. This supports your decision to hold.`
             : `<strong>Caution:</strong> This trade pattern scores ${conf}% — below the 55% threshold. The model sees this as a lower-probability setup based on historical patterns. Consider tighter risk management.`;
-        if (ai.ml_percentile) mlExpl += ` This puts it in the top ${100 - Math.round(ai.ml_percentile * 100)}% of all scored trades.`;
+        // ml_percentile removed — meaningless for single-position scoring
 
         // SHAP explanation — which features drove this prediction
         if (ai.ml_explanation && ai.ml_explanation.length > 0) {
@@ -4359,7 +4545,7 @@ function renderAiMlPanel(ai, holding, rec, ticker) {
                 const dir = e.direction === 'WIN';
                 const clr = dir ? 'var(--g)' : 'var(--r)';
                 const arrow = dir ? '&#9650;' : '&#9660;';
-                const featureLabels = {bbw:'Bollinger Width', rsi14:'RSI (14)', atr14_pct:'ATR %', vol_ratio:'Volume Ratio', close_vs_sma20:'Price vs SMA20', close_vs_upper:'Price vs Upper Band', close_vs_lower:'Price vs Lower Band', sma20_slope_5d:'SMA20 Slope', rsi14_slope_5d:'RSI Slope', bbw_percentile_60d:'BB Width Pctl', vol_trend_5d:'Vol Trend', price_momentum_10d:'10d Momentum', price_momentum_20d:'20d Momentum', atr14_percentile_60d:'ATR Pctl'};
+                const featureLabels = {bbw:'Bollinger Width', rsi14:'RSI (14)', atr14_pct:'ATR %', vol_ratio:'Volume Ratio', close_vs_sma20:'Price vs SMA20', close_vs_upper:'Price vs Upper Band', close_vs_lower:'Price vs Lower Band', sma20_slope_5d:'SMA20 Slope', rsi14_slope_5d:'RSI Slope', bbw_percentile_60d:'BB Width Pctl', vol_trend_5d:'Vol Trend', price_momentum_10d:'10d Momentum', price_momentum_20d:'20d Momentum', atr14_percentile_60d:'ATR Pctl', percent_b:'%B Position', cmf:'Chaikin MF', mfi:'Money Flow', vwmacd_hist:'VWMACD Hist', ii_pct:'Intraday Intensity', ad_pct:'Accum/Dist', expansion_up:'Expansion Up', expansion_down:'Expansion Down', bbw_roc_5d:'BBW Rate of Change', rsi_bb_divergence:'RSI-BB Divergence'};
                 const label = featureLabels[e.feature] || e.feature;
                 mlExpl += `<div style="display:inline-flex;align-items:center;gap:3px;margin:2px 4px 2px 0;padding:2px 8px;border-radius:4px;background:${clr}11;border:1px solid ${clr}33;font-size:.72rem"><span style="color:${clr}">${arrow}</span> <span>${label}</span> <span style="color:${clr};font-weight:600">${e.impact > 0 ? '+' : ''}${(e.impact * 100).toFixed(1)}</span></div>`;
             });
@@ -4371,6 +4557,19 @@ function renderAiMlPanel(ai, holding, rec, ticker) {
             const drClr = ai.ml_downside_risk >= 0 ? 'var(--g)' : ai.ml_downside_risk > -0.03 ? 'var(--y)' : 'var(--r)';
             mlExpl += `<div class="mt-2" style="border-top:1px solid rgba(127,127,127,.12);padding-top:6px"><strong>Downside Risk Estimate:</strong> <span style="color:${drClr};font-weight:700">${dr}%</span></div>`;
             mlExpl += `<div style="font-size:.72rem;color:#8b949e;line-height:1.4">This is the worst-case expected return at the 25th percentile, predicted by a separate XGBoost expectile regression model. It answers: "In a bad scenario, how much could this trade lose?" A value like -3% means that in 75% of similar historical setups, the loss was smaller than 3%. Use this alongside the win probability to gauge risk — a high confidence trade with a deep downside may still warrant a smaller position.</div>`;
+        }
+
+        // Cross-model check: XGB Win Prob vs LGB Conviction
+        const conv = rec.ml_conviction;
+        if (conv && conv.model_available) {
+            const lgbScore = conv.ml_conviction;
+            const xgbPasses = conf >= 55;
+            const lgbLabel = conv.ml_conviction_label;
+            const lgbHigh = lgbScore >= 55;
+            if (xgbPasses !== lgbHigh) {
+                const noteClr = 'var(--y)';
+                mlExpl += `<div class="mt-2" style="border-top:1px solid rgba(127,127,127,.12);padding-top:6px"><strong style="color:${noteClr}"><i class="bi bi-exclamation-triangle me-1"></i>Model Disagreement:</strong> XGBoost (25 features, snapshot) says <strong>${verdict.replace('ML_','')}</strong> at ${conf}%, but LightGBM Conviction (46 features, ensemble) scores <strong>${lgbLabel}</strong> at ${Math.round(lgbScore)}%. These are different models seeing different patterns — when they disagree, size conservatively and trust the ensemble (ML Conviction) for the overall read.</div>`;
+            }
         }
 
         document.getElementById('aiMlExplain').innerHTML = mlExpl;
@@ -4385,8 +4584,8 @@ function renderAiMlPanel(ai, holding, rec, ticker) {
         outlookSec.style.display = '';
         const oScore = Math.round((outlook.outlook_score || 0) * 100);
         const oVerdict = outlook.verdict || 'NEUTRAL';
-        const oColor = oVerdict === 'BULLISH' ? 'var(--g)' : oVerdict === 'NEUTRAL' ? 'var(--y)' : 'var(--r)';
-        const oBg = oVerdict === 'BULLISH' ? 'rgba(0,200,83,.15)' : oVerdict === 'NEUTRAL' ? 'rgba(255,193,7,.15)' : 'rgba(255,82,82,.15)';
+        const oColor = oVerdict === 'BULLISH' ? 'var(--g)' : oVerdict === 'BEARISH' ? 'var(--r)' : 'var(--y)';
+        const oBg = oVerdict === 'BULLISH' ? 'rgba(0,200,83,.15)' : oVerdict === 'BEARISH' ? 'rgba(255,82,82,.15)' : 'rgba(255,193,7,.15)';
 
         document.getElementById('aiOutlookBadge').textContent = oVerdict;
         document.getElementById('aiOutlookBadge').style.cssText = `background:${oBg};color:${oColor}`;
@@ -4684,7 +4883,7 @@ function renderAiMlPanel(ai, holding, rec, ticker) {
         document.getElementById('aiScaleOutBar').style.background = bpClr;
 
         // Entry marker position
-        if (holding.buy_price && so.bb_lower && so.bb_upper) {
+        if (holding.buy_price && so.bb_lower && so.bb_upper && so.bb_upper > so.bb_lower) {
             const entryPct = ((holding.buy_price - so.bb_lower) / (so.bb_upper - so.bb_lower)) * 100;
             document.getElementById('aiScaleOutEntryMarker').style.left = Math.max(0, Math.min(100, entryPct)) + '%';
             document.getElementById('aiScaleOutEntryMarker').title = 'Entry: ₹' + fmt(holding.buy_price);

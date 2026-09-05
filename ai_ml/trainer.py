@@ -117,7 +117,8 @@ _SIGNAL_FN = {"M1": _signal_m1, "M2": _signal_m2, "M3": _signal_m3, "M4": _signa
 #  FEATURE EXTRACTION — the ML-specific part
 # ─────────────────────────────────────────────────────────────────
 
-def _extract_features(ind: dict, i: int) -> dict | None:
+def _extract_features(ind: dict, i: int,
+                      ticker: str = "", bar_date=None) -> dict | None:
     """Extract ML feature vector at bar index i. Returns None if data insufficient."""
     if i < 60:
         return None
@@ -136,6 +137,8 @@ def _extract_features(ind: dict, i: int) -> dict | None:
 
     vol_ma = ind["vol_ma"][i]
 
+    mom_20d = (close[i] / close[i-20] - 1) * 100 if close[i-20] > 0 else np.nan
+
     feats = {
         "bbw":               ind["bbw"][i],
         "rsi14":             ind["rsi14"][i],
@@ -149,13 +152,28 @@ def _extract_features(ind: dict, i: int) -> dict | None:
         "bbw_percentile_60d": ind["bbw_pct60"][i] if "bbw_pct60" in ind else np.nan,
         "vol_trend_5d":      (ind["volume"][i] / ind["volume"][i-5] - 1) * 100 if ind["volume"][i-5] > 0 else np.nan,
         "price_momentum_10d": (close[i] / close[i-10] - 1) * 100 if close[i-10] > 0 else np.nan,
-        "price_momentum_20d": (close[i] / close[i-20] - 1) * 100 if close[i-20] > 0 else np.nan,
+        "price_momentum_20d": mom_20d,
         "atr14_percentile_60d": ind["atr14_pct60"][i] if "atr14_pct60" in ind else np.nan,
     }
 
-    # Feature Boost: add 10 extra features
+    # Feature Boost: add extra features (micro/macro lookbacks, boost indicators)
     from ai_ml.feature_boost import compute_boost_features_train
     feats.update(compute_boost_features_train(ind, i))
+
+    # Sector-relative features (at historical bar)
+    if ticker and bar_date is not None:
+        try:
+            from ai_ml.sector_features import get_sector_rs_at_bar
+            sector = get_sector_rs_at_bar(ticker, bar_date, mom_20d if not np.isnan(mom_20d) else 0)
+            feats["sector_rs"] = sector.get("sector_rs", np.nan)
+            feats["stock_vs_sector_rs"] = sector.get("stock_vs_sector_rs", np.nan)
+        except Exception:
+            feats["sector_rs"] = np.nan
+            feats["stock_vs_sector_rs"] = np.nan
+    else:
+        feats["sector_rs"] = np.nan
+        feats["stock_vs_sector_rs"] = np.nan
+
     return feats
 
 
@@ -233,7 +251,7 @@ def _process_stock(csv_path: str, start_date: str, end_date: str,
             if not sig_fn(ind, i):
                 continue
 
-            feats = _extract_features(ind, i)
+            feats = _extract_features(ind, i, ticker=ticker, bar_date=dates[i])
             if feats is None:
                 continue
 
@@ -278,8 +296,8 @@ def _process_stock(csv_path: str, start_date: str, end_date: str,
 
 def generate_training_data(
     csv_dir: str = CSV_DIR,
-    start_date: str = "2011-08-29",
-    end_date: str = "2026-08-21",
+    start_date: str = "1994-01-01",
+    end_date: str = "2026-09-03",
     max_stocks: int = 0,
 ) -> pd.DataFrame:
     """Generate training data from all stock CSVs."""
@@ -390,7 +408,8 @@ def _merge_feedback_outcomes(df: pd.DataFrame) -> pd.DataFrame:
                "rsi14": rsi14, "atr14": atr14, "vol_ma": vol_ma,
                "bbw_pct60": bbw_pct60, "atr14_pct60": atr14_pct60}
 
-        feats = _extract_features(ind, bar_idx)
+        feats = _extract_features(ind, bar_idx, ticker=ticker,
+                                  bar_date=pd.Timestamp(entry_date))
         if feats is None:
             continue
 

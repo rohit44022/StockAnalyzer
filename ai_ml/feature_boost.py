@@ -26,6 +26,13 @@ def _rolling_sum(arr: np.ndarray, window: int) -> np.ndarray:
     return out
 
 
+def _sma(arr: np.ndarray, period: int) -> np.ndarray:
+    out = np.full(len(arr), np.nan)
+    for i in range(period - 1, len(arr)):
+        out[i] = arr[i - period + 1 : i + 1].mean()
+    return out
+
+
 def _ema(arr: np.ndarray, span: int) -> np.ndarray:
     alpha = 2.0 / (span + 1)
     out = np.empty_like(arr)
@@ -133,8 +140,52 @@ def compute_extra_arrays(close: np.ndarray, high: np.ndarray,
     for i in range(5, n):
         rsi_slope = rsi14[i] - rsi14[i - 5] if not np.isnan(rsi14[i]) and not np.isnan(rsi14[i - 5]) else 0
         price_vs_ma = (close[i] - sma20[i]) / sma20[i] * 100 if sma20[i] > 0 and not np.isnan(sma20[i]) else 0
-        # Divergence: RSI falling while price above MA (bearish) or RSI rising while price below MA (bullish)
         rsi_bb_div[i] = rsi_slope * -1.0 * np.sign(price_vs_ma) if price_vs_ma != 0 else 0
+
+    # ── Expansion End (squeeze exhaustion) ──
+    expansion_end = np.zeros(n, dtype=float)
+    for i in range(lookback + 1, n):
+        was_exp = expansion_up[i - 1] or expansion_down[i - 1]
+        is_exp = expansion_up[i] or expansion_down[i]
+        if was_exp and not is_exp:
+            expansion_end[i] = 1.0
+
+    # ── VWMACD Signal line ──
+    # vwmacd_signal already computed above
+
+    # ── Keltner Channel Squeeze Intensity ──
+    atr20 = np.full(n, np.nan)
+    tr = np.maximum(high - low, np.maximum(np.abs(high - np.roll(close, 1)),
+                                            np.abs(low - np.roll(close, 1))))
+    tr[0] = high[0] - low[0]
+    for i in range(19, n):
+        atr20[i] = tr[i - 19 : i + 1].mean()
+    kc_upper = sma20 + 1.5 * atr20
+    kc_lower = sma20 - 1.5 * atr20
+    kc_squeeze = (upper < kc_upper) & (lower > kc_lower)
+    kc_width = np.where(sma20 > 0, (kc_upper - kc_lower) / sma20, np.nan)
+    bb_width_raw = np.where(sma20 > 0, (upper - lower) / sma20, np.nan)
+    kc_squeeze_intensity = np.where(
+        kc_squeeze & (kc_width > 0),
+        1.0 - np.clip(bb_width_raw / kc_width, 0, 1),
+        0.0
+    )
+
+    # ── RSI Normalized (Bollinger-normalized RSI) ──
+    rsi_sma = _sma(rsi14, 20)
+    rsi_std_arr = np.full(n, np.nan)
+    for i in range(19, n):
+        rsi_std_arr[i] = rsi14[i - 19 : i + 1].std(ddof=0)
+    rsi_std_safe = np.where(rsi_std_arr > 0, rsi_std_arr, np.nan)
+    rsi_norm = (rsi14 - rsi_sma) / rsi_std_safe
+
+    # ── MFI Normalized ──
+    mfi_sma = _sma(mfi, 20)
+    mfi_std_arr = np.full(n, np.nan)
+    for i in range(19, n):
+        mfi_std_arr[i] = mfi[i - 19 : i + 1].std(ddof=0)
+    mfi_std_safe = np.where(mfi_std_arr > 0, mfi_std_arr, np.nan)
+    mfi_norm = (mfi - mfi_sma) / mfi_std_safe
 
     return {
         "percent_b": percent_b,
@@ -143,10 +194,15 @@ def compute_extra_arrays(close: np.ndarray, high: np.ndarray,
         "ii_pct": ii_pct,
         "ad_pct": ad_pct,
         "vwmacd_hist": vwmacd_hist,
+        "vwmacd_signal": vwmacd_signal,
         "expansion_up": expansion_up,
         "expansion_down": expansion_down,
+        "expansion_end": expansion_end,
         "bbw_roc_5d": bbw_roc_5d,
         "rsi_bb_divergence": rsi_bb_div,
+        "kc_squeeze_intensity": kc_squeeze_intensity,
+        "rsi_norm": rsi_norm,
+        "mfi_norm": mfi_norm,
     }
 
 
@@ -168,18 +224,75 @@ def compute_boost_features_train(ind: dict, i: int) -> dict:
         v = arr[idx]
         return float(v) if not np.isnan(v) else np.nan
 
-    return {
+    close = ind["close"]
+    sma20 = ind["sma20"]
+    rsi14_arr = ind["rsi14"]
+    volume = ind["volume"]
+    bbw = ind["bbw"]
+
+    feats = {
         "percent_b":        _safe(ind["percent_b"], i),
         "cmf":              _safe(ind["cmf"], i),
         "mfi":              _safe(ind["mfi"], i),
         "ii_pct":           _safe(ind["ii_pct"], i),
         "ad_pct":           _safe(ind["ad_pct"], i),
         "vwmacd_hist":      _safe(ind["vwmacd_hist"], i),
+        "vwmacd_signal":    _safe(ind["vwmacd_signal"], i),
         "expansion_up":     _safe(ind["expansion_up"], i),
         "expansion_down":   _safe(ind["expansion_down"], i),
+        "expansion_end":    _safe(ind["expansion_end"], i),
         "bbw_roc_5d":       _safe(ind["bbw_roc_5d"], i),
         "rsi_bb_divergence": _safe(ind["rsi_bb_divergence"], i),
+        "kc_squeeze_intensity": _safe(ind["kc_squeeze_intensity"], i),
+        "rsi_norm":         _safe(ind["rsi_norm"], i),
+        "mfi_norm":         _safe(ind["mfi_norm"], i),
     }
+
+    # Micro lookbacks (1d, 3d)
+    if i >= 3 and close[i - 1] > 0 and close[i - 3] > 0:
+        feats["price_momentum_1d"] = (close[i] / close[i - 1] - 1) * 100
+        feats["price_momentum_3d"] = (close[i] / close[i - 3] - 1) * 100
+    else:
+        feats["price_momentum_1d"] = np.nan
+        feats["price_momentum_3d"] = np.nan
+
+    if i >= 3 and not np.isnan(rsi14_arr[i]) and not np.isnan(rsi14_arr[i - 3]):
+        feats["rsi14_slope_3d"] = rsi14_arr[i] - rsi14_arr[i - 3]
+    else:
+        feats["rsi14_slope_3d"] = np.nan
+
+    if i >= 3 and volume[i - 3] > 0:
+        feats["vol_trend_3d"] = (volume[i] / volume[i - 3] - 1) * 100
+    else:
+        feats["vol_trend_3d"] = np.nan
+
+    # Macro lookbacks (60d, 90d, 120d)
+    if i >= 60 and close[i - 60] > 0:
+        feats["price_momentum_60d"] = (close[i] / close[i - 60] - 1) * 100
+    else:
+        feats["price_momentum_60d"] = np.nan
+
+    if i >= 90 and close[i - 90] > 0:
+        feats["price_momentum_90d"] = (close[i] / close[i - 90] - 1) * 100
+    else:
+        feats["price_momentum_90d"] = np.nan
+
+    if i >= 20 and not np.isnan(sma20[i]) and not np.isnan(sma20[i - 20]) and sma20[i - 20] > 0:
+        feats["sma20_slope_20d"] = (sma20[i] - sma20[i - 20]) / sma20[i - 20] * 100
+    else:
+        feats["sma20_slope_20d"] = np.nan
+
+    if i >= 120 and "bbw" in ind:
+        window = bbw[max(0, i - 119) : i + 1]
+        valid = window[~np.isnan(window)]
+        if len(valid) >= 10:
+            feats["bbw_percentile_120d"] = float((valid < bbw[i]).sum()) / len(valid) * 100
+        else:
+            feats["bbw_percentile_120d"] = np.nan
+    else:
+        feats["bbw_percentile_120d"] = np.nan
+
+    return feats
 
 
 # ─────────────────────────────────────────────────────────────────

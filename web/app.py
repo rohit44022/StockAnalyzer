@@ -1511,6 +1511,11 @@ def rentech_guide_page():
     return render_template("rentech_guide.html")
 
 
+@app.route("/ml-conviction-guide")
+def ml_conviction_guide_page():
+    return render_template("ml_conviction_guide.html")
+
+
 @app.route("/trades")
 def trades_page():
     return render_template("trades.html")

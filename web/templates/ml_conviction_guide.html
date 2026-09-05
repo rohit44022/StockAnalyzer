@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ML Conviction Guide — How the Score Works</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--card-bg:#282f36;--card-border:#2f3944;--g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc;--o:#f0883e;
+  --buy-bg:rgba(10,179,156,.08);--sell-bg:rgba(240,101,72,.08);--neutral-bg:rgba(124,138,239,.06);--warn-bg:rgba(247,184,75,.08)}
+body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero h1{font-size:2.2rem;font-weight:800;color:#e6edf3}
+
+.guide-wrap{display:flex;gap:24px;margin-top:1.5rem}
+.guide-toc{position:sticky;top:80px;width:220px;flex-shrink:0;max-height:calc(100vh - 100px);overflow-y:auto;font-size:.78rem}
+.guide-toc a{display:block;padding:4px 10px;color:#8b949e;text-decoration:none;border-left:2px solid transparent;transition:all .15s}
+.guide-toc a:hover,.guide-toc a.active{color:var(--g);border-color:var(--g)}
+.guide-toc .toc-head{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:#6e7681;padding:8px 10px 4px;font-weight:600}
+.guide-content{flex:1;min-width:0}
+
+.ind-section{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;margin-bottom:18px;overflow:hidden;border-left:4px solid var(--card-border)}
+.ind-section.cat-overview{border-left-color:var(--b)}
+.ind-section.cat-pipeline{border-left-color:var(--g)}
+.ind-section.cat-features{border-left-color:var(--p)}
+.ind-section.cat-interpret{border-left-color:var(--o)}
+.ind-section.cat-decision{border-left-color:var(--y)}
+.ind-section.cat-model{border-left-color:var(--b)}
+.ind-section.cat-limits{border-left-color:var(--r)}
+.ind-header{padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none;transition:background .15s}
+.ind-header:hover{background:rgba(10,179,156,.04)}
+.ind-header h3{margin:0;font-size:1.05rem;font-weight:700;flex:1;color:#e6edf3}
+.ind-header .cat-badge{font-size:.62rem;padding:2px 8px;border-radius:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.cat-badge-overview{background:rgba(124,138,239,.12);color:var(--b)}
+.cat-badge-pipeline{background:rgba(10,179,156,.12);color:var(--g)}
+.cat-badge-features{background:rgba(192,132,252,.12);color:var(--p)}
+.cat-badge-interpret{background:rgba(240,136,62,.12);color:var(--o)}
+.cat-badge-decision{background:rgba(247,184,75,.12);color:var(--y)}
+.cat-badge-model{background:rgba(124,138,239,.12);color:var(--b)}
+.cat-badge-limits{background:rgba(240,101,72,.12);color:var(--r)}
+.ind-header .chevron{color:#8b949e;transition:transform .2s;font-size:.8rem}
+.ind-header.collapsed .chevron{transform:rotate(-90deg)}
+.ind-body{padding:0 18px 18px;display:block}
+.ind-header.collapsed + .ind-body{display:none}
+
+.plain-box{background:rgba(124,138,239,.06);border:1px solid rgba(124,138,239,.15);border-radius:10px;padding:14px 16px;margin:12px 0;font-size:.86rem;line-height:1.7;color:#c9d1d9}
+.plain-box .plain-label{display:inline-block;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--b);margin-bottom:6px}
+.plain-box strong{color:#e6edf3}
+
+.takeaway{display:flex;align-items:flex-start;gap:10px;background:rgba(10,179,156,.06);border:1px solid rgba(10,179,156,.15);border-radius:10px;padding:12px 16px;margin:10px 0;font-size:.84rem;color:#c9d1d9}
+.takeaway .takeaway-icon{font-size:1.2rem;flex-shrink:0;margin-top:2px}
+
+.signal-row{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.signal-box{flex:1;min-width:140px;border-radius:10px;padding:12px 14px;font-size:.82rem}
+.signal-buy{background:var(--buy-bg);border:1px solid rgba(10,179,156,.2)}
+.signal-buy .signal-label{color:var(--g);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.signal-sell{background:var(--sell-bg);border:1px solid rgba(240,101,72,.2)}
+.signal-sell .signal-label{color:var(--r);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.signal-neutral{background:var(--neutral-bg);border:1px solid rgba(124,138,239,.15)}
+.signal-neutral .signal-label{color:var(--b);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.signal-warn{background:var(--warn-bg);border:1px solid rgba(247,184,75,.2)}
+.signal-warn .signal-label{color:var(--y);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+
+.param-table{width:100%;font-size:.82rem;border-collapse:collapse;margin:10px 0}
+.param-table th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;padding:6px 10px;border-bottom:1px solid var(--card-border)}
+.param-table td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+.param-table .val{font-family:'JetBrains Mono',monospace;color:var(--b);font-weight:600}
+
+.formula{font-family:'JetBrains Mono',monospace;color:var(--p);font-weight:500;background:rgba(192,132,252,.06);padding:10px 14px;border-radius:8px;font-size:.82rem;margin:8px 0;border:1px solid rgba(192,132,252,.12)}
+
+.usage{font-size:.84rem;line-height:1.65;color:#c9d1d9}
+.usage strong{color:#e6edf3}
+
+.levels{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.level-pill{font-family:'JetBrains Mono',monospace;font-size:.75rem;padding:4px 12px;border-radius:6px;font-weight:600}
+.level-g{background:rgba(10,179,156,.12);color:var(--g);border:1px solid rgba(10,179,156,.2)}
+.level-r{background:rgba(240,101,72,.12);color:var(--r);border:1px solid rgba(240,101,72,.2)}
+.level-y{background:rgba(247,184,75,.12);color:var(--y);border:1px solid rgba(247,184,75,.2)}
+.level-b{background:rgba(124,138,239,.12);color:var(--b);border:1px solid rgba(124,138,239,.2)}
+.level-p{background:rgba(192,132,252,.12);color:var(--p);border:1px solid rgba(192,132,252,.2)}
+.level-o{background:rgba(240,136,62,.12);color:var(--o);border:1px solid rgba(240,136,62,.2)}
+
+.analogy{display:flex;align-items:flex-start;gap:10px;background:rgba(247,184,75,.06);border:1px solid rgba(247,184,75,.12);border-radius:10px;padding:12px 16px;margin:10px 0;font-size:.84rem;color:#c9d1d9;line-height:1.6}
+.analogy .analogy-icon{font-size:1.1rem;flex-shrink:0;margin-top:2px}
+
+.pro-tip{display:flex;align-items:flex-start;gap:10px;background:rgba(192,132,252,.06);border:1px solid rgba(192,132,252,.12);border-radius:10px;padding:12px 16px;margin:10px 0;font-size:.82rem;color:#c9d1d9;line-height:1.6}
+.pro-tip .tip-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--p);white-space:nowrap}
+
+.method-table{width:100%;font-size:.82rem;border-collapse:collapse}
+.method-table th{background:rgba(255,255,255,.03);padding:8px 12px;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;border-bottom:2px solid var(--card-border);text-align:left}
+.method-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
+.method-table tr:hover{background:rgba(255,255,255,.02)}
+
+.guide-search{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:7px 14px;color:#e6edf3;font-size:.85rem;width:280px}
+.guide-search:focus{outline:none;border-color:var(--g);box-shadow:0 0 0 2px rgba(10,179,156,.15)}
+
+@media(max-width:900px){
+  .guide-toc{display:none}
+  .hero h1{font-size:1.5rem}
+  .signal-row{flex-direction:column}
+}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+
+<div class="hero">
+  <div class="container-fluid">
+    <h1><i class="bi bi-graph-up-arrow me-2"></i>ML Conviction Guide</h1>
+    <p class="text-secondary mb-2">How the machine learning conviction score works &mdash; features, interpretation, and how it affects your portfolio decisions</p>
+    <div class="levels" style="margin:0">
+      <span class="level-pill level-b" style="font-family:Inter;font-size:.72rem"><i class="bi bi-question-circle me-1"></i>Overview</span>
+      <span class="level-pill level-g" style="font-family:Inter;font-size:.72rem"><i class="bi bi-cpu me-1"></i>Pipeline</span>
+      <span class="level-pill level-p" style="font-family:Inter;font-size:.72rem"><i class="bi bi-layers me-1"></i>38 Features</span>
+      <span class="level-pill level-o" style="font-family:Inter;font-size:.72rem"><i class="bi bi-speedometer me-1"></i>Interpretation</span>
+      <span class="level-pill level-y" style="font-family:Inter;font-size:.72rem"><i class="bi bi-shield-check me-1"></i>Decisions</span>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <div class="mb-3 mt-3">
+    <input type="text" class="guide-search" id="guideSearch" placeholder="Search ML conviction guide...">
+  </div>
+  <div class="guide-wrap">
+
+    <!-- TOC -->
+    <nav class="guide-toc d-none d-lg-block">
+      <div class="toc-head" style="color:var(--b)">Overview</div>
+      <a href="#what-is-it">What Is It?</a>
+      <a href="#why-it-matters">Why It Matters</a>
+      <div class="toc-head" style="color:var(--g)">Pipeline</div>
+      <a href="#pipeline-steps">Step by Step</a>
+      <a href="#pipeline-calibration">Calibration</a>
+      <div class="toc-head" style="color:var(--p)">Feature Groups</div>
+      <a href="#feat-price">Price Position</a>
+      <a href="#feat-momentum">Momentum</a>
+      <a href="#feat-volume">Volume &amp; Flow</a>
+      <a href="#feat-volatility">Volatility</a>
+      <a href="#feat-sector">Sector-Relative</a>
+      <a href="#feat-cross">Cross-Features</a>
+      <div class="toc-head" style="color:var(--o)">Interpretation</div>
+      <a href="#score-buckets">Score Buckets</a>
+      <a href="#drivers">Understanding Drivers</a>
+      <div class="toc-head" style="color:var(--y)">Decisions</div>
+      <a href="#dampening">Dampening Rules</a>
+      <a href="#safety">Safety Overrides</a>
+      <div class="toc-head" style="color:var(--b)">Model</div>
+      <a href="#architecture">Architecture</a>
+      <a href="#training-data">Training Data</a>
+      <div class="toc-head" style="color:var(--r)">Limitations</div>
+      <a href="#limitations">Caveats</a>
+    </nav>
+
+    <!-- CONTENT -->
+    <div class="guide-content">
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 1: WHAT IS ML CONVICTION?
+     ═══════════════════════════════════════════════════════════ -->
+<div class="ind-section cat-overview" id="what-is-it">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-question-circle me-2"></i>What Is ML Conviction?</h3>
+    <span class="cat-badge cat-badge-overview">Overview</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage">
+      <p>ML Conviction is a <strong>machine learning score from 0 to 100</strong> that measures how confident the system is that a trade will succeed. Think of it as a second opinion from a model trained on 30 years of stock market data.</p>
+      <p>A score of <strong style="color:var(--g)">75%</strong> means the model sees patterns that historically led to winning trades 60-84% of the time. A score of <strong style="color:var(--r)">25%</strong> means the patterns look more like losing trades.</p>
+    </div>
+
+    <div class="analogy">
+      <span class="analogy-icon">💡</span>
+      <div><strong>Think of it like a weather forecast:</strong> The model looks at 46 different measurements (like temperature, humidity, wind for weather) and combines them into one confidence number. Just like a 90% chance of rain doesn't guarantee rain, a 90% conviction doesn't guarantee profit &mdash; but it significantly improves your odds.</div>
+    </div>
+
+    <div class="takeaway">
+      <span class="takeaway-icon" style="color:var(--g)">✓</span>
+      <div>ML Conviction is <strong>not a standalone signal</strong>. It works alongside the existing system (BB Squeeze methods, safety overrides, position context) to make better hold/sell decisions.</div>
+    </div>
+  </div>
+</div>
+
+<!-- WHY IT MATTERS -->
+<div class="ind-section cat-overview" id="why-it-matters">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-star me-2"></i>Why It Matters</h3>
+    <span class="cat-badge cat-badge-overview">Overview</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage">
+      <p>The biggest problem for swing traders is <strong>conviction whiplash</strong> &mdash; signals flip daily (HOLD → SELL → BUY → HOLD) and you end up exiting good trades too early or holding bad ones too long.</p>
+      <p>ML Conviction solves this by answering: <strong>"Should I trust the current exit signal, or is it likely noise?"</strong></p>
+    </div>
+
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">High Conviction (70-100%)</div>
+        The model sees strong patterns for success. Even if today's signal says SELL, the system will dampen it and suggest holding — the trade thesis likely still works.
+      </div>
+      <div class="signal-box signal-sell">
+        <div class="signal-label">Low Conviction (0-30%)</div>
+        The model agrees the trade looks weak. If the system was going to dampen a sell signal (because the position is young), it will override that dampening and let the SELL through.
+      </div>
+    </div>
+
+    <div class="plain-box">
+      <div class="plain-label">Backtest Results (15 Years, 2,246 Stocks)</div>
+      The model was tested on data it never saw during training (2022-2025). Results by conviction bucket:
+    </div>
+    <table class="method-table">
+      <thead><tr><th>Conviction</th><th>Win Rate</th><th>Avg R-Multiple</th><th>vs Baseline</th></tr></thead>
+      <tbody>
+        <tr><td><span class="level-pill level-g">90-100%</span></td><td><strong style="color:var(--g)">88.8%</strong></td><td class="font-mono" style="color:var(--g)">+2.55</td><td style="color:var(--g)">+42.7%</td></tr>
+        <tr><td><span class="level-pill level-g">70-90%</span></td><td><strong style="color:var(--g)">60.4%</strong></td><td class="font-mono" style="color:var(--g)">+1.41</td><td style="color:var(--g)">+14.3%</td></tr>
+        <tr><td><span class="level-pill level-y">50-70%</span></td><td><strong style="color:var(--y)">50.3%</strong></td><td class="font-mono" style="color:var(--y)">+1.01</td><td style="color:var(--y)">+4.2%</td></tr>
+        <tr><td><span class="level-pill level-o">30-50%</span></td><td><strong>44.4%</strong></td><td class="font-mono">+0.78</td><td>-1.7%</td></tr>
+        <tr><td><span class="level-pill level-r">0-30%</span></td><td><strong style="color:var(--r)">35.9%</strong></td><td class="font-mono" style="color:var(--r)">+0.44</td><td style="color:var(--r)">-10.2%</td></tr>
+      </tbody>
+    </table>
+    <div class="usage"><p>Baseline win rate (no ML filter): <strong>46.1%</strong>. The spread between high and low conviction is <strong>+15.7 percentage points</strong>.</p></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 2: HOW IT WORKS — PIPELINE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="ind-section cat-pipeline" id="pipeline-steps">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-diagram-3 me-2"></i>Pipeline — Step by Step</h3>
+    <span class="cat-badge cat-badge-pipeline">Pipeline</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage">
+      <p>When you click <strong>Analyze</strong> on a portfolio position, the conviction score is computed in real-time through this pipeline:</p>
+    </div>
+
+    <div class="plain-box">
+      <div class="plain-label">Step 1 — Raw Indicators</div>
+      The system computes <strong>40+ technical indicators</strong> from the stock's price/volume data: Bollinger Bands, RSI, MFI, CMF, ATR, VWMACD, Chaikin, and more. These are the same indicators used across the entire application.
+    </div>
+
+    <div class="plain-box">
+      <div class="plain-label">Step 2 — Feature Extraction</div>
+      <strong>46 features</strong> are extracted from the raw indicators. These fall into 6 groups: Price Position, Momentum, Volume &amp; Flow, Volatility, Sector-Relative, and Cross-Features. Includes micro lookbacks (1-3 day), standard (5-20 day), and macro lookbacks (60-120 day) for multi-timeframe analysis.
+    </div>
+
+    <div class="plain-box">
+      <div class="plain-label">Step 3 — Ensemble Prediction</div>
+      Two models work together: a <strong>LightGBM regressor</strong> predicting expected return (r-multiple) and a <strong>Logistic Regression</strong> predicting win probability. Their outputs are blended (70/30 weight) for a more robust signal than either alone. Trained on 400,000+ historical samples across 2,800+ NSE stocks.
+    </div>
+
+    <div class="plain-box">
+      <div class="plain-label">Step 4 — Calibration &amp; Confidence Interval</div>
+      The blended prediction is passed through <strong>isotonic calibration</strong> to align scores with actual win rates. Two additional <strong>quantile models</strong> (10th/90th percentile) provide a confidence interval — showing the range of uncertainty around the score.
+    </div>
+
+    <div class="plain-box">
+      <div class="plain-label">Step 5 — Score &amp; Drivers</div>
+      The calibrated probability is scaled to <strong>0-100</strong>. The system also identifies which features are pushing the score up (bullish) or down (bearish), giving you a transparent breakdown of <em>why</em> the model scored the way it did.
+    </div>
+
+    <div class="formula">
+      Raw Indicators → 46 Features → LightGBM + LogisticRegression Ensemble → Isotonic Calibration → Score 0-100 + Drivers + Confidence Interval
+    </div>
+  </div>
+</div>
+
+<!-- CALIBRATION -->
+<div class="ind-section cat-pipeline" id="pipeline-calibration">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-rulers me-2"></i>What Is Calibration?</h3>
+    <span class="cat-badge cat-badge-pipeline">Pipeline</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage">
+      <p>Most ML models are <strong>overconfident or underconfident</strong> in their raw probability outputs. A model might say "80% chance of winning" but when you check, only 60% of those trades actually win.</p>
+      <p><strong>Isotonic calibration</strong> fixes this by learning a mapping from raw probabilities to actual win rates using a separate dataset the model didn't train on. After calibration, when the model says 70%, you can trust that historically, about 70% of trades at that score did win.</p>
+    </div>
+
+    <div class="analogy">
+      <span class="analogy-icon">💡</span>
+      <div><strong>Like calibrating a thermometer:</strong> If your thermometer always reads 2° too high, calibration learns that correction and applies it automatically. The ML model's "thermometer" is its probability output, and calibration ensures it reads true.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 3: FEATURE GROUPS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="ind-section cat-features" id="feat-price">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-crosshair me-2"></i>Price Position Features</h3>
+    <span class="cat-badge cat-badge-features">Features</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage"><p>Where is the price relative to its Bollinger Bands and moving averages? This tells the model whether the stock is near support, resistance, or fair value.</p></div>
+    <table class="param-table">
+      <tr><th>Feature</th><th>What It Measures</th><th>Bullish When</th></tr>
+      <tr><td><span class="val">Price vs SMA20</span></td><td>% distance from the 20-day moving average</td><td>Above average (positive %)</td></tr>
+      <tr><td><span class="val">Price vs Upper BB</span></td><td>% distance from upper Bollinger Band</td><td>Near or above upper band</td></tr>
+      <tr><td><span class="val">Price vs Lower BB</span></td><td>% distance from lower Bollinger Band</td><td>Far above lower band</td></tr>
+      <tr><td><span class="val">%B</span></td><td>Position within Bollinger Bands (0 = lower, 1 = upper)</td><td>Above 0.5 (upper half)</td></tr>
+      <tr><td><span class="val">RSI-BB Divergence</span></td><td>RSI/100 minus %B &mdash; detects when momentum diverges from price position</td><td>Positive (momentum leads price)</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="ind-section cat-features" id="feat-momentum">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-rocket-takeoff me-2"></i>Momentum Features</h3>
+    <span class="cat-badge cat-badge-features">Features</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage"><p>Is the stock accelerating, decelerating, or reversing? Momentum features measure the speed and direction of price movement over multiple timeframes.</p></div>
+    <table class="param-table">
+      <tr><th>Feature</th><th>What It Measures</th><th>Bullish When</th></tr>
+      <tr><td><span class="val">Momentum 10d</span></td><td>10-day price return</td><td>Positive return</td></tr>
+      <tr><td><span class="val">Momentum 20d</span></td><td>20-day price return</td><td>Positive return</td></tr>
+      <tr><td><span class="val">Momentum Accel</span></td><td>10d momentum minus 20d momentum &mdash; is the move speeding up?</td><td>Positive (accelerating)</td></tr>
+      <tr><td><span class="val">SMA20 Slope (5d)</span></td><td>How the 20-day average itself is trending over 5 days</td><td>Positive slope (uptrend)</td></tr>
+      <tr><td><span class="val">RSI Slope (5d)</span></td><td>Change in RSI over 5 days</td><td>Positive (strengthening)</td></tr>
+      <tr><td><span class="val">RSI-14</span></td><td>Relative Strength Index (classic)</td><td>Above 50</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="ind-section cat-features" id="feat-volume">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-bar-chart-fill me-2"></i>Volume &amp; Flow Features</h3>
+    <span class="cat-badge cat-badge-features">Features</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage"><p>Volume confirms price moves. These features track whether money is flowing into or out of the stock, and whether volume supports the current trend.</p></div>
+    <table class="param-table">
+      <tr><th>Feature</th><th>What It Measures</th><th>Bullish When</th></tr>
+      <tr><td><span class="val">Volume Ratio</span></td><td>Today's volume vs 50-day average</td><td>Above 1.0 (above-average)</td></tr>
+      <tr><td><span class="val">Volume Trend (5d)</span></td><td>How volume has changed over 5 days</td><td>Increasing (positive %)</td></tr>
+      <tr><td><span class="val">Chaikin MF (CMF)</span></td><td>Money flow pressure over 20 days</td><td>Positive (buying pressure)</td></tr>
+      <tr><td><span class="val">Money Flow (MFI)</span></td><td>Volume-weighted RSI &mdash; buying vs selling pressure</td><td>Above 50</td></tr>
+      <tr><td><span class="val">Intraday Intensity</span></td><td>Where closes happen relative to daily range</td><td>Positive (closing near highs)</td></tr>
+      <tr><td><span class="val">A/D Pct</span></td><td>Accumulation/Distribution as % of price</td><td>Positive (accumulation)</td></tr>
+      <tr><td><span class="val">VWMACD Hist</span></td><td>Volume-weighted MACD histogram</td><td>Positive (bullish momentum)</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="ind-section cat-features" id="feat-volatility">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-activity me-2"></i>Volatility Features</h3>
+    <span class="cat-badge cat-badge-features">Features</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage"><p>Is the stock in a squeeze (low volatility about to expand) or already expanded? BB Squeeze methods rely heavily on volatility compression and expansion patterns.</p></div>
+    <table class="param-table">
+      <tr><th>Feature</th><th>What It Measures</th><th>Note</th></tr>
+      <tr><td><span class="val">Band Width (BBW)</span></td><td>Width of Bollinger Bands &mdash; measures volatility</td><td>Lower = tighter squeeze</td></tr>
+      <tr><td><span class="val">BBW Percentile</span></td><td>Current BBW rank over last 60 days (0-100)</td><td>Low = rare compression</td></tr>
+      <tr><td><span class="val">ATR %</span></td><td>Average True Range as % of price</td><td>Risk per unit of price</td></tr>
+      <tr><td><span class="val">ATR Percentile</span></td><td>Current ATR rank over last 60 days</td><td>Low = unusually calm</td></tr>
+      <tr><td><span class="val">BBW Change (5d)</span></td><td>How fast bands are expanding/contracting</td><td>Expanding = volatility spike</td></tr>
+      <tr><td><span class="val">Expansion Up/Down</span></td><td>Did bands just expand with an upward/downward breakout?</td><td>Binary flags</td></tr>
+      <tr><td><span class="val">Squeeze Intensity</span></td><td>Inverted BBW percentile (higher = tighter squeeze)</td><td>High = coiled spring</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="ind-section cat-features" id="feat-sector">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-globe me-2"></i>Sector-Relative Features</h3>
+    <span class="cat-badge cat-badge-features">Features</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage"><p>How is the stock performing relative to its sector and the broader market? A stock with sector tailwind has higher conviction than one swimming against the tide.</p></div>
+    <table class="param-table">
+      <tr><th>Feature</th><th>What It Measures</th><th>Bullish When</th></tr>
+      <tr><td><span class="val">Sector vs Nifty</span></td><td>20-day return of sector index minus Nifty 50 return</td><td>Positive (sector outperforming market)</td></tr>
+      <tr><td><span class="val">Stock vs Sector</span></td><td>Stock's 20-day return minus its sector index return</td><td>Positive (stock leading its peers)</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="ind-section cat-features" id="feat-cross">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-intersect me-2"></i>Cross-Features (Engineered)</h3>
+    <span class="cat-badge cat-badge-features">Features</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage"><p>These are <strong>interaction features</strong> created by multiplying indicators together. They capture relationships that individual features miss &mdash; like "is there buying pressure (%B high) <em>confirmed by</em> strong money flow (MFI high)?"</p></div>
+    <table class="param-table">
+      <tr><th>Feature</th><th>Formula</th><th>What It Captures</th></tr>
+      <tr><td><span class="val">%B × MFI</span></td><td>%B × MFI / 100</td><td>Price position confirmed by money flow</td></tr>
+      <tr><td><span class="val">%B × CMF</span></td><td>%B × CMF</td><td>Price position confirmed by Chaikin pressure</td></tr>
+      <tr><td><span class="val">%B × RSI</span></td><td>%B × RSI / 100</td><td>Price position confirmed by momentum</td></tr>
+      <tr><td><span class="val">Squeeze × Vol</span></td><td>Squeeze intensity × Volume ratio</td><td>Compressed bands + rising volume = breakout setup</td></tr>
+      <tr><td><span class="val">Vol-Mom Divergence</span></td><td>Volume ratio × sign(momentum)</td><td>Volume supporting the price trend direction</td></tr>
+      <tr><td><span class="val">MFI-CMF Divergence</span></td><td>MFI/100 - (CMF+1)/2</td><td>Agreement between two flow indicators</td></tr>
+      <tr><td><span class="val">BBW-Vol Expansion</span></td><td>BBW change × Volume ratio</td><td>Volatility expansion backed by volume</td></tr>
+    </table>
+
+    <div class="pro-tip">
+      <span class="tip-label">Pro Tip</span>
+      <div>Cross-features are the "secret sauce" &mdash; they help the model detect setups like a tight squeeze with rising volume and bullish money flow, which individual features alone might miss.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 4: SCORE INTERPRETATION
+     ═══════════════════════════════════════════════════════════ -->
+<div class="ind-section cat-interpret" id="score-buckets">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-speedometer me-2"></i>Score Buckets — What the Numbers Mean</h3>
+    <span class="cat-badge cat-badge-interpret">Interpret</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="signal-row">
+      <div class="signal-box signal-buy">
+        <div class="signal-label">70-100% — HIGH</div>
+        <strong>Strong conviction.</strong> The model sees patterns historically associated with winning trades. In backtests, scores above 70% had a <strong>60-89% win rate</strong>. The system will actively protect these positions from noisy sell signals.
+      </div>
+      <div class="signal-box signal-neutral">
+        <div class="signal-label">40-70% — MODERATE</div>
+        <strong>Mixed signals.</strong> Some bullish patterns, some bearish. Win rate around <strong>44-50%</strong>. The model neither strongly supports nor opposes the current action. Standard dampening rules apply.
+      </div>
+      <div class="signal-box signal-sell">
+        <div class="signal-label">0-40% — LOW</div>
+        <strong>Weak conviction.</strong> The model sees patterns associated with losing trades. Win rate <strong>36-44%</strong>. If the system was going to dampen a sell signal, low ML conviction will override that protection and let the exit proceed.
+      </div>
+    </div>
+
+    <div class="takeaway">
+      <span class="takeaway-icon" style="color:var(--g)">✓</span>
+      <div>The score is <strong>color-coded everywhere</strong> it appears: <span style="color:var(--g)">green</span> (70+), <span style="color:var(--y)">amber</span> (40-70), <span style="color:var(--r)">red</span> (below 40). You'll see it under the action badge in the portfolio table and as a pill in the detail panel.</div>
+    </div>
+  </div>
+</div>
+
+<!-- DRIVERS -->
+<div class="ind-section cat-interpret" id="drivers">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-search me-2"></i>Understanding Drivers</h3>
+    <span class="cat-badge cat-badge-interpret">Interpret</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage">
+      <p>Below the score, you'll see a <strong>drivers breakdown</strong> showing which features are pushing the score up or down. This makes the ML score transparent &mdash; you can see <em>why</em> the model is confident or not.</p>
+    </div>
+
+    <div class="plain-box">
+      <div class="plain-label">How Drivers Are Computed</div>
+      For each of the 46 features, the system computes:<br>
+      <strong>Weight = Feature Importance × Deviation from Typical</strong><br><br>
+      <strong>Feature Importance</strong> comes from the trained model &mdash; how much predictive power each feature has (learned from 407K training samples).<br>
+      <strong>Deviation from Typical</strong> is how far the current value is from the median (typical) value across all stocks. A Volume Ratio of 3.5x when the median is 1.0x is highly unusual and gets a big weight.<br><br>
+      The top 4 drivers (by combined weight) are shown, split into <span style="color:var(--g)">bullish</span> (supporting conviction) and <span style="color:var(--r)">bearish</span> (weighing against).
+    </div>
+
+    <div class="analogy">
+      <span class="analogy-icon">💡</span>
+      <div><strong>Like a doctor explaining a diagnosis:</strong> Instead of just saying "your risk is high", a good doctor says "your cholesterol is elevated <em>and</em> your blood pressure is above normal &mdash; those two together drive the risk assessment." The drivers breakdown does the same for your trade's ML conviction.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 5: HOW IT AFFECTS DECISIONS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="ind-section cat-decision" id="dampening">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-funnel me-2"></i>Dampening Rules</h3>
+    <span class="cat-badge cat-badge-decision">Decisions</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="usage"><p>ML Conviction integrates with the <strong>position-aware dampening system</strong> that prevents noisy signal flips from destroying swing trade conviction.</p></div>
+
+    <div class="plain-box">
+      <div class="plain-label">Without ML Conviction (existing rules)</div>
+      <strong>FRESH positions (Day 0-3):</strong> Soft SELL signals are dampened to HOLD. Give the trade time to work.<br>
+      <strong>EARLY positions (Day 4-7):</strong> Same, unless momentum is STRONG BEARISH.<br>
+      <strong>ACTIVE positions (Day 8-60):</strong> No dampening. Signals pass through as-is.<br>
+      <strong>MATURE positions (Day 61+):</strong> No dampening. Signals pass through.
+    </div>
+
+    <div class="plain-box" style="background:rgba(10,179,156,.06);border-color:rgba(10,179,156,.15)">
+      <div class="plain-label" style="color:var(--g)">With ML Conviction (new rules)</div>
+      <strong style="color:var(--g)">High conviction (&ge;70%) extends protection:</strong> Even in the ACTIVE phase (Day 8-60), if a soft SELL signal fires but the model has 70%+ conviction, the system dampens the SELL to HOLD. The model has strong evidence the trade thesis is still valid.<br><br>
+      <strong style="color:var(--r)">Low conviction (&lt;30%) overrides protection:</strong> Even if a position is FRESH or EARLY (normally dampened), if ML conviction is below 30%, the dampening is removed and the SELL signal passes through. The model agrees the trade looks bad &mdash; don't hold on just because it's young.
+    </div>
+
+    <div class="takeaway">
+      <span class="takeaway-icon" style="color:var(--g)">✓</span>
+      <div><strong>Net effect:</strong> Good trades are held longer (ML extends conviction). Bad trades are exited faster (ML cuts through dampening). The system becomes smarter about <em>which</em> positions deserve patience.</div>
+    </div>
+  </div>
+</div>
+
+<!-- SAFETY -->
+<div class="ind-section cat-decision" id="safety">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-shield-exclamation me-2"></i>Safety Overrides Are Sacred</h3>
+    <span class="cat-badge cat-badge-decision">Decisions</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="signal-row">
+      <div class="signal-box signal-warn">
+        <div class="signal-label">Critical Rule</div>
+        ML Conviction <strong>never overrides safety overrides</strong> (R1-R5). If the safety system says SELL due to stop-loss breach, extreme drawdown, or confirmed breakdown, that SELL stands regardless of ML conviction. Even a 99% conviction score cannot override a safety exit.<br><br>
+        This is by design: safety exits protect capital. The ML model is optimized for win-rate prediction, not risk management. A stock can have "winning patterns" and still hit your stop-loss.
+      </div>
+    </div>
+
+    <table class="param-table">
+      <tr><th>Safety Tier</th><th>Trigger</th><th>ML Override?</th></tr>
+      <tr><td><span class="val">R1</span> — Method I</td><td>Method I upper-band sell signal</td><td><strong style="color:var(--r)">NO</strong></td></tr>
+      <tr><td><span class="val">R2</span> — Triple System</td><td>All three engines agree on SELL</td><td><strong style="color:var(--r)">NO</strong></td></tr>
+      <tr><td><span class="val">R3</span> — Wyckoff</td><td>Wyckoff distribution confirmed</td><td><strong style="color:var(--r)">NO</strong></td></tr>
+      <tr><td><span class="val">R4</span> — Price Action</td><td>Price action breakdown pattern</td><td><strong style="color:var(--r)">NO</strong></td></tr>
+      <tr><td><span class="val">R5</span> — Stop-Loss</td><td>Price below stop-loss level</td><td><strong style="color:var(--r)">NO</strong></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 6: MODEL DETAILS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="ind-section cat-model" id="architecture">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-cpu me-2"></i>Model Architecture</h3>
+    <span class="cat-badge cat-badge-model">Model</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <table class="param-table">
+      <tr><td>Algorithm</td><td class="val">LightGBM (Gradient Boosted Decision Trees)</td></tr>
+      <tr><td>Trees</td><td class="val">1,000</td></tr>
+      <tr><td>Max Depth</td><td class="val">8</td></tr>
+      <tr><td>Num Leaves</td><td class="val">63</td></tr>
+      <tr><td>Learning Rate</td><td class="val">0.01</td></tr>
+      <tr><td>Subsample</td><td class="val">70% of rows per tree</td></tr>
+      <tr><td>Column Sample</td><td class="val">60% of features per tree</td></tr>
+      <tr><td>Regularization</td><td class="val">L1=0.5, L2=2.0</td></tr>
+      <tr><td>Calibration</td><td class="val">Isotonic Regression</td></tr>
+      <tr><td>Features</td><td class="val">46 (37 base + 9 engineered)</td></tr>
+      <tr><td>Ensemble</td><td class="val">LGBMRegressor (70%) + LogisticRegression (30%)</td></tr>
+      <tr><td>Confidence Interval</td><td class="val">Quantile regression (10th/90th percentile)</td></tr>
+    </table>
+
+    <div class="pro-tip">
+      <span class="tip-label">Why an Ensemble?</span>
+      <div>v2 uses two complementary models: LightGBM regressor predicts expected return (r-multiple), while Logistic Regression predicts win probability. Blending them (70/30) combines LightGBM's ability to capture nonlinear patterns with LR's smoothness and stability. The ensemble outperforms either model alone.</div>
+    </div>
+  </div>
+</div>
+
+<div class="ind-section cat-model" id="training-data">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-database me-2"></i>Training Data</h3>
+    <span class="cat-badge cat-badge-model">Model</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <table class="param-table">
+      <tr><td>Total Samples</td><td class="val">407,780</td></tr>
+      <tr><td>Stocks</td><td class="val">2,892 NSE-listed companies</td></tr>
+      <tr><td>Date Range</td><td class="val">January 1994 — September 2026 (max available)</td></tr>
+      <tr><td>Train Set</td><td class="val">326,224 samples (first 80% by date)</td></tr>
+      <tr><td>Test Set</td><td class="val">81,556 samples (last 20% by date)</td></tr>
+      <tr><td>Methods</td><td class="val">M1, M2, M3, M4 (all strategies)</td></tr>
+      <tr><td>Win Rate</td><td class="val">46.0% (overall), 46.6% (test)</td></tr>
+    </table>
+
+    <div class="plain-box">
+      <div class="plain-label">Temporal Split — Why It Matters</div>
+      The model is trained on <strong>older data</strong> and tested on <strong>newer data</strong> it has never seen. This is critical because financial markets evolve over time. A model that only works on shuffled data (mixing future and past) would give inflated accuracy that doesn't hold in real trading. Our temporal split ensures the test results reflect realistic forward-looking performance.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 7: LIMITATIONS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="ind-section cat-limits" id="limitations">
+  <div class="ind-header" onclick="this.classList.toggle('collapsed')">
+    <h3><i class="bi bi-exclamation-triangle me-2"></i>Limitations &amp; Caveats</h3>
+    <span class="cat-badge cat-badge-limits">Important</span>
+    <i class="bi bi-chevron-down chevron"></i>
+  </div>
+  <div class="ind-body">
+    <div class="signal-row">
+      <div class="signal-box signal-warn">
+        <div class="signal-label">Past ≠ Future</div>
+        The model learned patterns from 30 years of NSE data (1994-2026). Markets change. A pattern that predicted winning trades in the past may not work in the future. The model is retrained periodically with latest data and real trade feedback to capture evolving market dynamics.
+      </div>
+      <div class="signal-box signal-warn">
+        <div class="signal-label">Not Standalone</div>
+        ML Conviction is one input among many. It works best combined with the BB Squeeze signals, safety overrides, and position-aware dampening. Never use it as the sole decision-making tool.
+      </div>
+    </div>
+
+    <div class="signal-row">
+      <div class="signal-box signal-warn">
+        <div class="signal-label">Liquidity Matters</div>
+        The model works best on liquid, frequently-traded stocks (large-cap and mid-cap). For thinly-traded small-caps, the indicators that feed the model may be noisy, and the score less reliable.
+      </div>
+      <div class="signal-box signal-warn">
+        <div class="signal-label">Black Swan Events</div>
+        The model cannot predict sudden market crashes, regulatory changes, or company-specific shocks (fraud, delistings). Safety overrides (R1-R5) exist specifically to handle these scenarios — which is why ML Conviction never overrides them.
+      </div>
+    </div>
+
+    <div class="takeaway">
+      <span class="takeaway-icon" style="color:var(--g)">✓</span>
+      <div><strong>Bottom line:</strong> ML Conviction is a powerful probabilistic tool that meaningfully improves decision quality when used as part of the complete system. It tells you which positions deserve patience and which don't — but it's not a crystal ball.</div>
+    </div>
+  </div>
+</div>
+
+    </div><!-- /guide-content -->
+  </div><!-- /guide-wrap -->
+</div><!-- /container -->
+
+<div style="height:100px"></div>
+
+<script>
+// Toggle sections
+document.querySelectorAll('.ind-header').forEach(h => {
+    h.addEventListener('click', () => h.classList.toggle('collapsed'));
+});
+
+// Search filter
+const searchInput = document.getElementById('guideSearch');
+if (searchInput) {
+    searchInput.addEventListener('input', function() {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('.ind-section').forEach(sec => {
+            sec.style.display = q === '' || sec.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+}
+
+// TOC active link tracking
+const tocLinks = document.querySelectorAll('.guide-toc a');
+const sections = document.querySelectorAll('.ind-section[id]');
+if (tocLinks.length && sections.length) {
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+            if (e.isIntersecting) {
+                tocLinks.forEach(l => l.classList.remove('active'));
+                const active = document.querySelector(`.guide-toc a[href="#${e.target.id}"]`);
+                if (active) active.classList.add('active');
+            }
+        });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    sections.forEach(s => observer.observe(s));
+}
+</script>
+</body>
+</html>

@@ -60,6 +60,12 @@ SEQ_LOOKBACK = 20
 SEQ_FEATURES = ["close_norm", "bbw", "rsi_norm", "atr_norm", "vol_ratio", "momentum_norm"]
 SEQ_CONFIDENCE_THRESHOLD = 0.55
 
+# Conviction Scorer (LightGBM)
+CONVICTION_MODEL   = os.path.join(MODELS_DIR, "conviction_lgb.joblib")
+CONVICTION_MEDIANS = os.path.join(MODELS_DIR, "conviction_medians.json")
+SECTOR_CACHE       = os.path.join(MODELS_DIR, "sector_index_cache.parquet")
+TICKER_SECTOR_MAP  = os.path.join(MODELS_DIR, "ticker_sector_map.json")
+
 # Feedback Loop
 FEEDBACK_DB = os.path.join(os.path.dirname(_ROOT), "data", "app.db")
 FEEDBACK_EXPIRY_DAYS = 30

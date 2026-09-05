@@ -552,28 +552,41 @@ def _generate_expert_commentary(df: pd.DataFrame, sig, multi_sys: dict, buy_pric
         # ── Candle Interpretation ──
         is_green = c > o
         is_doji = body_ratio < 0.15
-        is_hammer = lower_wick > body * 2 and upper_wick < body * 0.5 and not is_green
-        is_shooting_star = upper_wick > body * 2 and lower_wick < body * 0.5 and is_green
+        is_hammer = lower_wick > body * 2 and upper_wick < body * 0.5
+        is_inverted_hammer = upper_wick > body * 2 and lower_wick < body * 0.5
         is_marubozu = body_ratio > 0.85
 
+        vol_qual = ""
+        if vol_ratio < 0.5:
+            vol_qual = " on very thin volume — low conviction"
+        elif vol_ratio > 2.0:
+            vol_qual = " on heavy volume — high conviction"
+
         if is_doji:
-            candle_desc = "a Doji candle (indecision — neither bulls nor bears won today)"
+            if upper_wick > lower_wick * 2.5 and lower_wick < total_range * 0.15:
+                candle_desc = f"a Gravestone Doji — buyers pushed up but got completely rejected{vol_qual}"
+            elif lower_wick > upper_wick * 2.5 and upper_wick < total_range * 0.15:
+                candle_desc = f"a Dragonfly Doji — sellers pushed down but buyers reclaimed everything{vol_qual}"
+            elif upper_wick > total_range * 0.3 and lower_wick > total_range * 0.3:
+                candle_desc = f"a Long-Legged Doji — extreme indecision with wide swings both ways{vol_qual}"
+            else:
+                candle_desc = f"a Doji candle — indecision, neither bulls nor bears won today{vol_qual}"
         elif is_hammer:
-            candle_desc = "a Hammer pattern (sellers tried hard but buyers reclaimed ground — potential reversal)"
-        elif is_shooting_star:
-            candle_desc = "a Shooting Star (buyers pushed up but sellers slammed it back — potential reversal warning)"
+            candle_desc = f"a Hammer pattern — sellers tried hard but buyers reclaimed ground, potential reversal{vol_qual}"
+        elif is_inverted_hammer:
+            candle_desc = f"a Shooting Star — buyers pushed up but sellers slammed it back, reversal warning{vol_qual}"
         elif is_marubozu and is_green:
-            candle_desc = "a bullish Marubozu (strong conviction buying from open to close, no wicks)"
+            candle_desc = f"a bullish Marubozu — strong conviction buying from open to close{vol_qual}"
         elif is_marubozu and not is_green:
-            candle_desc = "a bearish Marubozu (relentless selling from open to close — strong bearish conviction)"
+            candle_desc = f"a bearish Marubozu — relentless selling from open to close{vol_qual}"
         elif is_green and body_ratio > 0.6:
-            candle_desc = "a solid green candle with good body — buyers in control"
+            candle_desc = f"a solid green candle with good body{vol_qual}"
         elif not is_green and body_ratio > 0.6:
-            candle_desc = "a solid red candle — sellers dominated today's session"
+            candle_desc = f"a solid red candle — sellers dominated{vol_qual}"
         elif is_green:
-            candle_desc = "a green candle with notable wicks — buyers edged out but faced resistance"
+            candle_desc = f"a green candle with notable wicks — buyers edged out but faced resistance{vol_qual}"
         else:
-            candle_desc = "a red candle with wicks — selling pressure but some support below"
+            candle_desc = f"a red candle with wicks — selling pressure but some support below{vol_qual}"
 
         # ── Multi-System Verdicts ──
         pa = multi_sys.get("price_action", {})
@@ -607,16 +620,65 @@ def _generate_expert_commentary(df: pd.DataFrame, sig, multi_sys: dict, buy_pric
             elif expansion_down:
                 squeeze_note = "The squeeze has FIRED DOWNWARD — bearish expansion underway. "
 
+        # ── Gap Detection ──
+        gap_pct = (o - prev_c) / prev_c * 100 if prev_c else 0
+        gap_note = ""
+        if gap_pct > 1.5:
+            gap_note = f"The stock gapped UP {gap_pct:.1f}% at open (₹{o:.2f} vs yesterday's close ₹{prev_c:.2f}) — strong buying demand before the bell. "
+        elif gap_pct < -1.5:
+            gap_note = f"The stock gapped DOWN {abs(gap_pct):.1f}% at open (₹{o:.2f} vs yesterday's close ₹{prev_c:.2f}) — overnight selling pressure. "
+
+        # ── Multi-day Streak ──
+        streak = 0
+        for i in range(2, min(len(df), 8)):
+            bar = df.iloc[-i]
+            bar_prev = df.iloc[-i - 1] if (i + 1) < len(df) else bar
+            if float(bar["Close"]) > float(bar_prev["Close"]):
+                if streak >= 0: streak += 1
+                else: break
+            elif float(bar["Close"]) < float(bar_prev["Close"]):
+                if streak <= 0: streak -= 1
+                else: break
+            else:
+                break
+        # Include today
+        if day_change > 0 and streak > 0:
+            streak += 1
+        elif day_change < 0 and streak < 0:
+            streak -= 1
+        else:
+            streak = 1 if day_change > 0 else -1 if day_change < 0 else 0
+        def _ordinal(n):
+            if 11 <= n % 100 <= 13:
+                return f"{n}th"
+            return f"{n}{['th','st','nd','rd'][n % 10] if n % 10 < 4 else 'th'}"
+
+        is_reversal_candle = (is_doji and upper_wick > lower_wick * 2.5) or is_inverted_hammer
+        streak_note = ""
+        if streak >= 3:
+            if is_reversal_candle:
+                streak_note = (f"This is the {_ordinal(streak)} consecutive up day, "
+                               f"but today's reversal candle warns the streak may be exhausting. ")
+            else:
+                streak_note = f"This is the {_ordinal(streak)} consecutive up day — momentum is building. "
+        elif streak <= -3:
+            is_bottom_reversal = (is_doji and lower_wick > upper_wick * 2.5) or is_hammer
+            if is_bottom_reversal:
+                streak_note = (f"This is the {_ordinal(abs(streak))} consecutive down day, "
+                               f"but today's candle shows buyers stepping in — potential reversal forming. ")
+            else:
+                streak_note = f"This is the {_ordinal(abs(streak))} consecutive down day — persistent selling pressure. "
+
         # ── Volume-Price Divergence ──
         vol_price_note = ""
-        if day_change_pct > 1 and vol_ratio < 0.7:
-            vol_price_note = "⚠ CAUTION: Price rose on thin volume — this rally lacks conviction and may not sustain. "
-        elif day_change_pct < -1 and vol_ratio < 0.7:
-            vol_price_note = "The decline happened on low volume — selling pressure is mild, likely not a panic move. "
-        elif day_change_pct > 1 and vol_ratio > 1.5:
+        if day_change_pct > 0.5 and vol_ratio < 0.5:
+            vol_price_note = "⚠ Price rose on very thin volume — this rally lacks conviction and may not sustain. "
+        elif day_change_pct < -0.5 and vol_ratio < 0.5:
+            vol_price_note = "The decline happened on thin volume — selling pressure is mild, likely not a panic move. "
+        elif day_change_pct > 0.5 and vol_ratio > 1.5:
             vol_price_note = "Price rose on heavy volume — institutional participation likely. This move has conviction. "
-        elif day_change_pct < -1 and vol_ratio > 1.5:
-            vol_price_note = "⚠ ALERT: Price fell on heavy volume — significant distribution happening. Smart money may be exiting. "
+        elif day_change_pct < -0.5 and vol_ratio > 1.5:
+            vol_price_note = "⚠ Price fell on heavy volume — significant distribution happening. Smart money may be exiting. "
 
         # ── MFI/CMF Money Flow ──
         mf_note = ""
@@ -637,20 +699,21 @@ def _generate_expert_commentary(df: pd.DataFrame, sig, multi_sys: dict, buy_pric
             f"opening at ₹{o:.2f}, reaching a high of ₹{h:.2f} and a low of ₹{l:.2f}, "
             f"before closing at ₹{c:.2f}. The intraday range was ₹{intraday_range:.2f} "
             f"({intraday_range_pct:.1f}% of the low). "
-            f"The candle formed is {candle_desc}."
-        )
+            f"The candle formed is {candle_desc}. "
+            f"{gap_note}{streak_note}"
+        ).rstrip()
 
         # Paragraph 2: Volume & Money Flow
         para2 = (
             f"Volume came in at {v:,} shares — {vol_desc} "
             f"({vol_ratio:.1f}x the 50-day average of {int(vol_sma):,}). "
             f"{vol_price_note}{mf_note}"
-        )
+        ).rstrip()
 
         # Paragraph 3: Bollinger Band & Squeeze
         para3 = (
             f"On the Bollinger Band framework, the stock is {bb_position} "
-            f"(%%B = {pct_b:.2f}). "
+            f"(%B = {pct_b:.2f}). "
             f"Bands: Upper ₹{bb_upper:.2f} | Mid ₹{bb_mid:.2f} | Lower ₹{bb_lower:.2f}. "
             f"Band width is {bbw:.4f}. "
             f"{squeeze_note}"
@@ -684,7 +747,8 @@ def _generate_expert_commentary(df: pd.DataFrame, sig, multi_sys: dict, buy_pric
             sar_bull,
             mfi > 55,
             cmf > 0.05,
-            rsi > 50 and rsi < 70,
+            50 < rsi < 70,
+            rsi < 30,  # oversold bounce potential
             pa_signal in ("BUY", "STRONG_BUY"),
             triple_verdict in ("STRONG_BUY", "BUY", "BULLISH"),
         ])
@@ -695,7 +759,7 @@ def _generate_expert_commentary(df: pd.DataFrame, sig, multi_sys: dict, buy_pric
             not sar_bull,
             mfi < 45,
             cmf < -0.05,
-            rsi > 70,  # overbought = potential reversal
+            rsi > 70,  # overbought reversal risk
             pa_signal in ("SELL", "STRONG_SELL"),
             triple_verdict in ("STRONG_SELL", "SELL", "BEARISH"),
         ])
@@ -987,17 +1051,22 @@ def _generate_recommendation(
             reasons.append("Fresh squeeze breakout signal — consider adding to position")
             action_triggers.append(f"ADD on volume confirmation (current vol vs SMA50: {volume/vol_sma:.1f}x)" if vol_sma > 0 else "ADD on volume confirmation")
         else:
-            # Squeeze ON but no buy/sell
             action = "HOLD"
-            strength = "WEAK"
-            reasons.append("Squeeze is active — waiting for directional breakout")
-            if sig.direction_lean == "BULLISH":
-                reasons.append("Direction lean is BULLISH — breakout likely upward")
-            elif sig.direction_lean == "BEARISH":
-                reasons.append("Direction lean is BEARISH — downside risk")
-                warnings.append("Squeeze may resolve downward — tighten stop loss")
-            action_triggers.append(f"BUY/ADD if price breaks above ₹{upper:.2f} with volume")
-            action_triggers.append(f"SELL if price breaks below ₹{lower:.2f}")
+            if sig.cond1_squeeze_on:
+                strength = "WEAK"
+                reasons.append("Squeeze is active — waiting for directional breakout")
+                if sig.direction_lean == "BULLISH":
+                    reasons.append("Direction lean is BULLISH — breakout likely upward")
+                elif sig.direction_lean == "BEARISH":
+                    reasons.append("Direction lean is BEARISH — downside risk")
+                    warnings.append("Squeeze may resolve downward — tighten stop loss")
+                action_triggers.append(f"BUY/ADD if price breaks above ₹{upper:.2f} with volume")
+                action_triggers.append(f"SELL if price breaks below ₹{lower:.2f}")
+            else:
+                strength = "WEAK"
+                reasons.append("No active squeeze — bands are wide, no setup forming")
+                action_triggers.append(f"WATCH for new squeeze (BBW contraction toward trigger line)")
+                action_triggers.append(f"SELL if price closes below ₹{lower:.2f}")
 
     elif strategy_code == "M2":
         sig_type = m2.signal.signal_type
@@ -1020,14 +1089,20 @@ def _generate_recommendation(
             action_triggers.append(f"ADD if %b rises above {M2_PCT_B_BUY_THRESHOLD} with MFI > {M2_MFI_CONFIRM_BUY}")
         elif sig_type == "WATCH":
             action = "HOLD"
-            strength = "WEAK"
-            reasons.append(f"Divergence detected — {m2.signal.reason}")
-            warnings.append("Divergence between %b and MFI — trend may weaken")
-            action_triggers.append("WATCH: Divergence may lead to reversal — tighten stop to mid band")
+            if "divergence" in (m2.signal.reason or "").lower():
+                strength = "WEAK"
+                reasons.append(f"Divergence detected — {m2.signal.reason}")
+                warnings.append("Divergence between %b and MFI — trend may weaken")
+                action_triggers.append("WATCH: Divergence may lead to reversal — tighten stop to mid band")
+            else:
+                strength = "MODERATE"
+                reasons.append(m2.signal.reason)
+                action_triggers.append(f"ADD if volume confirms (rises above 50-day avg)")
+                action_triggers.append(f"SELL if %b drops below 0.5 (currently {pct_b:.2f})")
         else:
             action = "HOLD"
             strength = "WEAK"
-            reasons.append("No clear Method II signal — hold and monitor")
+            reasons.append(m2.signal.reason or "No clear Method II signal — hold and monitor")
 
     elif strategy_code == "M3":
         sig_type = m3.signal.signal_type
@@ -1102,7 +1177,7 @@ def _generate_recommendation(
     #       of the upper band during an uptrend CONFIRM the strength of
     #       the trend." (Pro tip: "the walk tells you to hold on and
     #       let profits run.")
-    if strategy_code == "M1" and action == "HOLD" and sig.hold_signal:
+    if strategy_code == "M1" and action == "HOLD" and (sig.hold_signal or sig.cond1_squeeze_on):
         m2_ind = m2.indicators if isinstance(m2.indicators, dict) else {}
         m2_bearish_div = bool(m2_ind.get("bearish_divergence", False))
         # "MFI falling while %b stays high" — the pro tip's exact qualifier.
@@ -1162,6 +1237,10 @@ def _generate_recommendation(
         confirms.append("M2 Trend Following: SELL — trend weakening")
     elif m2.signal.signal_type == "HOLD":
         confirms.append("M2 Trend Following: HOLD — trend intact")
+    elif m2.signal.signal_type == "WATCH":
+        confirms.append(f"M2 Trend Following: WATCH — {m2.signal.reason}")
+    else:
+        confirms.append("M2 Trend Following: no clear signal")
 
     if m3.signal.signal_type == "BUY":
         confirms.append("M3 Reversals: W-Bottom pattern detected")
@@ -1177,6 +1256,10 @@ def _generate_recommendation(
         confirms.append("M1 Squeeze: EXIT signals triggered")
     elif sig.hold_signal:
         confirms.append("M1 Squeeze: HOLD — technicals supportive")
+    elif sig.cond1_squeeze_on:
+        confirms.append("M1 Squeeze: active — waiting for breakout")
+    else:
+        confirms.append("M1 Squeeze: no active squeeze")
 
     # ── Universal warnings ──
     if cmf < 0 and action != "SELL":
@@ -1205,6 +1288,21 @@ def _generate_recommendation(
         action = "SELL"
         strength = "STRONG"
         reasons.append("Multiple strategies confirm sell signal")
+
+    # ── M1 no-squeeze: lower the bar for SELL ──
+    # When the original squeeze setup is no longer active, the position is
+    # orphaned — no strategy is driving it. A single cross-strategy SELL
+    # plus SAR bearish is enough bearish evidence to escalate.
+    if (strategy_code == "M1" and action == "HOLD"
+            and not sig.cond1_squeeze_on and not sig.hold_signal
+            and sell_count >= 1 and not sar_bull):
+        action = "SELL"
+        strength = "MODERATE"
+        sell_strats = [s.code for s in [m2, m3, m4] if s.signal.signal_type == "SELL"]
+        reasons.append(
+            f"No active squeeze + {', '.join(sell_strats)} SELL + SAR bearish "
+            "— original setup is gone and technicals turned negative"
+        )
 
     # NOTE: Safety-override rules (Method I / Triple / Wyckoff / PA /
     # stop-loss breach / data staleness) live in _apply_safety_overrides()
@@ -1416,6 +1514,183 @@ def _apply_safety_overrides(
 
     out["action"] = action
     out["strength"] = strength
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════
+#  POSITION-AWARE CONTEXT LAYER
+# ═══════════════════════════════════════════════════════════════
+# Runs AFTER safety overrides. Dampens noisy action flips for
+# swing trades by considering holding period & entry context.
+# Safety overrides (R1-R5) are NEVER dampened.
+
+def _apply_position_context(rec: dict, position: dict, ml_conviction=None) -> dict:
+    """Add trade lifecycle context and dampen noisy sells for young positions.
+
+    Never mutates the input dict. Safety-override sells (R1-R5) pass through
+    unchanged — only 'soft' signal-driven sells get dampened in FRESH/EARLY phase.
+    ml_conviction: optional dict from score_conviction() with ml_conviction (0-100).
+    """
+    out = dict(rec)
+    out["reasons"] = list(rec.get("reasons") or [])
+    out["warnings"] = list(rec.get("warnings") or [])
+    out["action_triggers"] = list(rec.get("action_triggers") or [])
+
+    days = _holding_days(position.get("buy_date", ""))
+    strategy = position.get("strategy_code", "")
+
+    # No buy_date → treat as ACTIVE (no dampening) rather than FRESH
+    if not position.get("buy_date"):
+        days = 30
+
+    # Current price from entry_quality (already computed upstream)
+    pnl_pct = float((rec.get("entry_quality") or {}).get("current_vs_buy_pct", 0) or 0)
+
+    # Lifecycle phase
+    if days <= 3:
+        phase = "FRESH"
+    elif days <= 7:
+        phase = "EARLY"
+    elif days <= 60:
+        phase = "ACTIVE"
+    else:
+        phase = "MATURE"
+
+    action = out.get("action", "HOLD")
+    has_safety = bool(out.get("safety_overrides"))
+    momentum_label = (rec.get("momentum") or {}).get("label", "NEUTRAL")
+
+    # ── Dampening for young positions ──
+    dampened = False
+    original_action = None
+
+    if action == "SELL" and not has_safety:
+        if phase == "FRESH":
+            original_action = "SELL"
+            dampened = True
+            out["action"] = "HOLD"
+            out["strength"] = "WEAK"
+            out["warnings"].insert(0,
+                f"Day {days} — signals lean toward exit but trade is fresh. "
+                f"Monitoring. Will escalate if safety triggers fire.")
+        elif phase == "EARLY" and momentum_label not in ("STRONG BEARISH",):
+            original_action = "SELL"
+            dampened = True
+            out["action"] = "HOLD"
+            out["strength"] = "WEAK"
+            out["warnings"].insert(0,
+                f"Day {days} — soft sell signal dampened (thesis still young). "
+                f"Will escalate if momentum turns strongly bearish.")
+
+    # ── ML Conviction adjustments ──
+    ml_score = None
+    if ml_conviction and ml_conviction.get("model_available"):
+        ml_score = ml_conviction["ml_conviction"]
+        ml_label = ml_conviction.get("ml_conviction_label", "")
+
+        # High ML conviction → extend dampening into ACTIVE phase
+        if ml_score >= 70 and out["action"] == "SELL" and not has_safety and phase == "ACTIVE":
+            original_action = original_action or "SELL"
+            dampened = True
+            out["action"] = "HOLD"
+            out["strength"] = "MODERATE"
+            out["warnings"].insert(0,
+                f"ML conviction {ml_score:.0f}% — model strongly favors holding")
+
+        # Low ML conviction → override dampening on FRESH/EARLY
+        if ml_score < 30 and dampened:
+            dampened = False
+            out["action"] = original_action or "SELL"
+            out["strength"] = rec.get("strength", "MODERATE")
+            out["warnings"].insert(0,
+                f"ML conviction {ml_score:.0f}% — model agrees with exit signal")
+
+        # ── ML-driven recommendation adjustments ──
+        # Low ML + ADD → downgrade to HOLD (don't add to a weak setup)
+        if ml_score < 35 and out["action"] == "ADD":
+            out["action"] = "HOLD"
+            out["strength"] = "WEAK"
+            out["reasons"].append(
+                f"ML conviction {ml_score:.0f}% ({ml_label}) — model does not support adding here")
+            out["warnings"].insert(0,
+                f"ADD signal downgraded: ML sees only {ml_score:.0f}% conviction across {ml_conviction.get('feature_count', 46)} features")
+
+        # Low ML + HOLD → add exit warning
+        if ml_score < 25 and out["action"] == "HOLD" and not dampened:
+            out["warnings"].insert(0,
+                f"ML conviction very low ({ml_score:.0f}%) — model sees weakness across "
+                f"{ml_conviction.get('feature_count', 46)} features. Review stop-loss.")
+
+        # High ML + HOLD WEAK → upgrade strength
+        if ml_score >= 65 and out["action"] == "HOLD" and out["strength"] == "WEAK":
+            out["strength"] = "MODERATE"
+            out["reasons"].append(
+                f"ML conviction {ml_score:.0f}% ({ml_label}) supports holding — "
+                f"model sees underlying strength")
+
+    # Add ML as a cross-strategy confirmation
+    if ml_score is not None:
+        confirms = out.get("confirms")
+        if confirms is not None:
+            if ml_score >= 65:
+                confirms.append(f"ML Conviction: {ml_score:.0f}% — model supports holding")
+            elif ml_score >= 40:
+                confirms.append(f"ML Conviction: {ml_score:.0f}% — mixed signals")
+            else:
+                confirms.append(f"ML Conviction: {ml_score:.0f}% — model flags caution")
+
+    action = out["action"]  # refresh after possible dampening + ML adjustments
+
+    # ── Profit protection for mature winners ──
+    if phase == "MATURE" and action == "HOLD" and pnl_pct > 20:
+        out["action_triggers"].insert(0,
+            f"PROFIT LOCK: {days} days held, up {pnl_pct:.1f}% — "
+            f"consider trailing stop or booking partial profits")
+
+    # ── Thesis status ──
+    if action == "SELL":
+        thesis = "BROKEN"
+    elif dampened or momentum_label in ("BEARISH", "STRONG BEARISH"):
+        thesis = "WEAKENING"
+        if ml_score is not None and ml_score >= 70:
+            thesis = "INTACT"
+    else:
+        thesis = "INTACT"
+
+    # ── Conviction note ──
+    ml_suffix = ""
+    if ml_score is not None:
+        if ml_score >= 70:
+            ml_suffix = f" ML models support holding — {ml_score:.0f}% conviction."
+        elif ml_score < 30:
+            ml_suffix = f" ML models agree with exit — {ml_score:.0f}% conviction."
+        else:
+            ml_suffix = f" ML conviction: {ml_score:.0f}%."
+
+    if dampened:
+        note = (f"Your {strategy} trade is {days} days old. Today's signals "
+                f"lean toward exit, but the position hasn't had enough time "
+                f"to prove the thesis. Hold unless stop-loss is breached.{ml_suffix}")
+    elif thesis == "BROKEN":
+        note = (f"Day {days}: {strategy} thesis is broken — "
+                f"exit signals confirmed by {'safety systems' if has_safety else 'strong consensus'}.{ml_suffix}")
+    elif thesis == "WEAKENING":
+        note = (f"Day {days}: {strategy} thesis weakening — "
+                f"{'still profitable at ' + f'{pnl_pct:+.1f}%' if pnl_pct > 0 else f'in drawdown at {pnl_pct:+.1f}%'}. "
+                f"Watch for confirmation before acting.{ml_suffix}")
+    else:
+        note = (f"Day {days}: {strategy} thesis intact — "
+                f"{'profitable at ' + f'{pnl_pct:+.1f}%' if pnl_pct > 0 else f'in drawdown at {pnl_pct:+.1f}%'}.{ml_suffix}")
+
+    out["lifecycle_phase"] = phase
+    out["days_held"] = days
+    out["thesis_status"] = thesis
+    out["conviction_note"] = note
+    out["dampened"] = dampened
+    out["ml_conviction"] = ml_conviction
+    if original_action:
+        out["original_action"] = original_action
+
     return out
 
 
@@ -2157,6 +2432,65 @@ def analyze_position(position: dict, light: bool = False) -> dict:
         strategy_code=strategy_code,
     )
 
+    # ── ML Conviction Score ──
+    ml_conviction = None
+    try:
+        from ai_ml.conviction_scorer import score_conviction
+        ml_conviction = score_conviction(df_with_ind, strategy_code,
+                                         ticker=position.get("ticker"))
+    except Exception as e:
+        logger.warning("ML conviction scoring failed for %s: %s", position.get("ticker", "?"), e)
+
+    # ── Align expert commentary tone with ML conviction ──
+    if ml_conviction and ml_conviction.get("model_available") and expert_commentary.get("available"):
+        ml_score = ml_conviction["ml_conviction"]
+        old_tone = expert_commentary["tone"]
+        from_buy = expert_commentary.get("pnl_from_buy", "at entry")
+        if ml_score >= 70:
+            new_tone = "STRONGLY BULLISH"
+            synth = (f"The ML model ({ml_score:.0f}% conviction) sees strong edge here. You are {from_buy}. "
+                     f"Multiple quantitative features align — let your winner run with a trailing stop.")
+        elif ml_score >= 55:
+            new_tone = "MILDLY BULLISH"
+            synth = (f"The ML model ({ml_score:.0f}% conviction) sees a constructive setup. You are {from_buy}. "
+                     f"More factors support than oppose — hold with discipline.")
+        elif ml_score >= 40:
+            new_tone = "NEUTRAL"
+            synth = (f"The ML model ({ml_score:.0f}% conviction) sees mixed signals. You are {from_buy}. "
+                     f"No clear edge in either direction — respect your stops and wait for clarity.")
+        elif ml_score >= 25:
+            new_tone = "MILDLY BEARISH"
+            synth = (f"The ML model ({ml_score:.0f}% conviction) flags caution. You are {from_buy}. "
+                     f"More headwinds than tailwinds in the data — tighten stops and watch for follow-through.")
+        else:
+            new_tone = "STRONGLY BEARISH"
+            synth = (f"The ML model ({ml_score:.0f}% conviction) sees significant weakness. You are {from_buy}. "
+                     f"The quantitative picture is unfavorable — check your stops immediately.")
+        # When ML diverges from today's surface signals, explain the gap
+        tone_rank = {"STRONGLY BEARISH": 0, "MILDLY BEARISH": 1, "NEUTRAL": 2, "MILDLY BULLISH": 3, "STRONGLY BULLISH": 4}
+        shift = tone_rank.get(new_tone, 2) - tone_rank.get(old_tone, 2)
+        if abs(shift) >= 2:
+            if shift < 0:
+                synth += (f" Note: today's bar looked bullish on the surface, but the ML model — trained on "
+                          f"{ml_conviction.get('feature_count', 46)} features across historical data — sees "
+                          f"deeper patterns that suggest caution. Single-day price action can be misleading.")
+            else:
+                synth += (f" Note: today's bar looked weak, but the ML model — analyzing "
+                          f"{ml_conviction.get('feature_count', 46)} features holistically — sees "
+                          f"underlying strength that a single day's action doesn't capture.")
+
+        expert_commentary["tone"] = new_tone
+        expert_commentary["expert_synthesis"] = synth
+        expert_commentary["ml_aligned"] = True
+        expert_commentary["old_tone"] = old_tone
+        # Rebuild combined commentary with ML-aligned expert take
+        parts = [expert_commentary.get(k, "") for k in ("para_price", "para_volume", "para_bollinger", "para_systems") if expert_commentary.get(k)]
+        parts.append(f"Expert Take ({new_tone}): {synth}")
+        expert_commentary["commentary"] = "\n\n".join(parts)
+
+    # ── Position-aware context (dampens noisy flips for swing trades) ──
+    rec = _apply_position_context(rec, position, ml_conviction=ml_conviction)
+
     # ── Connect trailing stops to recommendation action_triggers ────
     if trailing_stops.get("available") and rec.get("action_triggers") is not None:
         ts_rec = trailing_stops.get("recommended_stop", 0)
@@ -2354,18 +2688,19 @@ def analyze_position(position: dict, light: bool = False) -> dict:
                 return "Extended (>1σ)"
 
             t_upper = targets.get("target_bb_upper", bb_upper)
-            t_1sigma = targets.get("target_1_sigma", bb_upper + (bb_upper - bb_mid))
-            t_3sigma = targets.get("target_3_sigma", bb_upper + 3 * (bb_upper - bb_mid))
+            t_3sigma = targets.get("target_3_sigma", bb_upper + (bb_upper - bb_mid))
+            sigma = (bb_upper - bb_mid) / 2 if bb_upper > bb_mid else 1
+            t_5sigma = bb_mid + 5 * sigma
             ts_rec = trailing_stops.get("recommended_stop", 0)
             qty = int(position["quantity"])
 
             tiers = [
                 {"tier": "T1", "target": round(t_upper, 2), "action": "Book 1/3",
-                 "shares": max(1, qty // 3), "label": "BB Upper Band"},
-                {"tier": "T2", "target": round(t_1sigma, 2), "action": "Book 1/3",
-                 "shares": max(1, qty // 3), "label": "1-Sigma Extension"},
-                {"tier": "T3", "target": round(t_3sigma, 2), "action": "Trail rest",
-                 "shares": qty - 2 * max(1, qty // 3), "label": "3-Sigma / Let it run"},
+                 "shares": max(1, qty // 3), "label": "Upper Band (2σ)"},
+                {"tier": "T2", "target": round(t_3sigma, 2), "action": "Book 1/3",
+                 "shares": max(1, qty // 3), "label": "3σ Extension"},
+                {"tier": "T3", "target": round(t_5sigma, 2), "action": "Trail rest",
+                 "shares": qty - 2 * max(1, qty // 3), "label": "5σ / Let it run"},
             ]
 
             ai_ml_intel["scale_out"] = {

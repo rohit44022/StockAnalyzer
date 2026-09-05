@@ -1,113 +1,113 @@
 {
   "M1": {
-    "overall_win_rate": 0.4834,
-    "total_trades": 27423,
+    "overall_win_rate": 0.4934,
+    "total_trades": 35564,
     "by_rsi_regime": {
       "NEUTRAL": {
-        "win_rate": 0.4879,
-        "trades": 5485
+        "win_rate": 0.5008,
+        "trades": 7071
       },
       "OVERBOUGHT": {
-        "win_rate": 0.4776,
-        "trades": 21378
+        "win_rate": 0.4881,
+        "trades": 27877
       }
     },
     "by_vol_regime": {
       "LOW_VOL": {
-        "win_rate": 0.4874,
-        "trades": 19492
+        "win_rate": 0.5,
+        "trades": 25524
       },
       "MED_VOL": {
-        "win_rate": 0.4745,
-        "trades": 6367
+        "win_rate": 0.4776,
+        "trades": 8134
       },
       "HIGH_VOL": {
-        "win_rate": 0.4687,
-        "trades": 1564
+        "win_rate": 0.4738,
+        "trades": 1906
       }
     }
   },
   "M2": {
-    "overall_win_rate": 0.457,
-    "total_trades": 201370,
+    "overall_win_rate": 0.4656,
+    "total_trades": 272111,
     "by_rsi_regime": {
       "NEUTRAL": {
-        "win_rate": 0.4755,
-        "trades": 67726
+        "win_rate": 0.4837,
+        "trades": 90465
       },
       "OVERBOUGHT": {
-        "win_rate": 0.4431,
-        "trades": 131429
+        "win_rate": 0.4533,
+        "trades": 179075
       }
     },
     "by_vol_regime": {
       "LOW_VOL": {
-        "win_rate": 0.4777,
-        "trades": 69511
+        "win_rate": 0.486,
+        "trades": 94973
       },
       "MED_VOL": {
-        "win_rate": 0.4559,
-        "trades": 62161
+        "win_rate": 0.4637,
+        "trades": 84103
       },
       "HIGH_VOL": {
-        "win_rate": 0.4373,
-        "trades": 69698
+        "win_rate": 0.4465,
+        "trades": 93035
       }
     }
   },
   "M3": {
-    "overall_win_rate": 0.4389,
-    "total_trades": 62788,
+    "overall_win_rate": 0.4323,
+    "total_trades": 82802,
     "by_rsi_regime": {
       "OVERSOLD": {
-        "win_rate": 0.4405,
-        "trades": 53840
+        "win_rate": 0.4338,
+        "trades": 71222
       },
       "NEUTRAL": {
-        "win_rate": 0.4281,
-        "trades": 8789
+        "win_rate": 0.4233,
+        "trades": 11379
       },
       "OVERBOUGHT": {
-        "win_rate": 0.4717,
-        "trades": 159
+        "win_rate": 0.4378,
+        "trades": 201
       }
     },
     "by_vol_regime": {
       "LOW_VOL": {
-        "win_rate": 0.4376,
-        "trades": 18153
+        "win_rate": 0.4355,
+        "trades": 24003
       },
       "MED_VOL": {
-        "win_rate": 0.4387,
-        "trades": 21771
+        "win_rate": 0.4342,
+        "trades": 28707
       },
       "HIGH_VOL": {
-        "win_rate": 0.4401,
-        "trades": 22864
+        "win_rate": 0.428,
+        "trades": 30092
       }
     }
   },
   "M4": {
-    "overall_win_rate": 0.4382,
-    "total_trades": 11982,
+    "overall_win_rate": 0.4428,
+    "total_trades": 17303,
     "by_rsi_regime": {
       "OVERBOUGHT": {
-        "win_rate": 0.4318,
-        "trades": 11665
+        "win_rate": 0.4379,
+        "trades": 16923
       }
     },
     "by_vol_regime": {
       "LOW_VOL": {
-        "win_rate": 0.5089,
-        "trades": 839
+        "win_rate": 0.5045,
+        "trades": 1223
       },
       "MED_VOL": {
-        "win_rate": 0.4642,
-        "trades": 2766
+        "win_rate": 0.4552,
+        "trades": 4025
       },
       "HIGH_VOL": {
-        "win_rate": 0.4225,
-        "trades": 8377
+        "win_rate": 0.4324,
+        "trades": 12055
       }
     }
   }

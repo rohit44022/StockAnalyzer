@@ -758,37 +758,7 @@ body.sidebar-collapsed .ticker-strip{left:70px}
         </div>
 
         <div class="col-lg-6">
-          <!-- Current Indicators -->
-          <div class="analysis-panel mb-3">
-            <div class="text-secondary small text-uppercase mb-1">Current Technical Indicators (Daily)</div>
-            <div class="small mb-2" style="color:#8b949e">Hover over any indicator below to see what it means in plain English.</div>
-            <div class="d-flex flex-wrap gap-2" id="indicatorPills"></div>
-          </div>
-
-          <!-- Buying Strategy Status -->
-          <div class="analysis-panel mb-3">
-            <div class="text-secondary small text-uppercase mb-2">Your Buying Strategy — Current Status</div>
-            <div id="buyingStrategyInfo"></div>
-          </div>
-
-          <!-- Cross-Strategy Confirmation -->
-          <div class="analysis-panel mb-3">
-            <div class="text-secondary small text-uppercase mb-2"><i class="bi bi-shield-check me-1"></i>Cross-Strategy Confirmation</div>
-            <div id="confirmList"></div>
-          </div>
-
-          <!-- All 4 Strategies at a glance -->
-          <div class="analysis-panel mb-3">
-            <div class="text-secondary small text-uppercase mb-2">All Strategies — Current Signals</div>
-            <div class="row g-2" id="allStratsRow"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══ ROW 2: Holding + Charts (full-width panels) ═══ -->
-      <div class="row g-3 mt-1">
-        <div class="col-lg-4">
-          <!-- Holding Info with P&L Gauge -->
+          <!-- Holding Summary (moved up) -->
           <div class="analysis-panel mb-3">
             <div class="text-secondary small text-uppercase mb-2">Holding Summary</div>
             <div class="row g-2">
@@ -809,30 +779,7 @@ body.sidebar-collapsed .ticker-strip{left:70px}
               <div class="small" id="holdNotes" style="white-space:pre-wrap;color:rgba(255,255,255,.75);line-height:1.5"></div>
             </div>
           </div>
-        </div>
-        <div class="col-lg-4">
-          <!-- Strategy Signals Bar Chart -->
-          <div class="analysis-panel mb-3">
-            <div class="d-flex align-items-center mb-1">
-              <i class="bi bi-bar-chart-fill me-2" style="color:var(--b)"></i>
-              <span class="text-secondary small text-uppercase">Strategy Signals</span>
-            </div>
-            <div class="chart-container" style="max-height:160px"><canvas id="strategyBarChart"></canvas></div>
-          </div>
-          <!-- Confirmation Donut -->
-          <div class="analysis-panel mb-3">
-            <div class="d-flex align-items-center mb-1">
-              <i class="bi bi-pie-chart-fill me-2" style="color:var(--p)"></i>
-              <span class="text-secondary small text-uppercase">Confirmation Breakdown</span>
-            </div>
-            <div class="row g-2 align-items-center">
-              <div class="col-5"><div class="chart-container" style="max-height:130px"><canvas id="confirmDonutChart"></canvas></div></div>
-              <div class="col-7" id="confirmDonutLegend" style="font-size:.78rem;line-height:1.8"></div>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-4">
-          <!-- Risk/Reward Visual -->
+          <!-- Risk vs Reward -->
           <div class="analysis-panel mb-3">
             <div class="d-flex align-items-center mb-1">
               <i class="bi bi-bullseye me-2" style="color:var(--o)"></i>
@@ -2544,88 +2491,7 @@ function renderAnalysis(data) {
     // P&L Gauge Chart
     renderPnlGauge(hold);
 
-    // Indicator pills WITH LAYMAN TOOLTIPS
-    const ip = document.getElementById('indicatorPills');
-    const pillData = [
-        ['Price', fmt(ind.price), null,
-         'The current market price of your stock. Compare this to your Buy Price to see if you\'re in profit or loss.'],
-        ['%b', fmt(ind.percent_b,4), ind.percent_b>0.8?'var(--g)':ind.percent_b<0.2?'var(--r)':'var(--b)',
-         `%b shows where the price is relative to Bollinger Bands (0=bottom band, 1=top band). Current: ${fmt(ind.percent_b,4)}. ${ind.percent_b>0.8?'Above 0.8 = price is near the TOP of its normal range — strong momentum but could be getting stretched.':ind.percent_b<0.2?'Below 0.2 = price is near the BOTTOM — it\'s oversold, could bounce soon.':'Between 0.2-0.8 = price is in the middle zone — no extreme signal.'}`],
-        ['MFI', fmt(ind.mfi,1), ind.mfi>60?'var(--g)':ind.mfi<40?'var(--r)':'var(--y)',
-         `Money Flow Index = measures buying/selling pressure using BOTH price AND volume (0-100 scale). Current: ${fmt(ind.mfi,1)}. ${ind.mfi>60?'Above 60 = strong buying pressure — money is flowing INTO the stock.':ind.mfi<40?'Below 40 = weak buying pressure — money flowing OUT. Caution.':'Between 40-60 = balanced, no strong pressure either way.'}`],
-        ['CMF', fmt(ind.cmf,4), ind.cmf>0?'var(--g)':'var(--r)',
-         `Chaikin Money Flow = are the big players (institutions) buying or selling? ${ind.cmf>0?'POSITIVE ('+fmt(ind.cmf,4)+') = institutions are buying — money flowing in. Bullish.':'NEGATIVE ('+fmt(ind.cmf,4)+') = institutions are selling — money flowing out. Bearish.'} Think of it as: is "smart money" supporting this stock?`],
-        ['BBW', fmt(ind.bbw,4), null,
-         `Bollinger Band Width measures volatility (how much the price swings). Current: ${fmt(ind.bbw,4)}. A VERY LOW BBW means the stock is in a "squeeze" — like a coiled spring ready to explode in either direction. A HIGH BBW means the stock is already moving a lot.`],
-        ['SAR', fmt(ind.sar) + (ind.sar_bull?' ▲':' ▼'), ind.sar_bull?'var(--g)':'var(--r)',
-         `Parabolic SAR = a trailing stop-loss indicator. ${ind.sar_bull?'▲ BULLISH — the SAR dots are BELOW the price, acting as support. The trend is UP.':'▼ BEARISH — the SAR dots are ABOVE the price, acting as resistance. The trend is DOWN.'} When SAR flips from one side to the other, it\'s a strong signal the trend has changed.`],
-        ['Squeeze', ind.squeeze_on?'ON':'OFF', ind.squeeze_on?'var(--y)':'var(--g)',
-         `Bollinger Band Squeeze = volatility compression. ${ind.squeeze_on?'🟡 SQUEEZE IS ON — the bands are very tight, meaning the stock is "coiling up" like a spring. A big move is coming, but we don\'t know which direction yet. This is when Method I traders get ready.':'🟢 No squeeze — normal volatility. The stock can move freely in either direction.'}`],
-        ['Volume', Number(ind.volume).toLocaleString('en-IN'), ind.volume>ind.vol_sma50?'var(--g)':'var(--r)',
-         `Today\'s trading volume vs 50-day average. ${ind.volume>ind.vol_sma50?'ABOVE average — more people are trading this stock than usual. High volume confirms the current move.':'BELOW average — fewer people trading than usual. Low volume means less conviction behind the price move.'} Volume is like the "fuel" behind a price move.`],
-        ['RSI', fmt(ind.rsi,1), ind.rsi>70?'var(--r)':ind.rsi>50?'var(--g)':ind.rsi>30?'var(--y)':'var(--b)',
-         `RSI (Relative Strength Index) measures how fast the price has been rising or falling (0-100 scale). Current: ${fmt(ind.rsi,1)}. ${ind.rsi>70?'Above 70 = OVERBOUGHT — the stock has risen too fast too quickly. Often leads to a pullback. Consider tightening your stop-loss.':ind.rsi>50?'Above 50 = BULLISH — buying momentum is stronger than selling. The trend is in your favour.':ind.rsi>30?'Between 30-50 = NEUTRAL — neither strong buying nor selling. The stock is undecided.':'Below 30 = OVERSOLD — the stock has fallen too fast. Could bounce back, but also signals weakness.'}`],
-        ['ATR', '₹'+fmt(ind.atr_14,2), null,
-         `ATR (Average True Range) = how much this stock typically moves in a single day in rupees. Current: ₹${fmt(ind.atr_14,2)}. Use this to set your stop-loss: a good rule is 2-3× ATR below your entry. Too tight a stop (less than 1× ATR) = you get stopped out by normal daily noise.`],
-        ['%b Velocity', (ind.percent_b_slope>0?'+':'')+fmt(ind.percent_b_slope,3), ind.percent_b_slope>0.05?'var(--g)':ind.percent_b_slope<-0.05?'var(--r)':'var(--y)',
-         `%b Velocity = how fast the price is moving within the Bollinger Bands over the last 5 days. ${ind.percent_b_slope>0.05?'RISING — price is accelerating toward the upper band. Bullish momentum building.':ind.percent_b_slope<-0.05?'FALLING — price is sliding toward the lower band. Momentum fading, watch for exit.':'FLAT — price is moving sideways within the bands. No strong push either way.'}`],
-        ind.expansion_end ? ['Expansion', 'ENDING', 'var(--y)',
-         'Bollinger Band expansion is fading — the "energy" from the squeeze breakout is running out. The big move may be nearing its end. This doesn\'t mean sell immediately, but tighten your stops and watch for the first sign of reversal.'] : null,
-    ].filter(Boolean);
-    ip.innerHTML = pillData.map(([label, val, clr, tip]) =>
-        `<div class="ind-pill tip-wrap"><span class="text-secondary">${label}</span><span class="ind-val" ${clr?`style="color:${clr}"`:''}>​${val}</span><div class="tip-text">${tip}</div></div>`
-    ).join('');
-
-    // Buying strategy status
-    const bsi = document.getElementById('buyingStrategyInfo');
-    const bs = data.buying_strategy_current;
-    if (bs) {
-        const sigType = bs.signal_type || bs.signal?.type || 'N/A';
-        const conf = bs.confidence || bs.signal?.confidence || 0;
-        const reason = bs.reason || bs.signal?.reason || '';
-        bsi.innerHTML = `
-            <div class="d-flex align-items-center gap-2 mb-1">
-                ${stratBadge(rec.strategy_code)}
-                ${actionBadge(sigType)}
-                <span class="font-mono small text-secondary">${conf === 0 && (sigType === 'NONE' || sigType === 'WAIT') ? '—' : `Confidence: ${conf}%`}</span>
-            </div>
-            <p class="small mb-0">${reason}</p>
-        `; } else {
-        bsi.innerHTML = '<span class="text-secondary">No data available</span>'; }
-
-    // Cross-strategy confirmations
-    const cDiv = document.getElementById('confirmList');
-    cDiv.innerHTML = (rec.confirms || []).map(c => {
-        let cls = 'blue';
-        if (c.includes('BUY') || c.includes('HOLD') || c.includes('W-Bottom') || c.includes('supportive') || c.includes('supports')) cls = 'green';
-        if (c.includes('SELL') || c.includes('EXIT') || c.includes('M-Top') || c.includes('fading')) cls = 'red';
-        if (c.includes('WATCH') || c.includes('WAIT') || c.includes('caution') || c.includes('mixed')) cls = 'yellow';
-        return `<div class="confirm-item ${cls}"><i class="bi bi-${cls==='green'?'check-circle':cls==='red'?'x-circle':cls==='yellow'?'exclamation-circle':'info-circle'} me-1"></i>${c}</div>`; }).join('');
-
-    // All strategies at a glance
-    const asr = document.getElementById('allStratsRow');
-    const m1 = data.method1_summary;
-    const allSignals = [
-        { code:'M1', type: m1.sell?'SELL':m1.buy?'BUY':m1.hold?'HOLD':'WAIT', conf: m1.confidence, phase: m1.phase },
-        ...data.all_strategies.map(s => ({
-            code: s.code,
-            type: s.signal?.type || 'NONE',
-            conf: s.signal?.confidence || 0,
-            reason: s.signal?.reason || '' }))
-    ];
-    asr.innerHTML = allSignals.map(s => `
-        <div class="col-6 col-md-3">
-            <div class="p-2 rounded" style="background:rgba(255,255,255,.03);border:1px solid var(--card-border)">
-                <div class="d-flex align-items-center gap-2 mb-1">${stratBadge(s.code)} ${actionBadge(s.type)}</div>
-                <div class="font-mono small" style="color:${STRATEGY_COLORS[s.code]}">${STRATEGY_NAMES[s.code]}</div>
-                <div class="small text-secondary">${s.conf === 0 && (s.type === 'NONE' || s.type === 'WAIT') ? '—' : `Conf: ${s.conf}%`}${s.phase?' • '+s.phase:''}</div>
-            </div>
-        </div>
-    `).join('');
-
-    // ═══════ NEW CHARTS: Strategy Bar, Confirm Donut, Risk/Reward ═══════
-    renderStrategyBarChart(m1, data.all_strategies);
-    renderConfirmDonut(rec.confirms);
+    // ═══════ CHARTS ═══════
     renderRiskRewardChart(tgt, ind.price);
 
     // ═══════ MULTI-SYSTEM ANALYSIS RENDER ═══════
@@ -2995,8 +2861,6 @@ function renderMultiSystem(ms) {
 let pnlGaugeInstance = null;
 let radarInstance = null;
 let dailyUnrealizedInstance = null;
-let strategyBarInstance = null;
-let confirmDonutInstance = null;
 let rrBarInstance = null;
 let vinceRadarInstance = null;
 
@@ -3455,86 +3319,6 @@ function renderScoreRadar(triple) {
         else txt = `<strong style="color:var(--y)">Neutral.</strong> The three systems are balanced — no clear direction. The radar shows roughly even readings. When this happens, it's best to hold and wait for a clearer signal.`;
         el.innerHTML = txt; } }
 
-// ═══════════════════════════════════════════════════════════════
-//  STRATEGY SIGNALS BAR CHART
-// ═══════════════════════════════════════════════════════════════
-function renderStrategyBarChart(m1, allStrats) {
-    const canvas = document.getElementById('strategyBarChart');
-    if (!canvas) return;
-    if (strategyBarInstance) { strategyBarInstance.destroy(); strategyBarInstance = null; }
-
-    const signals = [
-        { code: 'M1', type: m1.sell?'SELL':m1.buy?'BUY':m1.hold?'HOLD':'WAIT', conf: m1.confidence||0 },
-        ...allStrats.map(s => ({ code: s.code, type: s.signal?.type||'NONE', conf: s.signal?.confidence||0 }))
-    ];
-    const labels = signals.map(s => (STRATEGY_NAMES[s.code]||s.code).replace(/\s*\(.*\)/,''));
-    const data = signals.map(s => s.conf);
-    const colors = signals.map(s => {
-        if (s.type==='BUY'||s.type==='ADD') return '#0ab39c';
-        if (s.type==='SELL') return '#f06548';
-        if (s.type==='HOLD') return '#7c8aef';
-        return '#f7b84b'; });
-
-    strategyBarInstance = new Chart(canvas, {
-        type: 'bar',
-        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, borderRadius: 4 }] },
-        options: {
-            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${signals[ctx.dataIndex].type} — ${ctx.raw}% confidence` } } },
-            scales: {
-                x: { max: 100, ticks: { color:'#8b949e', callback: v=>v+'%' }, grid: { color:'rgba(255,255,255,.05)' } },
-                y: { ticks: { color:'#8b949e', font: { size: 11 } }, grid: { display: false } } } } }); }
-
-// ═══════════════════════════════════════════════════════════════
-//  CONFIRMATION DONUT CHART
-// ═══════════════════════════════════════════════════════════════
-function renderConfirmDonut(confirms) {
-    const canvas = document.getElementById('confirmDonutChart');
-    const legend = document.getElementById('confirmDonutLegend');
-    if (!canvas || !confirms || !confirms.length) return;
-    if (confirmDonutInstance) { confirmDonutInstance.destroy(); confirmDonutInstance = null; }
-
-    let bull = 0, bear = 0, neutral = 0;
-    confirms.forEach(c => {
-        if (c.includes('BUY')||c.includes('HOLD')||c.includes('W-Bottom')||c.includes('supportive')||c.includes('bullish')) bull++;
-        else if (c.includes('SELL')||c.includes('EXIT')||c.includes('M-Top')||c.includes('fading')||c.includes('bearish')) bear++;
-        else neutral++; });
-    const total = bull + bear + neutral;
-
-    confirmDonutInstance = new Chart(canvas, {
-        type: 'doughnut',
-        data: {
-            labels: ['Bullish', 'Bearish', 'Neutral'],
-            datasets: [{ data: [bull, bear, neutral], backgroundColor: ['#0ab39c','#f06548','#f7b84b'], borderWidth: 0 }] },
-        options: {
-            responsive: true, maintainAspectRatio: false, cutout: '65%',
-            plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} of ${total} signals` } } } },
-        plugins: [{
-            id: 'centerText',
-            afterDraw(chart) {
-                const { ctx, chartArea: { left, right, top, bottom } } = chart;
-                const cx = (left+right)/2, cy = (top+bottom)/2;
-                ctx.save();
-                ctx.textAlign = 'center';
-                ctx.font = 'bold 18px JetBrains Mono, monospace';
-                ctx.fillStyle = bull > bear ? '#0ab39c' : bear > bull ? '#f06548' : '#f7b84b';
-                ctx.fillText(`${total}`, cx, cy - 2);
-                ctx.font = '10px Inter, sans-serif';
-                ctx.fillStyle = '#8b949e';
-                ctx.fillText('signals', cx, cy + 12);
-                ctx.restore(); } }] });
-
-    if (legend) {
-        const verdict = bull > bear ? (bull >= bear*2 ? 'Strong bullish consensus!' : 'Leaning bullish') : bear > bull ? (bear >= bull*2 ? 'Strong bearish warning!' : 'Leaning bearish') : 'Mixed — no clear direction';
-        const vClr = bull > bear ? 'var(--g)' : bear > bull ? 'var(--r)' : 'var(--y)';
-        legend.innerHTML = `
-            <div><span style="color:#0ab39c">● Bullish: ${bull}</span> — signals say the stock looks good</div>
-            <div><span style="color:#f06548">● Bearish: ${bear}</span> — signals warn of weakness</div>
-            <div><span style="color:#f7b84b">● Neutral: ${neutral}</span> — no strong opinion</div>
-            <div class="mt-1 fw-bold" style="color:${vClr}">→ ${verdict}</div>
-        `; } }
 
 // ═══════════════════════════════════════════════════════════════
 //  RISK vs REWARD BAR CHART

@@ -237,7 +237,7 @@ def pick_passes_strict_checklist(pick: dict, method: str, signal_filter: str) ->
     method+direction evaluates True. No 4-of-5 compromise — every box ticked.
 
       M1 BUY  — squeeze + price_breakout + volume_confirm + cmf_positive + mfi_above_50
-      M1 SELL — squeeze + price_below   + volume_confirm + ii_negative  + mfi_low
+      M1 SELL — squeeze + price_below   + volume_confirm + ii_negative  + mfi_low + ad_negative
       M2/M3/M4 — every item in the strategy's buy_checklist / sell_checklist
                  (these are the book-faithful checklists defined in strategies.py)
     """
@@ -246,7 +246,7 @@ def pick_passes_strict_checklist(pick: dict, method: str, signal_filter: str) ->
             conds = pick.get("bb_short_conditions", {})
             return all(conds.get(k, False) for k in [
                 "squeeze", "price_below", "volume_confirm",
-                "ii_negative", "mfi_low",
+                "ii_negative", "mfi_low", "ad_negative",
             ])
         conds = pick.get("bb_conditions", {})
         return all(conds.get(k, False) for k in [

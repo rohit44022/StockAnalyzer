@@ -139,6 +139,9 @@ SCORE_MFI_ABOVE_50   = 15   # MFI above 50
 SCORE_CMF_ABOVE_10   = 5    # CMF > +0.10 (strong accumulation)
 SCORE_MFI_ABOVE_80   = 5    # MFI > 80 (maximum fuel)
 SCORE_KC_T7_BONUS    = 10   # T7 Keltner Channel deep squeeze bonus
+SCORE_II_CONFIRM     = 3    # II% > 0 — accumulation confirmation (Book Ch.18)
+SCORE_RALLY_DAY      = 5    # Above-avg range + volume on breakout (Book Ch.20 p.163)
+SCORE_EXPANSION_CONFIRM = 3 # Band expansion confirms trend direction (Book Ch.15)
 
 # ─────────────────────────────────────────────────────────────────
 #  FUNDAMENTAL DATA SOURCES

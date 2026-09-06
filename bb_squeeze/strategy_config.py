@@ -1,9 +1,9 @@
 """
 strategy_config.py — Configuration for additional Bollinger Band strategies.
 All parameters sourced from: "Bollinger on Bollinger Bands" by John Bollinger
-  Method II  — Trend Following   (Chapters 15-16)
-  Method III — Reversals          (Chapter 17)
-  Method IV  — Walking the Bands  (Chapter 18)
+  Method II  — Trend Following   (Chapter 19, pp.155+)
+  Method III — Reversals          (Chapters 12-13, 20 pp.163-165)
+  Method IV  — Walking the Bands  (Chapter 14, pp.112-118)
 """
 
 # ─────────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ STRATEGY_DESCRIPTIONS = {
     "M2": (
         "Uses %b (where price sits within the bands) combined with MFI (Money Flow Index) "
         "to identify trend continuations. When %b is high AND MFI confirms, the trend is "
-        "strong. When they diverge, the trend is weakening. Based on Chapter 16 of the book."
+        "strong. When they diverge, the trend is weakening. Based on Chapter 19 of the book."
     ),
     "M3": (
         "Identifies classic reversal patterns: W-Bottoms (double bottom where the second low "

@@ -16,6 +16,7 @@ from bb_squeeze.config import (
     SCORE_VOLUME_CONFIRM, SCORE_CMF_POSITIVE,
     SCORE_MFI_ABOVE_50, SCORE_CMF_ABOVE_10, SCORE_MFI_ABOVE_80,
     SCORE_KC_T7_BONUS, KC_SQUEEZE_INTENSITY_MIN,
+    SCORE_II_CONFIRM, SCORE_RALLY_DAY, SCORE_EXPANSION_CONFIRM,
 )
 
 
@@ -42,7 +43,8 @@ class SignalResult:
     cond1_squeeze_on:   bool = False  # BBW at trigger line
     cond2_price_above:  bool = False  # Close above upper BB
     cond3_volume_ok:    bool = False  # Volume green & above 50 SMA
-    cond4_cmf_positive: bool = False  # CMF > 0
+    cond4_cmf_positive: bool = False  # CMF > 0 (display/scoring)
+    cond4_volume_ok:    bool = False  # CMF > 0 OR II% > 0 (Book Rule 5)
     cond5_mfi_above_50: bool = False  # MFI > 50 and rising
 
     # ── Signal Types ──
@@ -96,6 +98,7 @@ class SignalResult:
     cond_short_volume:  bool = False
     cond_short_ii_neg:  bool = False
     cond_short_mfi_low: bool = False
+    cond_short_ad_neg:  bool = False  # AD% < 0 = distribution (Book Ch.18)
 
     # ── Direction Lean ──
     direction_lean: str = "NEUTRAL"    # "BULLISH" | "BEARISH" | "NEUTRAL"
@@ -112,6 +115,9 @@ class SignalResult:
     action_message: str = ""
     stop_loss:      float = 0.0
     squeeze_days:   int  = 0           # How many consecutive days in squeeze
+    three_pushes:     bool = False        # Three pushes to a high (Book Ch.11)
+    three_pushes_low: bool = False       # Three pushes to a low (Book Ch.11)
+    rally_day:        bool = False       # Above-avg range + volume (Book Ch.20)
 
 
 def _phase_detection(row: pd.Series, prev_rows: pd.DataFrame) -> str:
@@ -206,6 +212,26 @@ def _direction_lean(row: pd.Series) -> str:
     elif vwmacd_hist < 0:
         bear_score += 1
 
+    # AD% — Book Ch.18: accumulation/distribution direction
+    ad_pct = float(row.get("AD_Pct", 0))
+    if ad_pct > 0:
+        bull_score += 1
+    elif ad_pct < 0:
+        bear_score += 1
+
+    # Adaptive MFI/RSI (Ch.21) — BB-normalised for regime-aware direction
+    mfi_norm = float(row.get("MFI_Norm", 0.5))
+    if mfi_norm > 0.8:
+        bull_score += 1
+    elif mfi_norm < 0.2:
+        bear_score += 1
+
+    # Expansion (Ch.15) — band expansion confirms trend direction
+    if bool(row.get("Expansion_Up", False)):
+        bull_score += 1
+    elif bool(row.get("Expansion_Down", False)):
+        bear_score += 1
+
     if bull_score > bear_score + 1:
         return "BULLISH"
     elif bear_score > bull_score + 1:
@@ -256,6 +282,56 @@ def _head_fake_check(row: pd.Series) -> bool:
             head_fake_signals += 1
 
     return head_fake_signals >= 2   # 2+ signals = likely head fake
+
+
+def _three_pushes_check(df: pd.DataFrame) -> bool:
+    """Three pushes to a high — Book Ch.11 pp.84-95.
+    Successive swing highs near upper band with declining %b = reversal warning."""
+    if len(df) < 20:
+        return False
+    recent = df.iloc[-20:]
+    highs = recent["High"].values
+    pct_b = recent.get("Percent_B")
+    if pct_b is None:
+        return False
+    pct_b = pct_b.values
+
+    swing_pctb = []
+    for i in range(2, len(highs) - 1):
+        if highs[i] >= highs[i - 1] and highs[i] >= highs[i + 1]:
+            pb = pct_b[i]
+            if not np.isnan(pb) and pb > 0.5:
+                swing_pctb.append(pb)
+
+    if len(swing_pctb) < 3:
+        return False
+    last3 = swing_pctb[-3:]
+    return last3[0] > last3[1] > last3[2]
+
+
+def _three_pushes_low_check(df: pd.DataFrame) -> bool:
+    """Three pushes to a low — Book Ch.11.
+    Successive swing lows near lower band with rising %b = seller exhaustion."""
+    if len(df) < 20:
+        return False
+    recent = df.iloc[-20:]
+    lows = recent["Low"].values
+    pct_b = recent.get("Percent_B")
+    if pct_b is None:
+        return False
+    pct_b = pct_b.values
+
+    swing_pctb = []
+    for i in range(2, len(lows) - 1):
+        if lows[i] <= lows[i - 1] and lows[i] <= lows[i + 1]:
+            pb = pct_b[i]
+            if not np.isnan(pb) and pb < 0.5:
+                swing_pctb.append(pb)
+
+    if len(swing_pctb) < 3:
+        return False
+    last3 = swing_pctb[-3:]
+    return last3[0] < last3[1] < last3[2]
 
 
 def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
@@ -327,8 +403,9 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     vol_above_sma        = result.volume > result.vol_sma50
     result.cond3_volume_ok = is_green_candle and vol_above_sma
 
-    # Condition 4 — CMF above zero (ideally > +0.10)
+    # Condition 4 — Volume confirmation (Book Rule 5: diversified)
     result.cond4_cmf_positive = result.cmf > 0
+    result.cond4_volume_ok = result.cmf > 0 or result.ii_pct > 0
 
     # Condition 5 — MFI above 50 and rising
     prev_mfi = float(prev_df["MFI"].iloc[-1]) if len(prev_df) >= 1 else result.mfi
@@ -346,7 +423,7 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     if result.cond5_mfi_above_50: score += SCORE_MFI_ABOVE_50
     # Bonus
     if result.cmf > CMF_UPPER_LINE:  score += SCORE_CMF_ABOVE_10
-    if result.mfi > MFI_OVERBOUGHT:  score += SCORE_MFI_ABOVE_80
+    # (MFI overbought bonus moved below — now adaptive via mfi_norm, Ch.21)
     # T7 Keltner Channel deep squeeze bonus
     result.kc_t7_pass = (
         result.kc_had_squeeze
@@ -354,6 +431,21 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
         and result.kc_squeeze_intensity >= KC_SQUEEZE_INTENSITY_MIN
     )
     if result.kc_t7_pass:  score += SCORE_KC_T7_BONUS
+    # II% accumulation bonus (Book Ch.18)
+    if result.ii_pct > 0:  score += SCORE_II_CONFIRM
+    # Adaptive MFI overbought (Ch.21) — replaces fixed MFI>80 for bonus
+    if result.mfi_norm > 1.0:  score += SCORE_MFI_ABOVE_80
+    elif result.mfi > MFI_OVERBOUGHT:  score += SCORE_MFI_ABOVE_80
+    # Rally day — above-avg range + above-avg volume (Book Ch.20 p.163)
+    if len(prev_df) >= 20:
+        avg_range = float((prev_df["High"] - prev_df["Low"]).iloc[-20:].mean())
+        today_range = float(row.get("High", 0)) - float(row.get("Low", 0))
+        result.rally_day = today_range > avg_range and vol_above_sma
+        if result.rally_day and result.cond2_price_above:
+            score += SCORE_RALLY_DAY
+    # Expansion Up confirms bullish breakout (Ch.15)
+    if result.expansion_up and result.cond2_price_above:
+        score += SCORE_EXPANSION_CONFIRM
     result.confidence = min(score, 100)
 
     # ──────────────────────────────────────────────────────────
@@ -362,6 +454,10 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     if result.cond2_price_above:
         result.head_fake = _head_fake_check(row)
 
+    # Three pushes (Book Ch.11) — reversal patterns
+    result.three_pushes = _three_pushes_check(df)
+    result.three_pushes_low = _three_pushes_low_check(df)
+
     # ──────────────────────────────────────────────────────────
     # BUY SIGNAL — ALL 5 CONDITIONS + NO HEAD FAKE
     # ──────────────────────────────────────────────────────────
@@ -369,7 +465,7 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
         result.cond1_squeeze_on and
         result.cond2_price_above and
         result.cond3_volume_ok and
-        result.cond4_cmf_positive and
+        result.cond4_volume_ok and      # Book Rule 5: CMF > 0 OR II% > 0
         result.cond5_mfi_above_50
     )
     result.buy_signal = all_five_green and not result.head_fake
@@ -388,13 +484,15 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
 
     result.cond_short_ii_neg  = result.ii_pct < 0    # II% negative = distribution (Book Ch.18)
     result.cond_short_mfi_low = result.mfi < MFI_MID # MFI below 50 = weak buying
+    result.cond_short_ad_neg  = result.ad_pct < 0    # AD% negative = distribution (Book Ch.18)
 
     short_conditions_met = (
         result.cond_short_squeeze and
         result.cond_short_price and
         result.cond_short_volume and
         result.cond_short_ii_neg and
-        result.cond_short_mfi_low
+        result.cond_short_mfi_low and
+        result.cond_short_ad_neg
     )
     result.short_signal = short_conditions_met
 
@@ -460,7 +558,9 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
         confirmed_downtrend = (result.exit_sar_flip and
                                result.current_price < result.bb_mid and
                                result.percent_b < 0.3)
-        result.sell_signal = strong_sell or confirmed_downtrend
+        # Three pushes + any exit signal = reversal confirmed (Book Ch.11)
+        three_push_confirm = result.three_pushes and exit_count >= 1
+        result.sell_signal = strong_sell or confirmed_downtrend or three_push_confirm
 
     # Sell takes priority over hold — you can't hold if exit conditions met
     if result.sell_signal:
@@ -510,19 +610,20 @@ def _build_action(r: SignalResult) -> str:
 
     if r.buy_signal:
         mfi_strength = ""
-        if r.mfi > MFI_OVERBOUGHT:
+        if r.mfi_norm > 1.0 or r.mfi > MFI_OVERBOUGHT:
             mfi_strength = " Enter FULL position — MFI shows maximum fuel."
         elif r.mfi > MFI_MID:
             mfi_strength = " MFI moderate — consider half position."
+        rally_note = " Rally day confirmed (above-avg range + volume)." if r.rally_day else ""
         return (
-            f"✅ BUY SIGNAL — Enter at tomorrow's market open (or today's close).{mfi_strength}\n"
+            f"✅ BUY SIGNAL — Enter at tomorrow's market open (or today's close).{mfi_strength}{rally_note}\n"
             f"   Stop Loss: ₹{r.stop_loss:.2f} (Parabolic SAR). Exit if price closes below this."
         )
 
     if r.short_signal:
         return (
             f"🔻 SHORT SIGNAL (Method I Bearish Breakout) — Price broke below lower band from Squeeze.\n"
-            f"   II% = {r.ii_pct:+.4f} (distribution), MFI = {r.mfi:.0f} (weak buying).\n"
+            f"   II% = {r.ii_pct:+.4f}, AD% = {r.ad_pct:+.4f} (distribution), MFI = {r.mfi:.0f} (weak buying).\n"
             f"   Stop Loss: ₹{r.stop_loss:.2f} (Parabolic SAR). Cover if price closes above this."
         )
 
@@ -543,15 +644,22 @@ def _build_action(r: SignalResult) -> str:
             reasons.append("CMF below 0 AND MFI below 50 (double negative = fuel exhausted)")
         if r.expansion_end:
             reasons.append("Band Expansion reversing (Ch.15 — trend at an end)")
+        if r.three_pushes:
+            reasons.append("Three pushes to a high with declining %b (Ch.11 — reversal)")
         return (
             f"🔴 SELL / EXIT SIGNAL — Exit at tomorrow's market open.\n"
             f"   Reason(s): {' | '.join(reasons)}"
         )
 
     if r.hold_signal:
+        notes = ""
+        if r.expansion_up:
+            notes += "\n   ✅ Band expansion confirms uptrend (lower band falling — Ch.15)."
+        if r.three_pushes:
+            notes += "\n   ⚠️ Three pushes to a high detected (declining %b) — tighten stops."
         return (
             f"🟢 HOLD — Trend is intact. SAR dots below candles. Stay in the trade.\n"
-            f"   Trailing Stop Loss (SAR): ₹{r.stop_loss:.2f}. Exit if price closes below this."
+            f"   Trailing Stop Loss (SAR): ₹{r.stop_loss:.2f}. Exit if price closes below this.{notes}"
         )
 
     if r.wait_signal:
@@ -564,7 +672,7 @@ def _build_action(r: SignalResult) -> str:
         missing = []
         if not r.cond2_price_above:  missing.append("price hasn't broken above upper band")
         if not r.cond3_volume_ok:    missing.append("volume not confirmed")
-        if not r.cond4_cmf_positive: missing.append("CMF not positive")
+        if not r.cond4_volume_ok:    missing.append("volume flow negative (CMF and II% both < 0)")
         if not r.cond5_mfi_above_50: missing.append("MFI below 50")
         return (
             f"⏳ WAIT — Squeeze is SET. {direction_msg}\n"

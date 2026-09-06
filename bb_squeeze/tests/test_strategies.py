@@ -181,7 +181,7 @@ class TestM1SqueezeBuyStrict(unittest.TestCase):
 
 class TestM1SqueezeSellStrict(unittest.TestCase):
     """Book Ch.16 short side: SELL requires squeeze + price<lower
-    + red candle on volume + II% negative + MFI < 50."""
+    + red candle on volume + II% negative + MFI < 50 + AD% negative."""
 
     def _build_sell_ready_df(self):
         df = _synth_df(n=80, drift=0.0, hl_spread=2.0)
@@ -194,9 +194,10 @@ class TestM1SqueezeSellStrict(unittest.TestCase):
         df.at[last, "Volume"]     = float(df.at[last, "Vol_SMA50"]) * 2.5  # cond_short_volume
         df.at[last, "II_Pct"]     = -0.15                    # cond_short_ii_neg
         df.at[last, "MFI"]        = 25.0                     # cond_short_mfi_low (<50)
+        df.at[last, "AD_Pct"]     = -0.10                    # cond_short_ad_neg (Book Ch.18)
         return df
 
-    def test_all_five_short_conditions_fire_short_signal(self):
+    def test_all_six_short_conditions_fire_short_signal(self):
         df = self._build_sell_ready_df()
         sig = analyze_signals("TEST", df)
         self.assertTrue(sig.cond_short_squeeze)
@@ -204,7 +205,8 @@ class TestM1SqueezeSellStrict(unittest.TestCase):
         self.assertTrue(sig.cond_short_volume)
         self.assertTrue(sig.cond_short_ii_neg)
         self.assertTrue(sig.cond_short_mfi_low)
-        self.assertTrue(sig.short_signal, "SHORT must fire when all 5 short conditions met")
+        self.assertTrue(sig.cond_short_ad_neg)
+        self.assertTrue(sig.short_signal, "SHORT must fire when all 6 short conditions met")
 
     def test_short_requires_squeeze(self):
         df = self._build_sell_ready_df()
@@ -222,6 +224,13 @@ class TestM1SqueezeSellStrict(unittest.TestCase):
     def test_short_requires_mfi_below_50(self):
         df = self._build_sell_ready_df()
         df = _force_row(df, -1, MFI=60.0)
+        sig = analyze_signals("TEST", df)
+        self.assertFalse(sig.short_signal)
+
+    def test_short_requires_ad_pct_negative(self):
+        """Book Ch.18: AD% < 0 = distribution."""
+        df = self._build_sell_ready_df()
+        df = _force_row(df, -1, AD_Pct=0.05)
         sig = analyze_signals("TEST", df)
         self.assertFalse(sig.short_signal)
 
@@ -849,15 +858,16 @@ class TestTopPicksStrictFilter(unittest.TestCase):
                 self.assertFalse(pick_passes_strict_checklist(pick, "M1", "BUY"),
                     f"Strict filter must reject when {k}=False")
 
-    # ── M1 SELL: requires all 5 short conditions ──
+    # ── M1 SELL: requires all 6 short conditions ──
 
-    def test_m1_sell_requires_all_5_short_conditions(self):
+    def test_m1_sell_requires_all_6_short_conditions(self):
         pick = {"bb_short_conditions": {
             "squeeze":        True,
             "price_below":    True,
             "volume_confirm": True,
             "ii_negative":    True,
             "mfi_low":        True,
+            "ad_negative":    True,
         }}
         self.assertTrue(pick_passes_strict_checklist(pick, "M1", "SELL"))
         for k in list(pick["bb_short_conditions"].keys()):

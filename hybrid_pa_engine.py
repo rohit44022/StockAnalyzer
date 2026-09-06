@@ -967,6 +967,7 @@ def run_triple_analysis(
             "volume_confirm": bb_signal.cond_short_volume,
             "ii_negative": bb_signal.cond_short_ii_neg,
             "mfi_low": bb_signal.cond_short_mfi_low,
+            "ad_negative": bb_signal.cond_short_ad_neg,
         },
         "stop_loss": _safe(bb_signal.stop_loss),
     }

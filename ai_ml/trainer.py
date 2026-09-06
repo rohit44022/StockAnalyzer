@@ -80,35 +80,112 @@ def _rolling_percentile(arr: np.ndarray, val: np.ndarray, window: int) -> np.nda
 
 
 # ─────────────────────────────────────────────────────────────────
-#  SIGNAL FUNCTIONS (identical to backtester)
+#  SIGNAL FUNCTIONS — faithful to canonical bb_squeeze logic
+#  M1: bb_squeeze/signals.py 5-condition buy signal
+#  M2: bb_squeeze/strategies.py Method II (%b + MFI)
+#  M3: bb_squeeze/strategies.py Method III (W-bottom reversal)
+#  M4: bb_squeeze/strategies.py Method IV (walking the bands)
 # ─────────────────────────────────────────────────────────────────
 
 def _signal_m1(ind, i):
-    if i < 5: return False
-    return (not np.isnan(ind["bbw"][i]) and ind["bbw"][i] < 0.10
-            and ind["close"][i] > ind["upper"][i]
-            and ind["volume"][i] > 1.5 * ind["vol_ma"][i])
+    """M1 Squeeze Breakout — 5 conditions from signals.py."""
+    if i < 5:
+        return False
+    # cond1: squeeze ON — BBW <= 0.08 (BBW_TRIGGER from config)
+    if np.isnan(ind["bbw"][i]) or ind["bbw"][i] > 0.08:
+        return False
+    # cond2: price closes above upper BB
+    if ind["close"][i] <= ind["upper"][i]:
+        return False
+    # cond3: green candle AND volume > 50-day SMA
+    if ind["close"][i] <= ind["close"][i - 1]:
+        return False
+    v50 = ind["vol_sma50"][i]
+    if np.isnan(v50) or v50 <= 0 or ind["volume"][i] <= v50:
+        return False
+    # cond4: CMF > 0 OR II% > 0
+    cmf_ok = not np.isnan(ind["cmf"][i]) and ind["cmf"][i] > 0
+    ii_ok = ind["ii_pct"][i] > 0
+    if not (cmf_ok or ii_ok):
+        return False
+    # cond5: MFI > 50
+    if ind["mfi"][i] <= 50:
+        return False
+    return True
 
 def _signal_m2(ind, i):
-    if i < 6: return False
-    return (not np.isnan(ind["sma20"][i])
-            and ind["close"][i] > ind["sma20"][i]
-            and ind["close"][i] > ind["close"][i-1]
-            and not np.isnan(ind["rsi14"][i]) and ind["rsi14"][i] > 50
-            and ind["sma20"][i] > ind["sma20"][i-5])
+    """M2 Trend Following — %b > 0.8 AND MFI > 80 with volume confirmation."""
+    if i < 6:
+        return False
+    pct_b = ind["percent_b"][i]
+    mfi = ind["mfi"][i]
+    if np.isnan(pct_b) or pct_b <= 0.8:
+        return False
+    if np.isnan(mfi) or mfi <= 80:
+        return False
+    v50 = ind["vol_sma50"][i]
+    if np.isnan(v50) or v50 <= 0 or ind["volume"][i] <= v50:
+        return False
+    # reject bearish divergence: %b rising but MFI falling
+    prev_b = ind["percent_b"][i - 1]
+    prev_mfi = ind["mfi"][i - 1]
+    if (not np.isnan(prev_b) and not np.isnan(prev_mfi)
+            and pct_b > prev_b and mfi < prev_mfi):
+        return False
+    return True
 
 def _signal_m3(ind, i):
-    if i < 2: return False
-    return (not np.isnan(ind["lower"][i-1])
-            and ind["close"][i-1] < ind["lower"][i-1]
-            and not np.isnan(ind["rsi14"][i-1]) and ind["rsi14"][i-1] < 35
-            and ind["close"][i] > ind["close"][i-1])
+    """M3 Reversal (W-bottom) — lower-band touch then bounce with MFI divergence."""
+    if i < 10:
+        return False
+    pct_b = ind["percent_b"][i]
+    mfi = ind["mfi"][i]
+    if np.isnan(pct_b) or np.isnan(mfi):
+        return False
+    # current bar: %b risen above 0.2 (second-low threshold)
+    if pct_b <= 0.2:
+        return False
+    # must have had a lower-band touch (%b <= 0) in last 10 bars
+    had_touch = False
+    touch_mfi = np.nan
+    for j in range(max(0, i - 10), i):
+        if (not np.isnan(ind["percent_b"][j])
+                and ind["percent_b"][j] <= 0.0
+                and ind["close"][j] <= ind["lower"][j]):
+            had_touch = True
+            touch_mfi = ind["mfi"][j]
+            break
+    if not had_touch:
+        return False
+    # MFI divergence: money flow improving since the touch
+    if not np.isnan(touch_mfi) and mfi <= touch_mfi:
+        return False
+    # bounce confirmation: green candle
+    if ind["close"][i] <= ind["close"][i - 1]:
+        return False
+    return True
 
 def _signal_m4(ind, i):
-    if i < 3: return False
-    consec = all(ind["close"][j] > ind["upper"][j] for j in range(i-2, i+1))
-    vol_rising = ind["volume"][i] > ind["volume"][i-1] > ind["volume"][i-2]
-    return consec and vol_rising and not np.isnan(ind["upper"][i])
+    """M4 Walking the Bands — >=3 upper-band touches in 10-bar window."""
+    if i < 10:
+        return False
+    pct_b = ind["percent_b"][i]
+    if np.isnan(pct_b) or pct_b <= 0.85:
+        return False
+    # count upper-band touches in lookback (within 0.5% tolerance)
+    touches = 0
+    for j in range(max(0, i - 9), i + 1):
+        ub = ind["upper"][j]
+        if (not np.isnan(ub) and ub > 0
+                and ind["high"][j] >= ub * 0.995):
+            touches += 1
+    if touches < 3:
+        return False
+    # volume confirmation
+    v50 = ind["vol_sma50"][i]
+    if np.isnan(v50) or v50 <= 0 or ind["volume"][i] <= v50:
+        return False
+    return True
 
 _SIGNAL_FN = {"M1": _signal_m1, "M2": _signal_m2, "M3": _signal_m3, "M4": _signal_m4}
 
@@ -205,6 +282,7 @@ def _process_stock(csv_path: str, start_date: str, end_date: str,
     rsi14  = _rsi(close, 14)
     atr14  = _atr(high, low, close, 14)
     vol_ma = _sma(volume, 20)
+    vol_sma50 = _sma(volume, 50)
 
     bbw_pct60  = _rolling_percentile(bbw, bbw, 60)
     atr14_pct60 = _rolling_percentile(atr14, atr14, 60)
@@ -216,6 +294,7 @@ def _process_stock(csv_path: str, start_date: str, end_date: str,
         "open": open_price,
         "sma20": sma20, "upper": upper, "lower": lower, "bbw": bbw,
         "rsi14": rsi14, "atr14": atr14, "vol_ma": vol_ma,
+        "vol_sma50": vol_sma50,
         "bbw_pct60": bbw_pct60, "atr14_pct60": atr14_pct60,
     }
 
@@ -400,13 +479,23 @@ def _merge_feedback_outcomes(df: pd.DataFrame) -> pd.DataFrame:
         rsi14  = _rsi(close, 14)
         atr14  = _atr(high_, low_, close, 14)
         vol_ma = _sma(volume, 20)
+        vol_sma50 = _sma(volume, 50)
         bbw_pct60  = _rolling_percentile(bbw, bbw, 60)
         atr14_pct60 = _rolling_percentile(atr14, atr14, 60)
 
+        open_price = stock_df["Open"].to_numpy(dtype=float) if "Open" in stock_df.columns else close
+
         ind = {"close": close, "high": high_, "low": low_, "volume": volume,
+               "open": open_price,
                "sma20": sma20, "upper": upper, "lower": lower, "bbw": bbw,
                "rsi14": rsi14, "atr14": atr14, "vol_ma": vol_ma,
+               "vol_sma50": vol_sma50,
                "bbw_pct60": bbw_pct60, "atr14_pct60": atr14_pct60}
+
+        from ai_ml.feature_boost import compute_extra_arrays
+        extras = compute_extra_arrays(close, high_, low_, volume, open_price,
+                                      sma20, upper, lower, bbw, rsi14)
+        ind.update(extras)
 
         feats = _extract_features(ind, bar_idx, ticker=ticker,
                                   bar_date=pd.Timestamp(entry_date))

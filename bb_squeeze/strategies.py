@@ -98,7 +98,7 @@ class StrategyResult:
 
 # ═══════════════════════════════════════════════════════════════
 #  METHOD II — TREND FOLLOWING (%b + MFI)
-#  Book: Chapters 15-16
+#  Book: Chapter 19, pp.155+
 #  Core idea: %b tells WHERE price is in the band structure.
 #  MFI CONFIRMS whether money is flowing in the same direction.
 #  When %b > 0.8 and MFI > 80 → strong uptrend.
@@ -124,7 +124,7 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
             description=STRATEGY_DESCRIPTIONS["M2"],
             signal=StrategySignal("NONE", "WEAK", 0,
                                   "Insufficient data", "Need at least 30 days of data."),
-            book_reference="Chapters 15-16",
+            book_reference="Chapter 19, pp.155+",
         )
 
     tail = df.iloc[-M2_MFI_DIVERGE_LOOKBACK:]
@@ -139,6 +139,7 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
 
     # VWMACD (Book Ch.18) — supplementary confirmation
     vwmacd_hist = _nan_safe(row.get("VWMACD_Hist", 0), 0.0)
+    ii_pct      = _nan_safe(row.get("II_Pct", 0), 0.0)
 
     prev_pct_b = _nan_safe(prev["Percent_B"], 0.5)
     prev_mfi   = _nan_safe(prev["MFI"], 50.0)
@@ -314,6 +315,12 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
             "detail": f"CMF: {cmf:+.4f} (need < 0.00)",
             "explain": "Chaikin Money Flow must be negative, showing institutional distribution (selling).",
         },
+        {
+            "ok": ii_pct < 0,
+            "name": "II% Negative — Distribution Confirmed",
+            "detail": f"II%: {ii_pct:+.4f} (need < 0.00)",
+            "explain": "Intraday Intensity negative confirms distribution. Alternative to CMF per Book Ch.18.",
+        },
     ]
 
     # ── Indicators for display ──
@@ -321,6 +328,7 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
         "pct_b": round(pct_b, 4),
         "mfi": round(mfi, 2),
         "cmf": round(cmf, 4),
+        "ii_pct": round(ii_pct, 4),
         "vwmacd_hist": round(vwmacd_hist, 4),
         "pct_b_trend": pct_b_trend,
         "mfi_trend": mfi_trend,
@@ -344,7 +352,7 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
             details="\n".join(details_lines),
         ),
         indicators=indicators,
-        book_reference="Chapters 15-16: 'Use %b to clarify and MFI to confirm.'",
+        book_reference="Chapter 19, pp.155+: 'Use %b to clarify and MFI to confirm.'",
     )
 
 
@@ -742,7 +750,7 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
             signal=StrategySignal("NONE", "WEAK", 0,
                                   "Insufficient data",
                                   f"Need at least {M3_W_LOOKBACK} days of data."),
-            book_reference="Chapter 17",
+            book_reference="Chapters 12-13, 20",
         )
 
     w_patterns = _detect_w_bottoms(df)
@@ -1046,7 +1054,7 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
         ),
         patterns=all_patterns,
         indicators=indicators,
-        book_reference="Chapter 17: 'W-Bottoms and M-Tops — the most important patterns.'",
+        book_reference="Chapters 12-13 (W/M patterns), 20 pp.163-165 (systematised rules)",
     )
 
 
@@ -1239,7 +1247,7 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
             signal=StrategySignal("NONE", "WEAK", 0,
                                   "Insufficient data",
                                   f"Need at least {M4_WALK_LOOKBACK} days."),
-            book_reference="Chapter 18",
+            book_reference="Chapter 14, pp.112-118",
         )
 
     row   = df.iloc[-1]
@@ -1514,7 +1522,7 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
         ),
         patterns=patterns,
         indicators=indicators,
-        book_reference="Chapter 18: 'Tags of the band are tags, not signals.'",
+        book_reference="Chapter 14, pp.112-118: 'Tags of the band are tags, not signals.'",
     )
 
 

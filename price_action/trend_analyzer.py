@@ -113,105 +113,70 @@ def compute_always_in(
     """
     Determine the Always-In direction per Al Brooks.
 
-    "If you HAD to be in the market right now, would you be long or short?"
+    "If you have to be in the market at all times, either long or short, the
+    always-in position is whatever your current position is."  (Brooks, Ch.4)
 
-    Factors considered (all weighted):
-    1. Recent trend bars ratio (bull vs bear)
-    2. Price vs EMA(20)
-    3. Recent signal bars direction
-    4. Consecutive trend bars
-    5. Higher highs/lower lows pattern
-    6. Last significant breakout direction
+    This is a LATCHING state, not a score.  It is whatever it last was, and it
+    flips only on a spike in the opposite direction that is then confirmed:
+
+        "Traders will then wonder if the always-in direction is in the process
+         of flipping to down.  What they need to see is follow-through selling
+         in the form of maybe just one more bear trend bar. ... If the bar
+         instead has a bull close, they will suspect that the reversal attempt
+         has failed."
+
+    So a flip needs three things, in order:
+      1. a strong trend bar (Brooks: "every trend bar is a spike"),
+      2. that breaks out — closes beyond the recent structure, and
+      3. follow-through on the very next bar (same-direction close).
+
+    Everything else — price vs the EMA, the bull/bear bar ratio, the last
+    signal bar — describes how the trend *looks*, not which side you are on,
+    and is deliberately not part of this.  Those live in compute_pressure()
+    and compute_trend_strength().
+
+    FLAT is only returned before the first confirmed spike, when there has
+    never been an always-in direction to carry.
 
     Returns (always_in_direction, score, confidence)
     """
     if len(bars) < C.AI_LOOKBACK:
         return "FLAT", 0.0, 0.0
 
-    recent = bars[-C.AI_LOOKBACK:]
-    score = 0.0
+    direction = "FLAT"
+    flip_idx = -1
 
-    # Factor 1: Trend bar ratio (weight: 30 points)
-    bull_trend = sum(1 for b in recent if b.is_trend_bar and b.is_bull)
-    bear_trend = sum(1 for b in recent if b.is_trend_bar and b.is_bear)
-    total_trend = bull_trend + bear_trend
-    if total_trend > 0:
-        ratio = (bull_trend - bear_trend) / total_trend  # -1 to +1
-        score += ratio * 30
+    # The flip is confirmed by bars[i + 1], so the spike bar stops one short.
+    for i in range(1, len(bars) - 1):
+        spike, nxt = bars[i], bars[i + 1]
+        if not spike.is_strong_trend_bar:
+            continue
 
-    # Factor 2: Price vs EMA(20) (weight: 20 points)
-    if len(df) >= C.AI_EMA_PERIOD:
-        ema = df["Close"].ewm(span=C.AI_EMA_PERIOD, adjust=False).mean()
-        last_close = df["Close"].iloc[-1]
-        last_ema = ema.iloc[-1]
-        if last_ema > 0:
-            pct_diff = (last_close - last_ema) / last_ema
-            ema_score = max(min(pct_diff * 500, 20), -20)  # Cap at ±20
-            score += ema_score
+        window = bars[max(0, i - C.AI_BREAKOUT_LOOKBACK):i]
+        if not window:
+            continue
 
-    # Factor 3: Consecutive trend bars at end (weight: 20 points)
-    consec_bull = 0
-    consec_bear = 0
-    for b in reversed(recent):
-        if b.is_trend_bar and b.is_bull:
-            if consec_bear > 0:  # Direction changed — stop
-                break
-            consec_bull += 1
-        elif b.is_trend_bar and b.is_bear:
-            if consec_bull > 0:  # Direction changed — stop
-                break
-            consec_bear += 1
-        else:
-            break
-    if consec_bull >= 3:
-        score += min(consec_bull * 5, 20)
-    elif consec_bear >= 3:
-        score -= min(consec_bear * 5, 20)
+        if direction != "LONG" and spike.is_bull:
+            broke_out = spike.close > max(b.high for b in window)
+            confirmed = nxt.close > nxt.open or nxt.close > spike.close
+            if broke_out and confirmed:
+                direction, flip_idx = "LONG", i + 1
+        elif direction != "SHORT" and spike.is_bear:
+            broke_out = spike.close < min(b.low for b in window)
+            confirmed = nxt.close < nxt.open or nxt.close < spike.close
+            if broke_out and confirmed:
+                direction, flip_idx = "SHORT", i + 1
 
-    # Factor 4: Higher highs / lower lows (weight: 15 points)
-    if len(recent) >= 6:
-        recent_highs = [b.high for b in recent[-6:]]
-        recent_lows = [b.low for b in recent[-6:]]
-        hh = sum(1 for i in range(1, len(recent_highs)) if recent_highs[i] > recent_highs[i - 1])
-        ll = sum(1 for i in range(1, len(recent_lows)) if recent_lows[i] < recent_lows[i - 1])
-        hl = sum(1 for i in range(1, len(recent_lows)) if recent_lows[i] > recent_lows[i - 1])
-        lh = sum(1 for i in range(1, len(recent_highs)) if recent_highs[i] < recent_highs[i - 1])
+    if direction == "FLAT":
+        return "FLAT", 0.0, 0.0
 
-        if hh > lh:
-            score += min((hh - lh) * 3, 15)
-        if ll > hl:
-            score -= min((ll - hl) * 3, 15)
-
-    # Factor 5: Last signal bar direction (weight: 15 points)
-    last_signals = [b for b in recent if b.is_signal_bar]
-    if last_signals:
-        last_sig = last_signals[-1]
-        if last_sig.signal_direction == "BULL_REVERSAL":
-            score += 10 if last_sig.signal_quality in ("STRONG", "MODERATE") else 5
-        elif last_sig.signal_direction == "BEAR_REVERSAL":
-            score -= 10 if last_sig.signal_quality in ("STRONG", "MODERATE") else 5
-
-    # Normalize to -100..+100
-    score = max(min(score, 100), -100)
-
-    # Determine direction
-    if score >= C.AI_STRONG_THRESHOLD:
-        direction = "LONG"
-        confidence = min(abs(score), 100)
-    elif score <= -C.AI_STRONG_THRESHOLD:
-        direction = "SHORT"
-        confidence = min(abs(score), 100)
-    elif score > 20:
-        direction = "LONG"
-        confidence = abs(score) * 0.7
-    elif score < -20:
-        direction = "SHORT"
-        confidence = abs(score) * 0.7
-    else:
-        direction = "FLAT"
-        confidence = 30  # Low confidence when flat
-
-    return direction, score, confidence
+    # Score/confidence are kept only because callers read them as a magnitude.
+    # A trend earns conviction as it survives bars without being flipped.
+    bars_since = len(bars) - 1 - flip_idx
+    score = C.AI_BASE_SCORE + min(bars_since, 20) * 2.0
+    if direction == "SHORT":
+        score = -score
+    return direction, score, min(abs(score), 100.0)
 
 
 # ─────────────────────────────────────────────────────────────────

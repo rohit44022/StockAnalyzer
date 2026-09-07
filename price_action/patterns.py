@@ -166,28 +166,59 @@ def detect_hl_counts(bars: List[BarAnalysis]) -> List[PatternDetection]:
 
 
 def _detect_h_counts(bars: List[BarAnalysis], patterns: List[PatternDetection]) -> None:
-    """Detect H1, H2, H3, H4 in context of a bull trend."""
+    """
+    Detect H1, H2, H3, H4 — Brooks' bar counting.
+
+    Brooks (glossary): "A high 1 is a bar with a high above the prior bar IN A
+    BULL FLAG OR NEAR THE BOTTOM OF A TRADING RANGE. If there is then a bar
+    with a lower high (it can occur one or several bars later), the next bar in
+    this correction whose high is above the prior bar's high is a high 2."
+
+    Three rules that were previously missing or wrong:
+
+    1. CONTEXT. The count only means anything on the buy side. Brooks is
+       explicit that the mirror term is wrong out of context: "it is incorrect
+       to use the term low 1 here because a low 1 sets up trades in trading
+       ranges and bear trends, not strong bull trends." We gate on his own
+       with-trend test — "if most of the past 10 or 20 bars are above the
+       moving average, trend setups and trades are likely on the buy side".
+
+    2. PULLBACK START. Brooks needs only "a bar with a lower high". Requiring a
+       lower low as well (the old test) missed pullbacks that held their low.
+
+    3. RESET. The count is scoped to ONE correction. Once the market makes a
+       new high for the leg, that correction is over and the next pullback
+       starts again at H1. The old code instead reset on "3+ bear trend bars",
+       which is not in the book and let counts run across separate legs.
+    """
     n = len(bars)
-    h_count = 0                  # How many H entries we've counter
-    in_pullback = False          # Are we in a pullback?
-    pullback_started = False
+    h_count = 0                  # H entries so far in THIS correction
+    in_pullback = False
     trend_high = bars[0].high    # Highest high of the current bull leg
 
     for i in range(1, n):
         bar = bars[i]
         prev = bars[i - 1]
 
-        # Track the trend high
+        # Rule 1 — with-trend context gate (Brooks' moving average majority).
+        if not _is_buy_side_context(bars, i):
+            h_count = 0
+            in_pullback = False
+            if bar.high > trend_high:
+                trend_high = bar.high
+            continue
+
+        # Rule 3 — a new leg high ends the correction; counting restarts.
         if bar.high > trend_high:
             trend_high = bar.high
+            h_count = 0
+            in_pullback = False
 
-        # Detect start of pullback: bar makes a lower high than prev
-        if not in_pullback and bar.high < prev.high and bar.low < prev.low:
+        # Rule 2 — a pullback begins on any bar with a lower high.
+        if not in_pullback and bar.high < prev.high:
             in_pullback = True
-            pullback_started = True
 
-        # Detect end of pullback: bar's high exceeds prior bar's high
-        # This is an H-entry
+        # An H entry: the next bar in this correction to exceed the prior high.
         if in_pullback and bar.high > prev.high:
             h_count += 1
             in_pullback = False
@@ -221,16 +252,39 @@ def _detect_h_counts(bars: List[BarAnalysis], patterns: List[PatternDetection]) 
                     stop_price=bar.low,
                 ))
 
-        # Reset counters if significant reversal (e.g. 3+ bear trend bars)
-        if i >= 3:
-            recent_bears = sum(1 for b in bars[i - 2:i + 1] if b.is_trend_bar and b.is_bear)
-            if recent_bears >= 3:
-                h_count = 0
-                in_pullback = False
+
+def _is_buy_side_context(bars: List[BarAnalysis], i: int) -> bool:
+    """
+    Brooks' with-trend test, buy side.
+
+    Glossary, "with trend": "...if most of the past 10 or 20 bars are above the
+    moving average, trend setups and trades are likely on the buy side."
+    """
+    start = max(0, i - C.WITH_TREND_LOOKBACK + 1)
+    window = bars[start:i + 1]
+    if len(window) < C.WITH_TREND_MIN_BARS:
+        return False
+    above = sum(1 for b in window if b.ema > 0 and b.close > b.ema)
+    return above * 2 > len(window)
+
+
+def _is_sell_side_context(bars: List[BarAnalysis], i: int) -> bool:
+    """Mirror of `_is_buy_side_context` — most of the window below the average."""
+    start = max(0, i - C.WITH_TREND_LOOKBACK + 1)
+    window = bars[start:i + 1]
+    if len(window) < C.WITH_TREND_MIN_BARS:
+        return False
+    below = sum(1 for b in window if b.ema > 0 and b.close < b.ema)
+    return below * 2 > len(window)
 
 
 def _detect_l_counts(bars: List[BarAnalysis], patterns: List[PatternDetection]) -> None:
-    """Detect L1, L2, L3, L4 in context of a bear trend."""
+    """
+    Detect L1, L2, L3, L4 — the mirror of `_detect_h_counts`.
+
+    Brooks: "a low 1 sets up trades in trading ranges and bear trends, not
+    strong bull trends", so the same three rules apply inverted.
+    """
     n = len(bars)
     l_count = 0
     in_pullback = False
@@ -240,11 +294,22 @@ def _detect_l_counts(bars: List[BarAnalysis], patterns: List[PatternDetection]) 
         bar = bars[i]
         prev = bars[i - 1]
 
+        # Rule 1 — with-trend context gate (sell side).
+        if not _is_sell_side_context(bars, i):
+            l_count = 0
+            in_pullback = False
+            if bar.low < trend_low:
+                trend_low = bar.low
+            continue
+
+        # Rule 3 — a new leg low ends the correction; counting restarts.
         if bar.low < trend_low:
             trend_low = bar.low
+            l_count = 0
+            in_pullback = False
 
-        # Start of pullback (up): bar makes higher low than prev
-        if not in_pullback and bar.low > prev.low and bar.high > prev.high:
+        # Rule 2 — a pullback begins on any bar with a higher low.
+        if not in_pullback and bar.low > prev.low:
             in_pullback = True
 
         # End of pullback: bar's low goes below prior bar's low = L entry
@@ -281,12 +346,8 @@ def _detect_l_counts(bars: List[BarAnalysis], patterns: List[PatternDetection]) 
                     stop_price=bar.high,
                 ))
 
-        # Reset on 3+ bull trend bars
-        if i >= 3:
-            recent_bulls = sum(1 for b in bars[i - 2:i + 1] if b.is_trend_bar and b.is_bull)
-            if recent_bulls >= 3:
-                l_count = 0
-                in_pullback = False
+        # (Reset is handled by the context gate and the new-leg-low test above,
+        # per Brooks. The old "3+ bull trend bars" rule is not in the book.)
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -316,8 +377,12 @@ def detect_double_patterns(bars: List[BarAnalysis]) -> List[PatternDetection]:
 
     n = len(bars)
 
-    # Scan for swing lows (double bottom bull flag)
-    swing_lows = _find_swing_points(bars, "LOW")
+    # Brooks' double bottom is a CHART FORMATION between two swing lows with a
+    # real rally between them — not any two adjacent minor lows at a similar
+    # price. Consecutive/near-consecutive equal lows are a different, named
+    # pattern in the book ("micro double bottom") and are handled by
+    # `detect_micro_doubles`. So anchor this on MAJOR swings.
+    swing_lows = find_major_swing_points(bars, "LOW")
     for i in range(len(swing_lows) - 1):
         idx1, price1 = swing_lows[i]
         idx2, price2 = swing_lows[i + 1]
@@ -338,6 +403,18 @@ def detect_double_patterns(bars: List[BarAnalysis]) -> List[PatternDetection]:
         between = bars[idx1:idx2 + 1]
         neckline = max(b.high for b in between)
 
+        # The formation is a FAILED BREAKOUT: the bears pushed to the second
+        # low and could not close the market below the first. Without this the
+        # pattern is just a drift lower, and the "bears trapped" premise that
+        # the entry rests on is absent.
+        if bars[idx2].close < price1:
+            continue
+
+        # A double bottom needs a genuine rally between the lows, otherwise it
+        # is a tight range / barbwire rather than a two-legged flag.
+        if neckline - max(price1, price2) < C.DB_MIN_NECKLINE_ATR * bars[idx2].atr:
+            continue
+
         patterns.append(PatternDetection(
             name="DB_BULL_FLAG",
             pattern_type="DOUBLE",
@@ -353,8 +430,8 @@ def detect_double_patterns(bars: List[BarAnalysis]) -> List[PatternDetection]:
             stop_price=min(price1, price2),
         ))
 
-    # Scan for swing highs (double top bear flag)
-    swing_highs = _find_swing_points(bars, "HIGH")
+    # Scan for swing highs (double top bear flag) — mirror of the above.
+    swing_highs = find_major_swing_points(bars, "HIGH")
     for i in range(len(swing_highs) - 1):
         idx1, price1 = swing_highs[i]
         idx2, price2 = swing_highs[i + 1]
@@ -372,6 +449,14 @@ def detect_double_patterns(bars: List[BarAnalysis]) -> List[PatternDetection]:
 
         between = bars[idx1:idx2 + 1]
         neckline = min(b.low for b in between)
+
+        # Failed breakout up: the bulls could not close above the first high.
+        if bars[idx2].close > price1:
+            continue
+
+        # Needs a genuine sell-off between the highs, else it is a tight range.
+        if min(price1, price2) - neckline < C.DB_MIN_NECKLINE_ATR * bars[idx2].atr:
+            continue
 
         patterns.append(PatternDetection(
             name="DT_BEAR_FLAG",
@@ -823,13 +908,25 @@ def detect_expanding_triangle(bars: List[BarAnalysis]) -> List[PatternDetection]
 def _find_swing_points(
     bars: List[BarAnalysis],
     point_type: str,  # "HIGH" or "LOW"
-    lookback: int = 3,
+    lookback: int = 1,
 ) -> List[tuple]:
     """
-    Find swing highs or swing lows.
+    Find swing highs or swing lows — Brooks' definition.
 
-    A swing high: bar whose high is higher than the `lookback` bars on each side.
-    A swing low: bar whose low is lower than the `lookback` bars on each side.
+    Brooks (glossary):
+      swing high — "A bar that has a high that is at or above the high of the
+                    bar before it and the bar after it."
+      swing low  — "A bar that has a low that is at or below the low of the
+                    bar before it and the bar after it."
+
+    That is ONE bar on each side, which is why `lookback` defaults to 1. The
+    previous default of 3 required a bar to dominate seven bars and so found
+    only ~42% of the swing points Brooks would mark, starving every downstream
+    consumer (trend lines, double tops/bottoms, wedges, legs) of pivots.
+
+    `lookback` is kept as a parameter because Brooks does distinguish minor
+    from major swings, but a MAJOR swing is not "the highest of N bars" — see
+    `find_major_swing_points`, which applies his actual criterion (separation).
 
     Returns list of (index, price) tuples.
     """
@@ -851,6 +948,37 @@ def _find_swing_points(
             points.append((i, val))
 
     return points
+
+
+def find_major_swing_points(
+    bars: List[BarAnalysis],
+    point_type: str,
+    min_separation: int = C.MAJOR_SWING_MIN_SEPARATION,
+) -> List[tuple]:
+    """
+    Reduce Brooks' swing points to the MAJOR ones.
+
+    Brooks (glossary, "major trend line"): a major trend line is "typically
+    drawn using bars that are at least 10 bars apart". So a major swing is not
+    a bar that dominates its neighbours — it is a swing far enough from the
+    swings around it to anchor a meaningful line.
+
+    Greedy pass keeping the most extreme swing in each `min_separation` window.
+    """
+    pts = _find_swing_points(bars, point_type, lookback=1)
+    if not pts:
+        return []
+
+    take_higher = (point_type == "HIGH")
+    major: List[tuple] = [pts[0]]
+    for idx, val in pts[1:]:
+        last_idx, last_val = major[-1]
+        if idx - last_idx >= min_separation:
+            major.append((idx, val))
+        elif (val > last_val) if take_higher else (val < last_val):
+            # Too close to the previous one — keep only the more extreme.
+            major[-1] = (idx, val)
+    return major
 
 
 # ─────────────────────────────────────────────────────────────────

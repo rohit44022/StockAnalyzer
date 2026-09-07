@@ -99,6 +99,8 @@ class BarAnalysis:
     # ── Context Flags (set by higher-level analysis) ──
     bars_in_current_move: int = 0           # How many bars into current leg
     atr: float = 0.0                        # ATR at this bar
+    ema: float = 0.0                        # 20-bar EMA at this bar (Brooks' MA)
+    touches_ema: bool = False               # False => Brooks' "moving average gap bar"
 
     # ── Summary ──
     description: str = ""                   # Human-readable Al Brooks description
@@ -128,7 +130,10 @@ def _classify_single_bar(
         return ba
 
     # ── Body & tail metrics ──
-    ba.is_bull = c >= o
+    # Brooks (glossary, "doji"): a bar with no body is one where "neither the
+    # bulls nor the bears control the bar". A close exactly equal to the open
+    # is therefore neither bull nor bear — not a bull bar as `c >= o` implied.
+    ba.is_bull = c > o
     ba.is_bear = c < o
 
     ba.body_size = abs(c - o)
@@ -183,14 +188,28 @@ def _classify_single_bar(
             ba.bar_type = "BEAR_TREND"
             ba.is_trend_bar = True
     else:
+        # Brooks: "All bars are either trend bars or nontrend bars, and those
+        # nontrend bars are called dojis." A bar with a body above the doji
+        # threshold IS a trend bar — just a weak one. Previously these bars
+        # were neither, which left 22% of all bars uncounted by every
+        # downstream trend-bar / doji tally.
         ba.bar_type = "MODERATE_BULL" if ba.is_bull else "MODERATE_BEAR"
+        ba.is_trend_bar = True
 
     # ── Outside / Inside bar detection ──
+    # Brooks defines both exactly, with no tolerance:
+    #   inside  — "a high that is at or below the high of the prior bar and a
+    #             low that is at or above the low of the prior bar"
+    #   outside — "a high that is above or at the high of the prior bar and a
+    #             low that is below the low of the prior bar, or a low that is
+    #             below or at the low of the prior bar and a high that is above
+    #             the high of the prior bar"
+    # Note outside requires at least one STRICT inequality, so a bar whose high
+    # and low both equal the prior bar's is inside only — never both.
     if not (math.isnan(prev_h) or math.isnan(prev_l)):
-        tol = range_size * C.INSIDE_BAR_TOLERANCE
-        if h >= prev_h and l <= prev_l:
+        if (h >= prev_h and l < prev_l) or (l <= prev_l and h > prev_h):
             ba.is_outside_bar = True
-        if h <= prev_h + tol and l >= prev_l - tol:
+        if h <= prev_h and l >= prev_l:
             ba.is_inside_bar = True
 
     # ── Climax bar detection ──
@@ -214,12 +233,13 @@ def _build_description(ba: BarAnalysis) -> str:
         parts.append(f"{'Bull' if ba.is_bull else 'Bear'} CLIMAX bar")
     elif ba.is_strong_trend_bar:
         parts.append(f"Strong {'bull' if ba.is_bull else 'bear'} trend bar")
+    elif ba.bar_type in ("MODERATE_BULL", "MODERATE_BEAR"):
+        parts.append(f"Moderate {'bull' if ba.is_bull else 'bear'} trend bar")
     elif ba.is_trend_bar:
         parts.append(f"{'Bull' if ba.is_bull else 'Bear'} trend bar")
-    elif ba.is_doji:
-        parts.append("Doji — indecision")
     else:
-        parts.append(f"Moderate {'bull' if ba.is_bull else 'bear'} bar")
+        # Brooks: every bar is a trend bar or a doji, so this is the doji case.
+        parts.append("Doji — indecision")
 
     if ba.is_outside_bar:
         parts.append("outside bar (engulfs prior)")
@@ -373,12 +393,18 @@ def classify_bars(df: pd.DataFrame) -> List[BarAnalysis]:
     ], axis=1).max(axis=1)
     atr_series = tr.rolling(window=C.ATR_PERIOD, min_periods=1).mean()
 
+    # Brooks' moving average is the 20-bar EMA and he references it constantly
+    # (with-trend bias, moving average gap bars, pullback tests). Attach it to
+    # every bar once here instead of recomputing it ad hoc per consumer.
+    ema_series = df["Close"].ewm(span=C.EMA_PERIOD, adjust=False).mean()
+
     opens = df["Open"].values
     highs = df["High"].values
     lows = df["Low"].values
     closes = df["Close"].values
     volumes = df["Volume"].values if "Volume" in df.columns else np.zeros(len(df))
     atrs = atr_series.values
+    emas = ema_series.values
 
     dates = df.index
     bars: List[BarAnalysis] = []
@@ -393,6 +419,12 @@ def classify_bars(df: pd.DataFrame) -> List[BarAnalysis]:
             atr=atrs[i],
         )
         ba.index = i
+
+        # Brooks, "moving average gap bar": "A bar that does not touch the
+        # moving average." A run of 20+ of them is one of his strongest
+        # trend-strength tells.
+        ba.ema = float(emas[i])
+        ba.touches_ema = bool(ba.low <= ba.ema <= ba.high)
 
         # Set date
         try:

@@ -31,7 +31,14 @@ MIN_BARS_IN_MOVE = 3                # Min bars in a move before reversal bar cou
 # ─────────────────────────────────────────────────────────────────
 #  OUTSIDE / INSIDE BAR
 # ─────────────────────────────────────────────────────────────────
-INSIDE_BAR_TOLERANCE = 0.001        # Allow tiny overshoot for inside bar (fraction of range)
+# Brooks defines inside and outside bars exactly, with no tolerance band:
+# inside  = "a high that is at or below the high of the prior bar and a low
+#            that is at or above the low of the prior bar"
+# The old INSIDE_BAR_TOLERANCE let a bar whose high poked ABOVE the prior high
+# still count as inside, which is not an inside bar under any reading of the
+# book. Comparisons are now exact; the constant is retained only so external
+# callers do not break, and is unused.
+INSIDE_BAR_TOLERANCE = 0.0          # unused — Brooks' definition is exact
 
 # ─────────────────────────────────────────────────────────────────
 #  PATTERN DETECTION
@@ -39,10 +46,35 @@ INSIDE_BAR_TOLERANCE = 0.001        # Allow tiny overshoot for inside bar (fract
 # High/Low counting
 HL_MAX_LOOKBACK = 30                # Max bars to look back for H1-H4 / L1-L4 counting
 
+# Brooks' with-trend test (glossary, "with trend"): "if most of the past 10 or
+# 20 bars are above the moving average, trend setups and trades are likely on
+# the buy side." This gates H-counts to the buy side and L-counts to the sell
+# side — Brooks: "a low 1 sets up trades in trading ranges and bear trends,
+# not strong bull trends."
+WITH_TREND_LOOKBACK = 20            # "the past 10 or 20 bars"
+WITH_TREND_MIN_BARS = 10            # need at least the shorter window to judge
+
+# Swing points (Brooks, glossary "swing high"/"swing low"): a swing needs only
+# ONE bar on each side. A MAJOR swing is not "the highest of N bars" — Brooks
+# ties major structure to separation: a major trend line is "typically drawn
+# using bars that are at least 10 bars apart".
+SWING_LOOKBACK = 1                  # bars each side — Brooks' definition
+MAJOR_SWING_MIN_SEPARATION = 10     # Brooks: major trend line bars >= 10 apart
+
 # Double bottom/top flags
-DB_PRICE_TOLERANCE = 0.015          # 1.5% price tolerance for double bottom/top
-DB_MAX_SPACING = 30                 # Max bars between the two lows/highs
-DB_MIN_SPACING = 3                  # Min bars between the two lows/highs
+# Brooks: "the low of the current bar is about the same as the low of a prior
+# swing low. That prior low can be just one bar earlier or 20 or more bars
+# earlier." So there is no minimum spacing (a 1-bar gap is a micro double
+# bottom, which Brooks trades) and no hard 30-bar ceiling.
+DB_PRICE_TOLERANCE = 0.015          # 1.5% — "about the same" (our operationalisation)
+DB_MAX_SPACING = 60                 # Brooks: "20 or more bars earlier" — not capped at 30
+DB_MIN_SPACING = 1                  # Brooks: "can be just one bar earlier"
+# A double bottom is a two-legged flag, so the market must actually rally away
+# from the first low and come back. Without a neckline the "formation" is a
+# tight trading range (Brooks calls that barbwire), not a double bottom.
+# Measured in ATR so it scales across instruments. Our operationalisation —
+# Brooks describes the shape but gives no number.
+DB_MIN_NECKLINE_ATR = 1.0
 
 # Wedge (3-push) patterns
 WEDGE_MAX_LOOKBACK = 40             # Max bars to look back for wedge
@@ -54,9 +86,15 @@ WEDGE_MIN_PUSHES = 3                # Minimum pushes required
 #  TREND ANALYSIS
 # ─────────────────────────────────────────────────────────────────
 # Always-in direction
-AI_LOOKBACK = 20                    # Bars to consider for always-in calculation
-AI_EMA_PERIOD = 20                  # EMA for trend bias
-AI_STRONG_THRESHOLD = 65            # Score > 65 = strong always-in direction
+# Brooks' always-in is a latching state that flips only on a spike that breaks
+# out and is confirmed by follow-through on the next bar. It is not a score,
+# so AI_EMA_PERIOD / AI_STRONG_THRESHOLD no longer gate it; they are kept only
+# so external callers do not break, and are unused.
+AI_LOOKBACK = 20                    # Min bars before an always-in read is meaningful
+AI_BREAKOUT_LOOKBACK = 10           # "beyond the trading range" — our operationalisation
+AI_BASE_SCORE = 60.0                # A confirmed flip starts here, +2/bar it survives
+AI_EMA_PERIOD = 20                  # unused — always-in does not consult the EMA
+AI_STRONG_THRESHOLD = 65            # unused — always-in is binary, not scored
 
 # Buying / Selling pressure
 PRESSURE_LOOKBACK = 20              # Bars to analyze for pressure

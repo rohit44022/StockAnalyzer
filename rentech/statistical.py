@@ -91,19 +91,18 @@ def hurst_exponent(close: pd.Series, max_lag: int = 100) -> HurstResult:
     rs_values = []
 
     for lag in lags:
-        rs_list = []
-        for start in range(0, len(returns) - lag, lag):
-            chunk = returns[start:start + lag]
-            if len(chunk) < 2:
-                continue
-            mean_r = np.mean(chunk)
-            deviations = np.cumsum(chunk - mean_r)
-            R = np.max(deviations) - np.min(deviations)
-            S = np.std(chunk, ddof=1)
-            if S > 1e-10:
-                rs_list.append(R / S)
-        if rs_list:
-            rs_values.append((np.log(lag), np.log(np.mean(rs_list))))
+        # Chunks are contiguous and all exactly `lag` long, so the whole lag
+        # can be done as one reshape + axis ops instead of a Python loop.
+        k = len(range(0, len(returns) - lag, lag))
+        if k == 0:
+            continue
+        chunks = returns[:k * lag].reshape(k, lag)
+        deviations = np.cumsum(chunks - chunks.mean(axis=1, keepdims=True), axis=1)
+        R = deviations.max(axis=1) - deviations.min(axis=1)
+        S = chunks.std(axis=1, ddof=1)
+        valid = S > 1e-10
+        if valid.any():
+            rs_values.append((np.log(lag), np.log(np.mean(R[valid] / S[valid]))))
 
     if len(rs_values) < 5:
         return HurstResult(0.5, "RANDOM_WALK", 0, "Insufficient lag data", 0)
@@ -290,14 +289,13 @@ def variance_ratio_test(close: pd.Series, lag: int = 5) -> VarianceRatioResult:
     # Heteroscedasticity-consistent z-statistic
     nq = len(q_ret)
     theta = 0
+    # Squared returns as a plain array — the original indexed log_ret.iloc[t]
+    # element by element, and recomputed sigma_1_sq (which does not depend on
+    # j) once per j. Both hoisted out.
+    r2 = np.asarray(log_ret, dtype=float) ** 2
+    sigma_1_sq = r2.sum() / n
     for j in range(1, lag):
-        delta_j = 0
-        for t in range(j, n):
-            delta_j += (log_ret.iloc[t] ** 2) * (log_ret.iloc[t - j] ** 2)
-        sigma_1_sq = 0
-        for t in range(n):
-            sigma_1_sq += log_ret.iloc[t] ** 2
-        sigma_1_sq /= n
+        delta_j = float(np.dot(r2[j:], r2[:-j]))
         if sigma_1_sq > 1e-15:
             delta_j = (delta_j / n) / (sigma_1_sq ** 2)
         else:

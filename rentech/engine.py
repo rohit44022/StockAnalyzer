@@ -23,8 +23,9 @@ into something remarkable."
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, asdict, field
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -459,3 +460,145 @@ def run_rentech_analysis(
             "error": str(e),
             "compute_time_ms": round(elapsed * 1000),
         }
+
+
+# ═══════════════════════════════════════════════════════════════
+# BATCH SCANNER — TOP N BULLISH STOCKS
+# ═══════════════════════════════════════════════════════════════
+
+def _analyze_one_for_scan(ticker: str, capital: float) -> Optional[Dict[str, Any]]:
+    """Run RenTech on one ticker, return result or None on failure."""
+    try:
+        from bb_squeeze.data_loader import load_stock_data
+        df = load_stock_data(ticker)
+        if df is None or len(df) < C.MIN_BARS_REQUIRED:
+            return None
+        result = run_rentech_analysis(df, ticker, capital)
+        if not result.get("success"):
+            return None
+        return result
+    except Exception:
+        return None
+
+
+def scan_top_bullish(
+    n: int = 5,
+    capital: float = C.CAPITAL_DEFAULT,
+    max_workers: int = 16,
+    tickers: Optional[List[str]] = None,
+    progress_callback: Optional[Callable[[int, int, str], None]] = None,
+) -> Dict[str, Any]:
+    """
+    Scan all stocks through RenTech and return the top N most bullish.
+
+    Ranks by composite_score * conviction, filtered to bullish verdicts
+    (STRONG_BUY, BUY) with a LONG direction. If fewer than N qualify, tops up
+    with the best LONG-leaning HOLDs so the UI always has something to show.
+
+    `progress_callback(done, total, ticker)` fires as each ticker finishes —
+    used by the SSE route to stream progress.
+
+    Returns a JSON-serializable dict with `top_picks` and `scan_metadata`.
+    """
+    from bb_squeeze.data_loader import get_all_tickers_from_csv
+
+    if tickers is None:
+        tickers = get_all_tickers_from_csv()
+    if not tickers:
+        return {"success": False, "error": "No tickers found in CSV directory"}
+
+    total = len(tickers)
+    start = time.time()
+    results: List[Dict[str, Any]] = []
+    errors = 0
+    done = 0
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_analyze_one_for_scan, t, capital): t
+                   for t in tickers}
+        for future in as_completed(futures):
+            ticker = futures[future]
+            try:
+                result = future.result(timeout=60)
+                if result:
+                    results.append(result)
+                else:
+                    errors += 1
+            except Exception:
+                errors += 1
+            done += 1
+            if progress_callback:
+                try:
+                    progress_callback(done, total, ticker)
+                except Exception:
+                    pass  # a broken progress sink must never kill the scan
+
+    # Score each result for ranking
+    scored = []
+    for r in results:
+        verdict = r.get("verdict", {})
+        action = verdict.get("action", "HOLD")
+        sig = r.get("signals", {}).get("composite", {})
+        score = sig.get("score", 0) or 0
+        conviction = sig.get("conviction", 0) or 0
+        risk = r.get("risk", {})
+
+        # Rank score: composite_score * conviction, boosted for strong actions
+        rank_score = score * max(conviction, 1) / 100.0
+        if action == "STRONG_BUY":
+            rank_score *= 1.5
+        elif action == "BUY":
+            rank_score *= 1.2
+
+        scored.append({
+            "ticker": r["ticker"],
+            "action": action,
+            "grade": verdict.get("grade", "D"),
+            "confidence": verdict.get("confidence", 0),
+            "composite_score": round(score, 2),
+            "conviction": round(conviction, 1),
+            "direction": sig.get("direction", "NEUTRAL"),
+            "regime": r.get("regime", {}).get("current", {}).get("regime", "UNKNOWN"),
+            "rank_score": round(rank_score, 2),
+            "edge": verdict.get("edge", ""),
+            "risk_rating": risk.get("risk_rating", ""),
+            "expected_value_pct": risk.get("expected_value_pct", 0),
+            "sharpe_estimate": risk.get("sharpe_estimate", 0),
+            "decay_days": sig.get("decay_days", ""),
+            "explanation": sig.get("explanation", ""),
+            "risk_levels": risk.get("levels", {}),
+            "position_size": risk.get("position", {}),
+        })
+
+    LONG = ("STRONG_LONG", "LONG")
+    bullish = [s for s in scored
+               if s["action"] in ("STRONG_BUY", "BUY") and s["direction"] in LONG]
+    bullish.sort(key=lambda x: x["rank_score"], reverse=True)
+
+    # Top up with LONG-leaning HOLDs when genuine buys are scarce
+    if len(bullish) < n:
+        holds = [s for s in scored
+                 if s["action"] == "HOLD" and s["direction"] in LONG]
+        holds.sort(key=lambda x: x["rank_score"], reverse=True)
+        bullish.extend(holds[:n - len(bullish)])
+
+    top = bullish[:n]
+    elapsed = time.time() - start
+
+    return {
+        "success": True,
+        "scan_type": "TOP_BULLISH",
+        "top_picks": top,
+        "scan_metadata": {
+            "total_scanned": total,
+            "analyzed_ok": len(results),
+            "errors": errors,
+            "total_bullish_found": len([s for s in scored
+                                        if s["action"] in ("STRONG_BUY", "BUY")
+                                        and s["direction"] in LONG]),
+            "elapsed_seconds": round(elapsed, 1),
+            "capital": capital,
+            "requested": n,
+            "returned": len(top),
+        },
+    }

@@ -82,6 +82,36 @@ body{background:var(--bg);font-family:var(--bs-body-font-family);color:var(--bs-
         Renaissance Technologies-inspired quantitative analysis for Indian equities
         <span id="tickerCount" style="margin-left:8px;color:var(--accent)"></span>
       </div>
+      <div class="text-center mt-3">
+        <button class="btn btn-sm" id="scanBtn"
+                style="background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.35);color:#69f0ae">
+          <i class="bi bi-lightning-charge-fill me-1"></i>Scan Top 5 Bullish
+        </button>
+        <div class="mt-2" style="font-size:.7rem;color:rgba(255,255,255,.28)">
+          Runs RenTech across all ~2,900 stocks — takes several minutes
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOP BULLISH SCAN -->
+<div id="scanPanel" class="container-fluid px-3 pb-4" style="display:none">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span class="section-title"><i class="bi bi-lightning-charge-fill me-1"></i>Top Bullish — Full Market Scan</span>
+      <span id="scanMeta" style="font-size:.72rem;color:rgba(255,255,255,.4)"></span>
+    </div>
+    <div class="card-body">
+      <div id="scanProgressWrap">
+        <div class="progress" style="height:6px;background:rgba(255,255,255,.06)">
+          <div id="scanBar" class="progress-bar" role="progressbar"
+               style="width:0%;background:var(--accent);transition:width .2s"></div>
+        </div>
+        <div id="scanStatus" class="mt-2 text-center"
+             style="font-size:.75rem;color:rgba(255,255,255,.45)">Starting scan…</div>
+      </div>
+      <div id="scanResults"></div>
     </div>
   </div>
 </div>
@@ -894,6 +924,106 @@ function renderMicro(r){
     </div>
   `;
 }
+
+// ─── Top Bullish Full-Market Scan (SSE) ────────────────────────
+(function initBullishScan(){
+  var btn = document.getElementById('scanBtn');
+  if(!btn) return;
+  var panel  = document.getElementById('scanPanel');
+  var bar    = document.getElementById('scanBar');
+  var status = document.getElementById('scanStatus');
+  var meta   = document.getElementById('scanMeta');
+  var out    = document.getElementById('scanResults');
+  var wrap   = document.getElementById('scanProgressWrap');
+  var es = null;
+
+  function actionColor(a){
+    if(a === 'STRONG_BUY') return '#00e676';
+    if(a === 'BUY')        return '#69f0ae';
+    return 'rgba(255,255,255,.55)';
+  }
+
+  function render(d){
+    var picks = d.top_picks || [];
+    var m = d.scan_metadata || {};
+    meta.textContent = m.analyzed_ok + ' analysed · ' + m.total_bullish_found +
+                       ' bullish found · ' + m.elapsed_seconds + 's';
+    if(!picks.length){
+      out.innerHTML = '<div class="text-center py-4" style="color:rgba(255,255,255,.4)">' +
+                      'No bullish setups found across ' + m.total_scanned + ' stocks.</div>';
+      return;
+    }
+    var rows = picks.map(function(p, i){
+      var lv = p.risk_levels || {};
+      return '' +
+      '<div class="d-flex align-items-center justify-content-between py-3" ' +
+           'style="border-bottom:1px solid rgba(255,255,255,.06)">' +
+        '<div style="flex:0 0 28px;font-size:1.1rem;color:rgba(255,255,255,.25)">' + (i+1) + '</div>' +
+        '<div style="flex:1">' +
+          '<a href="/rentech?ticker=' + encodeURIComponent(p.ticker) + '" ' +
+             'style="color:var(--accent);text-decoration:none;font-weight:600">' + p.ticker + '</a>' +
+          '<div style="font-size:.7rem;color:rgba(255,255,255,.35)">' +
+            p.regime + ' · ' + (p.edge || '—') + '</div>' +
+        '</div>' +
+        '<div class="text-center" style="flex:0 0 110px">' +
+          '<div style="color:' + actionColor(p.action) + ';font-weight:600;font-size:.85rem">' +
+            p.action.replace('_',' ') + '</div>' +
+          '<div style="font-size:.68rem;color:rgba(255,255,255,.3)">grade ' + p.grade + '</div>' +
+        '</div>' +
+        '<div class="text-center" style="flex:0 0 90px">' +
+          '<div style="font-weight:600">' + p.rank_score + '</div>' +
+          '<div style="font-size:.68rem;color:rgba(255,255,255,.3)">rank</div>' +
+        '</div>' +
+        '<div class="text-center" style="flex:0 0 90px">' +
+          '<div>' + p.conviction + '%</div>' +
+          '<div style="font-size:.68rem;color:rgba(255,255,255,.3)">conviction</div>' +
+        '</div>' +
+        '<div class="text-center" style="flex:0 0 110px">' +
+          '<div style="font-size:.8rem">' + (lv.stop_loss != null ? '₹' + lv.stop_loss : '—') + '</div>' +
+          '<div style="font-size:.68rem;color:rgba(255,255,255,.3)">stop</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    out.innerHTML = rows;
+  }
+
+  function stop(label){
+    if(es){ es.close(); es = null; }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-lightning-charge-fill me-1"></i>Scan Top 5 Bullish';
+    if(label) status.textContent = label;
+  }
+
+  btn.addEventListener('click', function(){
+    if(es){ stop('Scan cancelled.'); return; }
+    panel.style.display = '';
+    wrap.style.display = '';
+    out.innerHTML = '';
+    meta.textContent = '';
+    bar.style.width = '0%';
+    status.textContent = 'Starting scan…';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Cancel Scan';
+
+    es = new EventSource('/api/rentech/scan/bullish/stream?n=5');
+    es.onmessage = function(ev){
+      var msg = JSON.parse(ev.data);
+      if(msg.type === 'progress'){
+        bar.style.width = msg.pct + '%';
+        status.textContent = msg.done + ' / ' + msg.total + ' scanned (' + msg.pct + '%) · ' + msg.ticker;
+      } else if(msg.type === 'phase'){
+        status.textContent = msg.message;
+      } else if(msg.type === 'result'){
+        wrap.style.display = 'none';
+        render(msg.data);
+        stop(null);
+      } else if(msg.type === 'error'){
+        stop('Scan failed: ' + msg.message);
+      }
+    };
+    es.onerror = function(){ stop('Connection lost — scan stopped.'); };
+  });
+})();
 </script>
 {% include "_theme_picker.html" %}
 {% include "_scroll_reveal.html" %}

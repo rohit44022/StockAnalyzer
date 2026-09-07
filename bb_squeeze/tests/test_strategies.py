@@ -11,7 +11,7 @@ Bollinger's prescribed rules — and never compromises:
                 no bearish divergence (book p.155).
   M3 (Ch. 20) — W-Bottom: first low at lower band, second low above,
                 ≥ minimum separation. M-Top: mirror.
-  M4 (Ch. 18) — Walking-the-band: ≥3 tags AND ≥60% of bars in extreme zone
+  M4 (Ch.14) — Walking-the-band: ≥3 tags AND ≥60% of bars in extreme zone
                 AND every close held middle band — ALL three rules required.
 
 Each "strict" test asserts the canonical signal fires; then it flips
@@ -293,8 +293,8 @@ class TestM2TrendFollowingStrict(unittest.TestCase):
             "M2 BUY must NOT fire on low volume (volume_confirm required)")
 
     def test_bearish_divergence_invalidates_buy(self):
-        """Book: 'When %b and MFI disagree, believe MFI.' If %b rises but MFI
-        falls (bearish divergence), BUY must NOT fire."""
+        """Ch.19 uses MFI to confirm the %b signal, not merely to accompany it.
+        If %b rises but MFI falls (bearish divergence), BUY must NOT fire."""
         df = self._build_m2_buy_ready()
         # Make MFI fall while %b still rising
         df = _force_row(df, -2, Percent_B=0.80, MFI=95.0)
@@ -457,7 +457,7 @@ class TestM3MTopStrict(unittest.TestCase):
 
 
 # ═══════════════════════════════════════════════════════════════
-#  M4 — WALKING THE BANDS (Book Ch. 18)
+#  M4 — WALKING THE BANDS (Book Ch.14, p.112)
 #  STRICT RULE: ALL three book rules required for a band walk.
 # ═══════════════════════════════════════════════════════════════
 class TestM4WalkingTheBandsStrict(unittest.TestCase):
@@ -601,8 +601,10 @@ class TestStrategyConfigLockdown(unittest.TestCase):
         self.assertGreaterEqual(M3_M_FIRST_HIGH_PCT_B, 0.95)
         self.assertLess(M3_M_SECOND_HIGH_PCT_B, M3_M_FIRST_HIGH_PCT_B)
 
-    def test_m4_walk_rules_match_book_ch18(self):
-        """Ch.18: ≥3 tags in 10 bars, %b ≥ 0.85 / ≤ 0.15, mid held."""
+    def test_m4_walk_rules_match_book_ch14(self):
+        """Ch.14 "Walking the Bands": ≥3 tags in 10 bars, %b ≥ 0.85 / ≤ 0.15,
+        middle band held. Thresholds are our operationalisation of the
+        chapter; the chapter itself gives the behaviour, not the numbers."""
         self.assertEqual(M4_WALK_MIN_TOUCHES, 3)
         self.assertEqual(M4_WALK_LOOKBACK, 10)
         self.assertAlmostEqual(M4_WALK_TOUCH_TOLERANCE, 0.005, places=8)
@@ -726,12 +728,91 @@ class TestM1HeadFakeDetection(unittest.TestCase):
 
 
 # ═══════════════════════════════════════════════════════════════
-#  M4 DIP-BUY / RALLY-SELL DURING ACTIVE WALK (Book Ch. 18 rule 4b)
+#  M4 WALK-END EXIT (Book Ch.14) — REGRESSION GUARD
+#  This exit was unreachable: a detected walk requires every close to
+#  hold the middle band (Rule 3), and %b >= 0.5 is exactly equivalent
+#  to close >= BB_Mid, so testing "walk detected AND %b < 0.5" on the
+#  SAME bar can never be true. The walk must be detected as of the
+#  PRIOR bar and the break tested against the CURRENT close.
+# ═══════════════════════════════════════════════════════════════
+class TestM4WalkEndExitReachable(unittest.TestCase):
+
+    def _build_walk_then_break(self, side="upper"):
+        """Bars -11..-2 are a clean walk; the final bar breaks the middle band."""
+        walk_helper = TestM4WalkingTheBandsStrict()
+        df = walk_helper._build_upper_walk_df()
+        n = len(df)
+        # Extend the forced walk one bar further back so that df.iloc[:-1]
+        # still contains a full LOOKBACK-bar walk window.
+        i_extra = df.index[n - M4_WALK_LOOKBACK - 1]
+        df.at[i_extra, "BB_Upper"]  = df.at[i_extra, "Close"]
+        df.at[i_extra, "BB_Mid"]    = df.at[i_extra, "Close"] - 5.0
+        df.at[i_extra, "BB_Lower"]  = df.at[i_extra, "Close"] - 10.0
+        df.at[i_extra, "Percent_B"] = 0.95
+
+        if side == "lower":
+            # Mirror the whole forced window into a lower-band walk.
+            for k in range(M4_WALK_LOOKBACK + 1):
+                i = df.index[n - M4_WALK_LOOKBACK - 1 + k]
+                c = float(df.at[i, "Close"])
+                df.at[i, "BB_Lower"]  = c
+                df.at[i, "BB_Mid"]    = c + 5.0
+                df.at[i, "BB_Upper"]  = c + 10.0
+                df.at[i, "Percent_B"] = 0.05
+
+        last = df.index[-1]
+        mid = float(df.at[last, "BB_Mid"])
+        if side == "upper":
+            df.at[last, "Close"]     = mid - 1.0     # closed BELOW the middle band
+            df.at[last, "Percent_B"] = 0.40          # < 0.5
+        else:
+            df.at[last, "Close"]     = mid + 1.0     # closed ABOVE the middle band
+            df.at[last, "Percent_B"] = 0.60          # > 0.5
+        return df
+
+    def test_prior_bar_walk_is_intact(self):
+        """Precondition: the walk exists as of the prior bar."""
+        df = self._build_walk_then_break("upper")
+        self.assertIsNotNone(
+            _detect_band_walk(df.iloc[:-1], "upper", lookback=M4_WALK_LOOKBACK),
+            "Setup is wrong: prior bar must still show an upper walk")
+
+    def test_upper_walk_end_sets_flag_and_sells(self):
+        df = self._build_walk_then_break("upper")
+        r = _method_iv_walking_the_bands(df)
+        self.assertTrue(r.indicators.get("upper_walk_ended"),
+            "upper_walk_ended must be True when a walk ends below the middle band")
+        self.assertEqual(r.signal.signal_type, "SELL",
+            "End of an upper band walk is the Ch.14 exit — must emit SELL")
+
+    def test_lower_walk_end_sets_flag_and_buys(self):
+        df = self._build_walk_then_break("lower")
+        r = _method_iv_walking_the_bands(df)
+        self.assertTrue(r.indicators.get("lower_walk_ended"),
+            "lower_walk_ended must be True when a walk ends above the middle band")
+        self.assertEqual(r.signal.signal_type, "BUY",
+            "End of a lower band walk is the mirror Ch.14 entry — must emit BUY")
+
+    def test_same_bar_walk_and_mid_break_is_impossible(self):
+        """The structural fact behind the bug: if a walk is detected on a bar,
+        that bar cannot also be below the middle band. Guards against anyone
+        reintroducing a same-bar `walk and pct_b < 0.5` test."""
+        df = self._build_walk_then_break("upper")
+        walk_now = _detect_band_walk(df, "upper", lookback=M4_WALK_LOOKBACK)
+        if walk_now is not None:
+            self.assertGreaterEqual(
+                float(df["Percent_B"].iloc[-1]), 0.5,
+                "A detected upper walk implies %b >= 0.5 on that bar — "
+                "a same-bar walk-end test can never fire")
+
+
+# ═══════════════════════════════════════════════════════════════
+#  M4 DIP-BUY / RALLY-SELL DURING ACTIVE WALK (Book Ch.14, p.113)
 #  Strict rule: BUY only when active upper walk + %b in dip zone +
 #  SAR bullish + MFI > 50.  Mirror for lower walk SELL.
 # ═══════════════════════════════════════════════════════════════
 class TestM4DipBuyDuringActiveWalk(unittest.TestCase):
-    """Book Ch.18 add-on entry: during an active upper band walk,
+    """Ch.14 add-on entry: during an active upper band walk,
     a pullback toward the middle band (%b in [DIP_MIN, DIP_MAX])
     with SAR bullish and MFI > 50 is the textbook BUY add-on.
     All 4 sub-conditions are strict."""

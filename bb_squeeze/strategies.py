@@ -188,7 +188,9 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
             details_lines.append(
                 "⚠️ Price is near the upper band but money flow is weakening. "
                 "This divergence often precedes a pullback. Book says: "
-                "'When %b and MFI disagree, believe MFI.'"
+                "Book Ch.18: 'Where these indicators agree, they can be treated "
+                "as one. Where they disagree, one must focus on the story that "
+                "each tells... and ferret out the truth.'"
             )
         else:
             # Buy zone (%b + MFI thresholds met) but volume not confirming
@@ -1060,7 +1062,7 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
 
 # ═══════════════════════════════════════════════════════════════
 #  METHOD IV — WALKING THE BANDS
-#  Book: Chapter 18
+#  Book: Chapter 14
 #  Core idea: In a strong trend, price repeatedly "walks" along
 #  the upper or lower band. Each successive touch is a CONFIRMATION,
 #  not a reversal signal.
@@ -1130,7 +1132,7 @@ def _detect_band_walk(
     lookback: int = M4_WALK_LOOKBACK,
 ) -> Optional[PatternMatch]:
     """
-    Detect a Bollinger Band walk strictly per Chapter 18 of *Bollinger on
+    Detect a Bollinger Band walk strictly per Chapter 14 of *Bollinger on
     Bollinger Bands*. All three book rules must hold simultaneously:
 
       Rule 1 — Tag count: ≥ M4_WALK_MIN_TOUCHES (3) closes are either
@@ -1211,15 +1213,17 @@ def _detect_band_walk(
     )
     if band == "upper":
         desc += (
-            "Book Ch.18: 'Tags of the upper band during an uptrend are NOT "
-            "sell signals — they CONFIRM the strength of the trend.' "
-            "Continue holding; dips to the middle band are buying opportunities."
+            "Book Ch.14 p.113: 'These closes outside the bands are continuation "
+            "signals, not reversal signals.' Continue holding; per the chapter's "
+            "key points, 'the average may provide support and entry points "
+            "during a sustained trend.'"
         )
     else:
         desc += (
-            "Book Ch.18: 'Tags of the lower band during a downtrend are NOT "
-            "buy signals — they CONFIRM the trend is still bearish.' "
-            "Stay out; rallies to the middle band are selling opportunities."
+            "Book Ch.14 p.112: 'There is absolutely nothing about a tag of a "
+            "band that in and of itself is a signal' — during a decline the "
+            "lower band is 'frequently tagged or undercut' as a continuation, "
+            "not a reversal. Stay out while the average caps rallies."
         )
 
     return PatternMatch(
@@ -1263,11 +1267,37 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
     upper_walk = _detect_band_walk(df, "upper")
     lower_walk = _detect_band_walk(df, "lower")
 
+    # Walk state as of the PRIOR bar.
+    #
+    # Rule 3 of _detect_band_walk requires EVERY close in the lookback to
+    # hold the middle band, and %b >= 0.5 is exactly equivalent to
+    # close >= BB_Mid.  So the book's own exit — Ch.14: "when the walk ends
+    # and price closes below the middle band, the trend has changed" — is
+    # the very condition that invalidates the walk.  Testing it against the
+    # current bar alone can therefore never fire.  The break is only visible
+    # by comparing yesterday's walk state against today's close.
+    prev_upper_walk = (
+        _detect_band_walk(df.iloc[:-1], "upper")
+        if len(df) > M4_WALK_LOOKBACK else None
+    )
+    prev_lower_walk = (
+        _detect_band_walk(df.iloc[:-1], "lower")
+        if len(df) > M4_WALK_LOOKBACK else None
+    )
+    upper_walk_ended = bool(prev_upper_walk) and not upper_walk and pct_b < 0.5
+    lower_walk_ended = bool(prev_lower_walk) and not lower_walk and pct_b > 0.5
+
     patterns = []
     if upper_walk:
         patterns.append(upper_walk)
     if lower_walk:
         patterns.append(lower_walk)
+    # Surface the walk that just ended so downstream consumers (the
+    # portfolio panel) can tell WHICH band the ended walk belonged to.
+    if upper_walk_ended:
+        patterns.append(prev_upper_walk)
+    if lower_walk_ended:
+        patterns.append(prev_lower_walk)
 
     signal_type  = "NONE"
     strength     = "WEAK"
@@ -1292,10 +1322,11 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
             )
         elif (M4_WALK_DIP_BUY_PCT_B_MIN <= pct_b <= M4_WALK_DIP_BUY_PCT_B_MAX
                 and sar_bull and mfi > 50):
-            # Book rule 4b — "Buy dips to the middle band". During an
-            # active upper walk, a pullback into this zone with SAR still
-            # bullish and money flow supportive is the textbook add-on.
-            # Ch.18: "dips to the middle band provide buying opportunities."
+            # Book rule — buy dips to the average. During an active upper
+            # walk, a pullback into this zone with SAR still bullish and
+            # money flow supportive is the textbook add-on.
+            # Ch.14 key points (p.118): "The average may provide support and
+            # entry points during a sustained trend."
             signal_type = "BUY"
             strength = "MODERATE" if mfi > 60 else "WEAK"
             confidence = min(int(50 + (mfi - 50) * 0.5), 75)
@@ -1303,22 +1334,9 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
             details_lines.append(upper_walk.description)
             details_lines.append(
                 f"Price has pulled back to %b = {pct_b:.2f} (near the middle band) "
-                f"during an active upper band walk. Book Ch.18: 'dips to the "
-                f"middle band provide buying opportunities.' SAR is bullish and "
-                f"MFI ({mfi:.0f}) supports the uptrend — textbook add-on entry."
-            )
-        elif pct_b < M4_WALK_DIP_BUY_PCT_B_MIN:
-            # Book rule for exit — "Take profits when the walk ends".
-            # Ch.18: "When the walk ends and price closes below the middle
-            # band, the trend has changed."
-            signal_type = "SELL"
-            strength = "MODERATE"
-            confidence = 60
-            reason = "Upper band walk breaking — price fell to middle band"
-            details_lines.append(
-                f"Price was walking the upper band but has now pulled back to %b = {pct_b:.2f}. "
-                "The book says: 'When the walk ends and price closes below the middle band, "
-                "the trend has changed. Take profits.'"
+                f"during an active upper band walk. Book Ch.14 p.118: 'The average "
+                f"may provide support and entry points during a sustained trend.' "
+                f"SAR is bullish and MFI ({mfi:.0f}) supports the uptrend."
             )
         else:
             # In the no-man's-land between dip-buy ceiling and HOLD floor,
@@ -1360,20 +1378,10 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
             details_lines.append(lower_walk.description)
             details_lines.append(
                 f"Price has rallied to %b = {pct_b:.2f} (near the middle band) "
-                f"during an active lower band walk. Book Ch.18: 'sell rallies "
-                f"to the middle band — do NOT buy thinking it's cheap.' SAR "
-                f"remains bearish and MFI ({mfi:.0f}) confirms selling pressure."
-            )
-        elif pct_b > (1.0 - M4_WALK_DIP_BUY_PCT_B_MIN):
-            # Walk is breaking — price recovered above the middle band.
-            signal_type = "BUY"
-            strength = "MODERATE"
-            confidence = 60
-            reason = "Lower band walk breaking — price recovered to middle band"
-            details_lines.append(
-                f"Price was walking the lower band but has now recovered to %b = {pct_b:.2f}. "
-                "The book says: 'When the walk ends and price closes above the middle band, "
-                "the downtrend has changed. Consider buying.'"
+                f"during an active lower band walk. Book Ch.14 p.112: 'There is "
+                f"absolutely nothing about a tag of a band that in and of itself "
+                f"is a signal' — the average is capping this rally, not ending the "
+                f"decline. SAR remains bearish and MFI ({mfi:.0f}) confirms selling."
             )
         else:
             signal_type = "WATCH"
@@ -1381,6 +1389,41 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
             confidence = 45
             reason = "Lower band walk with improving momentum"
             details_lines.append(lower_walk.description)
+
+    elif upper_walk_ended:
+        # End-of-walk exit, operationalised from Ch.14 (pp.112-118). The book's
+        # key point (p.118) is that "the average may provide support and entry
+        # points during a sustained trend", and Figure 14.5 captions it
+        # "support from a well-chosen average defines the trend". So when the
+        # walk that was riding that support closes below the average, the
+        # structure that defined the trend is gone. (The book states this as
+        # support, not as a numbered sell rule — the threshold is ours.)
+        signal_type = "SELL"
+        strength = "STRONG" if (mfi < 50 and not sar_bull) else "MODERATE"
+        confidence = 70 if (mfi < 50 and not sar_bull) else 60
+        reason = "Upper band walk ended — close below the middle band"
+        details_lines.append(prev_upper_walk.description)
+        details_lines.append(
+            f"The upper band walk was still intact on the previous bar, but price has "
+            f"now closed at %b = {pct_b:.2f}, below the middle band (₹{bb_mid:.2f}). "
+            "Book Ch.14 p.118: 'The average may provide support and entry points "
+            "during a sustained trend' — that support has just been lost, so the "
+            "structure carrying the walk is broken. Take profits."
+        )
+
+    elif lower_walk_ended:
+        # Mirror of the same book rule for a lower band walk.
+        signal_type = "BUY"
+        strength = "STRONG" if (mfi > 50 and sar_bull) else "MODERATE"
+        confidence = 70 if (mfi > 50 and sar_bull) else 60
+        reason = "Lower band walk ended — close above the middle band"
+        details_lines.append(prev_lower_walk.description)
+        details_lines.append(
+            f"The lower band walk was still intact on the previous bar, but price has "
+            f"now closed at %b = {pct_b:.2f}, above the middle band (₹{bb_mid:.2f}). "
+            "Book Ch.14: the average that was capping this decline has been "
+            "reclaimed, so the structure confirming the downtrend is broken."
+        )
 
     else:
         # No walk detected
@@ -1409,16 +1452,21 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
     # ── Checklists ──
     _upper_active = upper_walk is not None
     _lower_active = lower_walk is not None
+    # A walk that ended on THIS bar still counts as "detected" for the
+    # checklists — otherwise the break step could never be reached, since
+    # the break is what invalidates the walk (see prev_*_walk above).
+    _upper_recent = _upper_active or bool(prev_upper_walk)
+    _lower_recent = _lower_active or bool(prev_lower_walk)
 
     buy_checklist = [
         {
-            "ok": _lower_active,
+            "ok": _lower_recent,
             "name": "Lower Band Walk Detected",
             "detail": f"Lower walk: {'ACTIVE' if _lower_active else 'Not detected'} (need ≥{M4_WALK_MIN_TOUCHES} touches in {M4_WALK_LOOKBACK} bars)",
             "explain": "Price must have been 'walking' the lower band (3+ touches in 10 bars). This confirms a prior downtrend existed.",
         },
         {
-            "ok": _lower_active and pct_b > 0.5,
+            "ok": lower_walk_ended,
             "name": "Walk Breaking — %b Recovering Above 0.50",
             "detail": f"%b: {pct_b:.3f} (need > 0.50)",
             "explain": "Price must recover above the middle of the bands. When the lower walk breaks and %b crosses 0.50, the downtrend is ending.",
@@ -1445,13 +1493,13 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
 
     sell_checklist = [
         {
-            "ok": _upper_active,
+            "ok": _upper_recent,
             "name": "Upper Band Walk Detected",
             "detail": f"Upper walk: {'ACTIVE' if _upper_active else 'Not detected'} (need ≥{M4_WALK_MIN_TOUCHES} touches in {M4_WALK_LOOKBACK} bars)",
-            "explain": "Price must have been 'walking' the upper band. Tags during an uptrend are NOT sell signals — they CONFIRM the trend.",
+            "explain": "Price must have been 'walking' the upper band. Ch.14: closes outside the bands are continuation signals, not reversal signals.",
         },
         {
-            "ok": _upper_active and pct_b < 0.5,
+            "ok": upper_walk_ended,
             "name": "Walk Breaking — %b Falling Below 0.50",
             "detail": f"%b: {pct_b:.3f} (need < 0.50)",
             "explain": "Price must fall below the middle of the bands. When the upper walk breaks and %b drops below 0.50, the uptrend is over.",
@@ -1477,7 +1525,7 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
     ]
 
     # ── Book-rule audit metrics — exposed so the panel can show WHY a
-    #    walk was or wasn't detected (rules 1, 2, 3 from Chapter 18). ──
+    #    walk was or wasn't detected (rules 1, 2, 3 from Chapter 14). ──
     upper_audit = _audit_band_walk(df, "upper")
     lower_audit = _audit_band_walk(df, "lower")
 
@@ -1488,12 +1536,16 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
         "sar_bull": sar_bull,
         "upper_walk_active": upper_walk is not None,
         "lower_walk_active": lower_walk is not None,
+        # A walk that was intact on the prior bar and broke the middle band
+        # on this one — the book's end-of-walk condition (Ch.14).
+        "upper_walk_ended": upper_walk_ended,
+        "lower_walk_ended": lower_walk_ended,
         "price_vs_upper": round(close / bb_upper, 4) if bb_upper else None,
         "price_vs_lower": round(close / bb_lower, 4) if bb_lower else None,
         "price_vs_mid": round(close / bb_mid, 4) if bb_mid else None,
         "buy_checklist": buy_checklist,
         "sell_checklist": sell_checklist,
-        # Strict-book-mode audit (Chapter 18 rules 1–3)
+        # Strict-book-mode audit (Chapter 14 rules 1–3)
         "upper_walk_audit": upper_audit,
         "lower_walk_audit": lower_audit,
         "walk_rules_config": {

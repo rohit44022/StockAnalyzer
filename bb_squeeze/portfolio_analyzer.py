@@ -1075,7 +1075,7 @@ def _generate_recommendation(
             strength = m2.signal.strength
             reasons.append(f"Method II confirms trend: %b={pct_b:.2f}, MFI={mfi:.0f}")
             action_triggers.append(f"ADD while %b stays above {M2_PCT_B_BUY_THRESHOLD} with MFI > {M2_MFI_CONFIRM_BUY}")
-            action_triggers.append(f"SELL if %b drops below 0.5 (currently {pct_b:.2f})")
+            action_triggers.append(f"EXIT per Ch.19: SAR flip or a tag of the lower band ₹{lower:.2f} — not %b alone (currently {pct_b:.2f})")
         elif sig_type == "SELL":
             action = "SELL"
             strength = m2.signal.strength
@@ -1098,7 +1098,7 @@ def _generate_recommendation(
                 strength = "MODERATE"
                 reasons.append(m2.signal.reason)
                 action_triggers.append(f"ADD if volume confirms (rises above 50-day avg)")
-                action_triggers.append(f"SELL if %b drops below 0.5 (currently {pct_b:.2f})")
+                action_triggers.append(f"EXIT per Ch.19: SAR flip or a tag of the lower band ₹{lower:.2f} — not %b alone (currently {pct_b:.2f})")
         else:
             action = "HOLD"
             strength = "WEAK"
@@ -1132,6 +1132,7 @@ def _generate_recommendation(
 
     elif strategy_code == "M4":
         sig_type = m4.signal.signal_type
+        m4_ind = m4.indicators if isinstance(m4.indicators, dict) else {}
         if sig_type == "HOLD":
             action = "HOLD"
             strength = m4.signal.strength
@@ -1141,13 +1142,55 @@ def _generate_recommendation(
         elif sig_type == "SELL":
             action = "SELL"
             strength = m4.signal.strength
-            reasons.append(f"Band walk breaking: {m4.signal.reason}")
-            action_triggers.append(f"EXIT: Band walk broken — expect mean reversion to ₹{mid:.2f}")
+            # A Method IV SELL has two distinct book meanings — say which.
+            if m4_ind.get("upper_walk_ended"):
+                reasons.append(
+                    "Upper band walk has ENDED — price closed below the average "
+                    "that was supporting the trend (Ch.14 p.118). Take profits."
+                )
+                action_triggers.append(
+                    f"EXIT: the walk that was carrying this position is over — "
+                    f"price is below the middle band ₹{mid:.2f}"
+                )
+            elif m4_ind.get("lower_walk_active"):
+                reasons.append(f"Walking the LOWER band — downtrend intact: {m4.signal.reason}")
+                action_triggers.append(
+                    f"EXIT/STAY OUT: lower band tags CONFIRM the downtrend (Ch.14) — "
+                    f"do NOT buy the dip; wait for a close above the middle band ₹{mid:.2f}"
+                )
+            else:
+                reasons.append(m4.signal.reason)
+                action_triggers.append(f"EXIT: Method IV sell — {m4.signal.reason}")
         elif sig_type == "BUY":
             action = "ADD"
             strength = m4.signal.strength
-            reasons.append("Lower band walk breaking — reversal opportunity")
-            action_triggers.append(f"ADD if reversal confirmed with MFI > 50 (currently {mfi:.0f})")
+            if m4_ind.get("lower_walk_ended"):
+                reasons.append(
+                    "Lower band walk has ENDED — price closed back above the middle band"
+                )
+                action_triggers.append(f"ADD if reversal confirmed with MFI > 50 (currently {mfi:.0f})")
+            else:
+                # The only other BUY path is the dip-to-middle-band add-on
+                # during an ACTIVE upper walk (Ch.14).
+                reasons.append(
+                    "Dip to the middle band during an active UPPER band walk — "
+                    "the book's textbook add-on entry"
+                )
+                action_triggers.append(
+                    f"ADD here: pullback to ₹{mid:.2f} inside an intact uptrend "
+                    f"(MFI {mfi:.0f}, SAR still bullish)"
+                )
+        elif sig_type == "WATCH":
+            action = "HOLD"
+            strength = "WEAK"
+            reasons.append(m4.signal.reason)
+            if m4_ind.get("lower_walk_active"):
+                action_triggers.append(
+                    f"STAY OUT while the lower band walk persists — only a close above "
+                    f"the middle band ₹{mid:.2f} ends it"
+                )
+            else:
+                action_triggers.append(f"SELL if price closes below mid band ₹{mid:.2f} (walk break)")
         else:
             action = "HOLD"
             strength = "WEAK"
@@ -1167,16 +1210,19 @@ def _generate_recommendation(
     #  tag / double-negative) or buy_signal — so existing M1 exit / add
     #  logic is preserved unchanged.
     #
-    #  Three rules, in priority order, drawn verbatim from the book:
-    #    1. M4 upper walk has BROKEN → take profits.
-    #       Ch.18: "When the walk ends and price closes below the middle
-    #       band, the trend has changed. Take profits."
+    #  Rules in priority order, derived from the book (paraphrase, not
+    #  verbatim quotation — see the chapter citations):
+    #    1. M4 upper walk has BROKEN → take profits. Ch.14 p.118 gives the
+    #       average as the support that defines a sustained trend; losing it
+    #       ends the structure carrying the walk.
+    #    1b. M4 LOWER walk is active → the breakout has failed outright.
+    #       Ch.14 p.112: "There is absolutely nothing about a tag of a band
+    #       that in and of itself is a signal" — do not buy the dip.
     #    2. M2 bearish %b/MFI divergence with %b still in the upper zone
-    #       → exit. Ch.19 p.155: "When %b and MFI disagree, believe MFI."
-    #    3. M4 upper walk is ACTIVE → hold with conviction. Ch.18: "Tags
-    #       of the upper band during an uptrend CONFIRM the strength of
-    #       the trend." (Pro tip: "the walk tells you to hold on and
-    #       let profits run.")
+    #       → exit (Ch.19, MFI as the confirming indicator).
+    #    3. M4 upper walk is ACTIVE → hold with conviction. Ch.14 p.113:
+    #       "These closes outside the bands are continuation signals, not
+    #       reversal signals."
     if strategy_code == "M1" and action == "HOLD" and (sig.hold_signal or sig.cond1_squeeze_on):
         m2_ind = m2.indicators if isinstance(m2.indicators, dict) else {}
         m2_bearish_div = bool(m2_ind.get("bearish_divergence", False))
@@ -1186,19 +1232,35 @@ def _generate_recommendation(
         # as the "still high" zone where rally-exhaustion divergences matter.
         pct_b_high = pct_b > 0.7
 
-        if m4.signal.signal_type == "SELL":
+        m4_ind_x = m4.indicators if isinstance(m4.indicators, dict) else {}
+
+        if m4_ind_x.get("upper_walk_ended"):
             # Rule 1 — Method IV walk has ended.
             action = "SELL"
             strength = "STRONG" if m4.signal.strength == "STRONG" else "MODERATE"
             reasons.append(
                 "Method IV exit — the upper band walk that was confirming "
-                "your squeeze entry has now ended (Ch.18: 'When the walk "
-                "ends and price closes below the middle band, the trend "
-                "has changed. Take profits.')."
+                "your squeeze entry has now ended: price closed below the "
+                "average that was supporting it (Ch.14 p.118: 'the average "
+                "may provide support... during a sustained trend')."
             )
             action_triggers.append(
                 f"EXIT: upper band walk broken — price has pulled back "
                 f"below the middle band ₹{mid:.2f}"
+            )
+        elif m4_ind_x.get("lower_walk_active"):
+            # Rule 1b — the position is now walking the LOWER band. This is
+            # not an ended uptrend; it is a confirmed downtrend (Ch.14).
+            action = "SELL"
+            strength = "STRONG" if m4.signal.strength == "STRONG" else "MODERATE"
+            reasons.append(
+                "Method IV exit — price is now walking the LOWER band, which "
+                "CONFIRMS a downtrend (Ch.14: lower band tags are not buy "
+                "signals). The squeeze breakout has failed."
+            )
+            action_triggers.append(
+                f"EXIT: lower band walk in force — do not average down; "
+                f"wait for a close above the middle band ₹{mid:.2f}"
             )
         elif m2_bearish_div and pct_b_high:
             # Rule 2 — Method II bearish divergence with %b still high.
@@ -1207,7 +1269,7 @@ def _generate_recommendation(
             reasons.append(
                 f"Method II bearish divergence — %b stayed high at "
                 f"{pct_b:.2f} while MFI fell to {mfi:.0f} (Ch.19 p.155: "
-                "'When %b and MFI disagree, believe MFI'). The rally is "
+                "Ch.18: where %b and MFI disagree, 'ferret out the truth'). The rally is "
                 "hollow — institutional money is leaving while price drifts up."
             )
             action_triggers.append(
@@ -1220,9 +1282,9 @@ def _generate_recommendation(
             reasons.append(
                 "Squeeze + Walk combo active — your Method I squeeze "
                 "entry has matured into a Method IV upper band walk "
-                "(Ch.18: 'Tags of the upper band during an uptrend "
-                "CONFIRM the strength of the trend'). Hold on and let "
-                "profits run."
+                "(Ch.14 p.113: 'These closes outside the bands are "
+                "continuation signals, not reversal signals'). Hold on "
+                "and let profits run."
             )
             action_triggers.append(
                 f"HOLD while the walk persists — exit ONLY on a close "

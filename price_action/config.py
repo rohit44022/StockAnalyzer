@@ -169,6 +169,15 @@ CONF_MODERATE_SIGNAL = 50           # 50-74 = moderate
 CONF_WEAK_SIGNAL = 30               # 30-49 = weak
 CONF_MIN_ACTIONABLE = 30            # Below 30 = not actionable
 
+# Trader's equation (Brooks): "To take a trade, you must believe that the
+# probability of success times the potential reward is greater than the
+# probability of failure times the risk." A merely positive result is not an
+# edge — Brooks calls a setup "risky" when the equation is "unclear or barely
+# favorable". This is where we draw "barely": expected gain must clear this
+# fraction of the risk taken to count as an edge rather than as risky.
+# Our operationalisation — Brooks names the category, not a number.
+EQUATION_BARELY_FAVORABLE = 0.25
+
 # ─────────────────────────────────────────────────────────────────
 #  FINAL VERDICT THRESHOLDS
 # ─────────────────────────────────────────────────────────────────

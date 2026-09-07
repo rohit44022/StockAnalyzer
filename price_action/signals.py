@@ -48,6 +48,12 @@ class PASignal:
     target_2: float = 0.0      # Aggressive target
     risk_reward: float = 0.0   # Risk/reward ratio
 
+    # Brooks' trader's equation: "To take a trade, you must believe that the
+    # probability of success times the potential reward is greater than the
+    # probability of failure times the risk."
+    traders_equation: float = 0.0   # p*reward - (1-p)*risk, in price units
+    equation_verdict: str = "NONE"  # "EDGE" | "RISKY" | "NO_EDGE"
+
     # Component scores (contributing to confidence)
     scores: Dict[str, float] = field(default_factory=dict)
 
@@ -386,6 +392,45 @@ def _determine_setup_type(
     return "TREND_CONT"
 
 
+def compute_traders_equation(
+    confidence: float,
+    entry: float,
+    stop: float,
+    target: float,
+) -> tuple:
+    """
+    Brooks' trader's equation.
+
+    "To take a trade, you must believe that the probability of success times
+     the potential reward is greater than the probability of failure times
+     the risk."
+
+    Brooks' own vocabulary for the result:
+      edge   — "A setup with a positive trader's equation."
+      risky  — "When the trader's equation is unclear or barely favorable."
+
+    `confidence` is the engine's own probability-of-success estimate, so it is
+    used directly as p. Returns (equation_value, verdict) where the value is in
+    price units — the expected gain per unit traded.
+    """
+    risk = abs(entry - stop)
+    reward = abs(target - entry)
+    if risk <= 0 or reward <= 0:
+        return 0.0, "NO_EDGE"
+
+    p = max(0.0, min(confidence / 100.0, 1.0))
+    equation = p * reward - (1.0 - p) * risk
+
+    if equation <= 0:
+        verdict = "NO_EDGE"
+    elif equation < risk * C.EQUATION_BARELY_FAVORABLE:
+        # "unclear or barely favorable" — Brooks calls this risky, not an edge.
+        verdict = "RISKY"
+    else:
+        verdict = "EDGE"
+    return equation, verdict
+
+
 def _compute_price_levels(
     bars: List[BarAnalysis],
     direction: str,
@@ -458,39 +503,51 @@ def _compute_price_levels(
         else:
             stop = entry + risk
 
-    # Targets
+    # Targets.
+    # Brooks' targets are STRUCTURAL — a measured move, or a trading range's
+    # height projected from its breakout. They are not a fixed multiple of
+    # risk. Previously the structural levels were only ever allowed to move
+    # target_2, so target_1 stayed at exactly 1.5R and risk_reward came out as
+    # 1.5 on 113 of 120 tickers — a number that carried no information at all.
+    # The nearest structural level is now the first target and the furthest is
+    # the second; the R-multiples survive only as a fallback for a chart that
+    # offers no level. Where structure sits very close to entry the resulting
+    # trade is simply not worth taking, and the trader's equation says so.
+    structural: List[float] = []
+
     if direction == "BUY":
-        target_1 = entry + risk * 1.5     # 1.5R
-        target_2 = entry + risk * 2.5     # 2.5R
-
-        # Use measured move if available (two-leg)
         if trend.measured_move_target > entry:
-            target_2 = trend.measured_move_target
+            structural.append(trend.measured_move_target)
 
-        # Brooks: trading range measured move — height of range projected from breakout
         for bo in breakouts.active_breakouts:
             if bo.level_type == "RANGE" and "BULL" in bo.breakout_type and bo.level_price > 0:
                 # Range height is approximated as distance from level to recent low
                 range_height = bo.level_price - stop if stop > 0 else risk * 2
                 range_target = bo.level_price + range_height
-                if range_target > target_2:
-                    target_2 = range_target
+                if range_target > entry:
+                    structural.append(range_target)
                 break
+
+        structural.sort()
+        target_1 = structural[0] if structural else entry + risk * 1.5
+        target_2 = max(structural[-1], entry + risk * 2.5) if structural \
+            else entry + risk * 2.5
     else:
-        target_1 = entry - risk * 1.5
-        target_2 = entry - risk * 2.5
-
         if 0 < trend.measured_move_target < entry:
-            target_2 = trend.measured_move_target
+            structural.append(trend.measured_move_target)
 
-        # Brooks: trading range measured move for shorts
         for bo in breakouts.active_breakouts:
             if bo.level_type == "RANGE" and "BEAR" in bo.breakout_type and bo.level_price > 0:
                 range_height = stop - bo.level_price if stop > 0 else risk * 2
                 range_target = bo.level_price - range_height
-                if 0 < range_target < target_2:
-                    target_2 = range_target
+                if 0 < range_target < entry:
+                    structural.append(range_target)
                 break
+
+        structural.sort(reverse=True)
+        target_1 = structural[0] if structural else entry - risk * 1.5
+        target_2 = min(structural[-1], entry - risk * 2.5) if structural \
+            else entry - risk * 2.5
 
     rr = abs(target_1 - entry) / risk if risk > 0 else 0
 
@@ -743,6 +800,10 @@ def generate_pa_signals(
         al_context = ("HOLD — Al Brooks teaches patience. Without a clear setup "
                       "(breakout, pullback, or reversal), staying out is the best trade.")
 
+    primary_equation, primary_verdict = compute_traders_equation(
+        confidence, levels["entry"], levels["stop"], levels["target_1"]
+    )
+
     result.primary_signal = PASignal(
         signal_type=primary_dir,
         setup_type=setup_type,
@@ -753,6 +814,8 @@ def generate_pa_signals(
         target_1=levels["target_1"],
         target_2=levels["target_2"],
         risk_reward=levels["rr"],
+        traders_equation=round(primary_equation, 2),
+        equation_verdict=primary_verdict,
         scores=primary_scores,
         reasons=reasons,
         al_brooks_context=al_context,
@@ -765,6 +828,9 @@ def generate_pa_signals(
         sec_levels = _compute_price_levels(bars, secondary_dir, sec_setup, trend, patterns, breakouts)
         sec_conf = secondary_scores["total"]
         sec_strength = "STRONG" if sec_conf >= 75 else ("MODERATE" if sec_conf >= 50 else "WEAK")
+        sec_equation, sec_verdict = compute_traders_equation(
+            sec_conf, sec_levels["entry"], sec_levels["stop"], sec_levels["target_1"]
+        )
 
         result.secondary_signals.append(PASignal(
             signal_type=secondary_dir,
@@ -776,6 +842,8 @@ def generate_pa_signals(
             target_1=sec_levels["target_1"],
             target_2=sec_levels["target_2"],
             risk_reward=sec_levels["rr"],
+            traders_equation=round(sec_equation, 2),
+            equation_verdict=sec_verdict,
             scores=secondary_scores,
             description=f"{secondary_dir} ({sec_strength}) — {sec_setup.replace('_', ' ').title()}",
         ))

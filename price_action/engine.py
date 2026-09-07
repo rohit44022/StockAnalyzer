@@ -59,6 +59,8 @@ class PriceActionResult:
     target_1: float = 0.0
     target_2: float = 0.0
     risk_reward: float = 0.0
+    traders_equation: float = 0.0   # Brooks: p*reward - (1-p)*risk
+    equation_verdict: str = "NONE"  # "EDGE" | "RISKY" | "NO_EDGE"
     current_price: float = 0.0
 
     # ── Trend State ──
@@ -389,6 +391,8 @@ def run_price_action_analysis(
         result.target_1 = sig.target_1
         result.target_2 = sig.target_2
         result.risk_reward = sig.risk_reward
+        result.traders_equation = sig.traders_equation
+        result.equation_verdict = sig.equation_verdict
 
         result.always_in = trend.always_in
         result.always_in_score = trend.always_in_score
@@ -484,6 +488,8 @@ def pa_result_to_dict(result: PriceActionResult) -> dict:
             "target_1": result.target_1,
             "target_2": result.target_2,
             "risk_reward": result.risk_reward,
+            "traders_equation": result.traders_equation,
+            "equation_verdict": result.equation_verdict,
         },
 
         "trend": {

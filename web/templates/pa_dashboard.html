@@ -637,6 +637,7 @@ nav a.active{color:var(--accent)!important;font-weight:600}
             <div class="detail-row"><span class="field-label">Normalized Score <i class="bi bi-question-circle info-icon" title="The same PA score normalized to 0-100 scale (as shown in Top 5 Picks). Blends 70% normalized raw score + 30% confidence. Lets you compare directly with the composite score components."></i></span><span id="dPaNormalized">—</span></div>
             <div class="detail-row"><span class="field-label">Setup Type <i class="bi bi-question-circle info-icon" title="What pattern/setup triggered this signal. SECOND_ENTRY (H2/L2) = highest win rate. BREAKOUT = momentum play. PULLBACK = joining existing trend. REVERSAL = counter-trend (risky). FAILED_BREAKOUT = trading trapped traders."></i></span><span id="dSetup">—</span></div>
             <div class="detail-row"><span class="field-label">Risk : Reward <i class="bi bi-question-circle info-icon" title="Ratio of potential profit to potential loss. 1:2 means you risk ₹1 to make ₹2. Al Brooks recommends at least 1:2 for most trades. 1:1 only for very high-probability setups (60%+ win rate)."></i></span><span id="dRR">—</span></div>
+            <div class="detail-row"><span class="field-label">Trader's Equation <i class="bi bi-question-circle info-icon" title="Al Brooks: 'To take a trade, you must believe that the probability of success times the potential reward is greater than the probability of failure times the risk.' EDGE = the equation is clearly positive. RISKY = positive but barely — Brooks says the equation is unclear. NO EDGE = the maths does not support the trade, however good the setup looks."></i></span><span id="dEquation">—</span></div>
           </div>
         </div>
 
@@ -872,6 +873,19 @@ function renderResult(d) {
     document.getElementById('dPaNormalized').innerHTML = '<span class="' + normColor + '">' + paBlended.toFixed(0) + '/100</span>';
     document.getElementById('dSetup').textContent = s.setup.replace(/_/g, ' ');
     document.getElementById('dRR').textContent = pl.risk_reward ? '1 : ' + pl.risk_reward.toFixed(1) : '—';
+
+    // Brooks' trader's equation — p(success)*reward vs p(failure)*risk
+    var eqVerdict = pl.equation_verdict || 'NONE';
+    var eqEl = document.getElementById('dEquation');
+    if (eqVerdict === 'NONE') {
+        eqEl.textContent = '—';
+    } else {
+        var eqColor = eqVerdict === 'EDGE' ? 'bull' : eqVerdict === 'RISKY' ? 'neutral' : 'bear';
+        var eqLabel = eqVerdict === 'NO_EDGE' ? 'NO EDGE' : eqVerdict;
+        eqEl.innerHTML = '<span class="' + eqColor + '">' + eqLabel + '</span>' +
+            (pl.traders_equation ? ' <span style="opacity:.7">(₹' +
+                pl.traders_equation.toFixed(2) + ' expected per unit)</span>' : '');
+    }
 
     // Price levels
     document.getElementById('plEntry').textContent = pl.entry ? '₹' + pl.entry.toFixed(2) : '—';

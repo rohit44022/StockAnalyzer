@@ -106,7 +106,7 @@ body{background:var(--bg);font-family:var(--bs-body-font-family);color:var(--bs-
       <div id="scanProgressWrap">
         <div class="progress" style="height:6px;background:rgba(255,255,255,.06)">
           <div id="scanBar" class="progress-bar" role="progressbar"
-               style="width:0%;background:var(--accent);transition:width .2s"></div>
+               style="width:100%;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .2s"></div>
         </div>
         <div id="scanStatus" class="mt-2 text-center"
              style="font-size:.75rem;color:rgba(255,255,255,.45)">Starting scan…</div>
@@ -1000,7 +1000,7 @@ function renderMicro(r){
     wrap.style.display = '';
     out.innerHTML = '';
     meta.textContent = '';
-    bar.style.width = '0%';
+    bar.style.transform = 'scaleX(0)';
     status.textContent = 'Starting scan…';
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Cancel Scan';
@@ -1009,7 +1009,7 @@ function renderMicro(r){
     es.onmessage = function(ev){
       var msg = JSON.parse(ev.data);
       if(msg.type === 'progress'){
-        bar.style.width = msg.pct + '%';
+        bar.style.transform = 'scaleX(' + (msg.pct / 100) + ')';
         status.textContent = msg.done + ' / ' + msg.total + ' scanned (' + msg.pct + '%) · ' + msg.ticker;
       } else if(msg.type === 'phase'){
         status.textContent = msg.message;

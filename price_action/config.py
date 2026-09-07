@@ -101,7 +101,10 @@ PRESSURE_LOOKBACK = 20              # Bars to analyze for pressure
 PRESSURE_STRONG = 0.65              # >65% bull bars = strong buying pressure
 
 # Spike detection
-SPIKE_MIN_BARS = 2                  # Min consecutive strong trend bars for spike (Al Brooks: "every trend bar is a spike"; 2+ = confirmed spike)
+# Brooks: "any LARGE bear trend bar is a spike, a breakout, and a sell climax"
+# — a spike is "made up of one or more trend bars", not every trend bar. The
+# size qualifier is what SPIKE_BODY_THRESHOLD enforces; 2+ bars = confirmed.
+SPIKE_MIN_BARS = 2                  # Min consecutive strong trend bars for a spike
 SPIKE_MAX_BARS = 5                  # Typical spike is 1-5 bars
 SPIKE_BODY_THRESHOLD = 0.55         # Min body pct to qualify as spike bar
 

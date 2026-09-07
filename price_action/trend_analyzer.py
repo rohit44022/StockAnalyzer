@@ -126,7 +126,8 @@ def compute_always_in(
          has failed."
 
     So a flip needs three things, in order:
-      1. a strong trend bar (Brooks: "every trend bar is a spike"),
+      1. a strong trend bar (Brooks: "any large bear trend bar is a spike,
+         a breakout, and a sell climax" — size is what makes it a spike),
       2. that breaks out — closes beyond the recent structure, and
       3. follow-through on the very next bar (same-direction close).
 

@@ -442,55 +442,91 @@ def analyze_two_legs(bars: List[BarAnalysis]) -> dict:
 
 
 def _find_trend_legs(bars: List[BarAnalysis]) -> List[TrendLeg]:
-    """Find directional legs in recent price action."""
+    """
+    Find the legs in recent price action.
+
+    Brooks (glossary): "leg — A small trend that breaks a trend line of any
+    size; the term is used only where there are at least two legs on the
+    chart."
+
+    A leg is therefore NOT "the move between two locally dominant pivots" —
+    that was the old lookback=2 reading, and the number 2 appears nowhere in
+    the book. A leg ends when a trend line BREAKS. Turning points come from
+    Brooks' own swing definition (one bar on each side); a turn only closes
+    the current leg once the line drawn across the two most recent same-side
+    swings has actually been broken by a close.
+    """
     if len(bars) < 5:
         return []
 
-    legs: List[TrendLeg] = []
-    # Use a simplified approach: find significant swing points and
-    # measure moves between them
     from price_action.patterns import _find_swing_points
 
-    swing_highs = _find_swing_points(bars, "HIGH", lookback=2)
-    swing_lows = _find_swing_points(bars, "LOW", lookback=2)
+    swing_highs = _find_swing_points(bars, "HIGH")
+    swing_lows = _find_swing_points(bars, "LOW")
+    if len(swing_highs) < 2 or len(swing_lows) < 2:
+        return []
 
-    # Merge and sort all swings
-    all_swings = [(idx, price, "HIGH") for idx, price in swing_highs] + \
-                 [(idx, price, "LOW") for idx, price in swing_lows]
-    all_swings.sort(key=lambda x: x[0])
+    def line_value(pts: List[tuple], upto: int, at: int) -> Optional[float]:
+        """Value at bar `at` of the line across the last two swings before `upto`."""
+        prior = [p for p in pts if p[0] < upto]
+        if len(prior) < 2:
+            return None
+        (i1, p1), (i2, p2) = prior[-2], prior[-1]
+        if i2 == i1:
+            return None
+        slope = (p2 - p1) / (i2 - i1)
+        return p2 + slope * (at - i2)
 
-    # Build legs from alternating swings
-    for i in range(1, len(all_swings)):
-        prev_idx, prev_price, prev_type = all_swings[i - 1]
-        curr_idx, curr_price, curr_type = all_swings[i]
+    legs: List[TrendLeg] = []
+    # Seed the first leg from the two earliest swings of opposite type.
+    first_high, first_low = swing_highs[0], swing_lows[0]
+    direction = "BULL" if first_low[0] < first_high[0] else "BEAR"
+    start_idx = min(first_low[0], first_high[0])
+    ext_idx, ext_price = (start_idx, bars[start_idx].low) if direction == "BULL"         else (start_idx, bars[start_idx].high)
 
-        if prev_type == "LOW" and curr_type == "HIGH":
-            leg = TrendLeg(
-                direction="BULL",
-                start_idx=prev_idx,
-                end_idx=curr_idx,
-                start_price=prev_price,
-                end_price=curr_price,
-                size=abs(curr_price - prev_price),
-                bars=curr_idx - prev_idx,
-                start_date=bars[prev_idx].date if prev_idx < len(bars) else "",
-                end_date=bars[curr_idx].date if curr_idx < len(bars) else "",
-            )
-            legs.append(leg)
+    for i in range(start_idx + 1, len(bars)):
+        bar = bars[i]
 
-        elif prev_type == "HIGH" and curr_type == "LOW":
-            leg = TrendLeg(
-                direction="BEAR",
-                start_idx=prev_idx,
-                end_idx=curr_idx,
-                start_price=prev_price,
-                end_price=curr_price,
-                size=abs(curr_price - prev_price),
-                bars=curr_idx - prev_idx,
-                start_date=bars[prev_idx].date if prev_idx < len(bars) else "",
-                end_date=bars[curr_idx].date if curr_idx < len(bars) else "",
-            )
-            legs.append(leg)
+        if direction == "BULL":
+            if bar.high > ext_price or ext_idx == start_idx:
+                if bar.high > ext_price:
+                    ext_idx, ext_price = i, bar.high
+            # A bull leg rides a line across its rising swing LOWS.
+            lv = line_value(swing_lows, i, i)
+            if lv is not None and bar.close < lv and ext_idx > start_idx:
+                legs.append(TrendLeg(
+                    direction="BULL",
+                    start_idx=start_idx,
+                    end_idx=ext_idx,
+                    start_price=bars[start_idx].low,
+                    end_price=ext_price,
+                    size=abs(ext_price - bars[start_idx].low),
+                    bars=ext_idx - start_idx,
+                    start_date=bars[start_idx].date,
+                    end_date=bars[ext_idx].date,
+                ))
+                direction, start_idx = "BEAR", ext_idx
+                ext_idx, ext_price = i, bar.low
+        else:
+            if bar.low < ext_price or ext_idx == start_idx:
+                if bar.low < ext_price:
+                    ext_idx, ext_price = i, bar.low
+            # A bear leg rides a line across its falling swing HIGHS.
+            lv = line_value(swing_highs, i, i)
+            if lv is not None and bar.close > lv and ext_idx > start_idx:
+                legs.append(TrendLeg(
+                    direction="BEAR",
+                    start_idx=start_idx,
+                    end_idx=ext_idx,
+                    start_price=bars[start_idx].high,
+                    end_price=ext_price,
+                    size=abs(bars[start_idx].high - ext_price),
+                    bars=ext_idx - start_idx,
+                    start_date=bars[start_idx].date,
+                    end_date=bars[ext_idx].date,
+                ))
+                direction, start_idx = "BULL", ext_idx
+                ext_idx, ext_price = i, bar.high
 
     return legs
 

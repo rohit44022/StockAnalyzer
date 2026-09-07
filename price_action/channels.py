@@ -23,7 +23,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 
 from price_action.bar_types import BarAnalysis
-from price_action.patterns import _find_swing_points
+from price_action.patterns import _find_swing_points, find_major_swing_points
 from price_action import config as C
 
 
@@ -100,8 +100,13 @@ def detect_trend_lines(bars: List[BarAnalysis]) -> Tuple[List[TrendLine], List[T
     if len(bars) < 10:
         return bull_lines, bear_lines
 
-    swing_lows = _find_swing_points(bars, "LOW", lookback=2)
-    swing_highs = _find_swing_points(bars, "HIGH", lookback=2)
+    # Brooks (glossary, "major trend line"): "Any trend line that contains most
+    # of the price action on the screen and is typically drawn using bars that
+    # are at least 10 bars apart." A trend line is anchored by MAJOR swings —
+    # separation, not local dominance. The old lookback=2 asked each pivot to
+    # dominate four neighbours, which is not a criterion Brooks states anywhere.
+    swing_lows = find_major_swing_points(bars, "LOW")
+    swing_highs = find_major_swing_points(bars, "HIGH")
 
     # Bull trend lines from ascending swing lows
     _build_trend_lines_from_swings(swing_lows, bars, "BULL_TREND", bull_lines, ascending=True)
@@ -323,14 +328,32 @@ def detect_channel_lines(
 
 def detect_micro_channels(bars: List[BarAnalysis]) -> List[MicroChannel]:
     """
-    Detect micro channels — very tight trend channels.
+    Detect micro channels — the most extreme form of a tight channel.
 
-    Al Brooks: "A micro channel is a series of bars where almost every
-    bar's low (bull) or high (bear) touches the trend line. It indicates
-    very strong buying/selling. The first pullback is usually bought/sold."
+    Brooks (glossary): "micro channel — A very tight channel where most of the
+    bars have their highs and lows touching the trend line and, often, also the
+    trend channel line. It is the most extreme form of a tight channel, and it
+    has no pullbacks or only one or two small pullbacks."
 
-    Bull micro channel: almost every bar's low is at or above prior bar's low
-    Bear micro channel: almost every bar's high is at or below prior bar's high
+    Two things follow that the old scan got wrong:
+
+    1. "or only one or two small pullbacks" — a perfect monotonic run is the
+       strict case, not the definition. The scan now steps over up to
+       MICRO_CHANNEL_MAX_PULLBACKS bars that dip against the channel and are
+       recovered by the very next bar (which is what makes the pullback small).
+
+    2. There is no upper bar count. Brooks: "the more bars in the bull micro
+       channel, the more likely that the bear breakout will not reverse the
+       bull trend." The old MICRO_CHANNEL_MAX_BARS truncated every streak at
+       15 bars, so the strongest channels — the ones Brooks singles out — were
+       reported as ordinary 15-bar ones and the remainder was rescanned as a
+       separate channel.
+
+    `touch_pct` now reports the share of bars that actually held the line
+    ("most of the bars"), and is gated on MICRO_CHANNEL_TOUCH_PCT. Previously
+    it was count / (i - start + 1), which is 1.0 by construction on a
+    contiguous streak — it always printed 100.0 and the config threshold was
+    never referenced anywhere.
     """
     channels: List[MicroChannel] = []
     if len(bars) < C.MICRO_CHANNEL_MIN_BARS:
@@ -338,63 +361,75 @@ def detect_micro_channels(bars: List[BarAnalysis]) -> List[MicroChannel]:
 
     n = len(bars)
 
-    # Detect bull micro channels
-    i = 0
-    while i < n:
-        # Look for streak of bars with lows >= prior low (bull micro channel)
-        if i + 1 < n and bars[i + 1].low >= bars[i].low - bars[i].range_size * 0.05:
-            start = i
-            count = 1
-            while i + 1 < n and \
-                  bars[i + 1].low >= bars[i].low - bars[i].range_size * 0.05 and \
-                  count < C.MICRO_CHANNEL_MAX_BARS:
-                i += 1
-                count += 1
+    def holds(prev: BarAnalysis, cur: BarAnalysis, is_bull: bool) -> bool:
+        """Does `cur` keep the channel intact relative to `prev`?"""
+        tol = prev.range_size * C.MICRO_CHANNEL_TOLERANCE
+        if is_bull:
+            return cur.low >= prev.low - tol
+        return cur.high <= prev.high + tol
 
-            if count >= C.MICRO_CHANNEL_MIN_BARS:
-                slope = (bars[i].low - bars[start].low) / (i - start) if i > start else 0
+    for is_bull in (True, False):
+        i = 0
+        while i < n - 1:
+            if not holds(bars[i], bars[i + 1], is_bull):
+                i += 1
+                continue
+
+            start = i
+            pullbacks = 0
+            j = i
+            while j + 1 < n:
+                if holds(bars[j], bars[j + 1], is_bull):
+                    j += 1
+                elif (pullbacks < C.MICRO_CHANNEL_MAX_PULLBACKS
+                      and j + 2 < n
+                      and holds(bars[j], bars[j + 2], is_bull)):
+                    # One bar against the channel, recovered by the next — a
+                    # small pullback, which Brooks explicitly allows.
+                    pullbacks += 1
+                    j += 2
+                else:
+                    break
+
+            count = j - start + 1
+            touch_pct = (count - pullbacks) / count * 100.0
+
+            # A micro channel is the extreme form of a tight CHANNEL, so it has
+            # to actually go somewhere. Without this, a flat run of equal lows
+            # satisfies "low >= prior low" and reads as a micro channel when it
+            # is really a trading range.
+            progressed = (bars[j].low > bars[start].low) if is_bull \
+                else (bars[j].high < bars[start].high)
+
+            if (count >= C.MICRO_CHANNEL_MIN_BARS
+                    and progressed
+                    and touch_pct >= C.MICRO_CHANNEL_TOUCH_PCT * 100):
+                if is_bull:
+                    slope = (bars[j].low - bars[start].low) / (j - start)
+                    side, edge, pressure = "BULL", "low >= prior low", "buying"
+                    action = "buy"
+                else:
+                    slope = (bars[j].high - bars[start].high) / (j - start)
+                    side, edge, pressure = "BEAR", "high <= prior high", "selling"
+                    action = "sell"
+
+                pb_note = "" if not pullbacks else f", {pullbacks} small pullback(s)"
                 channels.append(MicroChannel(
-                    direction="BULL",
+                    direction=side,
                     start_idx=start,
-                    end_idx=i,
+                    end_idx=j,
                     bars=count,
                     slope=round(slope, 4),
-                    touch_pct=round(count / (i - start + 1) * 100, 1),
-                    still_active=(i >= n - 2),
-                    description=f"Bull micro channel ({count} bars) — every bar's "
-                                f"low >= prior low. Very strong buying. First pullback "
-                                f"is buy opportunity.",
+                    touch_pct=round(touch_pct, 1),
+                    still_active=(j >= n - 2),
+                    description=f"{side.title()} micro channel ({count} bars{pb_note}) — "
+                                f"{edge}. Very strong {pressure}. First pullback "
+                                f"is {action} opportunity.",
                 ))
-        i += 1
 
-    # Detect bear micro channels
-    i = 0
-    while i < n:
-        if i + 1 < n and bars[i + 1].high <= bars[i].high + bars[i].range_size * 0.05:
-            start = i
-            count = 1
-            while i + 1 < n and \
-                  bars[i + 1].high <= bars[i].high + bars[i].range_size * 0.05 and \
-                  count < C.MICRO_CHANNEL_MAX_BARS:
-                i += 1
-                count += 1
+            i = max(j, i + 1)
 
-            if count >= C.MICRO_CHANNEL_MIN_BARS:
-                slope = (bars[i].high - bars[start].high) / (i - start) if i > start else 0
-                channels.append(MicroChannel(
-                    direction="BEAR",
-                    start_idx=start,
-                    end_idx=i,
-                    bars=count,
-                    slope=round(slope, 4),
-                    touch_pct=round(count / (i - start + 1) * 100, 1),
-                    still_active=(i >= n - 2),
-                    description=f"Bear micro channel ({count} bars) — every bar's "
-                                f"high <= prior high. Very strong selling. First pullback "
-                                f"is sell opportunity.",
-                ))
-        i += 1
-
+    channels.sort(key=lambda mc: mc.start_idx)
     return channels
 
 

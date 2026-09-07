@@ -123,10 +123,18 @@ TRENDLINE_MIN_TOUCHES = 2           # Min pivot touches for valid trend line
 TRENDLINE_MAX_LOOKBACK = 60         # Max bars back for trend line detection
 CHANNEL_LINE_TOLERANCE = 0.005      # 0.5% tolerance for channel line touch
 
-# Micro channel
-MICRO_CHANNEL_MAX_BARS = 15         # Micro channel is very tight, max 15 bars
-MICRO_CHANNEL_MIN_BARS = 5          # Min bars for micro channel
-MICRO_CHANNEL_TOUCH_PCT = 0.80      # 80%+ of bars must touch the trend line
+# Micro channel — Brooks: "a very tight channel where most of the bars have
+# their highs and lows touching the trend line ... it has no pullbacks or only
+# one or two small pullbacks."
+MICRO_CHANNEL_MIN_BARS = 5          # our floor — Brooks names no minimum, but his
+                                    # worked examples are five bars and up
+MICRO_CHANNEL_MAX_PULLBACKS = 2     # Brooks: "only one or two small pullbacks"
+MICRO_CHANNEL_TOUCH_PCT = 0.80      # "most of the bars" — now actually enforced
+MICRO_CHANNEL_TOLERANCE = 0.05      # touch tolerance as a fraction of bar range
+# Brooks sets NO upper bar count: "the more bars in the bull micro channel, the
+# more likely that the bear breakout will not reverse the bull trend." Capping
+# the streak truncated exactly the strongest channels, so the cap is gone.
+MICRO_CHANNEL_MAX_BARS = 15         # unused — Brooks caps micro channels nowhere
 
 # ─────────────────────────────────────────────────────────────────
 #  BREAKOUT DETECTION

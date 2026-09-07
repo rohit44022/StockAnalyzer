@@ -82,8 +82,14 @@ def detect_swing_breakouts(bars: List[BarAnalysis]) -> List[Breakout]:
     if len(bars) < 10:
         return breakouts
 
-    swing_highs = _find_swing_points(bars, "HIGH", lookback=3)
-    swing_lows = _find_swing_points(bars, "LOW", lookback=3)
+    # Brooks (glossary, "breakout"): the bar "extends beyond some prior price of
+    # significance such as a swing high or low, the high or low of any prior
+    # bar, a trend line, or a trend channel." A swing high/low is significant on
+    # its own — and Brooks' swing is one bar on each side. The old lookback=3
+    # required a pivot to dominate six neighbours, a level Brooks never names,
+    # and so missed most of the levels he would call a breakout.
+    swing_highs = _find_swing_points(bars, "HIGH")
+    swing_lows = _find_swing_points(bars, "LOW")
     n = len(bars)
 
     # Detect breakouts above swing highs

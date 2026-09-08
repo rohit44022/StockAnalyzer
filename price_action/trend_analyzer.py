@@ -67,6 +67,8 @@ class TrendState:
     leg2_size: float = 0.0                  # Price range of second leg
     two_leg_complete: bool = False
     measured_move_target: float = 0.0       # Projected target from leg equality
+    measured_move_up: float = 0.0           # Same projection, measured upward
+    measured_move_down: float = 0.0         # Same projection, measured downward
 
     # ── Consecutive Bars ──
     consecutive_bull_trend: int = 0
@@ -404,6 +406,8 @@ def analyze_two_legs(bars: List[BarAnalysis]) -> dict:
         "leg2_size": 0.0,
         "two_leg_complete": False,
         "measured_move_target": 0.0,
+        "measured_move_up": 0.0,
+        "measured_move_down": 0.0,
         "legs": [],
     }
 
@@ -423,21 +427,39 @@ def analyze_two_legs(bars: List[BarAnalysis]) -> dict:
         result["leg2_size"] = legs[-1].size
         result["two_leg_complete"] = True
 
-        # Measured move: project from end of leg 1 pullback
+        # Measured move: leg 2 runs about as far as leg 1, projected from
+        # where leg 2 began.
+        #
+        # Both directions are recorded, because the leg that is running now is
+        # not always the direction being traded. A buy taken during a two-
+        # legged pullback is betting the BEAR leg is ending, so its target is
+        # the bull projection — leg 1's height measured up from the pullback
+        # low (where the bear leg ended). Publishing only the running leg's
+        # direction left every pullback buy with no target above the entry, so
+        # 77% of signals fell back to a flat 1.5R placeholder.
+        run_start, prior_size = legs[-1].start_price, legs[-2].size
+        run_end = legs[-1].end_price
         if legs[-1].direction == "BULL":
-            result["measured_move_target"] = legs[-1].start_price + legs[-2].size
+            result["measured_move_up"] = run_start + prior_size
+            result["measured_move_down"] = run_end - prior_size
         else:
-            result["measured_move_target"] = legs[-1].start_price - legs[-2].size
+            result["measured_move_down"] = run_start - prior_size
+            result["measured_move_up"] = run_end + prior_size
 
     elif len(legs) == 1:
         result["current_leg"] = 1
         result["leg1_size"] = legs[0].size
 
-        # Project measured move target for second leg
-        if legs[0].direction == "BULL":
-            result["measured_move_target"] = bars[-1].close + legs[0].size
-        else:
-            result["measured_move_target"] = bars[-1].close - legs[0].size
+        # Only one leg so far: project the second from where price is now.
+        result["measured_move_up"] = bars[-1].close + legs[0].size
+        result["measured_move_down"] = bars[-1].close - legs[0].size
+
+    # The running leg's own projection stays the headline figure, so the
+    # engine and the UI keep reading what they always read.
+    if legs[-1].direction == "BULL":
+        result["measured_move_target"] = result["measured_move_up"]
+    else:
+        result["measured_move_target"] = result["measured_move_down"]
 
     return result
 
@@ -649,6 +671,8 @@ def analyze_trend(
     state.leg2_size = two_leg["leg2_size"]
     state.two_leg_complete = two_leg["two_leg_complete"]
     state.measured_move_target = round(two_leg["measured_move_target"], 2)
+    state.measured_move_up = round(two_leg["measured_move_up"], 2)
+    state.measured_move_down = round(two_leg["measured_move_down"], 2)
 
     # 6. Consecutive analysis
     consec = _count_consecutive(bars)

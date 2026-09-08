@@ -467,7 +467,15 @@ def _compute_price_levels(
                     stop = min(stop, p.stop_price)
                 break
 
-        if breakouts.pullback_entry_price > 0 and setup_type == "PULLBACK":
+        # The pullback level comes from a bar earlier in the window, while the
+        # stop above comes from the last five bars — two different moments. If
+        # the older level sits below the stop, taking it would put the stop
+        # ABOVE a long entry, which is not a stop at all but a guaranteed exit
+        # in profit. That fabricated 37% of the backtest's total P&L across
+        # 4,037 trades. Keep the better limit price only when the stop still
+        # sits underneath it.
+        if (breakouts.pullback_entry_price > stop
+                and setup_type == "PULLBACK"):
             entry = breakouts.pullback_entry_price
 
     else:  # SELL
@@ -488,7 +496,10 @@ def _compute_price_levels(
                     stop = max(stop, p.stop_price)
                 break
 
-        if breakouts.pullback_entry_price > 0 and setup_type == "PULLBACK":
+        # Mirror of the BUY case above: only take the pullback limit price if
+        # the stop still sits above it.
+        if (0 < breakouts.pullback_entry_price < stop
+                and setup_type == "PULLBACK"):
             entry = breakouts.pullback_entry_price
 
     # Risk is whatever the chart says it is.
@@ -521,8 +532,11 @@ def _compute_price_levels(
     structural: List[float] = []
 
     if direction == "BUY":
-        if trend.measured_move_target > entry:
-            structural.append(trend.measured_move_target)
+        # Take the upward projection, not whichever way the leg that happens
+        # to be running points. A buy during a two-legged pullback is trading
+        # the bear leg's end, so the target belongs above the entry.
+        if trend.measured_move_up > entry:
+            structural.append(trend.measured_move_up)
 
         for bo in breakouts.active_breakouts:
             if bo.level_type == "RANGE" and "BULL" in bo.breakout_type and bo.level_price > 0:
@@ -538,8 +552,8 @@ def _compute_price_levels(
         target_2 = max(structural[-1], entry + risk * 2.5) if structural \
             else entry + risk * 2.5
     else:
-        if 0 < trend.measured_move_target < entry:
-            structural.append(trend.measured_move_target)
+        if 0 < trend.measured_move_down < entry:
+            structural.append(trend.measured_move_down)
 
         for bo in breakouts.active_breakouts:
             if bo.level_type == "RANGE" and "BEAR" in bo.breakout_type and bo.level_price > 0:

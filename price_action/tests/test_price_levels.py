@@ -63,6 +63,45 @@ class TestStopPlacement(unittest.TestCase):
         risk_pct = (lv["stop"] - lv["entry"]) / lv["entry"] * 100
         self.assertGreater(risk_pct, 3.0, "risk must not be clamped to 3% of entry")
 
+    def test_stale_pullback_level_cannot_invert_the_stop(self):
+        # The pullback level is read off a bar earlier in the window, so it can
+        # sit below a stop taken from the last five bars. Accepting it would
+        # put the stop ABOVE a long entry -- a guaranteed exit in profit, not a
+        # stop. 4,037 trades did exactly that and booked 37% of all P&L.
+        bars = _bars([100.0] * 5, [120.0] * 5)
+        bo = BreakoutAnalysis()
+        bo.pullback_entry_price = 90.0          # below the 100 stop
+        lv = _compute_price_levels(bars, "BUY", "PULLBACK",
+                                   TrendState(), PatternSummary(), bo)
+        self.assertLess(lv["stop"], lv["entry"],
+                        "a long's stop must stay below its entry")
+
+    def test_usable_pullback_level_is_still_taken(self):
+        bars = _bars([100.0] * 5, [120.0] * 5)
+        bo = BreakoutAnalysis()
+        bo.pullback_entry_price = 110.0         # above the 100 stop
+        lv = _compute_price_levels(bars, "BUY", "PULLBACK",
+                                   TrendState(), PatternSummary(), bo)
+        self.assertEqual(lv["entry"], 110.0)
+        self.assertLess(lv["stop"], lv["entry"])
+
+    def test_pullback_buy_targets_the_bull_projection_not_a_placeholder(self):
+        # Bear leg running inside a bull trend: the headline measured move
+        # points DOWN (100) while the bull projection points UP (145). A buy
+        # must take the upward one. Reading the headline instead leaves no
+        # target above entry and silently falls back to a flat 1.5R.
+        bars = _bars([100.0] * 5, [120.0] * 5)
+        trend = TrendState()
+        trend.measured_move_target = 100.0
+        trend.measured_move_down = 100.0
+        trend.measured_move_up = 145.0
+        lv = _compute_price_levels(bars, "BUY", "PULLBACK",
+                                   trend, PatternSummary(), BreakoutAnalysis())
+        self.assertEqual(lv["target_1"], 145.0)
+        fallback = lv["entry"] + (lv["entry"] - lv["stop"]) * 1.5
+        self.assertNotEqual(lv["target_1"], fallback,
+                            "target must come from structure, not the 1.5R placeholder")
+
     def test_risk_is_not_pinned_to_one_value_across_different_bars(self):
         # The tell for a binding cap: unrelated bar geometries producing the
         # same risk-as-%-of-entry.

@@ -23,7 +23,7 @@ body{background:var(--bg);font-family:var(--bs-body-font-family)}
 .indicator-val{font-size:1.25rem;font-weight:600}
 .mini-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.45)}
 .section-title{font-size:1rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:0}
-.reason-item{background:rgba(255,255,255,.04);border-left:3px solid var(--accent);padding:8px 14px;margin-bottom:6px;border-radius:0 8px 8px 0;font-size:.85rem;line-height:1.6}
+.reason-item{background:rgba(255,255,255,.04);border:1px solid rgba(240,136,62,.18);padding:8px 14px;margin-bottom:6px;border-radius:8px;font-size:.85rem;line-height:1.6}
 .brooks-ctx{background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2);border-radius:10px;padding:16px;font-size:.88rem;line-height:1.7}
 .brooks-ctx strong{color:var(--accent)}
 .detail-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.88rem}
@@ -44,11 +44,16 @@ body{background:var(--bg);font-family:var(--bs-body-font-family)}
 .pressure-buy{position:absolute;left:0;top:0;height:100%;background:rgba(0,200,83,.4);border-radius:10px 0 0 10px}
 .pressure-sell{position:absolute;right:0;top:0;height:100%;background:rgba(255,23,68,.4);border-radius:0 10px 10px 0}
 .price-level{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;margin:4px 0;font-size:.88rem}
-.pl-entry{background:rgba(33,150,243,.12);border-left:3px solid #42a5f5}
-.pl-stop{background:rgba(255,23,68,.12);border-left:3px solid var(--bear)}
-.pl-target{background:rgba(0,200,83,.12);border-left:3px solid var(--bull)}
+/* The tint already carries the meaning (blue entry, red stop, green target);
+   a matching hairline reads as one object without the side-tab look. */
+.pl-entry{background:rgba(33,150,243,.12);border:1px solid rgba(66,165,245,.32)}
+.pl-stop{background:rgba(255,23,68,.12);border:1px solid rgba(255,23,68,.32)}
+.pl-target{background:rgba(0,200,83,.12);border:1px solid rgba(0,200,83,.32)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .fade-in{animation:fadeIn .4s ease}
+/* Verdict explainers: the BUY/SELL/HOLD badge inside is already colour-coded,
+   so the box only has to group it with its text. */
+.verdict-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;height:100%}
 .scan-item{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px 16px;margin-bottom:8px;cursor:pointer;transition:border-color .2s}
 .scan-item:hover{border-color:var(--accent)}
 .scan-item .scan-meta{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:4px}
@@ -233,19 +238,19 @@ nav a.active{color:var(--accent)!important;font-weight:600}
       <h6><i class="bi bi-signpost-split me-2"></i>Understanding the Verdicts & Badges</h6>
       <div class="row g-2">
         <div class="col-md-4">
-          <div style="border-left:3px solid var(--bull);padding-left:10px">
+          <div class="verdict-card">
             <span class="verdict-badge vb-buy" style="font-size:.8rem;padding:4px 12px">BUY</span>
             <p class="small text-secondary mt-1 mb-0">PA Score is positive (bullish). The system sees more buying pressure, supportive patterns, and trend alignment favoring upward movement.</p>
           </div>
         </div>
         <div class="col-md-4">
-          <div style="border-left:3px solid var(--bear);padding-left:10px">
+          <div class="verdict-card">
             <span class="verdict-badge vb-sell" style="font-size:.8rem;padding:4px 12px">SELL</span>
             <p class="small text-secondary mt-1 mb-0">PA Score is negative (bearish). Selling pressure dominates, with bearish patterns and trend structure supporting downward movement.</p>
           </div>
         </div>
         <div class="col-md-4">
-          <div style="border-left:3px solid var(--hold);padding-left:10px">
+          <div class="verdict-card">
             <span class="verdict-badge vb-hold" style="font-size:.8rem;padding:4px 12px">HOLD</span>
             <p class="small text-secondary mt-1 mb-0">PA Score is near zero or confidence is too low. The market is in balance — no clear edge. Wait for a stronger setup to form.</p>
           </div>

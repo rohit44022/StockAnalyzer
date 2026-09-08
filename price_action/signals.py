@@ -491,17 +491,22 @@ def _compute_price_levels(
         if breakouts.pullback_entry_price > 0 and setup_type == "PULLBACK":
             entry = breakouts.pullback_entry_price
 
-    # Risk — cap at 3% of entry to keep targets realistic on daily charts
+    # Risk is whatever the chart says it is.
+    #
+    # This used to cap risk at 3% of entry and MOVE THE STOP to match. That
+    # cap bound on 74.9% of BUY signals across the NSE universe, replacing the
+    # structural stop with a synthetic level sitting inside the signal bar's
+    # own noise — so the trade was stopped out at a price that meant nothing.
+    # Those capped trades lost -0.43%/trade (PF 0.79) while the 18.9% that
+    # kept a real stop made +0.17%/trade (PF 1.13).
+    #
+    # Brooks sizes the position to the risk; he does not move the stop to fit
+    # the position. Oversized risk is handled by the trader's equation — wide
+    # stop, structural target, poor ratio, no trade — not by relocating the
+    # stop to a level the market has no reason to respect.
     risk = abs(entry - stop)
     if risk == 0:
         risk = last.atr if last.atr > 0 else last.range_size
-    max_risk = entry * 0.03
-    if risk > max_risk and max_risk > 0:
-        risk = max_risk
-        if direction == "BUY":
-            stop = entry - risk
-        else:
-            stop = entry + risk
 
     # Targets.
     # Brooks' targets are STRUCTURAL — a measured move, or a trading range's

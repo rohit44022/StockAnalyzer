@@ -74,6 +74,10 @@ class TradeResult:
     pnl_pct: float = 0.0       # percentage gain/loss
     always_in: str = ""
     trend_phase: str = ""
+    # Brooks' trader's equation — the book's own filter on whether a setup
+    # is worth taking at all: p(success)*reward vs p(failure)*risk.
+    traders_equation: float = 0.0
+    equation_verdict: str = "NONE"
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -139,6 +143,8 @@ def backtest_stock(df: pd.DataFrame, ticker: str) -> List[TradeResult]:
             risk_reward=result.risk_reward,
             always_in=result.always_in,
             trend_phase=result.trend_phase,
+            traders_equation=result.traders_equation,
+            equation_verdict=result.equation_verdict,
         )
 
         outcome = _evaluate_trade(

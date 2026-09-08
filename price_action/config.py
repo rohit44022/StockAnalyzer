@@ -198,3 +198,50 @@ VERDICT_STRONG_SELL = -75
 MIN_BARS_REQUIRED = 60              # Minimum bars needed for meaningful PA analysis
 ATR_PERIOD = 14                     # ATR period for volatility normalization
 EMA_PERIOD = 20                     # Default EMA for trend reference
+
+# ─────────────────────────────────────────────────────────────────
+#  DAILY SHORTLIST (top-5 BUY)
+# ─────────────────────────────────────────────────────────────────
+# Which signals are worth putting in front of a human each morning.
+#
+# Every filter below is one Brooks already names -- his setups, his trader's
+# equation, his always-in direction. None was invented to make a number look
+# better. The thresholds were chosen on NSE BUY signals from before 2018 and
+# then measured on 2018-onward signals that played no part in choosing them:
+#
+#   top 5 per day, no filter          +0.188%/trade  PF 1.06
+#   + equation must read EDGE         +0.156%/trade  PF 1.05
+#   + only the four setups below      +0.170%/trade  PF 1.05
+#   + confidence >= 70                +0.346%/trade  PF 1.11
+#   + reward:risk >= 1.5              +0.424%/trade  PF 1.13   <- shipped
+#
+# The gain is real but modest, and it is not evenly spread: 2020, 2021, 2023
+# and 2026 carried it, while 2018, 2019, 2022 and 2025 lost money. Treat the
+# shortlist as a ranked reading list, not as a signal to size up on.
+#
+# Deliberately NOT filtered: signals whose stop sits less than 1% from entry.
+# They look wrong -- a stop that close is inside the daily noise -- but they
+# averaged +1.09%/trade out-of-sample, and excluding them lowered the shortlist
+# to +0.314%. There are only 371 of them, and their profit factor (5.2) leans
+# on a small risk denominator, so this is worth revisiting on more data; it is
+# not worth overriding the measurement on a hunch today.
+SHORTLIST_SIZE = 5
+
+# Brooks setups that made money in BOTH halves of the sample. REVERSAL
+# (-0.06%/trade out-of-sample) and TREND_CONT (-0.09%) did not, so a signal
+# whose best reading is one of those does not reach the shortlist.
+SHORTLIST_SETUPS = ("BREAKOUT", "PULLBACK", "SECOND_ENTRY", "FAILED_BREAKOUT")
+
+# Confidence is the engine's own 0-100 score. It survives out-of-sample:
+# below 50 averaged +0.10%/trade, 70-80 averaged +0.38%, 80+ averaged +0.62%.
+# 70 is where the step up happens, and it still leaves a full five names on
+# 70% of days.
+SHORTLIST_MIN_CONFIDENCE = 70
+
+# Brooks sizes the target off structure, and a setup only earns its place when
+# the target is far enough above entry to pay for the stop. Below 1.5 the
+# shortlist would also be telling the reader "the gain outweighs the loss"
+# while showing them a trade where it does not: eligible signals with a
+# reward:risk under 1.0 lost 0.145%/trade out-of-sample, while those at 1.5 or
+# better made +0.490%.
+SHORTLIST_MIN_RR = 1.5

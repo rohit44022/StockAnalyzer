@@ -22,6 +22,7 @@ from bb_squeeze.indicators import compute_all_indicators
 from bb_squeeze.signals import analyze_signals
 from bb_squeeze.config import CSV_DIR
 from price_action.engine import run_price_action_analysis, pa_result_to_dict
+from price_action.scanner import scan_all_stocks, top_buy_shortlist
 from price_action import config as C
 
 pa_bp = Blueprint("price_action", __name__)
@@ -85,6 +86,36 @@ def api_pa_analysis(ticker: str):
     )
 
     return jsonify(pa_result_to_dict(result))
+
+
+# ─────────────────────────────────────────────────────────────────
+#  DAILY BUY SHORTLIST
+# ─────────────────────────────────────────────────────────────────
+
+@pa_bp.route("/api/pa/shortlist")
+def api_pa_shortlist():
+    """The day's top BUY candidates, in plain English.
+
+    Same universe sweep as /api/pa/scan, then price_action.scanner's filters:
+    Brooks' trader's equation, the four setups that made money out-of-sample,
+    the always-in direction, the engine's confidence band, and a reward worth
+    at least 1.5x the risk.
+
+    Returns fewer than five, or none, when the market offers nothing that
+    qualifies. That is the honest answer for the day, not an error.
+    """
+    limit = int(request.args.get("limit", str(C.SHORTLIST_SIZE)))
+
+    # scan_all_stocks runs the universe across a thread pool; the serial loop
+    # /api/pa/scan uses takes several times longer for the same work. Bollinger
+    # cross-validation is skipped -- none of the shortlist filters read it.
+    results = scan_all_stocks(CSV_DIR, include_bb=False)
+
+    return jsonify({
+        "scanned": len(results.get("all", [])),
+        "buy_signals": len(results.get("buy_signals", [])),
+        "picks": top_buy_shortlist(results, limit=limit),
+    })
 
 
 # ─────────────────────────────────────────────────────────────────

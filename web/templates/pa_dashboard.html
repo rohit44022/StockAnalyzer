@@ -112,7 +112,10 @@ nav a.active{color:var(--accent)!important;font-weight:600}
       <div id="autoList" class="autocomplete-list"></div>
     </div>
     <div class="mt-3">
-      <button class="btn btn-sm" style="background:rgba(0,200,83,.15);color:var(--bull);border:1px solid rgba(0,200,83,.3)" onclick="runScan('buy')">
+      <button class="btn btn-sm fw-bold" style="background:var(--accent);color:#1a1d21;border:1px solid var(--accent)" onclick="runShortlist()">
+        <i class="bi bi-star-fill me-1"></i> Today's Top 5 Buys
+      </button>
+      <button class="btn btn-sm ms-2" style="background:rgba(0,200,83,.15);color:var(--bull);border:1px solid rgba(0,200,83,.3)" onclick="runScan('buy')">
         <i class="bi bi-rocket-takeoff-fill me-1"></i> Scan BUY Signals
       </button>
       <button class="btn btn-sm ms-2" style="background:rgba(255,23,68,.15);color:var(--bear);border:1px solid rgba(255,23,68,.3)" onclick="runScan('sell')">
@@ -1087,6 +1090,70 @@ async function runScan(direction) {
     } finally {
         hideLoading();
     }
+}
+
+// Today's shortlist: the handful of BUY signals that cleared every filter the
+// backtest justified. Rendered in plain words, because the point of this list
+// is that it can be acted on without reading Brooks first.
+async function runShortlist() {
+    showLoading();
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('introBox').style.display = 'none';
+    try {
+        const resp = await fetch('/api/pa/shortlist');
+        const d = await resp.json();
+        renderShortlist(d);
+        document.getElementById('scanResults').style.display = 'block';
+    } catch (err) {
+        alert('Scan error: ' + err.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function renderShortlist(d) {
+    document.getElementById('scanTitle').textContent = "Today's Top 5 Buys";
+    document.getElementById('scanStats').textContent =
+        d.picks.length + ' cleared every filter — from ' + d.buy_signals +
+        ' buy signals across ' + d.scanned + ' stocks';
+
+    const list = document.getElementById('scanList');
+    const warning = '<div class="mt-3 p-3" style="background:rgba(255,193,7,.08);' +
+        'border:1px solid rgba(255,193,7,.25);border-radius:12px;line-height:1.7">' +
+        '<strong><i class="bi bi-exclamation-triangle"></i> Read this before acting.</strong> ' +
+        'In testing about <strong>40 of every 100</strong> of these picks made money, so ' +
+        '<strong>most individual picks lose</strong>. The list came out ahead only because the ' +
+        'winners ran further than the losers. That needs you to take the whole list rather than ' +
+        'the one name you like, and to sell at the stop every time without arguing. Whole years ' +
+        'still lost money: 2018, 2019, 2022 and 2025 were all negative.</div>';
+
+    if (!d.picks || !d.picks.length) {
+        list.innerHTML = '<div class="text-center py-4 text-secondary">' +
+            '<i class="bi bi-cup-hot" style="font-size:2rem;display:block;margin-bottom:8px"></i>' +
+            'Nothing qualified today. That is a real answer, not a failure — on roughly 3 days ' +
+            'in 100 nothing is worth taking, and the honest move is to sit out.</div>' + warning;
+        return;
+    }
+
+    list.innerHTML = d.picks.map(p =>
+        '<div class="scan-item" style="cursor:pointer" onclick="analyze(\'' + p.ticker + '\')">' +
+          '<div class="d-flex align-items-center gap-2 mb-2">' +
+            '<span class="fw-bold acc" style="font-size:1.15rem">' + p.rank + '. ' + p.ticker + '</span>' +
+            '<span class="setup-badge ms-1">' + p.setup.replace(/_/g,' ') + '</span>' +
+            '<span class="ms-auto text-secondary small">score ' + p.confidence + '/100</span>' +
+          '</div>' +
+          '<div class="row g-2 mb-2">' +
+            '<div class="col-4"><div class="mini-label">Buy near</div>' +
+              '<div class="fw-bold">₹' + p.entry.toLocaleString('en-IN') + '</div></div>' +
+            '<div class="col-4"><div class="mini-label">Sell if it falls to</div>' +
+              '<div class="fw-bold bear">₹' + p.stop.toLocaleString('en-IN') +
+              '</div><div class="mini-label">risk ' + p.risk_pct + '%</div></div>' +
+            '<div class="col-4"><div class="mini-label">Take profit at</div>' +
+              '<div class="fw-bold bull">₹' + p.target_1.toLocaleString('en-IN') +
+              '</div><div class="mini-label">' + p.risk_reward + 'x your risk</div></div>' +
+          '</div>' +
+          '<div style="line-height:1.7;opacity:.92">' + p.explanation + '</div>' +
+        '</div>').join('') + warning;
 }
 
 function renderScan(d, direction) {

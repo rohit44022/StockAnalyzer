@@ -110,6 +110,9 @@ app.register_blueprint(notes_bp)
 
 from web.holdings_routes import holdings_bp
 app.register_blueprint(holdings_bp)
+
+from web.brooks_routes import brooks_bp
+app.register_blueprint(brooks_bp)
 from notes.db import init_notes_db
 init_notes_db()
 

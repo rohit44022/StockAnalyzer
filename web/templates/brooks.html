@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brooks System — Al Brooks Three-Book Scanner</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--bull:#00c853;--bear:#ff1744;--neutral:#ffc107;--card-bg:#282f36;--bg:var(--bs-body-bg);--accent:#7c4dff;--hold:#6c757d}
+body{background:var(--bg);font-family:var(--bs-body-font-family)}
+.card{background:var(--card-bg);border:1px solid rgba(255,255,255,.08);border-radius:14px}
+.card-header{background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)}
+.bull{color:var(--bull)}.bear{color:var(--bear)}.neutral{color:var(--neutral)}.acc{color:var(--accent)}
+.bg-bull{background:rgba(0,200,83,.12)!important}.bg-bear{background:rgba(255,23,68,.12)!important}
+.mini-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.45)}
+.indicator-val{font-size:1.15rem;font-weight:600}
+.reason-item{background:rgba(255,255,255,.04);border:1px solid rgba(124,77,255,.18);padding:8px 14px;margin-bottom:5px;border-radius:8px;font-size:.82rem;line-height:1.6}
+.brooks-ctx{background:rgba(124,77,255,.08);border:1px solid rgba(124,77,255,.2);border-radius:10px;padding:14px;font-size:.85rem;line-height:1.7}
+.brooks-ctx strong{color:var(--accent)}
+.pattern-pill{display:inline-block;background:rgba(124,77,255,.15);color:var(--accent);padding:3px 10px;border-radius:16px;font-size:.75rem;font-weight:600;margin:2px}
+.setup-badge{font-size:.78rem;padding:4px 10px;border-radius:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.sb-breakout{background:rgba(0,200,83,.2);color:#00e676}.sb-pullback{background:rgba(33,150,243,.2);color:#42a5f5}
+.sb-reversal{background:rgba(255,193,7,.2);color:#ffd740}.sb-second{background:rgba(0,200,83,.3);color:#69f0ae}
+.sb-failed{background:rgba(255,23,68,.2);color:#ff5252}.sb-trendcont{background:rgba(124,77,255,.2);color:#b388ff}
+.price-level{display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:6px;margin:3px 0;font-size:.85rem}
+.pl-entry{background:rgba(33,150,243,.12);border:1px solid rgba(66,165,245,.3)}
+.pl-stop{background:rgba(255,23,68,.12);border:1px solid rgba(255,23,68,.3)}
+.pl-target{background:rgba(0,200,83,.12);border:1px solid rgba(0,200,83,.3)}
+.detail-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.85rem}
+.detail-row:last-child{border:none}
+.pressure-bar{position:relative;height:16px;border-radius:8px;overflow:hidden;background:#222;margin:6px 0}
+.pressure-buy{position:absolute;left:0;top:0;height:100%;background:rgba(0,200,83,.45);border-radius:8px 0 0 8px}
+.pressure-sell{position:absolute;right:0;top:0;height:100%;background:rgba(255,23,68,.45);border-radius:0 8px 8px 0}
+.verdict-badge{font-size:1.4rem;padding:10px 22px;border-radius:10px;font-weight:700;letter-spacing:1px;display:inline-block}
+.vb-buy{background:rgba(0,200,83,.18);color:var(--bull);border:2px solid rgba(0,200,83,.4)}
+.vb-sell{background:rgba(255,23,68,.18);color:var(--bear);border:2px solid rgba(255,23,68,.4)}
+.score-fill{height:8px;border-radius:4px;transform-origin:left;transition:transform .5s ease}
+.score-bar{height:8px;border-radius:4px;background:#222;overflow:hidden}
+#loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+#loading.active{display:flex}
+#loading .load-text{color:rgba(255,255,255,.7);font-size:.9rem}
+.pick-card{transition:border-color .2s}.pick-card:hover{border-color:var(--accent)}
+.explanation-box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:12px;font-size:.82rem;line-height:1.7;color:rgba(255,255,255,.6)}
+.stat-chip{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 12px;font-size:.82rem;margin:3px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn .4s ease}
+</style>
+</head>
+<body>
+<div id="loading"><div class="spinner-border" style="width:3rem;height:3rem;color:var(--accent)"></div><div class="load-text">Scanning all stocks with Brooks rules... this takes 2-5 minutes</div></div>
+
+{% include "_nav.html" %}
+
+<div class="container py-4">
+  <div class="text-center mb-4">
+    <h3 class="fw-bold"><i class="bi bi-book" style="color:var(--accent)"></i> Brooks Three-Book System</h3>
+    <p class="text-secondary mb-1" style="max-width:700px;margin:0 auto">
+      Al Brooks <em>Trends + Trading Ranges + Reversals</em> — Every rule from all three books
+      applied to every stock in your universe.
+    </p>
+    <p class="text-secondary small mb-3">
+      Bar Classification · Always-In Direction · EMA20 Gap Bars · Spike & Channel ·
+      H1/H2/L1/L2 · Wedge/Three-Push · Two-Leg Moves · Measured Moves · Trader's Equation
+    </p>
+    <div class="mt-3 d-flex flex-wrap justify-content-center gap-2">
+      <button id="btnBuy" class="btn fw-bold px-4" style="background:rgba(0,200,83,.15);color:var(--bull);border:1px solid rgba(0,200,83,.3)" onclick="runScan('buy')">
+        <i class="bi bi-arrow-up-circle-fill me-1"></i> Top 5 BUY
+      </button>
+      <button id="btnSell" class="btn fw-bold px-4" style="background:rgba(255,23,68,.15);color:var(--bear);border:1px solid rgba(255,23,68,.3)" onclick="runScan('sell')">
+        <i class="bi bi-arrow-down-circle-fill me-1"></i> Top 5 SELL
+      </button>
+      <button id="btnBoth" class="btn fw-bold px-4" style="background:rgba(124,77,255,.15);color:var(--accent);border:1px solid rgba(124,77,255,.3)" onclick="runScan('both')">
+        <i class="bi bi-arrows-expand me-1"></i> Top 5 BUY + SELL
+      </button>
+    </div>
+  </div>
+
+  <!-- INTRO (visible before scan) -->
+  <div id="introBox" class="brooks-ctx mb-3">
+    <strong><i class="bi bi-info-circle me-1"></i> How This Works</strong><br>
+    This scanner reads every stock's daily bars exactly the way Al Brooks describes
+    in his three books. It classifies each bar (trend bar, doji, signal bar, climax),
+    determines the <strong>always-in direction</strong>, detects <strong>spikes, channels,
+    two-legged moves</strong>, and finds <strong>H1/H2/L1/L2 pullback entries,
+    wedge/three-push reversals, failed breakouts, and second entries</strong>.
+    <br><br>
+    Stocks qualify for the Top 5 only if they pass Brooks' <strong>trader's equation</strong>
+    (expected gain > expected loss), are trading with the <strong>always-in direction</strong>,
+    score in the engine's high confidence band (70+), and offer at least <strong>1.5x
+    reward-to-risk</strong>. When nothing qualifies, the list is empty — that is the honest
+    answer, not a failure.
+    <br><br>
+    Every pick shows <strong>exactly why</strong> it was selected: the setup type, trend phase,
+    buying/selling pressure, active patterns, entry/stop/target levels, and a plain-English
+    explanation of the trade.
+  </div>
+
+  <!-- STATS BAR -->
+  <div id="statsBar" class="mb-3 text-center" style="display:none"></div>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none">
+    <div class="row g-3">
+      <div class="col-lg-6" id="buyCol" style="display:none">
+        <h5 class="fw-bold bull mb-3"><i class="bi bi-arrow-up-circle-fill me-1"></i> Top BUY Picks</h5>
+        <div id="buyList"></div>
+        <div id="buyEmpty" class="text-secondary text-center py-4" style="display:none">
+          <i class="bi bi-slash-circle" style="font-size:2rem;opacity:.3"></i>
+          <p class="mt-2 mb-0">No stock qualified for BUY today. Brooks teaches patience — without a clear setup, staying out is the best trade.</p>
+        </div>
+      </div>
+      <div class="col-lg-6" id="sellCol" style="display:none">
+        <h5 class="fw-bold bear mb-3"><i class="bi bi-arrow-down-circle-fill me-1"></i> Top SELL Picks</h5>
+        <div id="sellList"></div>
+        <div id="sellEmpty" class="text-secondary text-center py-4" style="display:none">
+          <i class="bi bi-slash-circle" style="font-size:2rem;opacity:.3"></i>
+          <p class="mt-2 mb-0">No stock qualified for SELL today.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let scanMode = 'both';
+
+function runScan(mode) {
+  scanMode = mode;
+  document.getElementById('introBox').style.display = 'none';
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('statsBar').style.display = 'none';
+
+  fetch('/api/brooks/scan')
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('loading').classList.remove('active');
+      renderResults(data);
+    })
+    .catch(err => {
+      document.getElementById('loading').classList.remove('active');
+      alert('Scan failed: ' + err.message);
+    });
+}
+
+function renderResults(data) {
+  const s = data.stats;
+  const statsHtml = `
+    <span class="stat-chip"><i class="bi bi-database"></i> ${s.total_tickers} tickers</span>
+    <span class="stat-chip"><i class="bi bi-check2-circle"></i> ${s.analysed} analysed</span>
+    <span class="stat-chip bull"><i class="bi bi-arrow-up"></i> ${s.total_buy_signals} BUY signals</span>
+    <span class="stat-chip bear"><i class="bi bi-arrow-down"></i> ${s.total_sell_signals} SELL signals</span>
+    <span class="stat-chip"><i class="bi bi-filter-circle"></i> ${s.buy_qualified} buy qualified</span>
+    <span class="stat-chip"><i class="bi bi-filter-circle"></i> ${s.sell_qualified} sell qualified</span>
+  `;
+  document.getElementById('statsBar').innerHTML = statsHtml;
+  document.getElementById('statsBar').style.display = 'block';
+
+  const showBuy = scanMode === 'buy' || scanMode === 'both';
+  const showSell = scanMode === 'sell' || scanMode === 'both';
+  const buyCol = document.getElementById('buyCol');
+  const sellCol = document.getElementById('sellCol');
+
+  buyCol.style.display = showBuy ? '' : 'none';
+  sellCol.style.display = showSell ? '' : 'none';
+
+  if (scanMode === 'buy') { buyCol.className = 'col-12'; }
+  else if (scanMode === 'sell') { sellCol.className = 'col-12'; }
+  else { buyCol.className = 'col-lg-6'; sellCol.className = 'col-lg-6'; }
+
+  if (showBuy) renderPicks(data.buy_picks, 'buyList', 'buyEmpty', 'BUY');
+  if (showSell) renderPicks(data.sell_picks, 'sellList', 'sellEmpty', 'SELL');
+
+  document.getElementById('results').style.display = 'block';
+}
+
+function renderPicks(picks, listId, emptyId, dir) {
+  const list = document.getElementById(listId);
+  const empty = document.getElementById(emptyId);
+
+  if (!picks || picks.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const isBuy = dir === 'BUY';
+  const dirClass = isBuy ? 'bull' : 'bear';
+  const bgClass = isBuy ? 'bg-bull' : 'bg-bear';
+
+  list.innerHTML = picks.map(p => {
+    const setupClass = {
+      'BREAKOUT': 'sb-breakout', 'PULLBACK': 'sb-pullback', 'REVERSAL': 'sb-reversal',
+      'SECOND_ENTRY': 'sb-second', 'FAILED_BREAKOUT': 'sb-failed', 'TREND_CONT': 'sb-trendcont'
+    }[p.setup] || 'sb-trendcont';
+
+    const patterns = (p.active_patterns || []).map(x => `<span class="pattern-pill">${x}</span>`).join('');
+    const reasons = (p.reasons || []).map(r => `<div class="reason-item">${esc(r)}</div>`).join('');
+
+    const scoreKeys = Object.keys(p.score_details || {}).filter(k => k !== 'total');
+    const scoreRows = scoreKeys.map(k => {
+      const v = p.score_details[k];
+      const pct = Math.min(v / 25 * 100, 100);
+      const color = v >= 10 ? 'var(--bull)' : v >= 5 ? 'var(--neutral)' : '#555';
+      return `<div class="detail-row">
+        <span>${k.replace(/_/g, ' ')}</span>
+        <div style="display:flex;align-items:center;gap:6px;width:120px">
+          <div class="score-bar" style="flex:1"><div class="score-fill" style="transform:scaleX(${pct/100});background:${color}"></div></div>
+          <span style="min-width:28px;text-align:right;font-weight:600">${v}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+    <div class="card pick-card mb-3 fade-in">
+      <div class="card-header d-flex align-items-center justify-content-between py-2 px-3">
+        <div>
+          <span class="fw-bold fs-5 ${dirClass}">#${p.rank} ${p.ticker}</span>
+          <span class="setup-badge ${setupClass} ms-2">${p.setup.replace(/_/g, ' ')}</span>
+        </div>
+        <div class="text-end">
+          <span class="mini-label">Confidence</span>
+          <span class="indicator-val ${dirClass} ms-1">${p.confidence}</span>
+        </div>
+      </div>
+      <div class="card-body p-3">
+
+        <!-- Price Levels -->
+        <div class="row g-2 mb-3">
+          <div class="col-6 col-md-3">
+            <div class="mini-label">Current Price</div>
+            <div class="indicator-val">Rs.${fmt(p.current_price)}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="price-level pl-entry"><i class="bi bi-arrow-right-circle"></i> <span>Entry: <strong>Rs.${fmt(p.entry)}</strong></span></div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="price-level pl-stop"><i class="bi bi-x-circle"></i> <span>Stop: <strong>Rs.${fmt(p.stop)}</strong></span></div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="price-level pl-target"><i class="bi bi-bullseye"></i> <span>Target: <strong>Rs.${fmt(p.target_1)}</strong></span></div>
+          </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="row g-2 mb-3">
+          <div class="col-4 col-md-2">
+            <div class="mini-label">Risk</div>
+            <div class="indicator-val bear">${p.risk_pct}%</div>
+          </div>
+          <div class="col-4 col-md-2">
+            <div class="mini-label">R:R</div>
+            <div class="indicator-val ${p.risk_reward >= 2 ? 'bull' : 'neutral'}">${p.risk_reward}x</div>
+          </div>
+          <div class="col-4 col-md-2">
+            <div class="mini-label">Always-In</div>
+            <div class="indicator-val ${p.always_in === 'LONG' ? 'bull' : p.always_in === 'SHORT' ? 'bear' : 'neutral'}">${p.always_in}</div>
+          </div>
+          <div class="col-4 col-md-2">
+            <div class="mini-label">Phase</div>
+            <div class="indicator-val" style="font-size:.9rem">${p.trend_phase.replace(/_/g, ' ')}</div>
+          </div>
+          <div class="col-4 col-md-2">
+            <div class="mini-label">Strength</div>
+            <div class="indicator-val">${p.trend_strength}</div>
+          </div>
+          <div class="col-4 col-md-2">
+            <div class="mini-label">Equation</div>
+            <div class="indicator-val ${p.equation_verdict === 'EDGE' ? 'bull' : 'bear'}">${p.equation_verdict}</div>
+          </div>
+        </div>
+
+        <!-- Pressure Bar -->
+        <div class="mini-label">Buying / Selling Pressure</div>
+        <div class="pressure-bar">
+          <div class="pressure-buy" style="width:${p.buying_pressure}%"></div>
+          <div class="pressure-sell" style="width:${p.selling_pressure}%"></div>
+        </div>
+        <div class="d-flex justify-content-between" style="font-size:.72rem;color:rgba(255,255,255,.4)">
+          <span>Buy ${p.buying_pressure}%</span>
+          <span>Sell ${p.selling_pressure}%</span>
+        </div>
+
+        <!-- Trend Details -->
+        <div class="row g-2 mt-2 mb-3">
+          <div class="col-6 col-md-3">
+            <div class="mini-label">EMA20</div>
+            <div style="font-size:.88rem;font-weight:600">Rs.${fmt(p.ema20)} <span class="${p.price_vs_ema === 'ABOVE' ? 'bull' : p.price_vs_ema === 'BELOW' ? 'bear' : 'neutral'}" style="font-size:.75rem">${p.price_vs_ema}</span></div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="mini-label">EMA Gap Bars</div>
+            <div style="font-size:.88rem;font-weight:600">${p.ema_gap_bars} ${p.ema_gap_bars >= 20 ? '<span class="bull" style="font-size:.7rem">VERY STRONG</span>' : ''}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="mini-label">Last Bar</div>
+            <div style="font-size:.82rem;font-weight:500">${p.last_bar_type.replace(/_/g, ' ')}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="mini-label">H/L Count</div>
+            <div style="font-size:.88rem;font-weight:600">${p.last_h || '-'} / ${p.last_l || '-'}</div>
+          </div>
+        </div>
+
+        <!-- Flags -->
+        <div class="mb-2">
+          ${p.in_spike ? `<span class="pattern-pill" style="background:rgba(255,193,7,.2);color:var(--neutral)">IN SPIKE (${p.spike_direction})</span>` : ''}
+          ${p.recent_climax ? '<span class="pattern-pill" style="background:rgba(255,23,68,.15);color:var(--bear)">CLIMAX</span>' : ''}
+          ${p.breakout_mode ? '<span class="pattern-pill">BREAKOUT MODE</span>' : ''}
+          ${p.in_breakout ? '<span class="pattern-pill" style="background:rgba(0,200,83,.15);color:var(--bull)">IN BREAKOUT</span>' : ''}
+          ${p.two_leg_complete ? `<span class="pattern-pill">TWO-LEG COMPLETE → ${fmt(p.measured_move_target)}</span>` : ''}
+        </div>
+
+        <!-- Active Patterns -->
+        ${patterns ? `<div class="mini-label mb-1">Active Patterns</div><div class="mb-2">${patterns}</div>` : ''}
+
+        <!-- Scoring Breakdown -->
+        <details class="mb-2">
+          <summary class="mini-label" style="cursor:pointer;user-select:none">Score Breakdown (${p.score_details?.total || p.confidence} / 100)</summary>
+          <div class="mt-1">${scoreRows}</div>
+        </details>
+
+        <!-- Reasons -->
+        <details class="mb-2">
+          <summary class="mini-label" style="cursor:pointer;user-select:none">Why This Stock (${(p.reasons||[]).length} reasons)</summary>
+          <div class="mt-1">${reasons}</div>
+        </details>
+
+        <!-- Brooks Context -->
+        <div class="brooks-ctx mt-2">${esc(p.al_brooks_context)}</div>
+
+        <!-- Plain English -->
+        <div class="explanation-box mt-2">
+          <strong style="color:var(--accent);font-size:.78rem">PLAIN ENGLISH</strong><br>
+          ${esc(p.explanation)}
+        </div>
+
+        <!-- Link to full PA analysis -->
+        <div class="mt-2 text-end">
+          <a href="/pa" onclick="sessionStorage.setItem('pa_ticker','${p.ticker}')" class="btn btn-sm" style="border:1px solid rgba(124,77,255,.3);color:var(--accent)">
+            <i class="bi bi-arrow-right-circle me-1"></i> Full PA Analysis
+          </a>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function fmt(v) { return v != null ? Number(v).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}) : '-'; }
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+</script>
+</body>
+</html>

@@ -59,7 +59,7 @@ from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
 from bb_squeeze.quant_strategy import run_quant_analysis
 from bb_squeeze.config import CSV_DIR
 from hybrid_pa_engine import run_triple_analysis
-from price_action.engine import run_price_action_analysis, pa_result_to_dict
+from brooks.analyzer import run_price_action_analysis, pa_result_to_dict
 from bb_squeeze.trade_db import init_db as _init_trade_db, add_trade, get_all_trades, get_trade, delete_trade, update_trade, user_has_trades, delete_trades_by_position
 from bb_squeeze.trade_calculator import calculate_trade, calculate_fy_summary
 from bb_squeeze.portfolio_db import (
@@ -113,6 +113,9 @@ app.register_blueprint(holdings_bp)
 
 from web.brooks_routes import brooks_bp
 app.register_blueprint(brooks_bp)
+
+from web.intraday_routes import intraday_bp
+app.register_blueprint(intraday_bp)
 from notes.db import init_notes_db
 init_notes_db()
 

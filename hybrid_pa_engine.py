@@ -72,7 +72,7 @@ from technical_analysis.risk_manager import generate_risk_report
 from technical_analysis.target_price import calculate_target_prices
 
 # ── Price Action System ──
-from price_action.engine import run_price_action_analysis, PriceActionResult
+from brooks.analyzer import run_price_action_analysis, PriceActionResult
 
 # ── Wyckoff/Villahermosa System (Rubén Villahermosa — Volume-Phase Context Layer) ──
 from wyckoff.engine import run_wyckoff_analysis, wyckoff_to_dict

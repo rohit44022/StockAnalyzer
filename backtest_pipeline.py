@@ -152,6 +152,7 @@ def _deep_analyze_for_backtest(
                     "success": True,
                     "pa_score": pa_raw.get("pa_score", 0),
                     "confidence": pa_raw.get("confidence", 0),
+                    "quality_score": pa_raw.get("quality_score", 0),
                     "pa_verdict": pa_raw.get("signal_type", "HOLD"),
                     "signal_type": pa_raw.get("signal_type", ""),
                     "signal_strength": pa_raw.get("strength", ""),
@@ -174,11 +175,9 @@ def _deep_analyze_for_backtest(
             bb_signal_type=bb_signal_type,
             ta_signal=ta_signal,
             hybrid_result=triple,
-            data_freshness=data_freshness,
             method=method,
             signal_filter=signal_filter,
-            pa_result=pa_flat,
-            volume_ratio=volume_ratio,
+            brooks_result=pa_flat,
         )
 
         # Weekly confirmation

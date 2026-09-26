@@ -30,7 +30,7 @@ from bb_squeeze.indicators import compute_all_indicators
 from bb_squeeze.portfolio_analyzer import analyze_position
 from bb_squeeze.config import CSV_DIR
 from hybrid_pa_engine import run_triple_analysis
-from price_action.engine import run_price_action_analysis
+from brooks.analyzer import run_price_action_analysis
 
 # ═══════════════════════════════════════════════════════════════
 #  CONFIGURATION

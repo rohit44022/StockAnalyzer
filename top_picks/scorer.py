@@ -1,46 +1,13 @@
 """
-top_picks/scorer.py — Composite Scoring Logic for Top 5 Picks Engine
-═════════════════════════════════════════════════════════════════════
+top_picks/scorer.py — 5-Component Composite Scoring
+════════════════════════════════════════════════════
 
-WHAT THIS FILE DOES (plain English):
-─────────────────────────────────────
-This file takes ALL the analysis data for a single stock — the BB strategy
-result, the Technical Analysis result, the Triple Conviction Engine result, plus data
-quality info — and boils it ALL down to ONE number: the Composite Score (0-100).
-
-Think of it as a judge at a competition. The judge watches every performance
-(BB, TA, Hybrid, Risk, Agreement, Data Quality), scores each one separately,
-then calculates a weighted average to determine the final ranking.
-
-SCORING BREAKDOWN (weights from top_picks/config.WEIGHTS):
-──────────────────────────────────────────────────────────
-  Component 1 — BB Strategy Score (20%, 0-100):
-    Directly from the Bollinger Band method's confidence.
-    If BB says "BUY with 85% confidence", this component = 85.
-
-  Component 2 — TA Score (20%, 0-100):
-    Murphy's Technical Analysis returns -100 to +100.
-    We normalize: (ta_raw + 100) / 2 = 0 to 100.
-    So TA score of +60 → (60+100)/2 = 80 out of 100.
-
-  Component 3 — Triple Score (15%, 0-100):
-    The Triple Conviction Engine returns -425 to +425.
-    We normalize: (triple_raw + 425) / 850 × 100 = 0 to 100.
-
-  Component 4 — Price Action Score (15%, 0-100):
-    Al Brooks PA score (-100..+100) blended with PA confidence.
-
-  Component 5 — Risk/Reward Score (15%, 0-100):
-    Based on the target price vs stop-loss ratio.
-    R:R of 3.0 → 90 (excellent). R:R of 1.0 → 35 (barely break-even).
-
-  Component 6 — Signal Agreement (10%, 0-100):
-    How many analysis engines agree on the direction (BUY/SELL)?
-    All 3 agree → 100. Two agree → 65. Conflicting → 20.
-
-  Component 7 — Data Quality (5%, 0-100):
-    Based on how fresh the stock data is.
-    Today's data → 100. Week-old data → 60. Very old → 10.
+Components (weights in config.WEIGHTS):
+  1. BB Strategy   (30%) — BB method confidence
+  2. TA Score      (20%) — Murphy's 6-category TA
+  3. Triple Score  (15%) — BB+TA+PA cross-validation
+  4. Brooks PA     (20%) — Brooks PA engine v3
+  5. Fundamental   (15%) — Company quality (valuation+profitability+growth+stability)
 """
 
 from __future__ import annotations
@@ -48,8 +15,7 @@ import math
 from typing import Optional
 
 from top_picks.config import (
-    WEIGHTS, RR_SCORE_MAP, FRESHNESS_SCORE_MAP, TRIPLE_MAX_SCORE, TRIPLE_MIN_SCORE, PA_MAX_SCORE,
-    VOL_TIER_LOW_MAX, VOL_TIER_MID_MAX,
+    WEIGHTS, TRIPLE_MAX_SCORE, TRIPLE_MIN_SCORE, PA_MAX_SCORE,
 )
 
 
@@ -62,223 +28,122 @@ def compute_composite_score(
     bb_signal_type: str,
     ta_signal: dict,
     hybrid_result: dict,
-    data_freshness: dict,
     method: str,
     signal_filter: str = "BUY",
-    pa_result: Optional[dict] = None,
-    volume_ratio: Optional[float] = None,
+    brooks_result: Optional[dict] = None,
+    fundamental_score: Optional[float] = None,
+    # legacy kwargs kept so callers don't break during transition
+    **_kwargs,
 ) -> dict:
     """
-    Combine all analysis layers into a single Composite Score (0-100).
+    Combine 5 analysis layers into a single Composite Score (0-100).
 
-    ┌─────────────────────────────────────────────────────────────┐
-    │  INPUTS:                                                     │
-    │                                                              │
-    │  bb_confidence  — The BB strategy's confidence (0-100).      │
-    │                   Example: 75 means "75% match to pattern"   │
-    │                                                              │
-    │  bb_signal_type — "BUY", "SELL", "HOLD", "WAIT", etc.       │
-    │                                                              │
-    │  ta_signal      — The full TA result dict with:              │
-    │                   "score" (-100 to +100), "verdict",         │
-    │                   "categories" (trend, momentum, etc.)       │
-    │                                                              │
-    │  hybrid_result  — The full triple engine output dict.        │
-    │                   Contains "triple_verdict", "bb_score",     │
-    │                   "ta_score", "pa_score", "cross_validation",│
-    │                   "risk", "target_prices"                    │
-    │                                                              │
-    │  data_freshness — Dict with "trading_days_stale" etc.        │
-    │                                                              │
-    │  method         — Which BB method: "M1", "M2", "M3", "M4"   │
-    │                                                              │
-    │  signal_filter  — "BUY" or "SELL". Controls how scores are   │
-    │                   interpreted:                               │
-    │                   BUY  → bullish TA/hybrid = good            │
-    │                   SELL → bearish TA/hybrid = good            │
-    │                                                              │
-    │  OUTPUT:                                                     │
-    │  A dict with:                                                │
-    │    composite_score  — The final 0-100 score                  │
-    │    grade            — "A+", "A", "B+", "B", "C", "D", "F"  │
-    │    components       — Individual scores for each layer       │
-    │    reasons          — Human-readable explanations            │
-    │    warnings         — Any red flags to be aware of           │
-    └─────────────────────────────────────────────────────────────┘
+    Returns dict with composite_score, grade, components breakdown,
+    reasons list, and warnings list.
     """
-
-    reasons = []       # Why this stock scored well (or poorly)
-    warnings = []      # Red flags the trader should know about
     is_sell = signal_filter == "SELL"
+    reasons = []
+    warnings = []
 
-    # ── Component 1: BB Strategy Score ──────────────────────────
-    bb_score = _score_bb_strategy(bb_confidence, bb_signal_type, method)
-    if bb_score >= 80:
-        reasons.append(f"Strong {method} pattern match ({bb_confidence}% confidence)")
-    elif bb_score >= 50:
-        reasons.append(f"Moderate {method} pattern match ({bb_confidence}% confidence)")
+    # ── 1: BB Strategy ──
+    bb_raw = _score_bb_strategy(bb_confidence, bb_signal_type, method)
+    if bb_raw >= 80:
+        reasons.append(f"Strong {method} pattern match ({bb_confidence:.0f}% confidence)")
+    elif bb_raw >= 50:
+        reasons.append(f"Moderate {method} pattern ({bb_confidence:.0f}% confidence)")
 
-    # ── Component 2: TA Score ───────────────────────────────────
-    # For BUY picks: bullish TA (high score) = good.
-    # For SELL picks: bearish TA (low/negative score) = good.
-    # We flip the scale for SELL so that TA score -60 → 80/100.
-    ta_score_component = _score_technical_analysis(ta_signal, is_sell)
-    ta_verdict = ta_signal.get("verdict", "HOLD")
-    ta_raw = ta_signal.get("score", 0)
-    if is_sell:
-        if ta_raw < -30:
-            reasons.append(f"Technical Analysis confirms BEARISH ({ta_verdict}, score {ta_raw:+.0f})")
-        elif ta_raw > 30:
-            warnings.append(f"Technical Analysis is BULLISH ({ta_verdict}, score {ta_raw:+.0f}) — conflicts with SELL")
-    else:
-        if ta_raw > 30:
-            reasons.append(f"Technical Analysis is BULLISH ({ta_verdict}, score {ta_raw:+.0f})")
-        elif ta_raw < -30:
-            warnings.append(f"Technical Analysis is BEARISH ({ta_verdict}, score {ta_raw:+.0f})")
+    # ── 2: TA Score ──
+    ta_raw_signal = ta_signal.get("score", 0) or 0
+    ta_norm = _score_ta(ta_signal, is_sell)
+    if not is_sell and ta_raw_signal < -30:
+        warnings.append(f"Technical BEARISH ({ta_raw_signal:+.0f}) conflicts with BUY")
+    elif not is_sell and ta_raw_signal > 30:
+        reasons.append(f"Technical BULLISH ({ta_raw_signal:+.0f}) confirms BUY")
 
-    # ── Component 3: Triple Score ─────────────────────────────
-    # Same direction-aware logic: for SELL, negative triple = good.
-    triple_score_component = _score_triple(hybrid_result, is_sell)
-    triple_verdict_text = _extract_triple_verdict(hybrid_result)
+    # ── 3: Triple Score ──
     triple_combined = _extract_triple_combined_score(hybrid_result)
-    if is_sell:
-        if triple_combined < -25:
-            reasons.append(f"Triple Engine confirms BEARISH ({triple_verdict_text})")
-        elif triple_combined > 50:
-            warnings.append(f"Triple Engine is BULLISH ({triple_verdict_text}) — conflicts with SELL")
-    else:
-        if triple_combined > 50:
-            reasons.append(f"Triple Engine strongly BULLISH ({triple_verdict_text})")
-        elif triple_combined < -25:
-            warnings.append(f"Triple Engine is BEARISH ({triple_verdict_text})")
+    triple_norm = _score_triple(hybrid_result, is_sell)
+    if not is_sell and triple_combined < -25:
+        warnings.append(f"Triple BEARISH ({triple_combined:+.0f}) conflicts with BUY")
+    elif not is_sell and triple_combined > 50:
+        reasons.append(f"Triple BULLISH ({triple_combined:+.0f}) confirms BUY")
 
-    # ── Component 4: Risk/Reward Score ──────────────────────────
-    rr_score, rr_ratio = _score_risk_reward(hybrid_result)
-    if rr_ratio and rr_ratio >= 2.5:
-        reasons.append(f"Excellent risk/reward ratio of 1:{rr_ratio:.1f}")
-    elif rr_ratio and rr_ratio < 1.0:
-        warnings.append(f"Poor risk/reward ratio of 1:{rr_ratio:.1f} — potential loss exceeds gain")
+    # ── 4: Brooks PA ──
+    brooks_norm = _score_brooks_pa(brooks_result, is_sell)
+    if brooks_result:
+        bpa_type = brooks_result.get("signal_type", "HOLD")
+        bpa_conf = brooks_result.get("confidence", 0)
+        if not is_sell and bpa_type == "BUY" and bpa_conf >= 50:
+            reasons.append(f"Brooks PA: {bpa_type} ({bpa_conf}% confidence)")
+        elif not is_sell and bpa_type == "SELL":
+            warnings.append(f"Brooks PA: SELL conflicts with BUY")
 
-    # ── Component 5: Signal Agreement ───────────────────────────
-    agreement_score = _score_signal_agreement(
-        bb_signal_type, ta_verdict, triple_verdict_text
-    )
-    if agreement_score >= 80:
-        reasons.append("All analysis engines agree on direction — high conviction")
-    elif agreement_score <= 30:
-        warnings.append("Analysis engines DISAGREE on direction — mixed signals")
+    # ── 5: Fundamental ──
+    fund_norm = _score_fundamental(fundamental_score)
+    if fundamental_score is not None:
+        if fundamental_score >= 70:
+            reasons.append(f"Strong fundamentals ({fundamental_score:.0f}/100)")
+        elif fundamental_score < 35:
+            warnings.append(f"Weak fundamentals ({fundamental_score:.0f}/100)")
 
-    # ── Component 6½: Price Action (Al Brooks) ──────────────────
-    pa_score_component = _score_price_action(pa_result, is_sell)
-    pa_verdict_text = ""
-    pa_setup_text = ""
-    pa_conf_val = 0
-    if pa_result and pa_result.get("success"):
-        pa_verdict_text = pa_result.get("pa_verdict", "HOLD")
-        pa_setup_text = pa_result.get("setup_type", "")
-        pa_conf_val = pa_result.get("confidence", 0)
-        pa_raw = pa_result.get("pa_score", 0)
-        if is_sell:
-            if pa_raw < -20:
-                reasons.append(f"Price Action confirms BEARISH ({pa_verdict_text}, setup: {pa_setup_text})")
-            elif pa_raw > 20:
-                warnings.append(f"Price Action is BULLISH ({pa_verdict_text}) — conflicts with SELL")
-        else:
-            if pa_raw > 20:
-                reasons.append(f"Price Action confirms BULLISH ({pa_verdict_text}, setup: {pa_setup_text})")
-            elif pa_raw < -20:
-                warnings.append(f"Price Action is BEARISH ({pa_verdict_text}) — conflicts with BUY")
+    # ── Weighted composite ──
+    w_bb = WEIGHTS["bb_strategy"]
+    w_ta = WEIGHTS["ta_score"]
+    w_tr = WEIGHTS["triple_score"]
+    w_bp = WEIGHTS["brooks_pa"]
+    w_fn = WEIGHTS["fundamental"]
 
-    # ── Component 7: Data Quality ───────────────────────────────
-    dq_score = _score_data_quality(data_freshness)
-    trading_days_stale = data_freshness.get("trading_days_stale", 999)
-    if trading_days_stale > 5:
-        warnings.append(f"Data is {trading_days_stale} trading days old — signals may be UNRELIABLE")
-    elif trading_days_stale > 2:
-        warnings.append(f"Data is {trading_days_stale} trading days old — consider refreshing")
+    composite = max(0.0, min(100.0,
+        bb_raw * w_bb +
+        ta_norm * w_ta +
+        triple_norm * w_tr +
+        brooks_norm * w_bp +
+        fund_norm * w_fn
+    ))
 
-    # ── Component 8: Volume Quality ─────────────────────────────
-    vq_score = _score_volume_quality(volume_ratio)
-
-    # ── Combine Weighted Components ─────────────────────────────
-    composite = (
-        bb_score            * WEIGHTS["bb_strategy"]
-        + ta_score_component * WEIGHTS["ta_score"]
-        + triple_score_component * WEIGHTS["triple_score"]
-        + pa_score_component * WEIGHTS["pa_score"]
-        + rr_score           * WEIGHTS["risk_reward"]
-        + agreement_score    * WEIGHTS["signal_agreement"]
-        + dq_score           * WEIGHTS["data_quality"]
-        + vq_score           * WEIGHTS.get("volume_quality", 0.0)
-    )
-
-    # Clamp to 0-100
-    composite = max(0.0, min(100.0, composite))
-
-    # ── Assign Grade ────────────────────────────────────────────
-    grade = _assign_grade(composite)
+    # ── Components breakdown ──
+    components = {
+        "bb_strategy": {
+            "score": round(bb_raw, 1),
+            "weight": w_bb,
+            "weighted": round(bb_raw * w_bb, 1),
+            "hint": f"{method} pattern confidence: {bb_confidence:.0f}%",
+            "detail": f"BB confidence {bb_confidence:.0f}%, signal: {bb_signal_type}",
+        },
+        "ta_score": {
+            "score": round(ta_norm, 1),
+            "weight": w_ta,
+            "weighted": round(ta_norm * w_ta, 1),
+            "hint": f"TA {ta_raw_signal:+.0f}/100",
+            "detail": "Murphy's 6-category technical analysis",
+        },
+        "triple_score": {
+            "score": round(triple_norm, 1),
+            "weight": w_tr,
+            "weighted": round(triple_norm * w_tr, 1),
+            "hint": f"Triple {triple_combined:+.0f}/425",
+            "detail": "Cross-validation of BB, TA, and PA engines",
+        },
+        "brooks_pa": {
+            "score": round(brooks_norm, 1),
+            "weight": w_bp,
+            "weighted": round(brooks_norm * w_bp, 1),
+            "hint": _brooks_hint(brooks_result),
+            "detail": "Al Brooks Price Action v3 — bar-by-bar analysis",
+        },
+        "fundamental": {
+            "score": round(fund_norm, 1),
+            "weight": w_fn,
+            "weighted": round(fund_norm * w_fn, 1),
+            "hint": f"Fundamental {fundamental_score:.0f}/100" if fundamental_score is not None else "No data",
+            "detail": "Valuation + Profitability + Growth + Stability",
+        },
+    }
 
     return {
         "composite_score": round(composite, 1),
-        "grade": grade,
-        "components": {
-            "bb_strategy": {
-                "score": round(bb_score, 1),
-                "weight": WEIGHTS["bb_strategy"],
-                "weighted": round(bb_score * WEIGHTS["bb_strategy"], 1),
-                "detail": f"{method} confidence {bb_confidence}%, signal: {bb_signal_type}",
-                "hint": "How strongly this stock matches the Bollinger Band pattern you scanned for",
-            },
-            "ta_score": {
-                "score": round(ta_score_component, 1),
-                "weight": WEIGHTS["ta_score"],
-                "weighted": round(ta_score_component * WEIGHTS["ta_score"], 1),
-                "detail": f"TA verdict: {ta_verdict}, raw score: {ta_raw:+.0f}/100",
-                "hint": "Murphy's 6-category technical analysis (trend, momentum, volume, patterns, S/R, risk)",
-            },
-            "triple_score": {
-                "score": round(triple_score_component, 1),
-                "weight": WEIGHTS["triple_score"],
-                "weighted": round(triple_score_component * WEIGHTS["triple_score"], 1),
-                "detail": f"Triple verdict: {triple_verdict_text}, combined {triple_combined:+.0f}/425",
-                "hint": "Cross-validation — do BB, TA, and PA agree? Higher when all three point the same direction",
-            },
-            "risk_reward": {
-                "score": round(rr_score, 1),
-                "weight": WEIGHTS["risk_reward"],
-                "weighted": round(rr_score * WEIGHTS["risk_reward"], 1),
-                "detail": f"R:R ratio: 1:{rr_ratio:.1f}" if rr_ratio else "R:R not available",
-                "hint": "For every ₹1 risked, how much could you gain? Above 1:2 is professional standard",
-            },
-            "pa_score": {
-                "score": round(pa_score_component, 1),
-                "weight": WEIGHTS["pa_score"],
-                "weighted": round(pa_score_component * WEIGHTS["pa_score"], 1),
-                "detail": f"PA verdict: {pa_verdict_text or 'N/A'}, setup: {pa_setup_text or 'N/A'}, conf: {pa_conf_val}%",
-                "hint": "Al Brooks bar-by-bar analysis — trend direction, signal bars, patterns, breakouts",
-            },
-            "signal_agreement": {
-                "score": round(agreement_score, 1),
-                "weight": WEIGHTS["signal_agreement"],
-                "weighted": round(agreement_score * WEIGHTS["signal_agreement"], 1),
-                "detail": _describe_agreement(bb_signal_type, ta_verdict, triple_verdict_text),
-                "hint": "Do all 3 engines (BB, TA, Triple) agree? 100 = perfect agreement",
-            },
-            "data_quality": {
-                "score": round(dq_score, 1),
-                "weight": WEIGHTS["data_quality"],
-                "weighted": round(dq_score * WEIGHTS["data_quality"], 1),
-                "detail": f"Data {trading_days_stale} trading day(s) old",
-                "hint": "How fresh is the stock data? Stale data = less reliable signals",
-            },
-            "volume_quality": {
-                "score": round(vq_score, 1),
-                "weight": WEIGHTS.get("volume_quality", 0.0),
-                "weighted": round(vq_score * WEIGHTS.get("volume_quality", 0.0), 1),
-                "detail": f"Volume ratio: {volume_ratio:.2f}x" if volume_ratio else "N/A",
-                "hint": "Current volume vs 50-day average — confirms institutional participation",
-            },
-        },
+        "grade": _grade(composite),
+        "components": components,
         "reasons": reasons,
         "warnings": warnings,
     }
@@ -289,338 +154,109 @@ def compute_composite_score(
 # ═══════════════════════════════════════════════════════════════
 
 def _score_bb_strategy(confidence: float, signal_type: str, method: str) -> float:
-    """
-    Score the BB strategy's strength (0-100).
-
-    LOGIC:
-    - Start with the raw confidence (0-100) from the BB method.
-    - Apply a small bonus if the signal is a clear BUY (not just HOLD/WAIT).
-    - Apply a penalty if the signal is neutral or conflicting.
-
-    EXAMPLE:
-      confidence=75, signal_type="BUY"  → 75 + 5 = 80
-      confidence=75, signal_type="HOLD" → 75 × 0.6 = 45  (holding ≠ strong pick)
-    """
     score = float(confidence)
-
-    if signal_type == "BUY":
-        # Clear BUY signal — small bonus for conviction (reduced from +10 to +5
-        # so stocks with 90-100% confidence remain distinguishable)
-        score = min(100, score + 5)
-    elif signal_type == "SELL":
-        # We invert for SELL scans (high confidence SELL = good SELL pick)
+    if signal_type in ("BUY", "SELL"):
         score = min(100, score + 5)
     elif signal_type in ("HOLD", "WAIT"):
-        # HOLD/WAIT means the pattern exists but isn't compelling
         score = score * 0.6
     else:
-        # NONE or unknown — heavy penalty
         score = score * 0.3
-
     return max(0.0, min(100.0, score))
 
 
-def _score_technical_analysis(ta_signal: dict, is_sell: bool = False) -> float:
-    """
-    Normalize TA score from (-100 to +100) → (0 to 100).
-
-    LOGIC (plain English):
-      FOR BUY PICKS:
-        -100 → 0   (terrible)  |  0 → 50  (neutral)  |  +100 → 100 (great)
-        Formula: (raw + 100) / 2
-
-      FOR SELL PICKS (flipped — bearish = good):
-        -100 → 100 (great — very bearish, confirms SELL)
-        0 → 50     (neutral)
-        +100 → 0   (terrible — bullish contradicts SELL)
-        Formula: (100 - raw) / 2
-    """
+def _score_ta(ta_signal: dict, is_sell: bool = False) -> float:
     raw = ta_signal.get("score", 0)
     if raw is None or (isinstance(raw, float) and math.isnan(raw)):
         raw = 0
     if is_sell:
-        normalized = (100 - raw) / 2.0
-    else:
-        normalized = (raw + 100) / 2.0
-    return max(0.0, min(100.0, normalized))
+        return max(0.0, min(100.0, (100 - raw) / 2.0))
+    return max(0.0, min(100.0, (raw + 100) / 2.0))
 
 
 def _score_triple(hybrid_result: dict, is_sell: bool = False) -> float:
-    """
-    Normalize Triple Engine score from (-425 to +425) → (0 to 100).
-
-    FOR BUY:  normalized = (combined - min) / (max - min) × 100
-    FOR SELL: normalized = (max - combined) / (max - min) × 100  (flipped)
-    """
     combined = _extract_triple_combined_score(hybrid_result)
-    max_s = TRIPLE_MAX_SCORE   # +425
-    min_s = TRIPLE_MIN_SCORE   # -425
-    total_range = max_s - min_s  # 850
+    total_range = TRIPLE_MAX_SCORE - TRIPLE_MIN_SCORE
     if is_sell:
-        normalized = (max_s - combined) / total_range * 100.0
+        normalized = (TRIPLE_MAX_SCORE - combined) / total_range * 100.0
     else:
-        normalized = (combined - min_s) / total_range * 100.0
+        normalized = (combined - TRIPLE_MIN_SCORE) / total_range * 100.0
     return max(0.0, min(100.0, normalized))
 
 
-def _score_risk_reward(hybrid_result: dict) -> tuple[float, Optional[float]]:
-    """
-    Score the risk/reward ratio (0-100).
+def _score_brooks_pa(brooks_result: Optional[dict], is_sell: bool = False) -> float:
+    """Score Brooks PA engine output (0-100)."""
+    if not brooks_result or not brooks_result.get("success", False):
+        return 40.0  # neutral default when no data
 
-    WHAT IS RISK:REWARD? (for non-traders):
-      If you buy a stock at ₹100, your stop-loss is at ₹90 (risk = ₹10),
-      and your target is ₹130 (reward = ₹30).
-      R:R ratio = 30/10 = 3.0 (you could gain 3× what you risk).
-      Professional traders require at LEAST 1:2 (gain 2× risk).
+    pa_score = brooks_result.get("pa_score", 0) or 0  # -100 to +100
+    confidence = brooks_result.get("confidence", 0) or 0  # 0-100
+    quality = brooks_result.get("quality_score", 0) or 0  # 0-100
+    signal = brooks_result.get("signal_type", "HOLD")
 
-    SCORING TABLE:
-      R:R >= 4.0  → 100   "Excellent — 4× upside vs downside"
-      R:R >= 3.0  →  90   "Very good"
-      R:R >= 2.0  →  70   "Professional standard"
-      R:R >= 1.0  →  35   "Break-even territory"
-      R:R <  1.0  →  15   "Danger — more to lose than gain"
-    """
-    # Extract risk:reward from target_prices section
-    tp = hybrid_result.get("target_prices", {})
-    rr = tp.get("risk_reward_ratio")
-
-    if rr is None:
-        # Try fallback from risk section
-        risk = hybrid_result.get("risk", {})
-        rr_data = risk.get("risk_reward") if isinstance(risk, dict) else None
-        if isinstance(rr_data, dict):
-            rr = rr_data.get("ratio")
-
-    if rr is None or (isinstance(rr, float) and (math.isnan(rr) or math.isinf(rr))):
-        return 40.0, None  # Default middle score when R:R not available
-
-    rr = float(rr)
-    rr = max(0.0, rr)
-
-    # Find the matching threshold
-    for threshold, score in RR_SCORE_MAP:
-        if rr >= threshold:
-            return float(score), rr
-
-    return 15.0, rr
-
-
-def _score_signal_agreement(
-    bb_signal: str, ta_verdict: str, hybrid_verdict: str
-) -> float:
-    """
-    Score how well all three engines agree (0-100).
-
-    LOGIC (plain English):
-      We check what direction each engine is pointing:
-        - BB signal: BUY → BULLISH, SELL → BEARISH, else NEUTRAL
-        - TA verdict: STRONG BUY/BUY → BULLISH, STRONG SELL/SELL → BEARISH
-        - Hybrid: SUPER STRONG BUY/STRONG BUY/BUY → BULLISH, etc.
-
-      Then count agreements:
-        All 3 same direction  → 100 (high conviction — everyone agrees)
-        2 out of 3 agree      →  65 (good — majority agrees)
-        All different          →  40 (neutral — no consensus)
-        Direct conflict        →  20 (danger — engines contradict)
-        (e.g. BB says BUY but TA says SELL)
-
-    WHY THIS MATTERS:
-      A stock where ALL signals agree (BB pattern + TA momentum + Hybrid cross-check)
-      is much safer than one where the signals conflict.
-    """
-    bb_dir = _to_direction(bb_signal)
-    ta_dir = _to_direction(ta_verdict)
-    hybrid_dir = _to_direction(hybrid_verdict)
-
-    directions = [bb_dir, ta_dir, hybrid_dir]
-    bullish_count = directions.count("BULLISH")
-    bearish_count = directions.count("BEARISH")
-    neutral_count = directions.count("NEUTRAL")
-
-    # Perfect alignment (all 3 agree on direction)
-    if bullish_count == 3 or bearish_count == 3:
-        return 100.0
-
-    # Strong alignment (2 agree, 1 neutral)
-    if (bullish_count == 2 and neutral_count == 1) or \
-       (bearish_count == 2 and neutral_count == 1):
-        return 75.0
-
-    # Majority (2 agree but 1 disagrees)
-    if bullish_count == 2 or bearish_count == 2:
-        return 65.0
-
-    # All neutral
-    if neutral_count == 3:
-        return 50.0
-
-    # Direct conflict (some bullish, some bearish)
-    if bullish_count >= 1 and bearish_count >= 1:
-        return 20.0
-
-    # Everything else (mixed neutral + one direction)
-    return 40.0
-
-
-def _score_data_quality(freshness: dict) -> float:
-    """
-    Score data freshness (0-100).
-
-    WHY THIS MATTERS:
-      Technical signals are based on RECENT price action. If the data is
-      5 days old, the patterns may have already resolved. Stale signals
-      are like yesterday's weather forecast — not useful for today.
-
-    SCORING:
-      0-1 trading days old  → 100 (fresh — signals are reliable)
-      2 days old            →  85
-      3-5 days old          →  60 (consider refreshing)
-      6-10 days old         →  30 (signals UNRELIABLE)
-      10+ days old          →  10 (essentially useless)
-    """
-    stale_days = freshness.get("trading_days_stale", 999)
-    if stale_days is None:
-        stale_days = 999
-
-    for threshold, score in FRESHNESS_SCORE_MAP:
-        if stale_days <= threshold:
-            return float(score)
-
-    return 10.0
-
-
-def _score_price_action(pa_result: Optional[dict], is_sell: bool = False) -> float:
-    """
-    Score the Price Action (Al Brooks) analysis (0-100).
-
-    PA score ranges from -100 (strongly bearish) to +100 (strongly bullish).
-    Confidence ranges from 0 to 100.
-
-    FOR BUY: high PA score + high confidence = good
-    FOR SELL: low (negative) PA score + high confidence = good (flipped)
-    """
-    if not pa_result or not pa_result.get("success"):
-        return 40.0  # Neutral default when PA data unavailable
-
-    pa_raw = pa_result.get("pa_score", 0)  # -100 to +100
-    confidence = pa_result.get("confidence", 0)  # 0 to 100
-
-    # Normalize PA score to 0-100
+    # Normalise pa_score to 0-100 (direction-aware)
     if is_sell:
-        # For SELL: negative PA score is good
-        normalized = (PA_MAX_SCORE - pa_raw) / (2 * PA_MAX_SCORE) * 100.0
+        score_norm = (PA_MAX_SCORE - pa_score) / (2 * PA_MAX_SCORE) * 100.0
     else:
-        # For BUY: positive PA score is good
-        normalized = (pa_raw + PA_MAX_SCORE) / (2 * PA_MAX_SCORE) * 100.0
+        score_norm = (pa_score + PA_MAX_SCORE) / (2 * PA_MAX_SCORE) * 100.0
 
-    # Blend with confidence (70% normalized score, 30% confidence)
-    blended = normalized * 0.7 + confidence * 0.3
+    # Blend: 50% score_norm + 30% confidence + 20% quality
+    blended = 0.50 * score_norm + 0.30 * confidence + 0.20 * quality
+
+    # Bonus if signal aligns with filter direction
+    if (not is_sell and signal == "BUY") or (is_sell and signal == "SELL"):
+        blended = min(100, blended + 5)
 
     return max(0.0, min(100.0, blended))
 
 
+def _score_fundamental(fundamental_score: Optional[float]) -> float:
+    """Score company fundamentals (0-100). Already 0-100 from fundamentals.py."""
+    if fundamental_score is None:
+        return 40.0  # neutral default when no data
+    if isinstance(fundamental_score, float) and math.isnan(fundamental_score):
+        return 40.0
+    return max(0.0, min(100.0, float(fundamental_score)))
+
+
 # ═══════════════════════════════════════════════════════════════
-# HELPER FUNCTIONS
+# HELPERS
 # ═══════════════════════════════════════════════════════════════
-
-def _to_direction(signal: str) -> str:
-    """
-    Convert any signal/verdict string into a simple direction.
-
-    MAPPING:
-      BUY/STRONG BUY/SUPER STRONG BUY → "BULLISH"
-      SELL/STRONG SELL/SUPER STRONG SELL → "BEARISH"
-      Everything else (HOLD, WAIT, NEUTRAL, etc.) → "NEUTRAL"
-    """
-    if not signal:
-        return "NEUTRAL"
-    s = signal.upper().strip()
-    if "BUY" in s:
-        return "BULLISH"
-    if "SELL" in s:
-        return "BEARISH"
-    return "NEUTRAL"
-
-
-def _extract_triple_verdict(hybrid_result: dict) -> str:
-    """Extract the human-readable verdict string from the triple result."""
-    tv = hybrid_result.get("triple_verdict", {})
-    if isinstance(tv, dict):
-        return tv.get("verdict", "UNKNOWN")
-    return str(tv) if tv else "UNKNOWN"
-
 
 def _extract_triple_combined_score(hybrid_result: dict) -> float:
-    """
-    Extract the combined numerical score from the triple result.
-    This is BB_total + TA_total + PA_total + agreement_bonus (range: -425 to +425).
-    """
     tv = hybrid_result.get("triple_verdict", {})
     if isinstance(tv, dict):
         score = tv.get("score", 0)
         if score is not None and not (isinstance(score, float) and math.isnan(score)):
             return float(score)
-
-    # Fallback: reconstruct from bb_score + ta_score + pa_score + cross_validation
     bb = hybrid_result.get("bb_score", {})
     ta = hybrid_result.get("ta_score", {})
     pa = hybrid_result.get("pa_score", {})
     cv = hybrid_result.get("cross_validation", {})
-    bb_total = bb.get("total", 0) if isinstance(bb, dict) else 0
-    ta_total = ta.get("total", 0) if isinstance(ta, dict) else 0
-    pa_total = pa.get("total", 0) if isinstance(pa, dict) else 0
-    cv_score = cv.get("agreement_score", 0) if isinstance(cv, dict) else 0
-    return float(bb_total) + float(ta_total) + float(pa_total) + float(cv_score)
+    return (
+        float((bb.get("total", 0) if isinstance(bb, dict) else 0))
+        + float((ta.get("total", 0) if isinstance(ta, dict) else 0))
+        + float((pa.get("total", 0) if isinstance(pa, dict) else 0))
+        + float((cv.get("agreement_score", 0) if isinstance(cv, dict) else 0))
+    )
 
 
-def _describe_agreement(bb_signal: str, ta_verdict: str, triple_verdict: str) -> str:
-    """Build a human-readable description of signal agreement."""
-    bb_dir = _to_direction(bb_signal)
-    ta_dir = _to_direction(ta_verdict)
-    tr_dir = _to_direction(triple_verdict)
-
-    parts = [
-        f"BB → {bb_dir}",
-        f"TA → {ta_dir}",
-        f"Triple → {tr_dir}",
-    ]
-    return " | ".join(parts)
+def _brooks_hint(brooks_result: Optional[dict]) -> str:
+    if not brooks_result:
+        return "No Brooks data"
+    sig = brooks_result.get("signal_type", "HOLD")
+    conf = brooks_result.get("confidence", 0)
+    setup = brooks_result.get("setup_type", "")
+    parts = [f"{sig} ({conf}%)"]
+    if setup and setup != "NONE":
+        parts.append(setup)
+    return " — ".join(parts)
 
 
-def _score_volume_quality(volume_ratio: Optional[float]) -> float:
-    """Score based on current volume relative to 50-day average."""
-    if volume_ratio is None or (isinstance(volume_ratio, float) and math.isnan(volume_ratio)) or volume_ratio <= 0:
-        return 50.0
-    if volume_ratio >= VOL_TIER_MID_MAX:
-        return 100.0
-    if volume_ratio >= VOL_TIER_LOW_MAX:
-        return 60.0
-    return 30.0
-
-
-def _assign_grade(score: float) -> str:
-    """
-    Assign a letter grade based on composite score.
-
-    GRADING SCALE (think school grades):
-      90-100  → A+  (exceptional pick — extremely rare)
-      80-89   → A   (excellent pick — high confidence)
-      70-79   → B+  (good pick — solid case)
-      60-69   → B   (decent pick — worth considering)
-      50-59   → C   (mediocre — mixed signals)
-      40-49   → D   (weak — proceed with extreme caution)
-      0-39    → F   (failing — do not recommend)
-    """
-    if score >= 90:
-        return "A+"
-    if score >= 80:
-        return "A"
-    if score >= 70:
-        return "B+"
-    if score >= 60:
-        return "B"
-    if score >= 50:
-        return "C"
-    if score >= 40:
-        return "D"
+def _grade(score: float) -> str:
+    if score >= 90: return "A+"
+    if score >= 80: return "A"
+    if score >= 70: return "B+"
+    if score >= 60: return "B"
+    if score >= 50: return "C"
+    if score >= 40: return "D"
     return "F"

@@ -81,7 +81,8 @@ from top_picks.config import (
     TOP_N, MIN_COMPOSITE_SCORE, MAX_WORKERS, DEFAULT_CAPITAL,
     HOLD_PERIOD_MAP, FUNDAMENTAL_FLOOR_SCORE, FUNDAMENTAL_FLOOR_SIGNAL,
 )
-from top_picks.scorer import compute_composite_score
+from top_picks.scorer import compute_composite_score, _score_fundamental, _grade
+from brooks.engine import run_brooks_analysis
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -275,6 +276,7 @@ def find_top_picks(
 ) -> dict:
     """
     The main function — Find the Top 5 Best Picks from a scan.
+    BUY only — SELL signals are disabled (negative edge on 2,905-stock backtest).
 
     ┌──────────────────────────────────────────────────────────────┐
     │  PARAMETERS:                                                  │
@@ -285,8 +287,7 @@ def find_top_picks(
     │                                                               │
     │  method       — Which BB method: "M1", "M2", "M3", "M4"      │
     │                                                               │
-    │  signal_filter — "BUY" or "SELL" — which direction to rank    │
-    │                  (usually "BUY" — we want the best buys)      │
+    │  signal_filter — "BUY" only (SELL disabled)                   │
     │                                                               │
     │  capital      — Trading capital in ₹ (default ₹5,00,000)     │
     │                                                               │
@@ -309,6 +310,16 @@ def find_top_picks(
     │  }                                                            │
     └──────────────────────────────────────────────────────────────┘
     """
+
+    # ── SELL disabled — negative edge on 2,905-stock backtest ──
+    if signal_filter == "SELL":
+        return {
+            "method": method, "signal_filter": signal_filter,
+            "total_scanned": len(scan_results),
+            "total_signals": 0, "total_qualified": 0, "total_analyzed": 0,
+            "picks": [],
+            "message": "SELL signals disabled — backtest shows negative edge across all methods.",
+        }
 
     # ── Stage 0 (NEW): VIX Regime Gate ────────────────────────────
     vix_info = get_vix_regime()
@@ -453,6 +464,35 @@ def find_top_picks(
             pick["earnings_guard"] = eg
         top = [p for p in top
                if p.get("earnings_guard", {}).get("risk_level") != "HIGH"]
+
+    # ── Stage 8: Re-score with fundamentals ──────────────────────
+    for pick in top:
+        fd = pick.get("fundamentals", {})
+        fund_score = _safe(fd.get("score"), 0) if fd.get("available") else None
+        if fund_score is not None and pick.get("components"):
+            fund_norm = _score_fundamental(fund_score)
+            comp = pick["components"]
+            comp["fundamental"] = {
+                **comp.get("fundamental", {}),
+                "score": round(fund_norm, 1),
+                "weighted": round(fund_norm * WEIGHTS["fundamental"], 1),
+                "hint": f"Fundamental {fund_score:.0f}/100",
+            }
+            new_composite = sum(
+                comp[k]["score"] * WEIGHTS[k]
+                for k in WEIGHTS if k in comp
+            )
+            new_composite = max(0.0, min(100.0, new_composite))
+            pick["composite_score"] = round(new_composite, 1)
+            pick["grade"] = _grade(new_composite)
+            if fund_score >= 70:
+                pick.setdefault("reasons", []).append(
+                    f"Strong fundamentals ({fund_score:.0f}/100)")
+            elif fund_score < 35:
+                pick.setdefault("warnings", []).append(
+                    f"Weak fundamentals ({fund_score:.0f}/100)")
+
+    top.sort(key=lambda p: p.get("composite_score", 0), reverse=True)
 
     # ── Clean up internal fields and re-rank ────────────────────
     for i, pick in enumerate(top):
@@ -695,48 +735,18 @@ def _deep_analyze_stock(
         if "error" in triple:
             return None
 
-        # Step 2b: Extract PA data from triple result (already computed inside triple)
+        # Step 2b: Run Brooks PA directly (not via triple's stale PA data)
         pa_flat = None
         try:
-            pa_raw = triple.get("pa_data", {})
-            pa_scored = triple.get("pa_score", {})
-            if pa_raw and pa_raw.get("signal_type"):
+            br = run_brooks_analysis(df=df, ticker=ticker)
+            if br.success:
                 pa_flat = {
                     "success": True,
-                    "pa_score": pa_raw.get("pa_score", 0),
-                    "confidence": pa_raw.get("confidence", 0),
-                    "pa_verdict": pa_raw.get("signal_type", "HOLD"),
-                    "signal_type": pa_raw.get("signal_type", ""),
-                    "signal_strength": pa_raw.get("strength", ""),
-                    "setup_type": pa_raw.get("setup_type", ""),
-                    "always_in": pa_raw.get("always_in", ""),
-                    "trend_direction": pa_raw.get("trend_direction", ""),
-                    "trend_phase": pa_raw.get("trend_phase", ""),
-                    "patterns": pa_raw.get("active_patterns", []),
-                    "al_brooks_context": pa_raw.get("al_brooks_context", ""),
-                    "last_bar": {
-                        "type": pa_raw.get("last_bar_type", ""),
-                        "is_signal": pa_raw.get("last_bar_signal", False),
-                    },
-                    "breakout": {
-                        "in_breakout": pa_raw.get("in_breakout", False),
-                        "direction": pa_raw.get("breakout_direction", ""),
-                    },
-                    "channel": {},
-                    "scoring": pa_scored,
-                    "two_leg": {
-                        "complete": pa_raw.get("two_leg_complete", False),
-                        "measured_move_target": pa_raw.get("measured_move_target"),
-                    },
-                    "reasons": pa_raw.get("reasons", []),
-                    "price_levels": {
-                        "entry": pa_raw.get("entry_price"),
-                        "stop_loss": pa_raw.get("stop_loss"),
-                        "target_1": pa_raw.get("target_1"),
-                        "target_2": pa_raw.get("target_2"),
-                        "risk_reward": pa_raw.get("risk_reward"),
-                    },
-                    "cross_system": triple.get("cross_validation", {}),
+                    "pa_score": br.pa_score,
+                    "confidence": br.confidence,
+                    "quality_score": br.quality_score,
+                    "signal_type": br.signal_type,
+                    "setup_type": br.setup_type,
                 }
         except Exception:
             pass
@@ -763,11 +773,9 @@ def _deep_analyze_stock(
             bb_signal_type=bb_signal_type,
             ta_signal=ta_signal,
             hybrid_result=triple,
-            data_freshness=data_freshness,
             method=method,
             signal_filter=signal_filter,
-            pa_result=pa_flat,
-            volume_ratio=volume_ratio,
+            brooks_result=pa_flat,
         )
 
         # Step 5: Package the result card

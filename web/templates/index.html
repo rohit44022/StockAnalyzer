@@ -1924,26 +1924,26 @@
 
         // Build component bars
         const comps = pick.components || {};
-        const compOrder = ['bb_strategy','ta_score','triple_score','pa_score','risk_reward','signal_agreement','data_quality','volume_quality'];
+        const compOrder = ['bb_strategy','ta_score','triple_score','brooks_pa','fundamental'];
         const compLabels = {
             bb_strategy: 'BB Strategy',
             ta_score: 'TA Score',
             triple_score: 'Triple Score',
-            pa_score: 'Price Action',
-            risk_reward: 'Risk/Reward',
-            signal_agreement: 'Agreement',
-            data_quality: 'Data Quality',
-            volume_quality: 'Volume Quality', };
+            brooks_pa: 'Brooks PA',
+            fundamental: 'Fundamental', };
         const compBarsHtml = compOrder.map(key => {
             const c = comps[key] || {};
             const val = c.score || 0;
             const weight = ((c.weight || 0) * 100).toFixed(0);
+            const isScoring = weight > 0;
             const barColor = val >= 70 ? '#0ab39c' : val >= 50 ? '#7c8aef' : val >= 35 ? '#f7b84b' : '#f06548';
             const hint = c.hint || '';
             const detail = c.detail || '';
+            const weightLabel = isScoring ? `(${weight}%)` : 'Info';
+            const dimStyle = isScoring ? '' : 'opacity:0.55;';
             return `
-                <div class="tp-comp" title="${detail}">
-                    <div class="tp-comp-name">${compLabels[key] || key} <span style="color:#484f58">(${weight}%)</span></div>
+                <div class="tp-comp" title="${detail}" style="${dimStyle}">
+                    <div class="tp-comp-name">${compLabels[key] || key} <span style="color:${isScoring ? '#484f58' : '#6e7681'};font-size:0.6rem">${weightLabel}</span></div>
                     <div class="tp-comp-bar"><div class="tp-comp-fill" style="width:${val}%;background:${barColor}"></div></div>
                     <div class="tp-comp-val" style="color:${barColor}">${val.toFixed?val.toFixed(0):val}/100</div>
                     <div class="tp-comp-hint">${hint}</div>

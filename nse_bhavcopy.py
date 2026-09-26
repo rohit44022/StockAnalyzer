@@ -186,6 +186,47 @@ def _parse_date(s: str) -> date:
     return datetime.strptime(s.strip(), "%Y-%m-%d").date()
 
 
+def _detect_last_date(save_path: str = SAVE_PATH) -> date | None:
+    """Find the most recent date across all CSVs (sample 20 large files)."""
+    csvs = sorted(
+        [(os.path.getsize(os.path.join(save_path, f)), f)
+         for f in os.listdir(save_path) if f.endswith(".NS.csv")],
+        reverse=True,
+    )[:20]
+    latest = None
+    for _, fname in csvs:
+        try:
+            with open(os.path.join(save_path, fname)) as fh:
+                for line in fh:
+                    pass  # seek to last line
+                d = datetime.strptime(line.split(",")[0].strip(), "%Y-%m-%d").date()
+                if latest is None or d > latest:
+                    latest = d
+        except Exception:
+            continue
+    return latest
+
+
+def catchup(save_path: str = SAVE_PATH) -> list[dict]:
+    """Auto-detect last date in CSVs and download all missing days."""
+    last = _detect_last_date(save_path)
+    today = _last_trading_day()
+    if last is None:
+        print("  No existing CSVs found — downloading today only")
+        return run([today], save_path)
+    if last >= today:
+        print(f"  Already up-to-date (latest: {last})")
+        return []
+    dates = []
+    d = last + timedelta(days=1)
+    while d <= today:
+        if d.weekday() < 5:
+            dates.append(d)
+        d += timedelta(days=1)
+    print(f"  Catching up {len(dates)} day(s): {dates[0]} → {dates[-1]}")
+    return run(dates, save_path)
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     print(f"\n{'─'*50}")
@@ -193,10 +234,14 @@ if __name__ == "__main__":
     print(f"  Output: {SAVE_PATH}")
     print(f"{'─'*50}\n")
 
-    if len(args) == 0:
+    if "--catchup" in args:
+        results = catchup()
+    elif len(args) == 0:
         dates = None  # auto-detect latest
+        results = run(dates)
     elif len(args) == 1:
         dates = [_parse_date(args[0])]
+        results = run(dates)
     elif len(args) == 2:
         start, end = _parse_date(args[0]), _parse_date(args[1])
         dates = []
@@ -205,11 +250,10 @@ if __name__ == "__main__":
             if d.weekday() < 5:  # skip weekends
                 dates.append(d)
             d += timedelta(days=1)
+        results = run(dates)
     else:
-        print("Usage: python nse_bhavcopy.py [date] [end_date]")
+        print("Usage: python nse_bhavcopy.py [--catchup | date [end_date]]")
         sys.exit(1)
-
-    results = run(dates)
 
     print(f"\n{'─'*50}")
     total = sum(r.get("updated", 0) + r.get("new", 0) for r in results)

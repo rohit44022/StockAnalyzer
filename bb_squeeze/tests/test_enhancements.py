@@ -36,40 +36,7 @@ class TestWeightIntegrity(unittest.TestCase):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 2. Volume Quality Scoring
-# ═══════════════════════════════════════════════════════════════
-
-class TestVolumeQualityScoring(unittest.TestCase):
-    def setUp(self):
-        from top_picks.scorer import _score_volume_quality
-        self.score = _score_volume_quality
-
-    def test_none_returns_neutral(self):
-        self.assertEqual(self.score(None), 50.0)
-
-    def test_zero_returns_neutral(self):
-        self.assertEqual(self.score(0), 50.0)
-
-    def test_low_volume(self):
-        self.assertEqual(self.score(1.0), 30.0)
-        self.assertEqual(self.score(1.49), 30.0)
-
-    def test_mid_volume(self):
-        self.assertEqual(self.score(1.5), 60.0)
-        self.assertEqual(self.score(2.0), 60.0)
-        self.assertEqual(self.score(2.49), 60.0)
-
-    def test_high_volume(self):
-        self.assertEqual(self.score(2.5), 100.0)
-        self.assertEqual(self.score(5.0), 100.0)
-
-    def test_nan_returns_neutral(self):
-        import math
-        self.assertEqual(self.score(float("nan")), 50.0)
-
-
-# ═══════════════════════════════════════════════════════════════
-# 3. VIX Regime
+# 2. VIX Regime
 # ═══════════════════════════════════════════════════════════════
 
 class TestVixRegime(unittest.TestCase):

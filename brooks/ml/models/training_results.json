@@ -1,0 +1,24 @@
+{
+  "xgboost": {
+    "auc": 0.5197,
+    "accuracy": 0.5118,
+    "train_size": 21470,
+    "test_size": 10704
+  },
+  "lightgbm": {
+    "rmse": 0.8851,
+    "r2": -0.0069,
+    "train_size": 21470,
+    "test_size": 10704
+  },
+  "downside": {
+    "coverage_25pct": 0.7268,
+    "mean_predicted_floor": -4.18
+  },
+  "lstm": {
+    "status": "skipped_cpu_too_slow"
+  },
+  "dataset_size": 32174,
+  "train_size": 21470,
+  "test_size": 10704
+}

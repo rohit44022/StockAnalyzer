@@ -8,8 +8,8 @@ from bb_squeeze.indicators import compute_all_indicators
 from bb_squeeze.signals import analyze_signals
 from bb_squeeze.strategies import run_all_strategies, strategy_result_to_dict
 from hybrid_pa_engine import run_triple_analysis
-from price_action.engine import run_price_action_analysis, pa_result_to_dict
-from top_picks.scorer import compute_composite_score, _score_bb_strategy, _score_technical_analysis, _score_triple, _score_risk_reward, _score_signal_agreement, _score_data_quality, _score_price_action
+from brooks.analyzer import run_price_action_analysis, pa_result_to_dict
+from top_picks.scorer import compute_composite_score, _score_bb_strategy, _score_ta, _score_triple, _score_brooks_pa, _score_fundamental
 
 ticker = "KRISHANA.NS"
 df = load_stock_data(ticker, use_live_fallback=False)
@@ -106,6 +106,7 @@ if pa and pa.success:
         "success": True,
         "pa_score": pa.pa_score,
         "confidence": pa.confidence,
+        "quality_score": getattr(pa, "quality_score", 0),
         "pa_verdict": pa_dict.get("signal", {}).get("pa_verdict", "HOLD"),
         "signal_type": pa.signal_type,
         "setup_type": pa_dict.get("signal", {}).get("setup", ""),
@@ -128,33 +129,26 @@ print(f"  data_freshness stale={data_freshness.get('trading_days_stale')}")
 if pa_flat:
     print(f"  pa_score raw={pa_flat['pa_score']}, pa_conf={pa_flat['confidence']}")
 
-# Manually compute each component
+# Manually compute each component (5-component system)
 bb_score = _score_bb_strategy(bb_conf, bb_type, "M2")
-ta_comp = _score_technical_analysis(ta_signal, is_sell=False)
+ta_comp = _score_ta(ta_signal, is_sell=False)
 hybrid_comp = _score_triple(hybrid, is_sell=False)
-rr_score, rr_val = _score_risk_reward(hybrid)
-agree_score = _score_signal_agreement(bb_type, ta_signal.get("verdict", "HOLD"),
-                                       hv.get("verdict", "UNKNOWN"))
-dq_score = _score_data_quality(data_freshness)
-pa_comp = _score_price_action(pa_flat, is_sell=False)
+brooks_comp = _score_brooks_pa(pa_flat, is_sell=False)
+fund_comp = _score_fundamental(None)  # no fundamentals in verify script
 
 print(f"\nComponent Scores (what shows in UI):")
-print(f"  BB Strategy:   {bb_score:.1f}/100   (weight 20%)")
+print(f"  BB Strategy:   {bb_score:.1f}/100   (weight 30%)")
 print(f"  TA Score:      {ta_comp:.1f}/100   (weight 20%)")
 print(f"  Triple Score:  {hybrid_comp:.1f}/100   (weight 15%)")
-print(f"  Price Action:  {pa_comp:.1f}/100   (weight 15%)")
-print(f"  Risk/Reward:   {rr_score:.1f}/100   (weight 15%, R:R={rr_val})")
-print(f"  Agreement:     {agree_score:.1f}/100   (weight 10%)")
-print(f"  Data Quality:  {dq_score:.1f}/100   (weight 5%)")
+print(f"  Brooks PA:     {brooks_comp:.1f}/100   (weight 20%)")
+print(f"  Fundamental:   {fund_comp:.1f}/100   (weight 15%)")
 
 composite = (
-    bb_score * 0.20 +
+    bb_score * 0.30 +
     ta_comp * 0.20 +
     hybrid_comp * 0.15 +
-    pa_comp * 0.15 +
-    rr_score * 0.15 +
-    agree_score * 0.10 +
-    dq_score * 0.05
+    brooks_comp * 0.20 +
+    fund_comp * 0.15
 )
 print(f"\n  COMPOSITE SCORE: {composite:.1f}/100")
 
@@ -164,10 +158,9 @@ full = compute_composite_score(
     bb_signal_type=bb_type,
     ta_signal=ta_signal,
     hybrid_result=hybrid,
-    data_freshness=data_freshness,
     method="M2",
     signal_filter="BUY",
-    pa_result=pa_flat,
+    brooks_result=pa_flat,
 )
 print(f"  SCORER RESULT:  {full['composite_score']}/100, Grade: {full['grade']}")
 
@@ -179,15 +172,9 @@ print("=" * 70)
 # BB Strategy
 print(f"\n1. BB Strategy Score:")
 print(f"   Input: confidence={bb_conf}, signal_type={bb_type}")
-if bb_type == "BUY":
-    expected = min(100, bb_conf + 10)
-else:
-    expected = bb_conf
-print(f"   Expected: min(100, {bb_conf} + 10) = {expected}")
 print(f"   Got: {bb_score}")
-print(f"   MATCH: {abs(expected - bb_score) < 0.1}")
 
-# TA Score  
+# TA Score
 print(f"\n2. TA Score:")
 ta_raw = ta_signal.get("score", 0)
 ta_expected = (ta_raw + 100) / 2.0
@@ -196,43 +183,29 @@ print(f"   Formula: ({ta_raw} + 100) / 2 = {ta_expected:.1f}")
 print(f"   Got: {ta_comp:.1f}")
 print(f"   MATCH: {abs(ta_expected - ta_comp) < 0.1}")
 
-# Hybrid Score
-print(f"\n3. Hybrid Score:")
+# Triple Score
+print(f"\n3. Triple Score:")
 h_combined = hv.get("score", 0)
-h_expected = (h_combined + 245) / 490 * 100
+h_expected = (h_combined - (-425)) / 850 * 100
 print(f"   Input: combined_score={h_combined}")
-print(f"   Formula: ({h_combined} + 245) / 490 * 100 = {h_expected:.1f}")
+print(f"   Formula: ({h_combined} + 425) / 850 * 100 = {h_expected:.1f}")
 print(f"   Got: {hybrid_comp:.1f}")
 print(f"   MATCH: {abs(h_expected - hybrid_comp) < 0.1}")
 
-# PA Score
-print(f"\n4. Price Action Score:")
+# Brooks PA
+print(f"\n4. Brooks PA Score:")
 if pa_flat:
     pa_raw = pa_flat["pa_score"]
     pa_conf = pa_flat["confidence"]
-    normalized = (pa_raw + 100) / 200 * 100
-    blended = normalized * 0.7 + pa_conf * 0.3
-    print(f"   Input: pa_score={pa_raw}, confidence={pa_conf}")
-    print(f"   Normalized: ({pa_raw} + 100) / 200 * 100 = {normalized:.1f}")
-    print(f"   Blended: {normalized:.1f} * 0.7 + {pa_conf} * 0.3 = {blended:.1f}")
-    print(f"   Got: {pa_comp:.1f}")
-    print(f"   MATCH: {abs(blended - pa_comp) < 0.1}")
+    pa_qual = pa_flat.get("quality_score", 0) or 0
+    score_norm = (pa_raw + 100) / 200 * 100
+    blended = 0.50 * score_norm + 0.30 * pa_conf + 0.20 * pa_qual + 5  # +5 BUY bonus
+    print(f"   Input: pa_score={pa_raw}, confidence={pa_conf}, quality={pa_qual}")
+    print(f"   Got: {brooks_comp:.1f}")
 
-# Risk/Reward
-print(f"\n5. Risk/Reward Score:")
-print(f"   Input: R:R={rr_val}")
-print(f"   Got: {rr_score}")
-
-# Agreement
-print(f"\n6. Agreement Score:")
-print(f"   BB signal: {bb_type}")
-print(f"   TA verdict: {ta_signal.get('verdict')}")
-print(f"   Hybrid verdict: {hv.get('verdict')}")
-print(f"   Got: {agree_score}")
-
-# Data Quality
-print(f"\n7. Data Quality:")
-print(f"   Days stale: {data_freshness.get('trading_days_stale')}")
+# Fundamental
+print(f"\n5. Fundamental Score:")
+print(f"   No fundamentals in verify → default neutral: {fund_comp:.1f}")
 print(f"   Got: {dq_score}")
 
 # Cross-check what screenshot shows

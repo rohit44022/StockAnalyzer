@@ -468,7 +468,8 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
         result.cond4_volume_ok and      # Book Rule 5: CMF > 0 OR II% > 0
         result.cond5_mfi_above_50
     )
-    result.buy_signal = all_five_green and not result.head_fake
+    bw_contracting = bool(row.get("BBW_Contracting", True))
+    result.buy_signal = all_five_green and not result.head_fake and bw_contracting
 
     # ──────────────────────────────────────────────────────────
     # METHOD I SHORT-SIDE — Bearish Squeeze Breakout (Book Ch.16)

@@ -65,7 +65,7 @@ from technical_analysis.risk_manager import calculate_stop_losses
 from technical_analysis.target_price import calculate_target_prices
 
 try:
-    from price_action.engine import run_price_action_analysis
+    from brooks.analyzer import run_price_action_analysis
     _HAS_PA = True
 except Exception:
     _HAS_PA = False

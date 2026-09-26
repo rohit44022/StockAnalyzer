@@ -21,9 +21,9 @@ from bb_squeeze.data_loader import (
 from bb_squeeze.indicators import compute_all_indicators
 from bb_squeeze.signals import analyze_signals
 from bb_squeeze.config import CSV_DIR
-from price_action.engine import run_price_action_analysis, pa_result_to_dict
-from price_action.scanner import scan_all_stocks, top_buy_shortlist
-from price_action import config as C
+from brooks.analyzer import run_price_action_analysis, pa_result_to_dict
+from brooks.analyzer import scan_all_stocks, top_buy_shortlist
+from brooks.engine import MIN_BARS
 
 pa_bp = Blueprint("price_action", __name__)
 
@@ -45,7 +45,7 @@ def api_pa_analysis(ticker: str):
     ticker = normalise_ticker(ticker)
 
     df = load_stock_data(ticker, csv_dir=CSV_DIR, use_live_fallback=False)
-    if df is None or len(df) < C.MIN_BARS_REQUIRED:
+    if df is None or len(df) < MIN_BARS:
         return jsonify({"error": f"Insufficient data for {ticker}"}), 404
 
     # Also get BB data for cross-validation
@@ -104,7 +104,7 @@ def api_pa_shortlist():
     Returns fewer than five, or none, when the market offers nothing that
     qualifies. That is the honest answer for the day, not an error.
     """
-    limit = int(request.args.get("limit", str(C.SHORTLIST_SIZE)))
+    limit = int(request.args.get("limit", str(5)))
 
     # scan_all_stocks runs the universe across a thread pool; the serial loop
     # /api/pa/scan uses takes several times longer for the same work. Bollinger
@@ -143,7 +143,7 @@ def api_pa_scan():
     for ticker in tickers:
         try:
             df = load_stock_data(ticker, csv_dir=CSV_DIR, use_live_fallback=False)
-            if df is None or len(df) < C.MIN_BARS_REQUIRED:
+            if df is None or len(df) < MIN_BARS:
                 continue
 
             # Quick BB cross-validation
@@ -219,7 +219,7 @@ def api_pa_scan_summary():
     for ticker in tickers:
         try:
             df = load_stock_data(ticker, csv_dir=CSV_DIR, use_live_fallback=False)
-            if df is None or len(df) < C.MIN_BARS_REQUIRED:
+            if df is None or len(df) < MIN_BARS:
                 continue
 
             r = run_price_action_analysis(df=df, ticker=ticker)

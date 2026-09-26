@@ -91,3 +91,13 @@ rentech/models/*.joblib
 
 # ── Forge config (local AI tool) ──
 forge.yaml
+.scrip_cache.csv
+.trader_state.json
+.trade_log.jsonl
+.backtest_results.json
+intraday/5min_store/
+
+# ── Books / copyrighted material ──
+*.pdf
+*.epub
+price action book/

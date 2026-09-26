@@ -16,6 +16,7 @@ Key features
 import os
 import io
 import csv
+import sys
 import json
 import time
 import warnings
@@ -368,12 +369,13 @@ def get_historical_data(tickers: list[str],
 # ══════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
+    force = "--force" in sys.argv
     get_historical_data(
         tickers      = TICKERS,
         start_date   = START_DATE,
         end_date     = END_DATE,
         save_path    = SAVE_PATH,
-        skip_existing= SKIP_EXISTING,
+        skip_existing= False if force else SKIP_EXISTING,
         retry_once   = RETRY_ONCE,
     )
 

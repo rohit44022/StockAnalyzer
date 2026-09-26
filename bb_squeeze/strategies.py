@@ -160,10 +160,12 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
     reason       = ""
     details_lines = []
 
-    # Strong Buy: %b in upper zone + MFI confirms + volume
+    # Strong Buy: %b in upper zone + MFI confirms + volume + trend filters
+    ma_rising = bool(row.get("MA_Slope_5", True))
+    bw_tight = bool(row.get("BBW_Contracting", True))
     if pct_b > M2_PCT_B_BUY_THRESHOLD and mfi > M2_MFI_CONFIRM_BUY:
         vol_ok = (vol > vol_sma) if M2_VOL_CONFIRM else True
-        if vol_ok and not bearish_divergence:
+        if vol_ok and not bearish_divergence and ma_rising and bw_tight:
             signal_type = "BUY"
             strength = "STRONG" if mfi > 80 else "MODERATE"
             # Confidence based on how far BEYOND thresholds we are (excess strength)
@@ -764,6 +766,7 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
     close = float(row["Close"])
     ii_pct = _nan_safe(row.get("II_Pct", 0), 0)
     ad_pct = _nan_safe(row.get("AD_Pct", 0), 0)
+    vol_ratio = _nan_safe(row.get("Vol_Ratio", 0), 0)
 
     # ── Determine current signal based on recent patterns ──
     signal_type = "NONE"
@@ -795,7 +798,7 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
 
     if recent_w:
         last_w = recent_w[-1]
-        if pct_b > 0.3:  # Price starting to recover
+        if pct_b > 0.3 and vol_ratio >= 1.5:  # Price recovering + volume confirms reversal
             signal_type = "BUY"
             strength = "STRONG" if ("strong" in last_w.description and rally_day) else "MODERATE"
             confidence = 80 if (strength == "STRONG" and ii_pct > 0) else (65 if strength == "STRONG" else 55)
@@ -830,7 +833,7 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
                 "Wait for a close above the middle Bollinger Band to confirm."
             )
 
-    elif sys_buy:
+    elif sys_buy and vol_ratio >= 1.5:
         # Book's systematised buy: %b < 0.05 AND II% > 0 (Ch.20 p.163)
         signal_type = "BUY"
         strength = "STRONG" if rally_day else "MODERATE"
@@ -891,7 +894,7 @@ def _method_iii_reversals(df: pd.DataFrame) -> StrategyResult:
             "and volume diminishes. This shows buying exhaustion — expect a reversal down."
         )
 
-    elif recent_push_low:
+    elif recent_push_low and vol_ratio >= 1.5:
         signal_type = "BUY"
         strength = "MODERATE"
         confidence = 60

@@ -12,7 +12,7 @@ Produces a colour-coded multi-sheet workbook from a `find_top_picks()` result:
   ├────────────────────────────────────────────────────────────┤
   │ Sheet 2..N — Detail per pick                               │
   │   • Header banner with rank/ticker/composite/grade          │
-  │   • 7 component score bars (data-bar style)                 │
+  │   • 5 component score bars (data-bar style)                 │
   │   • BB + TA + Triple verdict block                          │
   │   • Triple-Conviction breakdown (BB/TA/PA totals)           │
   │   • Unified Triple Targets (entry, stop, T1/T2/T3)          │
@@ -301,10 +301,8 @@ _COMP_ORDER = [
     ("bb_strategy",      "BB Strategy"),
     ("ta_score",         "TA Score"),
     ("triple_score",     "Triple Score"),
-    ("pa_score",         "Price Action"),
-    ("risk_reward",      "Risk/Reward"),
-    ("signal_agreement", "Agreement"),
-    ("data_quality",     "Data Quality"),
+    ("brooks_pa",        "Brooks PA"),
+    ("fundamental",      "Fundamental"),
 ]
 
 

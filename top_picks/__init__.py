@@ -18,7 +18,7 @@
 #     Layer 5 — Signal Agreement (do ALL engines agree on direction?)
 #     Layer 6 — Data Quality (is the data fresh and reliable?)
 #
-#   It then combines all 6 layers into one COMPOSITE SCORE (0-100)
+#   It then combines all 5 components into one COMPOSITE SCORE (0-100)
 #   and picks the TOP 5 stocks that score the highest.
 #
 # ISOLATION GUARANTEE:
@@ -28,6 +28,6 @@
 #
 # FILES:
 #   config.py  — Weight configuration for the composite scoring formula
-#   scorer.py  — The composite scoring logic (combines all 6 layers)
+#   scorer.py  — The composite scoring logic (5-component weighted formula)
 #   engine.py  — The main orchestrator (scan → analyze → rank → pick top 5)
 # ─────────────────────────────────────────────────────────────────

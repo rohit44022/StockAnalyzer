@@ -6,7 +6,7 @@ and the scorer handles direction properly.
 import sys, json
 
 from top_picks.engine import find_top_picks, _extract_candidates, _get_m1_signal_type
-from top_picks.scorer import compute_composite_score, _score_signal_agreement, _to_direction
+from top_picks.scorer import compute_composite_score
 from bb_squeeze.data_loader import get_all_tickers_from_csv, load_stock_data
 from bb_squeeze.indicators import compute_all_indicators
 from bb_squeeze.signals import analyze_signals
@@ -148,37 +148,6 @@ def test_2_scorer_direction_awareness():
     print(f"  BUY score > SELL score? → {status}")
 
 
-def test_3_agreement_direction_bug():
-    """
-    Test signal_agreement for the known bug:
-    Does a SELL scan give 100 agreement to 3 BULLISH engines?
-    """
-    print("\n" + "=" * 60)
-    print("TEST 3: Signal agreement direction-awareness")
-    print("=" * 60)
-
-    # All 3 engines say BUY → agreement=100
-    score_all_buy = _score_signal_agreement("BUY", "STRONG BUY", "STRONG BUY")
-    print(f"  All 3 BULLISH → agreement score: {score_all_buy}")
-
-    # All 3 engines say SELL → agreement=100
-    score_all_sell = _score_signal_agreement("SELL", "STRONG SELL", "STRONG SELL")
-    print(f"  All 3 BEARISH → agreement score: {score_all_sell}")
-
-    # Mixed: BB=SELL, TA=BUY, Hybrid=BUY → conflict
-    score_mixed = _score_signal_agreement("SELL", "STRONG BUY", "STRONG BUY")
-    print(f"  BB=SELL, TA=BUY, Hybrid=BUY → agreement: {score_mixed}")
-
-    # KEY BUG TEST: On a SELL scan, if all 3 say BUY, agreement is 100
-    # but the ACTUAL agreement with the SCAN DIRECTION (SELL) is 0!
-    print(f"\n  ⚠ BUG CHECK: On a SELL scan, if BB=BUY TA=BUY Hybrid=BUY:")
-    print(f"    Agreement score = {score_all_buy} (they agree with EACH OTHER)")
-    print(f"    But they all DISAGREE with SELL direction!")
-    print(f"    However, this is already mitigated because:")
-    print(f"    - The candidate would NOT pass _extract_candidates (BB=BUY != SELL)")
-    print(f"    - So this scenario CANNOT happen in practice for BB direction")
-    print(f"    - TA and Hybrid are not pre-filtered but their scores ARE flipped")
-
 
 def test_4_live_api_m3_sell():
     """Run a mini Top-5 SELL for M3 and verify picks make sense."""
@@ -245,7 +214,6 @@ def test_4_live_api_m3_sell():
 if __name__ == "__main__":
     test_1_signal_filter_correctness()
     test_2_scorer_direction_awareness()
-    test_3_agreement_direction_bug()
     test_4_live_api_m3_sell()
     print("\n" + "=" * 60)
     print("AUDIT COMPLETE")

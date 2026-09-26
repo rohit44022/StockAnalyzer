@@ -530,4 +530,10 @@ def compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
         df["KC_Had_Squeeze"] = False
         df["KC_Squeeze_Intensity"] = 0.0
 
+    # ── Filter columns (backtest-validated signal quality filters) ──
+    df["BBW_Avg20"] = bbw.rolling(20).mean()
+    df["BBW_Contracting"] = bbw < df["BBW_Avg20"]
+    df["MA_Slope_5"] = mid > mid.shift(5)
+    df["Vol_Ratio"] = (volume / vol_sma).where(vol_sma > 0, 0)
+
     return df

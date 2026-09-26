@@ -38,7 +38,7 @@ from bb_squeeze.strategy_config import (
 
 # Multi-system engines
 from hybrid_pa_engine import run_triple_analysis
-from price_action.engine import run_price_action_analysis
+from brooks.analyzer import run_price_action_analysis
 
 # Vince Risk Management
 from vince.optimal_f import find_optimal_f_empirical, compute_by_products

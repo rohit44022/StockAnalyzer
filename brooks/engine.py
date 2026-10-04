@@ -26,7 +26,9 @@ Zero imports from price_action/.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
@@ -47,15 +49,36 @@ VOL_AVG_PERIOD = 20
 TREND_LINE_MIN_TOUCHES = 2
 MIN_REASONS = 2
 
-SETUP_PROB = {
+# ── NSE Cost Model (delivery trades, discount broker) ─────────────
+# ponytail: single round-trip %, bump if slippage proves worse
+NSE_COST_PCT = 0.50  # % of entry price, covers brokerage+STT+GST+stamp+slippage
+
+# ── Setup probabilities — loaded from empirical backtest if available ──
+_EMPIRICAL_PROB_FILE = Path(__file__).parent / "empirical_setup_prob.json"
+_DEFAULT_SETUP_PROB = {
     "SECOND_ENTRY": 0.26, "PULLBACK": 0.27,
     "BREAKOUT": 0.28, "FAILED_BREAKOUT": 0.60,
     "TRAPPED_TRADERS": 0.65, "BREAKOUT_PULLBACK": 0.20,
     "REVERSAL": 0.10, "CHANNEL_REVERSAL": 0.60,
 }
 
-SHORTLIST_SETUPS = ("BREAKOUT", "PULLBACK", "SECOND_ENTRY",
-                    "BREAKOUT_PULLBACK", "REVERSAL")
+
+def _load_setup_prob():
+    if _EMPIRICAL_PROB_FILE.exists():
+        try:
+            with open(_EMPIRICAL_PROB_FILE) as f:
+                data = json.load(f)
+            return {k: v for k, v in data.items() if isinstance(v, (int, float))}
+        except Exception:
+            pass
+    return _DEFAULT_SETUP_PROB.copy()
+
+
+SETUP_PROB = _load_setup_prob()
+
+# Only setups with empirically positive edge after NSE costs
+# Full-universe backtest 2023-2025: CHANNEL_REVERSAL 58.9% win, +3.41%/trade
+SHORTLIST_SETUPS = ("CHANNEL_REVERSAL",)
 SHORTLIST_MIN_CONFIDENCE = 60
 SHORTLIST_MIN_RR = 1.5
 
@@ -125,6 +148,7 @@ class BrooksResult:
     reasons: List[str] = field(default_factory=list)
     al_brooks_context: str = ""
     description: str = ""
+    warnings: List[str] = field(default_factory=list)
 
     # v3 additions
     atr: float = 0.0
@@ -326,7 +350,8 @@ def _ioi(B, n):
     if B["inside"][n - 3] and B["outside"][n - 2] and B["inside"][n - 1]:
         if B["bull"][n - 1]:
             return "BULL"
-        if B["bear"][n - 1]:
+        if B["bear"][n
+                      - 1]:
             return "BEAR"
     return "NONE"
 
@@ -887,11 +912,17 @@ def _sr_zones(h, l, c, sh, sl, n):
 def _round_magnet(price):
     if price <= 0:
         return 99.0
-    # find nearest round level (50, 100, 500, 1000, etc.)
-    candidates = []
-    for base in [50, 100, 250, 500, 1000, 2500, 5000, 10000]:
-        nearest = round(price / base) * base
-        candidates.append(nearest)
+    if price < 50:
+        bases = [5, 10, 25, 50]
+    elif price < 200:
+        bases = [10, 25, 50, 100]
+    elif price < 1000:
+        bases = [50, 100, 250, 500]
+    elif price < 5000:
+        bases = [100, 250, 500, 1000]
+    else:
+        bases = [250, 500, 1000, 2500, 5000, 10000]
+    candidates = [round(price / b) * b for b in bases]
     min_dist = min(abs(price - c) / price * 100 for c in candidates)
     return round(min_dist, 2)
 
@@ -1565,12 +1596,16 @@ def _equation(sig, setup, entry, stop, t1, conf):
         return 0.0, "NONE"
     prob = SETUP_PROB.get(setup, 0.45)
     prob = prob * (conf / 100) + (1 - conf / 100) * 0.40
+    cost = entry * NSE_COST_PCT / 100
     if sig == "BUY":
         risk, reward = max(entry - stop, 0.01), max(t1 - entry, 0.01)
     else:
         risk, reward = max(stop - entry, 0.01), max(entry - t1, 0.01)
-    eq = prob * reward - (1 - prob) * risk
-    rr = reward / risk
+    # cost hits both outcomes: win nets (reward - cost), loss costs (risk + cost)
+    eq = prob * (reward - cost) - (1 - prob) * (risk + cost)
+    net_reward = max(reward - cost, 0.01)
+    net_risk = risk + cost
+    rr = net_reward / net_risk
     verdict = "EDGE" if eq > 0 and rr >= 1.5 else "RISKY" if eq > 0 else "NO_EDGE"
     return round(eq, 4), verdict
 
@@ -1690,19 +1725,28 @@ def run_brooks_analysis(df: pd.DataFrame, ticker: str) -> BrooksResult:
     except (KeyError, ValueError):
         pass
 
-    # NaN safety
+    # NaN safety — forward-fill instead of truncating (preserves recent data
+    # across single-row gaps from corp actions or bad downloads)
     mask = np.isnan(o) | np.isnan(h) | np.isnan(l) | np.isnan(c)
     if mask.any():
-        last_valid = np.where(~mask)[0]
-        if len(last_valid) == 0:
+        if mask.all():
             r.success, r.error = False, "All NaN"
             return r
-        end = last_valid[-1] + 1
-        o, h, l, c = o[:end], h[:end], l[:end], c[:end]
+        _tmp = pd.DataFrame({"o": o, "h": h, "l": l, "c": c})
+        _tmp = _tmp.ffill().bfill()
+        o, h, l, c = _tmp["o"].values, _tmp["h"].values, _tmp["l"].values, _tmp["c"].values
         if vol is not None:
-            vol = vol[:end]
+            vol = np.where(np.isnan(vol), 0, vol)
 
     n = len(c)
+
+    # Corporate action detection — flag bars with >20% gap from prior close
+    for i in range(max(1, n - 60), n):
+        if c[i - 1] > 0 and abs(o[i] - c[i - 1]) / c[i - 1] > 0.20:
+            r.warnings.append(
+                f"Bar {i}: {abs(o[i] - c[i-1]) / c[i-1] * 100:.0f}% gap — "
+                f"possible split/bonus, levels may be unreliable"
+            )
     if n < MIN_BARS:
         r.success, r.error = False, f"Need {MIN_BARS} bars, got {n}"
         return r

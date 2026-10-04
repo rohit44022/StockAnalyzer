@@ -7,6 +7,7 @@
 {% include "_theme_head.html" %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root {
   --bull: #22c55e;
@@ -292,6 +293,44 @@ body {
 }
 .toggle-switch.disabled { opacity: .4; pointer-events: none; }
 
+/* ── Token section ── */
+.token-panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1rem 1.25rem; margin-bottom: 1rem;
+}
+.token-header { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+.token-title { font-size: .85rem; font-weight: 700; }
+.token-status-badge {
+  padding: .1rem .45rem; border-radius: 4px; font-size: .55rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.token-valid { background: var(--bull-muted); color: var(--bull); }
+.token-expired { background: var(--bear-muted); color: var(--bear); }
+.token-missing { background: var(--amber-muted); color: var(--amber); }
+.token-info {
+  font-size: .7rem; color: var(--text-tertiary); margin-bottom: .6rem;
+  display: flex; flex-wrap: wrap; gap: .25rem .75rem;
+}
+.token-form { display: flex; gap: .5rem; flex-wrap: wrap; align-items: stretch; }
+.token-input {
+  flex: 1; min-width: 200px; padding: .4rem .6rem;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface-raised); color: var(--text-primary);
+  font-size: .75rem; font-family: monospace;
+}
+.token-input::placeholder { color: var(--text-tertiary); }
+.token-input.client-id { max-width: 140px; min-width: 100px; }
+.token-save-btn {
+  padding: .4rem .9rem; border: none; border-radius: var(--radius-sm);
+  background: var(--accent); color: #fff; font-size: .7rem; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+.token-save-btn:hover { opacity: .85; }
+.token-save-btn:disabled { opacity: .4; cursor: not-allowed; }
+.token-feedback { font-size: .65rem; margin-top: .4rem; }
+.token-feedback.ok { color: var(--bull); }
+.token-feedback.err { color: var(--bear); }
+
 /* ── Portfolio summary ── */
 .portfolio-bar {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -300,7 +339,16 @@ body {
 .port-stat {
   padding: .6rem .75rem; border-radius: var(--radius-sm);
   background: var(--surface-raised); text-align: center;
+  border-left: 3px solid transparent; transition: border-color .3s, background .3s;
 }
+.port-stat.tile-pnl-pos { border-left-color: var(--bull); background: rgba(34,197,94,.08); }
+.port-stat.tile-pnl-neg { border-left-color: var(--bear); background: rgba(239,68,68,.08); }
+.port-stat.tile-open { border-left-color: #818cf8; }
+.port-stat.tile-open-active { border-left-color: #818cf8; background: rgba(129,140,248,.1); }
+.port-stat.tile-closed { border-left-color: #94a3b8; }
+.port-stat.tile-wr-good { border-left-color: var(--bull); }
+.port-stat.tile-wr-bad { border-left-color: var(--bear); }
+.port-stat.tile-funds { border-left-color: #38bdf8; background: rgba(56,189,248,.06); }
 .port-stat .ps-label { font-size: .55rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: .15rem; }
 .port-stat .ps-val { font-weight: 800; font-size: 1rem; }
 .port-stat .ps-val.big { font-size: 1.3rem; }
@@ -407,6 +455,33 @@ body {
   .portfolio-bar { grid-template-columns: repeat(3, 1fr); }
 }
 
+/* ── Broker Sync ── */
+.broker-tab {
+  flex:1; padding:.4rem .5rem; background:none; border:none; color:var(--text-tertiary);
+  font-size:.65rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent;
+}
+.broker-tab:hover { color:var(--text-secondary); }
+.broker-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.broker-tbl { width:100%; border-collapse:collapse; font-size:.62rem; font-family:'JetBrains Mono',monospace; }
+.broker-tbl th {
+  text-align:left; padding:.35rem .4rem; color:var(--text-tertiary); font-size:.55rem;
+  text-transform:uppercase; letter-spacing:.04em; font-weight:600;
+  border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface);
+}
+.broker-tbl td { padding:.3rem .4rem; border-bottom:1px solid rgba(255,255,255,.03); }
+.broker-tbl tr:hover td { background:var(--surface-hover); }
+.broker-funds-cell {
+  flex:1; padding:.4rem .6rem; background:var(--surface); text-align:center;
+}
+.broker-funds-cell .bf-label { font-size:.5rem; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:.03em; }
+.broker-funds-cell .bf-val { font-size:.72rem; font-weight:700; margin-top:2px; }
+.ord-status { padding:.1rem .3rem; border-radius:3px; font-size:.5rem; font-weight:600; }
+.ord-traded { background:var(--bull-muted); color:var(--bull); }
+.ord-pending { background:var(--amber-muted); color:var(--amber); }
+.ord-rejected { background:var(--bear-muted); color:var(--bear); }
+.ord-cancelled { background:rgba(255,255,255,.06); color:var(--text-tertiary); }
+.ord-transit { background:var(--accent-muted); color:var(--accent); }
+
 /* ── How-it-works ── */
 .how-box {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -449,6 +524,11 @@ body {
     <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
       <span class="market-badge" id="marketBadge">
         <i class="bi bi-circle-fill" style="font-size:.45rem"></i> <span id="marketStatus">checking…</span>
+      </span>
+      <span class="market-badge" id="nifty500Badge" style="min-width:10rem;text-align:center">
+        <strong style="font-size:.7rem;letter-spacing:.03em">NIFTY 500</strong>
+        <span id="nifty500Ltp" style="font-family:'JetBrains Mono',monospace;font-weight:700;margin-left:.4rem">—</span>
+        <span id="nifty500Chg" style="font-size:.7rem;margin-left:.3rem"></span>
       </span>
       <a href="/intraday/backtest" class="guide-toggle-btn" style="text-decoration:none">
         <i class="bi bi-clock-history"></i> Backtest Results
@@ -565,6 +645,21 @@ DHAN_ACCESS_TOKEN=your_daily_token</pre>
     </button>
   </div>
 
+  <!-- ── Dhan Token ── -->
+  <div class="token-panel" id="tokenPanel">
+    <div class="token-header">
+      <span class="token-title"><i class="bi bi-key-fill"></i> Dhan API Token</span>
+      <span class="token-status-badge token-missing" id="tokenBadge">—</span>
+    </div>
+    <div class="token-info" id="tokenInfo">Loading…</div>
+    <div class="token-form">
+      <input class="token-input client-id" id="clientIdInput" placeholder="Client ID" autocomplete="off">
+      <input class="token-input" id="tokenInput" placeholder="Paste access token from DhanHQ" autocomplete="off">
+      <button class="token-save-btn" id="tokenSaveBtn" onclick="saveToken()">Save</button>
+    </div>
+    <div class="token-feedback" id="tokenFeedback"></div>
+  </div>
+
   <!-- ── Auto-Trader Dashboard ── -->
   <div class="trader-panel" id="traderPanel">
     <!-- Header: toggle + mode + exit -->
@@ -576,13 +671,13 @@ DHAN_ACCESS_TOKEN=your_daily_token</pre>
         <span class="toggle-knob"></span>
       </label>
       <span class="toggle-label" id="toggleLabel">OFF</span>
-      <span class="mode-badge mode-paper" id="modeBadge">PAPER</span>
-      <button class="daemon-btn" id="daemonBtn" onclick="startDaemon()">
-        <i class="bi bi-play-circle-fill"></i> Start Daemon
-      </button>
+      <span class="mode-badge mode-paper" id="modeBadge">—</span>
       <span class="daemon-badge" id="daemonBadge" style="display:none">
         <i class="bi bi-activity"></i> RUNNING
       </span>
+      <button class="daemon-btn" id="stopBtn" onclick="stopAll()" style="display:none;background:var(--bear-muted);color:var(--bear)">
+        <i class="bi bi-stop-circle-fill"></i> Stop All
+      </button>
       <button class="exit-btn" id="exitAllBtn" onclick="exitAll()" style="display:none">
         <i class="bi bi-x-octagon-fill"></i> Exit All Positions
       </button>
@@ -609,6 +704,18 @@ DHAN_ACCESS_TOKEN=your_daily_token</pre>
       <div class="port-stat">
         <span class="ps-label">Funds</span>
         <span class="ps-val" id="tsFunds">—</span>
+      </div>
+      <div class="port-stat">
+        <span class="ps-label">Leverage</span>
+        <select id="leverageSelect" onchange="setLeverage(this.value)" style="background:var(--surface);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600;cursor:pointer">
+          <option value="1">1x</option>
+          <option value="2">2x</option>
+          <option value="3">3x</option>
+          <option value="5">5x</option>
+          <option value="10">10x</option>
+          <option value="15">15x</option>
+          <option value="20">20x</option>
+        </select>
       </div>
       <div class="port-stat">
         <span class="ps-label">Last Scan</span>
@@ -639,7 +746,7 @@ DHAN_ACCESS_TOKEN=your_daily_token</pre>
     <!-- No activity placeholder -->
     <div id="noActivity" class="empty-state" style="padding:1.5rem">
       <i class="bi bi-hourglass"></i>
-      <p style="font-size:.75rem;margin:.5rem 0 0">No trades yet today. Toggle ON and start the daemon to begin.</p>
+      <p style="font-size:.75rem;margin:.5rem 0 0">No trades yet today. Toggle Auto-Trader ON to begin.</p>
     </div>
   </div>
 
@@ -653,6 +760,100 @@ DHAN_ACCESS_TOKEN=your_daily_token</pre>
     <span class="stat-pill" style="margin-left:auto; font-size:.6rem; color:var(--text-tertiary)">
       <i class="bi bi-shield-check"></i> ATR-stop · RR≥1.5 · ORB detection · Time-of-day filter · Hard exit 3:15 PM
     </span>
+  </div>
+
+  <!-- ── Intraday Daily P&L Chart ── -->
+  <div style="margin:1rem 0">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;cursor:pointer"
+         onclick="const p=document.getElementById('pnlChartPanel');p.style.display=p.style.display==='none'?'':'none';if(p.style.display!=='none'&&!window._pnlChartLoaded)loadPnlChart()">
+      <i class="bi bi-graph-up" style="color:var(--accent)"></i>
+      <strong style="font-size:.8rem">Daily Intraday P&L</strong>
+      <span style="font-size:.65rem;color:var(--text-tertiary)">(click to toggle)</span>
+    </div>
+    <div id="pnlChartPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem">
+      <canvas id="pnlChart" height="220"></canvas>
+      <div id="pnlChartEmpty" style="display:none;text-align:center;color:var(--text-tertiary);padding:2rem;font-size:.8rem">
+        No intraday trades yet.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Broker Sync Dashboard ── -->
+  <div style="margin:1rem 0">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;cursor:pointer" onclick="document.getElementById('brokerSyncPanel').style.display=document.getElementById('brokerSyncPanel').style.display==='none'?'':'none'">
+      <i class="bi bi-bank" style="color:var(--accent)"></i>
+      <strong style="font-size:.8rem">Broker Sync</strong>
+      <span style="font-size:.65rem;color:var(--text-tertiary)">(click to toggle)</span>
+      <span id="brokerSyncStatus" style="font-size:.6rem;color:var(--bull);margin-left:auto"></span>
+    </div>
+    <div id="brokerSyncPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <!-- Funds strip -->
+      <div id="brokerFundsStrip" style="display:flex;gap:1px;background:var(--border);font-size:.65rem;font-family:'JetBrains Mono',monospace"></div>
+      <!-- Tabs -->
+      <div style="display:flex;border-bottom:1px solid var(--border)">
+        <button class="broker-tab active" data-tab="brokerPositions" onclick="switchBrokerTab(this)">Positions <span id="bPosCount" style="opacity:.5"></span></button>
+        <button class="broker-tab" data-tab="brokerOrders" onclick="switchBrokerTab(this)">Orders <span id="bOrdCount" style="opacity:.5"></span></button>
+        <button class="broker-tab" data-tab="brokerTrades" onclick="switchBrokerTab(this)">Trades <span id="bTrdCount" style="opacity:.5"></span></button>
+      </div>
+      <!-- Positions tab -->
+      <div id="brokerPositions" class="broker-tab-body" style="max-height:350px;overflow-y:auto">
+        <table class="broker-tbl"><thead><tr>
+          <th>Symbol</th><th>Type</th><th>Qty</th><th>Buy Avg</th><th>Sell Avg</th><th>LTP</th><th>P&L</th>
+        </tr></thead><tbody id="bPosBody"></tbody></table>
+      </div>
+      <!-- Orders tab -->
+      <div id="brokerOrders" class="broker-tab-body" style="display:none;max-height:350px;overflow-y:auto">
+        <table class="broker-tbl"><thead><tr>
+          <th>Time</th><th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Status</th><th>ID</th>
+        </tr></thead><tbody id="bOrdBody"></tbody></table>
+      </div>
+      <!-- Trades tab -->
+      <div id="brokerTrades" class="broker-tab-body" style="display:none;max-height:350px;overflow-y:auto">
+        <table class="broker-tbl"><thead><tr>
+          <th>Time</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Value</th><th>Order ID</th>
+        </tr></thead><tbody id="bTrdBody"></tbody></table>
+      </div>
+      <div style="padding:4px 8px;text-align:right;font-size:.55rem;color:var(--text-tertiary)">
+        <span id="brokerSyncTime"></span>
+        <button onclick="loadBrokerSync()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:.55rem;padding:0 4px"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+      </div>
+    </div>
+  </div>
+  <!-- keep old brokerTradesBox for compatibility -->
+  <div id="brokerTradesBox" style="display:none"></div>
+
+  <!-- ── Scan Feed ── -->
+  <div id="scanFeedPanel" style="display:none;margin:1rem 0">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+      <i class="bi bi-broadcast" style="color:var(--accent)"></i>
+      <strong style="font-size:.8rem">Scan Feed</strong>
+      <span id="scanFeedStats" style="font-size:.7rem;color:var(--text-tertiary)"></span>
+    </div>
+    <div id="scanFeedBox" style="max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.5rem;font-family:'JetBrains Mono',monospace;font-size:.65rem;line-height:1.6"></div>
+  </div>
+
+  <!-- ── Connection Status ── -->
+  <div style="margin:1rem 0">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+      <i class="bi bi-plug" style="color:var(--accent)"></i>
+      <strong style="font-size:.8rem">Connection Status</strong>
+      <button onclick="loadConnectionStatus()" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-secondary);font-size:.6rem;padding:1px 6px;cursor:pointer">Refresh</button>
+      <button id="killBtn" onclick="activateKillSwitch()" style="display:none;margin-left:auto;background:#d32f2f;color:#fff;border:none;border-radius:4px;font-size:.65rem;padding:3px 10px;cursor:pointer;font-weight:600" title="Emergency: square off all + block new orders">⚠ KILL SWITCH</button>
+    </div>
+    <div id="connBox" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.6rem;font-family:'JetBrains Mono',monospace;font-size:.7rem;line-height:2">
+      <span style="color:var(--text-tertiary)">Loading...</span>
+    </div>
+  </div>
+
+  <!-- ── Live Log ── -->
+  <div style="margin:1rem 0">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;cursor:pointer" onclick="document.getElementById('logBox').style.display=document.getElementById('logBox').style.display==='none'?'':'none'">
+      <i class="bi bi-terminal" style="color:var(--accent)"></i>
+      <strong style="font-size:.8rem">System Log</strong>
+      <span style="font-size:.65rem;color:var(--text-tertiary)">(click to toggle)</span>
+      <span id="logCount" style="font-size:.65rem;color:var(--text-tertiary);margin-left:auto"></span>
+    </div>
+    <div id="logBox" style="max-height:250px;overflow-y:auto;background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:.5rem;font-family:'JetBrains Mono',monospace;font-size:.6rem;line-height:1.7;color:#c9d1d9"></div>
   </div>
 
   <!-- ── SHORT_FIRST section ── -->
@@ -861,7 +1062,7 @@ async function showChart(ticker) {
   try {
     const resp = await fetch('/api/intraday/chart/' + encodeURIComponent(ticker));
     const d = await resp.json();
-    if (d.error) { area.textContent = d.error; return; }
+    if (!d.length) { area.textContent = 'No chart data'; return; }
 
     if (chart) { chart.remove(); chart = null; }
     chart = LightweightCharts.createChart(area, {
@@ -878,22 +1079,17 @@ async function showChart(ticker) {
       borderUpColor: '#22c55e', borderDownColor: '#ef4444',
       wickUpColor: '#22c55e', wickDownColor: '#ef4444',
     });
-
-    const candles = d.timestamp.map((ts, i) => ({
-      time: Math.floor(new Date(ts).getTime() / 1000),
-      open: d.open[i], high: d.high[i], low: d.low[i], close: d.close[i],
-    }));
-    candleSeries.setData(candles);
+    candleSeries.setData(d);
 
     const volSeries = chart.addHistogramSeries({
       priceFormat: { type: 'volume' },
       priceScaleId: 'vol',
     });
     chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
-    volSeries.setData(d.timestamp.map((ts, i) => ({
-      time: Math.floor(new Date(ts).getTime() / 1000),
-      value: d.volume[i],
-      color: d.close[i] >= d.open[i] ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.25)',
+    volSeries.setData(d.map(c => ({
+      time: c.time,
+      value: c.volume,
+      color: c.close >= c.open ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.25)',
     })));
 
     chart.timeScale().fitContent();
@@ -930,6 +1126,20 @@ const _posCharts = {};
 const _fmt = v => '₹' + Math.abs(v).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const _sign = v => (v >= 0 ? '+' : '-') + _fmt(v);
 
+async function setLeverage(val) {
+  try {
+    const r = await fetch('/api/intraday/trader/leverage', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({leverage: parseFloat(val)})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const el = document.getElementById('leverageSelect');
+      if (el) el.value = String(Math.round(d.leverage));
+    }
+  } catch(e) { console.error('Leverage set failed', e); }
+}
+
 function _chipClass(key, val) {
   if (key === 'time_quality') return val === 'PRIME' ? 'chip-prime' : val === 'OK' ? 'chip-ok' : '';
   if (key === 'gap') return val === 'GAP_UP' ? 'chip-gap-up' : val === 'GAP_DOWN' ? 'chip-gap-down' : '';
@@ -949,7 +1159,8 @@ function _buildPosCard(p) {
   const isLong = p.direction === 'LONG';
   const dirCls = isLong ? 'pos-dir-long' : 'pos-dir-short';
   const arrow = isLong ? '▲' : '▼';
-  const pnlCls = (p.pnl || 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
+  const livePnl = p._livePnl || p.pnl || 0;
+  const pnlCls = livePnl >= 0 ? 'pnl-pos' : 'pnl-neg';
   const sym = (p.ticker || '').replace('.NS', '');
   const chartId = 'chart-' + sym;
 
@@ -960,31 +1171,37 @@ function _buildPosCard(p) {
   if (p.always_in && p.always_in !== 'FLAT') chips.push({k: 'ai', v: p.always_in, l: 'AI: ' + p.always_in});
   if (p.trend_phase) chips.push({k: 'phase', v: p.trend_phase, l: p.trend_phase.replace(/_/g, ' ')});
 
+  const pnlPctVal = p.entry_price ? ((livePnl / (p.quantity * p.entry_price)) * 100) : 0;
+  const pnlPctStr = pnlPctVal ? ` (${pnlPctVal >= 0 ? '+' : ''}${pnlPctVal.toFixed(2)}%)` : '';
+
   return `<div class="pos-card">
     <div class="pos-card-head">
       <span class="pos-ticker">${sym}</span>
       <span class="pos-dir-badge ${dirCls}">${arrow} ${p.direction}</span>
       ${p.setup_type ? `<span class="pos-setup-badge">${p.setup_type.replace(/_/g, ' ')}</span>` : ''}
       ${p.confidence ? `<span class="pos-conf-badge">CONF ${p.confidence}</span>` : ''}
-      <span class="pos-pnl-head ${pnlCls}">${p.status === 'OPEN' ? 'LIVE' : _sign(p.pnl)}</span>
+      <span class="pos-pnl-head ${pnlCls}">${_sign(livePnl)}${pnlPctStr}</span>
     </div>
     <div class="pos-card-body">
       <div class="pos-chart-wrap" id="${chartId}"></div>
       <div class="pos-details">
         <div class="pos-detail-row"><span class="pd-label">Entry</span><span class="pd-val pd-entry">${_fmt(p.entry_price)}</span></div>
-        <div class="pos-detail-row"><span class="pd-label">Stop Loss</span><span class="pd-val pd-stop">${_fmt(p.stop_loss)}</span></div>
-        <div class="pos-detail-row"><span class="pd-label">Target 1</span><span class="pd-val pd-target">${_fmt(p.target)}</span></div>
+        ${p.status === 'OPEN' && p._ltp ? `<div class="pos-detail-row"><span class="pd-label">LTP</span><span class="pd-val" style="font-weight:700;color:var(--accent)">${_fmt(p._ltp)}</span></div>` : ''}
+        <div class="pos-detail-row"><span class="pd-label">${p.trailing ? 'Trail Stop' : 'Stop Loss'}</span><span class="pd-val pd-stop">${_fmt(p.trailing ? (p.trail_stop || p.stop_loss) : p.stop_loss)}${p.trailing ? ' <span style="color:#f59e0b;font-size:.5rem">TRAILING</span>' : ''}</span></div>
+        ${p.trailing && p.trail_best ? `<div class="pos-detail-row"><span class="pd-label">Trail Best</span><span class="pd-val" style="color:var(--bull)">${_fmt(p.trail_best)}</span></div>` : ''}
+        <div class="pos-detail-row"><span class="pd-label">Target 1</span><span class="pd-val pd-target">${_fmt(p.target)}${p.trailing ? ' <span style="color:var(--bull);font-size:.5rem">HIT</span>' : ''}</span></div>
         ${p.target_2 ? `<div class="pos-detail-row"><span class="pd-label">Target 2</span><span class="pd-val pd-target2">${_fmt(p.target_2)}</span></div>` : ''}
         <div class="pos-detail-divider"></div>
         <div class="pos-detail-row"><span class="pd-label">Quantity</span><span class="pd-val">${p.quantity} shares</span></div>
         <div class="pos-detail-row"><span class="pd-label">Value</span><span class="pd-val">${_fmt(p.quantity * p.entry_price)}</span></div>
+        ${p.status === 'OPEN' && p._ltp ? `<div class="pos-detail-row"><span class="pd-label">Current Val</span><span class="pd-val">${_fmt(p.quantity * p._ltp)}</span></div>` : ''}
         <div class="pos-detail-row"><span class="pd-label">Risk</span><span class="pd-val pd-stop">${(p.stop_pct || 0).toFixed(2)}%</span></div>
         ${p.risk_reward ? `<div class="pos-detail-row"><span class="pd-label">R:R</span><span class="pd-val">1:${p.risk_reward.toFixed(1)}</span></div>` : ''}
         <div class="pos-detail-divider"></div>
         <div class="pos-detail-row"><span class="pd-label">Entry Time</span><span class="pd-val">${p.entry_time || '—'}</span></div>
         ${p.exit_time ? `<div class="pos-detail-row"><span class="pd-label">Exit Time</span><span class="pd-val">${p.exit_time}</span></div>` : ''}
         ${p.exit_reason ? `<div class="pos-detail-row"><span class="pd-label">Exit</span><span class="pd-val"><span class="reason-badge ${_reasonClass(p.exit_reason)}">${p.exit_reason}</span></span></div>` : ''}
-        ${p.pnl && p.status === 'CLOSED' ? `<div class="pos-detail-row"><span class="pd-label">P&L</span><span class="pd-val ${pnlCls}">${_sign(p.pnl)}</span></div>` : ''}
+        <div class="pos-detail-row"><span class="pd-label">P&L</span><span class="pd-val ${pnlCls}" style="font-weight:700">${_sign(livePnl)}${pnlPctStr}</span></div>
         <div class="pos-meta-chips">
           ${chips.map(c => `<span class="pos-chip ${_chipClass(c.k, c.v)}">${c.l}</span>`).join('')}
         </div>
@@ -1076,26 +1293,90 @@ function _loadPosChart(ticker, containerId, pos) {
   new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth })).observe(el);
 }
 
-function startDaemon() {
-  const mode = document.getElementById('modeBadge').textContent === 'LIVE' ? 'live' : 'paper';
-  if (mode === 'live' && !confirm('Start daemon in LIVE mode?')) return;
-  fetch('/api/intraday/trader/daemon/start', {
+// ── Token management ──
+function loadTokenStatus() {
+  fetch('/api/intraday/token')
+    .then(r => r.json())
+    .then(d => {
+      const badge = document.getElementById('tokenBadge');
+      const info = document.getElementById('tokenInfo');
+      const cidInput = document.getElementById('clientIdInput');
+      badge.className = 'token-status-badge token-' + d.status;
+      if (d.status === 'valid') {
+        badge.textContent = d.hours_left + 'h left';
+        info.innerHTML = '<span>ID: ' + d.client_id + '</span><span>Token: ' + d.token_masked + '</span><span>Saved: ' + d.saved_at + '</span>';
+      } else if (d.status === 'expired') {
+        badge.textContent = 'EXPIRED';
+        info.innerHTML = '<span>Token expired — paste a new one from <a href="https://web.dhan.co" target="_blank">web.dhan.co</a> → Profile → DhanHQ APIs</span>';
+      } else {
+        badge.textContent = 'MISSING';
+        info.innerHTML = '<span>No token — generate one at <a href="https://web.dhan.co" target="_blank">web.dhan.co</a> → Profile → DhanHQ APIs</span>';
+      }
+      if (d.client_id) cidInput.value = d.client_id;
+    })
+    .catch(() => {});
+}
+
+function saveToken() {
+  const btn = document.getElementById('tokenSaveBtn');
+  const fb = document.getElementById('tokenFeedback');
+  const token = document.getElementById('tokenInput').value.trim();
+  const clientId = document.getElementById('clientIdInput').value.trim();
+  if (!token) { fb.className = 'token-feedback err'; fb.textContent = 'Paste a token first'; return; }
+  btn.disabled = true;
+  fb.className = 'token-feedback'; fb.textContent = 'Saving…';
+  fetch('/api/intraday/token', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({mode})
+    body: JSON.stringify({token, client_id: clientId})
   })
-  .then(r => r.json())
-  .then(d => {
-    if (d.status === 'already_running') alert('Daemon already running (PID ' + d.pid + ')');
-    loadTraderStatus();
+  .then(r => r.json().then(d => ({ok: r.ok, data: d})))
+  .then(({ok, data}) => {
+    if (ok) {
+      fb.className = 'token-feedback ok'; fb.textContent = data.message;
+      document.getElementById('tokenInput').value = '';
+      loadTokenStatus();
+    } else {
+      fb.className = 'token-feedback err'; fb.textContent = data.error || 'Save failed';
+    }
   })
-  .catch(e => alert('Failed to start daemon: ' + e));
+  .catch(() => { fb.className = 'token-feedback err'; fb.textContent = 'Network error'; })
+  .finally(() => { btn.disabled = false; });
+}
+
+function stopAll() {
+  if (!confirm('Stop trading and exit all positions?')) return;
+  document.getElementById('traderToggle').checked = false;
+  fetch('/api/intraday/trader/exit-all', {method: 'POST'})
+    .then(() => fetch('/api/intraday/trader/daemon/stop', {method: 'POST'}))
+    .then(() => loadTraderStatus())
+    .catch(e => alert('Stop failed: ' + e));
+}
+
+let _brokerCache = { positions: null, funds: null, ts: 0 };
+let _traderStateCache = { data: null, ts: 0 };
+
+function _refreshBrokerCache() {
+  return Promise.all([
+    fetch('/api/intraday/broker/positions').then(r => r.json()).catch(() => ({positions:[]})),
+    fetch('/api/intraday/broker/funds').then(r => r.json()).catch(() => ({})),
+  ]).then(([posData, fundsData]) => {
+    _brokerCache.positions = posData.positions || [];
+    _brokerCache.funds = fundsData;
+    _brokerCache.ts = Date.now();
+  });
 }
 
 function loadTraderStatus() {
-  fetch('/api/intraday/trader/status')
-    .then(r => r.json())
-    .then(s => {
+  const sseFresh = _traderStateCache.data && Date.now() - _traderStateCache.ts < 3000;
+  const traderP = sseFresh
+    ? Promise.resolve(_traderStateCache.data)
+    : fetch('/api/intraday/trader/status').then(r => r.json());
+
+  const stale = Date.now() - _brokerCache.ts > 10000;
+  const brokerReady = stale && !sseFresh ? _refreshBrokerCache() : Promise.resolve();
+
+  Promise.all([traderP, brokerReady]).then(([s]) => {
       // Toggle state
       document.getElementById('traderToggle').checked = s.enabled;
       const tl = document.getElementById('toggleLabel');
@@ -1103,41 +1384,89 @@ function loadTraderStatus() {
       tl.style.color = s.circuit_breaker ? 'var(--bear)' : (s.enabled ? 'var(--bull)' : 'var(--text-tertiary)');
 
       const badge = document.getElementById('modeBadge');
-      badge.textContent = s.mode || 'PAPER';
-      badge.className = 'mode-badge ' + (s.mode === 'LIVE' ? 'mode-live' : 'mode-paper');
+      const showLive = s.enabled && s.mode === 'LIVE' && s.daemon_running;
+      badge.textContent = showLive ? 'LIVE' : (s.enabled ? 'PAPER' : '—');
+      badge.className = 'mode-badge ' + (showLive ? 'mode-live' : 'mode-paper');
 
-      // Daemon state
-      const daemonUp = !!s.daemon_running;
-      document.getElementById('daemonBtn').style.display = daemonUp ? 'none' : '';
+      // Daemon state — only show when toggle is ON
+      const daemonUp = s.enabled && !!s.daemon_running;
       document.getElementById('daemonBadge').style.display = daemonUp ? '' : 'none';
-      const toggleSwitch = document.querySelector('.toggle-switch');
-      if (daemonUp && s.enabled) {
-        toggleSwitch.classList.add('disabled');
+      document.getElementById('stopBtn').style.display = daemonUp ? '' : 'none';
+
+      // --- Merge broker data into stats ---
+      const bp = _brokerCache.positions || [];
+      const bf = _brokerCache.funds || {};
+      const bpIntraday = bp.filter(p => p.productType === 'INTRADAY');
+      const bpOpen = bpIntraday.filter(p => Math.abs(p.netQty || 0) > 0);
+      const bpClosed = bpIntraday.filter(p => (p.netQty || 0) === 0);
+
+      // Funds — prefer broker live data
+      const brokerFunds = bf.availabelBalance || 0;
+      const baseFunds = brokerFunds || s.live_funds || s.starting_capital || 0;
+      const lev = s.leverage || 1;
+      const fundsEl = document.getElementById('tsFunds');
+      if (lev > 1) {
+        fundsEl.textContent = _fmt(baseFunds) + ' × ' + lev + 'x = ' + _fmt(baseFunds * lev);
       } else {
-        toggleSwitch.classList.remove('disabled');
+        fundsEl.textContent = _fmt(baseFunds);
       }
+      const levSel = document.getElementById('leverageSelect');
+      if (levSel) levSel.value = String(Math.round(lev));
 
-      // Portfolio stats
-      document.getElementById('tsFunds').textContent = _fmt(s.live_funds || s.starting_capital || 0);
-
-      const pnl = s.daily_pnl || 0;
+      // P&L — broker source of truth
+      const brokerPnl = bpIntraday.reduce((sum, p) =>
+        sum + (p.realizedProfit || 0) + (p.unrealizedProfit || 0), 0);
+      const pnl = bpIntraday.length ? brokerPnl : (s.daily_pnl || 0);
       const pnlEl = document.getElementById('tsPnl');
       pnlEl.textContent = _sign(pnl);
       pnlEl.className = 'ps-val big ' + (pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
+      pnlEl.closest('.port-stat').className = 'port-stat ' + (pnl >= 0 ? 'tile-pnl-pos' : 'tile-pnl-neg');
 
-      const positions = s.positions || [];
-      const closed = s.closed_today || [];
-      const openPos = positions.filter(p => p.status === 'OPEN');
-      document.getElementById('tsOpen').textContent = openPos.length;
-      document.getElementById('tsClosed').textContent = closed.length;
+      // Open / Closed — broker source of truth
+      const localPos = s.positions || [];
+      const localClosed = s.closed_today || [];
+      const openPos = localPos.filter(p => p.status === 'OPEN');
+      const openCount = bpOpen.length || openPos.length;
+      const closedCount = bpClosed.length || localClosed.length;
+      document.getElementById('tsOpen').textContent = openCount;
+      document.getElementById('tsOpen').closest('.port-stat').className = 'port-stat ' + (openCount > 0 ? 'tile-open-active' : 'tile-open');
+      document.getElementById('tsClosed').textContent = closedCount;
+      document.getElementById('tsClosed').closest('.port-stat').className = 'port-stat tile-closed';
       document.getElementById('tsLastScan').textContent = s.last_scan || '—';
 
-      // Win rate
-      const wins = closed.filter(p => (p.pnl || 0) > 0).length;
-      document.getElementById('tsWinRate').textContent = closed.length ? Math.round(wins / closed.length * 100) + '%' : '—';
+      // Win rate — from broker closed positions
+      let wrPct = 0;
+      if (bpClosed.length) {
+        const wins = bpClosed.filter(p => (p.realizedProfit || 0) > 0).length;
+        wrPct = Math.round(wins / bpClosed.length * 100);
+        document.getElementById('tsWinRate').textContent = wrPct + '%';
+      } else if (localClosed.length) {
+        const wins = localClosed.filter(p => (p.pnl || 0) > 0).length;
+        wrPct = Math.round(wins / localClosed.length * 100);
+        document.getElementById('tsWinRate').textContent = wrPct + '%';
+      } else {
+        document.getElementById('tsWinRate').textContent = '—';
+      }
+      document.getElementById('tsWinRate').style.color = wrPct >= 50 ? 'var(--bull)' : wrPct > 0 ? 'var(--bear)' : '';
+      document.getElementById('tsWinRate').closest('.port-stat').className = 'port-stat ' + (wrPct >= 50 ? 'tile-wr-good' : wrPct > 0 ? 'tile-wr-bad' : '');
+      document.getElementById('tsFunds').closest('.port-stat').className = 'port-stat tile-funds';
 
       // Exit all button
-      document.getElementById('exitAllBtn').style.display = openPos.length ? '' : 'none';
+      document.getElementById('exitAllBtn').style.display = openCount ? '' : 'none';
+
+      // Enrich open positions with broker LTP + unrealized P&L
+      const brokerBySymbol = {};
+      bpOpen.forEach(bp => { brokerBySymbol[bp.tradingSymbol] = bp; });
+      openPos.forEach(p => {
+        const sym = (p.ticker||'').replace('.NS','');
+        const bp = brokerBySymbol[sym];
+        if (bp) {
+          p._ltp = bp.lastPrice || bp.costPrice || 0;
+          p._unrealizedPnl = bp.unrealizedProfit || 0;
+          p._realizedPnl = bp.realizedProfit || 0;
+          p._livePnl = (bp.unrealizedProfit || 0) + (bp.realizedProfit || 0);
+        }
+      });
 
       // Open position cards with charts
       const openSec = document.getElementById('openSection');
@@ -1155,7 +1484,6 @@ function loadTraderStatus() {
           _loadPosChart(p.ticker, chartId, p);
         });
 
-        // Clean up charts for positions no longer open
         existingIds.forEach(id => {
           const sym = id.replace('chart-','');
           if (!currentTickers.includes(sym) && _posCharts[id]) {
@@ -1167,12 +1495,58 @@ function loadTraderStatus() {
         openSec.style.display = 'none';
       }
 
-      // Closed trades table
+      // Closed trades table — merge broker closed + local closed
       const closedSec = document.getElementById('closedSection');
       const closedBody = document.getElementById('closedBody');
-      if (closed.length) {
+
+      // Build merged closed list: broker closed with local detail overlay
+      const localByTicker = {};
+      localClosed.forEach(p => {
+        const k = (p.ticker||'').replace('.NS','');
+        if (!localByTicker[k]) localByTicker[k] = [];
+        localByTicker[k].push(p);
+      });
+
+      let mergedClosed = [];
+      if (bpClosed.length) {
+        const brokerSyms = new Set();
+        bpClosed.forEach(bp => {
+          const sym = bp.tradingSymbol || '';
+          brokerSyms.add(sym);
+          // Collect ALL local entries for this ticker to merge setup/reason info
+          const locals = localByTicker[sym] || [];
+          const local = locals[0];
+          // Direction: prefer local trade log (broker buyQty==sellQty for closed)
+          const dir = local?.direction || ((bp.sellAvg||0) > (bp.buyAvg||0) ? 'LONG' : 'SHORT');
+          const isLong = dir === 'LONG';
+          // Combine setup/reason from all local entries for this ticker
+          const setups = locals.map(l => l.setup_type).filter(Boolean);
+          const reasons = locals.map(l => l.exit_reason).filter(Boolean);
+          const times = locals.filter(l => l.entry_time);
+          mergedClosed.push({
+            ticker: sym,
+            direction: dir,
+            quantity: Math.max(bp.dayBuyQty || 0, bp.daySellQty || 0, bp.buyQty || 0),
+            entry_price: isLong ? (bp.buyAvg || 0) : (bp.sellAvg || 0),
+            exit_price: isLong ? (bp.sellAvg || 0) : (bp.buyAvg || 0),
+            pnl: bp.realizedProfit || 0,
+            setup_type: setups[0] || '',
+            exit_reason: reasons[reasons.length - 1] || '',
+            entry_time: times.length ? times[0].entry_time : '',
+            exit_time: times.length ? times[times.length - 1].exit_time : '',
+          });
+        });
+        // Only add local trades whose ticker is NOT in broker at all
+        Object.entries(localByTicker).forEach(([sym, entries]) => {
+          if (!brokerSyms.has(sym)) entries.forEach(p => mergedClosed.push(p));
+        });
+      } else {
+        mergedClosed = localClosed;
+      }
+
+      if (mergedClosed.length) {
         closedSec.style.display = '';
-        closedBody.innerHTML = closed.map(p => {
+        closedBody.innerHTML = mergedClosed.map(p => {
           const pnlCls = (p.pnl||0) >= 0 ? 'pnl-pos' : 'pnl-neg';
           const sym = (p.ticker||'').replace('.NS','');
           const isLong = p.direction === 'LONG';
@@ -1193,17 +1567,42 @@ function loadTraderStatus() {
       }
 
       // Show/hide no-activity placeholder
-      document.getElementById('noActivity').style.display = (openPos.length || closed.length) ? 'none' : '';
+      document.getElementById('noActivity').style.display = (openCount || mergedClosed.length) ? 'none' : '';
     })
     .catch(() => {});
 }
 
 function toggleTrader(enabled) {
-  fetch('/api/intraday/trader/toggle', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({enabled})
-  }).then(() => loadTraderStatus());
+  if (enabled) {
+    if (!confirm('Start LIVE auto-trading?')) {
+      document.getElementById('traderToggle').checked = false;
+      return;
+    }
+    fetch('/api/intraday/trader/daemon/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mode: 'live'})
+    })
+    .then(() => fetch('/api/intraday/trader/toggle', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({enabled: true})
+    }))
+    .then(() => loadTraderStatus())
+    .catch(e => {
+      alert('Failed to start: ' + e);
+      document.getElementById('traderToggle').checked = false;
+    });
+  } else {
+    fetch('/api/intraday/trader/toggle', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({enabled: false})
+    })
+    .then(() => fetch('/api/intraday/trader/exit-all', {method: 'POST'}))
+    .then(() => fetch('/api/intraday/trader/daemon/stop', {method: 'POST'}).catch(() => {}))
+    .then(() => loadTraderStatus());
+  }
 }
 
 function exitAll() {
@@ -1213,7 +1612,434 @@ function exitAll() {
 }
 
 loadTraderStatus();
-setInterval(loadTraderStatus, 30000);
+
+function loadScanFeed() {
+  fetch('/api/intraday/trader/scan-feed')
+    .then(r => r.json())
+    .then(d => {
+      const panel = document.getElementById('scanFeedPanel');
+      const box = document.getElementById('scanFeedBox');
+      const stats = document.getElementById('scanFeedStats');
+      if (!d.feed || d.feed.length === 0) { panel.style.display = 'none'; return; }
+      panel.style.display = '';
+      const st = d.stats || {};
+      const found = d.feed.filter(f => f.found).length;
+      stats.textContent = `${st.scanned || 0} scanned · ${found} setups · ${st.errors || 0} errors · ${st.time || '—'}`;
+      const lines = d.feed.map(f => {
+        const t = f.ticker.replace('.NS','');
+        if (f.found) {
+          const dir = f.direction === 'SHORT_FIRST' ? '🔴 SHORT' : '🟢 LONG';
+          return `<div style="color:var(--${f.direction==='SHORT_FIRST'?'bear':'bull'})"><b>${t}</b> ${dir} · ${f.setup} · conf=${f.conf} · RR=${f.rr}</div>`;
+        }
+        if (f.error) return `<div style="color:var(--text-tertiary)">${t} — <span style="color:var(--amber)">error</span></div>`;
+        return `<div style="color:var(--text-tertiary)">${t} — no setup</div>`;
+      });
+      // Show found setups first, then the rest
+      const foundLines = d.feed.filter(f => f.found).map(f => {
+        const t = f.ticker.replace('.NS','');
+        const dir = f.direction === 'SHORT_FIRST' ? '🔴 SHORT' : '🟢 LONG';
+        return `<div style="color:var(--${f.direction==='SHORT_FIRST'?'bear':'bull'});font-weight:600"><b>${t}</b> ${dir} · ${f.setup} · conf=${f.conf} · RR=${f.rr}</div>`;
+      });
+      const restLines = d.feed.filter(f => !f.found).map(f => {
+        const t = f.ticker.replace('.NS','');
+        if (f.error) return `<div style="color:var(--text-tertiary)">${t} <span style="color:var(--amber)">⚠ err</span></div>`;
+        return `<div style="color:var(--text-tertiary)">${t}</div>`;
+      });
+      box.innerHTML = (foundLines.length ? '<div style="margin-bottom:.4rem;border-bottom:1px solid var(--border);padding-bottom:.3rem;font-weight:700;color:var(--accent)">✦ Setups Found</div>' + foundLines.join('') : '')
+        + '<div style="margin-top:.4rem;font-weight:600;color:var(--text-secondary)">Scanned (' + restLines.length + ' no setup)</div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:.15rem .5rem">' + restLines.join('') + '</div>';
+    });
+}
+loadScanFeed();
+
+function _renderLogLines(lines) {
+  const box = document.getElementById('logBox');
+  const count = document.getElementById('logCount');
+  if (!lines || lines.length === 0) { box.innerHTML = '<span style="color:#484f58">No log data yet</span>'; return; }
+  count.textContent = lines.length + ' lines';
+  box.innerHTML = lines.map(l => {
+    let color = '#c9d1d9';
+    if (l.includes('[ERROR]')) color = '#f85149';
+    else if (l.includes('[WARNING]')) color = '#d29922';
+    else if (l.includes('Order response') && l.includes('success')) color = '#3fb950';
+    else if (l.includes('Scanning')) color = '#58a6ff';
+    else if (l.includes('OPEN') || l.includes('entry')) color = '#3fb950';
+    else if (l.includes('CLOSE') || l.includes('exit')) color = '#f0883e';
+    return `<div style="color:${color}">${l.replace(/</g,'&lt;')}</div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function loadLiveLog(sseData) {
+  if (sseData && sseData.lines) { _renderLogLines(sseData.lines); return; }
+  fetch('/api/intraday/trader/live-log?n=200').then(r => r.json()).then(d => _renderLogLines(d.lines));
+}
+loadLiveLog();
+
+function loadConnectionStatus() {
+  const box = document.getElementById('connBox');
+  box.innerHTML = '<span style="color:var(--text-tertiary)">Checking connections...</span>';
+  fetch('/api/intraday/connection-status')
+    .then(r => r.json())
+    .then(async d => {
+      const ok = '🟢', fail = '🔴', warn = '🟡';
+      const ip = d.machine_ip || 'unknown';
+      const fundsIcon = d.dhan_funds?.status === 'connected' ? ok : fail;
+      const fundsText = d.dhan_funds?.status === 'connected'
+        ? `Connected — Balance: ₹${Number(d.dhan_funds.balance).toLocaleString('en-IN')}`
+        : `Failed — ${d.dhan_funds?.error || 'unknown'}`;
+      const ordersIcon = d.dhan_orders?.status === 'connected' ? ok : fail;
+      const ordersText = d.dhan_orders?.status === 'connected'
+        ? `Connected — Today's orders: ${d.dhan_orders.today_orders}`
+        : `Failed — ${d.dhan_orders?.error_code || ''} ${d.dhan_orders?.error || 'unknown'}`;
+      const tokenIcon = d.token_status === 'valid' ? ok : d.token_status === 'partial' ? warn : fail;
+      // WS status (fetched in parallel)
+      let wsHtml = '';
+      try {
+        const ws = await fetch('/api/intraday/trader/ws-status').then(r=>r.json());
+        const mfIcon = ws.market_ws ? ok : fail;
+        const ouIcon = ws.order_ws ? ok : fail;
+        const ksIcon = ws.kill_switch ? '🔴 ACTIVE' : '🟢 OFF';
+        wsHtml = `
+          <div><b>MarketFeed WS:</b> ${mfIcon} ${ws.market_ws?'Connected':'Disconnected'}</div>
+          <div><b>OrderUpdate WS:</b> ${ouIcon} ${ws.order_ws?'Connected':'Disconnected'}</div>
+          <div><b>Kill Switch:</b> ${ksIcon}</div>
+        `;
+        const killBtn = document.getElementById('killBtn');
+        if (killBtn) killBtn.style.display = ws.kill_switch ? 'none' : '';
+        if (ws.registered_ip && ws.registered_ip !== ip) {
+          wsHtml += `<div><b>Registered IP:</b> ${ws.registered_ip}</div>`;
+        }
+      } catch(e) {}
+
+      box.innerHTML = `
+        <div><b>Machine IP:</b> ${ip} <span style="color:var(--text-tertiary)">(must match Dhan Static IP Setting)</span></div>
+        <div><b>Client ID:</b> ${d.client_id || '—'}</div>
+        <div><b>Token:</b> ${d.token_masked || '—'} ${tokenIcon} ${d.token_status?.toUpperCase()}</div>
+        <div><b>Dhan Data API (Funds):</b> ${fundsIcon} ${fundsText}</div>
+        <div><b>Dhan Trading API (Orders):</b> ${ordersIcon} ${ordersText}</div>
+        ${wsHtml}
+      `;
+    })
+    .catch(e => { box.innerHTML = `<span style="color:var(--bear)">Connection check failed: ${e}</span>`; });
+}
+
+function activateKillSwitch() {
+  if (!confirm('EMERGENCY: This will block ALL new orders at the broker. Proceed?')) return;
+  fetch('/api/intraday/trader/kill-switch', {method:'POST'})
+    .then(r=>r.json())
+    .then(d => {
+      alert(d.activated ? 'Kill switch activated — broker will reject all new orders' : 'Kill switch activation failed');
+      loadConnectionStatus();
+    });
+}
+
+function switchBrokerTab(btn) {
+  document.querySelectorAll('.broker-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.broker-tab-body').forEach(b => b.style.display = 'none');
+  btn.classList.add('active');
+  document.getElementById(btn.dataset.tab).style.display = '';
+}
+
+function _ordStatusCls(s) {
+  if (!s) return 'ord-pending';
+  const u = s.toUpperCase();
+  if (u === 'TRADED' || u === 'PART_TRADED') return 'ord-traded';
+  if (u === 'PENDING') return 'ord-pending';
+  if (u === 'REJECTED') return 'ord-rejected';
+  if (u === 'CANCELLED' || u === 'EXPIRED') return 'ord-cancelled';
+  return 'ord-transit';
+}
+
+function _sideClr(t) { return t === 'BUY' ? 'var(--bull)' : 'var(--bear)'; }
+function _pnlClr(v) { return v >= 0 ? 'var(--bull)' : 'var(--bear)'; }
+
+function _renderBrokerFunds(d) {
+  if (!d || d.error) return;
+  const strip = document.getElementById('brokerFundsStrip');
+  const items = [
+    {l:'SOD Balance', v: _fmt(d.sodLimit || 0)},
+    {l:'Available', v: _fmt(d.availabelBalance || 0), c: 'var(--bull)'},
+    {l:'Utilized', v: _fmt(d.utilizedAmount || 0), c: 'var(--amber)'},
+    {l:'Collateral', v: _fmt(d.collateralAmount || 0)},
+    {l:'Withdrawable', v: _fmt(d.withdrawableBalance || 0)},
+  ];
+  strip.innerHTML = items.map(i =>
+    `<div class="broker-funds-cell"><div class="bf-label">${i.l}</div><div class="bf-val" style="color:${i.c||'var(--text-primary)'}">${i.v}</div></div>`
+  ).join('');
+}
+
+function _renderBrokerPositions(positions) {
+  const pos = (positions || []).filter(p => p.productType === 'INTRADAY' || Math.abs(p.netQty || 0) > 0);
+  document.getElementById('bPosCount').textContent = pos.length ? `(${pos.length})` : '';
+  const body = document.getElementById('bPosBody');
+  if (!pos.length) { body.innerHTML = '<tr><td colspan="7" style="color:var(--text-tertiary);text-align:center;padding:1rem">No open positions</td></tr>'; return; }
+  body.innerHTML = pos.map(p => {
+    const nq = p.netQty || 0;
+    const isLong = nq > 0;
+    const ltp = p.lastPrice || p.costPrice || 0;
+    const pnl = (p.realizedProfit || 0) + (p.unrealizedProfit || 0);
+    const dirBadge = isLong
+      ? '<span style="color:var(--bull);font-weight:600">LONG</span>'
+      : nq < 0 ? '<span style="color:var(--bear);font-weight:600">SHORT</span>'
+      : '<span style="color:var(--text-tertiary)">CLOSED</span>';
+    return `<tr>
+      <td><strong>${p.tradingSymbol || ''}</strong></td>
+      <td>${dirBadge}</td>
+      <td>${Math.abs(nq)}</td>
+      <td>${_fmt(p.buyAvg || 0)}</td>
+      <td>${_fmt(p.sellAvg || 0)}</td>
+      <td>${_fmt(ltp)}</td>
+      <td style="color:${_pnlClr(pnl)};font-weight:700">${_sign(pnl)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function _renderBrokerOrders(orders) {
+  orders = orders || [];
+  document.getElementById('bOrdCount').textContent = orders.length ? `(${orders.length})` : '';
+  const body = document.getElementById('bOrdBody');
+  if (!orders.length) { body.innerHTML = '<tr><td colspan="8" style="color:var(--text-tertiary);text-align:center;padding:1rem">No orders today</td></tr>'; return; }
+  body.innerHTML = orders.sort((a,b) => (b.createTime||'').localeCompare(a.createTime||'')).map(o => {
+    const st = (o.orderStatus || '').toUpperCase();
+    const sym = o.tradingSymbol || o.securityId || '';
+    const time = (o.createTime || '').split(' ').pop() || '';
+    const price = o.averageTradedPrice || o.price || 0;
+    return `<tr>
+      <td>${time}</td>
+      <td><strong>${sym}</strong></td>
+      <td style="color:${_sideClr(o.transactionType)};font-weight:600">${o.transactionType || ''}</td>
+      <td>${o.orderType || ''}</td>
+      <td>${o.tradedQuantity || 0}/${o.quantity || 0}</td>
+      <td>${price ? _fmt(price) : '—'}</td>
+      <td><span class="ord-status ${_ordStatusCls(st)}">${st}</span></td>
+      <td style="color:var(--text-tertiary);font-size:.5rem">${o.orderId || ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function _renderBrokerTrades(trades) {
+  trades = trades || [];
+  document.getElementById('bTrdCount').textContent = trades.length ? `(${trades.length})` : '';
+  const body = document.getElementById('bTrdBody');
+  if (!trades.length) { body.innerHTML = '<tr><td colspan="7" style="color:var(--text-tertiary);text-align:center;padding:1rem">No trades today</td></tr>'; return; }
+  body.innerHTML = trades.map(t => {
+    const qty = t.tradedQuantity || t.quantity || 0;
+    const price = t.tradedPrice || 0;
+    const time = (t.exchangeTime || t.createTime || '').split(' ').pop() || '';
+    return `<tr>
+      <td>${time}</td>
+      <td><strong>${t.tradingSymbol || t.customSymbol || ''}</strong></td>
+      <td style="color:${_sideClr(t.transactionType)};font-weight:600">${t.transactionType || ''}</td>
+      <td>${qty}</td>
+      <td>${_fmt(price)}</td>
+      <td>${_fmt(qty * price)}</td>
+      <td style="color:var(--text-tertiary);font-size:.5rem">${t.orderId || t.orderNo || ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function loadBrokerSync(sseData) {
+  const ts = new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+  if (sseData) {
+    _renderBrokerFunds(sseData.funds);
+    _renderBrokerPositions(sseData.positions);
+    _renderBrokerOrders(sseData.orders);
+    _brokerCache.positions = sseData.positions || [];
+    _brokerCache.funds = sseData.funds || {};
+    _brokerCache.ts = Date.now();
+    document.getElementById('brokerSyncTime').textContent = 'SSE sync: ' + ts;
+    document.getElementById('brokerSyncStatus').textContent = '● LIVE ' + ts;
+    return;
+  }
+
+  fetch('/api/intraday/broker/funds').then(r=>r.json()).then(_renderBrokerFunds).catch(()=>{});
+  fetch('/api/intraday/broker/positions').then(r=>r.json()).then(d => _renderBrokerPositions(d.positions)).catch(()=>{});
+  fetch('/api/intraday/broker/orders').then(r=>r.json()).then(d => _renderBrokerOrders(d.orders)).catch(()=>{});
+  fetch('/api/intraday/trader/trade-book').then(r=>r.json()).then(d => _renderBrokerTrades(d.trades)).catch(()=>{});
+
+  document.getElementById('brokerSyncTime').textContent = 'Last sync: ' + ts;
+  document.getElementById('brokerSyncStatus').textContent = '● SYNCED ' + ts;
+}
+
+loadConnectionStatus();
+loadBrokerSync();
+loadTokenStatus();
+
+// ── SSE Real-Time Stream ──
+let _sse = null;
+let _sseFallback = null;
+
+function _initSSE() {
+  if (_sse) { try { _sse.close(); } catch(e) {} }
+  _sse = new EventSource('/api/intraday/stream');
+
+  _sse.addEventListener('state', e => {
+    try {
+      const s = JSON.parse(e.data);
+      _traderStateCache = { data: s, ts: Date.now() };
+      // Enrich positions with LTP from state
+      if (s.ltp && s.positions) {
+        s.positions.forEach(p => {
+          if (p.status === 'OPEN' && p.security_id && s.ltp[p.security_id]) {
+            p._ltp = s.ltp[p.security_id];
+            const sign = p.direction === 'SHORT' ? -1 : 1;
+            p._unrealizedPnl = sign * (p._ltp - p.entry_price) * p.quantity;
+          }
+        });
+      }
+      loadTraderStatus();
+    } catch(err) { console.warn('SSE state parse error', err); }
+  });
+
+  _sse.addEventListener('broker', e => {
+    try {
+      const d = JSON.parse(e.data);
+      loadBrokerSync(d);
+    } catch(err) {}
+  });
+
+  _sse.addEventListener('log', e => {
+    try {
+      const d = JSON.parse(e.data);
+      loadLiveLog(d);
+    } catch(err) {}
+  });
+
+  _sse.addEventListener('position_open', e => {
+    try { const d = JSON.parse(e.data); console.log('Position opened:', d.data?.ticker); } catch(err) {}
+  });
+
+  _sse.addEventListener('position_close', e => {
+    try { const d = JSON.parse(e.data); console.log('Position closed:', d.data?.ticker, d.data?.reason); } catch(err) {}
+  });
+
+  _sse.addEventListener('partial_exit', e => {
+    try { const d = JSON.parse(e.data); console.log('Partial exit:', d.data?.ticker); } catch(err) {}
+  });
+
+  _sse.onopen = () => {
+    document.getElementById('brokerSyncStatus').textContent = '● LIVE';
+    document.getElementById('brokerSyncStatus').style.color = 'var(--bull)';
+    // SSE connected — slow down REST fallbacks
+    if (_sseFallback) clearInterval(_sseFallback);
+    _sseFallback = setInterval(() => {
+      loadTraderStatus();
+      loadBrokerSync();
+      loadScanFeed();
+      loadLiveLog();
+    }, 60000);
+  };
+
+  _sse.onerror = () => {
+    document.getElementById('brokerSyncStatus').textContent = '● RECONNECTING';
+    document.getElementById('brokerSyncStatus').style.color = 'var(--amber)';
+    // SSE down — faster REST fallback
+    if (_sseFallback) clearInterval(_sseFallback);
+    _sseFallback = setInterval(() => {
+      loadTraderStatus();
+      loadBrokerSync();
+      loadScanFeed();
+      loadLiveLog();
+    }, 5000);
+  };
+}
+
+_initSSE();
+
+// Slow fallback — SSE handles the rest when connected
+setInterval(loadTokenStatus, 300000);
+
+// ── Intraday Daily P&L Chart ──
+window._pnlChartLoaded = false;
+function loadPnlChart() {
+  fetch('/api/trades').then(r => r.json()).then(trades => {
+    const intra = trades.filter(t => t.trade_type === 'intraday' && t.sell_date);
+    if (!intra.length) {
+      document.getElementById('pnlChartEmpty').style.display = '';
+      document.getElementById('pnlChart').style.display = 'none';
+      return;
+    }
+    const byDate = {};
+    intra.forEach(t => {
+      const d = t.sell_date;
+      byDate[d] = (byDate[d] || 0) + (t.pnl?.net_pnl || 0);
+    });
+    const dates = Object.keys(byDate).sort();
+    const dailyPnl = dates.map(d => byDate[d]);
+    let cum = 0;
+    const cumPnl = dailyPnl.map(v => cum += v);
+
+    const barColors = dailyPnl.map(v => v >= 0
+      ? 'rgba(46,204,113,.7)' : 'rgba(231,76,60,.7)');
+
+    const ctx = document.getElementById('pnlChart').getContext('2d');
+    new Chart(ctx, {
+      data: {
+        labels: dates,
+        datasets: [
+          {
+            type: 'bar', label: 'Daily P&L', data: dailyPnl,
+            backgroundColor: barColors, borderRadius: 3, yAxisID: 'y',
+            order: 2,
+          },
+          {
+            type: 'line', label: 'Cumulative P&L', data: cumPnl,
+            borderColor: '#7c8aef', backgroundColor: 'rgba(124,138,239,.1)',
+            fill: true, tension: .3, pointRadius: 3, borderWidth: 2,
+            yAxisID: 'y', order: 1,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#8b949e', font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label: c => `${c.dataset.label}: ₹${c.parsed.y.toFixed(2)}`
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+          y: {
+            ticks: { color: '#8b949e', callback: v => '₹' + v.toFixed(0) },
+            grid: { color: 'rgba(255,255,255,.08)' },
+          }
+        }
+      }
+    });
+    window._pnlChartLoaded = true;
+  }).catch(() => {});
+}
+
+// ── Nifty 500 live ticker ──
+(function() {
+  let prevLtp = null;
+  function tickNifty() {
+    fetch('/api/intraday/index-ltp').then(r => r.json()).then(d => {
+      if (!d.ok) return;
+      const el = document.getElementById('nifty500Ltp');
+      const chgEl = document.getElementById('nifty500Chg');
+      const ltp = d.ltp;
+      el.textContent = ltp.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      if (prevLtp !== null) {
+        const diff = ltp - prevLtp;
+        const pct = ((diff / prevLtp) * 100).toFixed(2);
+        const up = diff >= 0;
+        el.style.color = up ? 'var(--bull)' : 'var(--bear)';
+        chgEl.textContent = `${up ? '+' : ''}${pct}%`;
+        chgEl.style.color = up ? 'var(--bull)' : 'var(--bear)';
+      }
+      prevLtp = ltp;
+    }).catch(() => {});
+  }
+  tickNifty();
+  setInterval(tickNifty, 1000);
+})();
 </script>
 </body>
 </html>

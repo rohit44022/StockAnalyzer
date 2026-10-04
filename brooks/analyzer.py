@@ -30,6 +30,16 @@ def _scan_one(ticker: str, csv_dir: str) -> Optional[BrooksResult]:
         df = load_stock_data(ticker, csv_dir=csv_dir, use_live_fallback=False)
         if df is None or len(df) < MIN_BARS:
             return None
+
+        # Stale data check — refuse signals on data older than 3 calendar days
+        try:
+            last_dt = df.index[-1] if hasattr(df.index, 'date') else pd.to_datetime(df.iloc[-1].get("Date", ""))
+            age = (pd.Timestamp.now() - pd.Timestamp(last_dt)).days
+            if age > 3:
+                return None
+        except Exception:
+            pass
+
         r = run_brooks_analysis(df=df, ticker=ticker)
         if r.success:
             from brooks.ml.regime import classify_regime
@@ -45,7 +55,7 @@ def _scan_one(ticker: str, csv_dir: str) -> Optional[BrooksResult]:
 #  SELL SHORTLIST (mirrors top_buy_shortlist logic from scanner.py)
 # ─────────────────────────────────────────────────────────────────
 
-_SELL_SETUPS = ("BREAKOUT", "PULLBACK", "SECOND_ENTRY", "FAILED_BREAKOUT", "TRAPPED_TRADERS")
+_SELL_SETUPS = ("CHANNEL_REVERSAL",)
 
 _PLAIN_SETUP_SELL = {
     "BREAKOUT": "it has just broken below the range it was stuck in",
@@ -100,9 +110,9 @@ def _plain_english_sell(r: BrooksResult) -> str:
         f"{r.confidence}/100, its high band."
     )
     lines.append(
-        "Reality check: shortlists like this won about 40 times in 100 in "
-        "testing, so most single picks lose. It came out ahead only because the "
-        "winners ran further than the losers — which needs you to take the "
+        "Reality check: shortlists like this won about 59 times in 100 in "
+        "testing. The edge is real but thin — it came out ahead because the "
+        "winners ran further than the losers, which needs you to take the "
         "whole list, not the one you like, and to honour the stop every time."
     )
     return " ".join(lines)
@@ -165,9 +175,9 @@ def _plain_english_buy(r: BrooksResult) -> str:
         f"{r.confidence}/100, its high band."
     )
     lines.append(
-        "Reality check: shortlists like this won about 40 times in 100 in "
-        "testing, so most single picks lose. It came out ahead only because the "
-        "winners ran further than the losers — which needs you to take the "
+        "Reality check: shortlists like this won about 59 times in 100 in "
+        "testing. The edge is real but thin — it came out ahead because the "
+        "winners ran further than the losers, which needs you to take the "
         "whole list, not the one you like, and to honour the stop every time."
     )
     return " ".join(lines)
@@ -461,13 +471,15 @@ def _enrich_picks_with_ai(picks: list) -> None:
         else:
             p["_brooks_indicators"] = {}
 
-    # ── 3. Brooks-specific ML models (independent from BB models) ──
+    # ── 3. Brooks ML — informational only, does NOT gate picks ──
+    # XGB AUC 0.52 / LGB R² -0.007 = no predictive power.
+    # Kept for display so the user can watch if a retrained model improves.
     try:
         from brooks.ml.scorer import score_picks as brooks_ml_score
         brooks_ml_score(picks)
-        log.info("Brooks ML scored %d picks", len(picks))
+        log.info("Brooks ML scored %d picks (informational only)", len(picks))
     except Exception as e:
-        log.warning("Brooks ML scoring failed: %s", e)
+        log.debug("Brooks ML scoring unavailable: %s", e)
 
     # ── 6. Exit intelligence per pick ──
     for p in picks:
@@ -707,10 +719,10 @@ def _enriched_explanation(p: dict, regime: str, exit_data: dict) -> str:
 
     # ── Reality check ──
     reality = (
-        "Reality check: shortlists like this won about 40 times in 100 in testing. "
-        "It came out ahead only because the winners ran further than the losers "
-        "— which needs you to take the whole list, not the one you like, "
-        "and to honour the stop every time."
+        "Reality check: shortlists like this won about 59 times in 100 in testing. "
+        "The edge is real but thin — it came out ahead because the winners ran "
+        "further than the losers, which needs you to take the whole list, "
+        "not the one you like, and to honour the stop every time."
     )
 
     return f'<div class="enriched-block">{body}<div class="e-reality">{reality}</div></div>'
@@ -912,28 +924,31 @@ def scan_and_rank(
                 scanned += 1
 
     # ── Top BUY picks ──
+    # ATR-relative stop filter: stop must be within 3x ATR (not fixed 8%)
+    # so volatile small-caps with legitimate wide stops aren't silently dropped
     buy_candidates = [
         r for r in all_results
         if r.signal_type == "BUY"
         and r.equation_verdict == "EDGE"
         and r.setup_type in SHORTLIST_SETUPS
-        and r.setup_type != "SECOND_ENTRY"
         and r.always_in == "LONG"
         and r.confidence >= SHORTLIST_MIN_CONFIDENCE
         and r.risk_reward >= SHORTLIST_MIN_RR
         and r.entry_price > r.stop_loss > 0
         and getattr(r, '_regime', '') not in ("BEAR", "CHOPPY", "TRENDING_BEAR", "MILD_TREND")
-        and abs(r.entry_price - r.stop_loss) / r.entry_price * 100 <= 8
+        and (r.atr <= 0 or abs(r.entry_price - r.stop_loss) <= r.atr * 3)
         and r.trend_phase != "CHANNEL"
         and getattr(r, 'volume_ratio', 0) >= 1.0
+        and not r.warnings
     ]
-    buy_candidates.sort(key=lambda r: (r.confidence, r.pa_score), reverse=True)
+    # Rank by equation edge (net of costs), not just confidence
+    buy_candidates.sort(key=lambda r: (r.traders_equation, r.confidence), reverse=True)
     buy_picks = [
         _result_to_pick(r, i, "BUY")
         for i, r in enumerate(buy_candidates[:limit], 1)
     ]
 
-    # ── Top SELL picks (mirror of BUY logic for SHORT side) ──
+    # ── Top SELL picks (symmetric with BUY) ──
     sell_candidates = [
         r for r in all_results
         if r.signal_type == "SELL"
@@ -944,11 +959,12 @@ def scan_and_rank(
         and r.risk_reward >= SHORTLIST_MIN_RR
         and r.entry_price > 0 and r.stop_loss > r.entry_price
         and getattr(r, '_regime', '') not in ("TRENDING_BULL", "CHOPPY", "MILD_TREND")
-        and abs(r.entry_price - r.stop_loss) / r.entry_price * 100 <= 8
+        and (r.atr <= 0 or abs(r.entry_price - r.stop_loss) <= r.atr * 3)
         and r.trend_phase != "CHANNEL"
         and getattr(r, 'volume_ratio', 0) >= 1.0
+        and not r.warnings
     ]
-    sell_candidates.sort(key=lambda r: (r.confidence, abs(r.pa_score)), reverse=True)
+    sell_candidates.sort(key=lambda r: (r.traders_equation, r.confidence), reverse=True)
     sell_picks = [
         _result_to_pick(r, i, "SELL")
         for i, r in enumerate(sell_candidates[:limit], 1)

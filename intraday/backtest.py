@@ -30,12 +30,13 @@ if _ROOT not in sys.path:
 
 from brooks.engine import run_brooks_analysis, MIN_BARS
 from bb_squeeze.trade_calculator import calculate_trade
-from intraday.scanner import INTRADAY_ATR_STOP_MULT, MIN_STOP_PCT, MAX_STOP_PCT
+from intraday.scanner import INTRADAY_ATR_STOP_MULT, MIN_STOP_PCT, MAX_STOP_PCT, MIN_RR
+from intraday.trader import MIN_CONFIDENCE, ALLOWED_SETUPS, PARTIAL_EXIT_PCT
 from intraday.datastore import load_5min
 
 STOCK_DIR = os.path.join(_ROOT, "stock_csv")
 
-DEFAULT_WATCHLIST = [
+_NIFTY50_FALLBACK = [
     "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS",
     "SBIN.NS", "BHARTIARTL.NS", "ITC.NS", "LT.NS", "KOTAKBANK.NS",
     "HINDUNILVR.NS", "BAJFINANCE.NS", "AXISBANK.NS", "MARUTI.NS",
@@ -43,7 +44,7 @@ DEFAULT_WATCHLIST = [
     "TATAMOTORS.NS", "ADANIENT.NS",
 ]
 
-MAX_POSITIONS = 3              # concurrent open slots (like live trader)
+from intraday.trader import MAX_POSITIONS  # keep in sync with live trader
 MAX_DAILY_LOSS_PCT = 2.0       # circuit breaker (like live trader)
 LOOKBACK = 80                  # bars fed to engine (>= MIN_BARS=60)
 
@@ -58,8 +59,7 @@ HARD_EXIT_SLIPPAGE_BPS = 3.0
 TARGET_SLIPPAGE_BPS = 0.0
 
 # --- Partial exit + trailing stop ---
-PARTIAL_EXIT_PCT = 0.5    # exit 50% at target
-TRAIL_STOP_MULT = 0.5     # trail distance = 50% of original stop distance (tighter)
+TRAIL_STOP_MULT = 0.5     # unused when PARTIAL_EXIT_PCT=0
 
 
 @dataclass
@@ -234,69 +234,54 @@ def _simulate_day_trade(
         return _slipped_hard_exit(c, direction), "HARD_EXIT", None
 
 
+STALE_BARS = 18  # 1.5 hours with no new favorable extreme → exit if in profit
+
 def _simulate_5min_trade(
     bars_5min: pd.DataFrame, entry: float, stop: float, target: float,
     direction: str,
 ) -> tuple:
-    """Walk real 5-min bars candle-by-candle with partial exit + trailing.
+    """Walk real 5-min bars with stale-trade exit.
 
-    Phase 1: walk bars checking stop/target as before.
-    Phase 2 (after target hit): exit 50%, trail remaining with tighter stop.
+    If trade makes no new favorable extreme for STALE_BARS (1.5hr)
+    and is currently in profit, exit — the trend lost momentum.
     Returns (exit_price, exit_reason, trail_info_or_None).
     """
     from datetime import time as t_time
-    hard_exit_time = t_time(15, 15)
+    hard_exit_time = t_time(15, 15)  # IST or UTC depending on data source
 
-    trail_dist = abs(entry - stop) * TRAIL_STOP_MULT
-    trailing = False
-    trail_stop = best_price = 0.0
+    best_fav = 0.0
+    last_new_extreme_bar = 0
 
     for i, (ts, bar) in enumerate(bars_5min.iterrows()):
         bar_time = ts.time() if hasattr(ts, 'time') else None
-        h, l = float(bar["High"]), float(bar["Low"])
+        h, l, c = float(bar["High"]), float(bar["Low"]), float(bar["Close"])
+
+        # Track favorable movement
+        fav = (h - entry) if direction == "LONG" else (entry - l)
+        if fav > best_fav:
+            best_fav = fav
+            last_new_extreme_bar = i
 
         if bar_time and bar_time >= hard_exit_time:
-            c = float(bar["Close"])
-            if trailing:
-                return target, "TARGET_HIT", _trail_info(
-                    target, _slipped_hard_exit(c, direction), "HARD_EXIT", best_price)
             return _slipped_hard_exit(c, direction), "HARD_EXIT", None
 
-        if trailing:
-            if direction == "LONG":
-                if h > best_price:
-                    best_price = h
-                    trail_stop = max(trail_stop, best_price - trail_dist)
-                if l <= trail_stop:
-                    return target, "TARGET_HIT", _trail_info(
-                        target, _slipped_stop(trail_stop, direction), "TRAIL_STOP", best_price)
-            else:
-                if l < best_price:
-                    best_price = l
-                    trail_stop = min(trail_stop, best_price + trail_dist)
-                if h >= trail_stop:
-                    return target, "TARGET_HIT", _trail_info(
-                        target, _slipped_stop(trail_stop, direction), "TRAIL_STOP", best_price)
+        if direction == "LONG":
+            if l <= stop:
+                return _slipped_stop(stop, direction), "STOP_HIT", None
+            if h >= target:
+                return target, "TARGET_HIT", None
         else:
-            if direction == "LONG":
-                if l <= stop:
-                    return _slipped_stop(stop, direction), "STOP_HIT", None
-                if h >= target:
-                    trailing = True
-                    best_price = h
-                    trail_stop = max(entry, best_price - trail_dist)
-            else:
-                if h >= stop:
-                    return _slipped_stop(stop, direction), "STOP_HIT", None
-                if l <= target:
-                    trailing = True
-                    best_price = l
-                    trail_stop = min(entry, best_price + trail_dist)
+            if h >= stop:
+                return _slipped_stop(stop, direction), "STOP_HIT", None
+            if l <= target:
+                return target, "TARGET_HIT", None
+
+        # Stale trade: no new extreme for 1.5hr and currently in profit
+        current_pnl = (c - entry) if direction == "LONG" else (entry - c)
+        if (i - last_new_extreme_bar) >= STALE_BARS and i >= STALE_BARS and current_pnl > 0:
+            return c, "STALE_EXIT", None
 
     last_close = float(bars_5min["Close"].iloc[-1])
-    if trailing:
-        return target, "TARGET_HIT", _trail_info(
-            target, _slipped_hard_exit(last_close, direction), "HARD_EXIT", best_price)
     return _slipped_hard_exit(last_close, direction), "HARD_EXIT", None
 
 
@@ -306,7 +291,11 @@ def run_backtest(
     end_date: str = None,
     capital: float = 100_000,
 ) -> Dict:
-    watchlist = watchlist or DEFAULT_WATCHLIST
+    if watchlist is None:
+        from intraday.trader import _fetch_nifty500
+        watchlist = _fetch_nifty500()
+        if not watchlist:
+            watchlist = _NIFTY50_FALLBACK
     start = pd.Timestamp(start_date)
     end = pd.Timestamp(end_date) if end_date else pd.Timestamp.now()
 
@@ -361,7 +350,8 @@ def run_backtest(
             if loc < LOOKBACK:
                 continue
 
-            trailing = df.iloc[loc - LOOKBACK: loc + 1].copy()
+            # Signal from data up to YESTERDAY only — no look-ahead bias
+            trailing = df.iloc[loc - LOOKBACK: loc].copy()
             today = df.iloc[loc]
 
             result = run_brooks_analysis(df=trailing, ticker=ticker)
@@ -382,9 +372,9 @@ def run_backtest(
             stop_pct = round(stop_dist / entry * 100, 2)
 
             if direction == "LONG":
-                target = round(entry + stop_dist * 1.5, 2)
+                target = round(entry + stop_dist * MIN_RR, 2)
             else:
-                target = round(entry - stop_dist * 1.5, 2)
+                target = round(entry - stop_dist * MIN_RR, 2)
 
             per_slot = capital / MAX_POSITIONS
             qty = int(per_slot // entry)
@@ -397,7 +387,11 @@ def run_backtest(
                 "target": target, "stop_pct": stop_pct, "qty": qty,
             })
 
-        # --- Phase 2: Sort by confidence desc (like live scanner) ---
+        # --- Phase 2: Filter by MIN_CONFIDENCE + sort by confidence desc (like live trader) ---
+        candidates = [c for c in candidates
+                      if c["result"].confidence >= MIN_CONFIDENCE
+                      and (("LONG_FIRST" if c["result"].signal_type == "BUY" else "SHORT_FIRST"),
+                           c["result"].setup_type) in ALLOWED_SETUPS]
         candidates.sort(key=lambda c: -c["result"].confidence)
 
         # --- Phase 3: Take top MAX_POSITIONS, simulate each ---
@@ -411,7 +405,7 @@ def run_backtest(
             target = cand["target"]
             stop_pct = cand["stop_pct"]
             qty = cand["qty"]
-            rr = round(1.5, 2)
+            rr = round(MIN_RR, 2)
 
             # Simulate — prefer 5-min bar-by-bar when data exists
             bars_5m = pd.DataFrame()
@@ -430,10 +424,12 @@ def run_backtest(
 
             partial_exit_price = trail_exit_price = trail_best_price = 0.0
             trail_exit_reason = ""
+            partial_qty = trail_qty = 0
             sign = 1 if direction == "LONG" else -1
             stock_name = ticker.replace(".NS", "")
+            use_trail = PARTIAL_EXIT_PCT > 0 and trail_info and qty >= 2 and abs(entry - stop) > entry * 0.001
 
-            if trail_info and qty >= 2 and abs(entry - stop) > entry * 0.001:
+            if use_trail:
                 partial_qty = max(1, int(qty * PARTIAL_EXIT_PCT))
                 trail_qty = qty - partial_qty
                 partial_exit_price = trail_info["partial_exit_price"]
@@ -452,7 +448,7 @@ def run_backtest(
             charges_total = 0.0
             charges_dict = {}
             try:
-                if trail_info:
+                if use_trail:
                     for ep, eq in [(partial_exit_price, partial_qty),
                                    (trail_exit_price, trail_qty)]:
                         bp = ep if direction == "SHORT" else entry
@@ -724,7 +720,7 @@ def main():
     parser.add_argument("--watchlist", nargs="*", help="Tickers to test")
     args = parser.parse_args()
 
-    wl = [t if t.endswith(".NS") else t + ".NS" for t in args.watchlist] if args.watchlist else None
+    wl = [t if t.endswith(".NS") else t + ".NS" for t in args.watchlist] if args.watchlist else None  # None → Nifty 500
 
     result = run_backtest(
         watchlist=wl, start_date=args.start,

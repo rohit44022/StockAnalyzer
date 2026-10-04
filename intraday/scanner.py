@@ -40,8 +40,8 @@ from intraday.data import fetch_intraday
 INTRADAY_MIN_BARS = 60          # match engine's MIN_BARS requirement
 MAX_STOP_PCT = 2.5              # intraday: max 2.5% stop (vs 8% daily)
 MIN_STOP_PCT = 0.3              # floor: 5-min ATR is tiny, 0.3% prevents noise stops
-MIN_RR = 1.5                    # at least 1.5:1 reward/risk
-MAX_WORKERS = 4                 # respect Dhan rate limit (5/sec)
+MIN_RR = 2.0                    # at least 2:1 reward/risk
+MAX_WORKERS = 8                 # Dhan v2 data API: 5 req/sec; 8 threads overlap I/O with analysis
 HARD_EXIT = time(15, 15)        # must close by 3:15 PM IST
 NO_NEW_ENTRY_AFTER = time(14, 45)  # no new entries after 2:45 PM
 LUNCH_START = time(12, 0)       # avoid signals during lunch
@@ -226,14 +226,14 @@ def _analyse_one(ticker: str, days: int = 5) -> Optional[IntradaySetup]:
     if risk <= 0:
         return None
     if r.signal_type == "BUY":
-        t1 = round(r.entry_price + risk * 1.5, 2)
-        t2 = round(r.entry_price + risk * 2.5, 2)
+        t1 = round(r.entry_price + risk * MIN_RR, 2)
+        t2 = round(r.entry_price + risk * 3.0, 2)
     else:
-        t1 = round(r.entry_price - risk * 1.5, 2)
-        t2 = round(r.entry_price - risk * 2.5, 2)
+        t1 = round(r.entry_price - risk * MIN_RR, 2)
+        t2 = round(r.entry_price - risk * 3.0, 2)
 
     # ── Risk/reward check ──
-    rr = 1.5  # targets set at 1.5:1 minimum
+    rr = MIN_RR
     if rr < MIN_RR:
         return None
 
@@ -356,18 +356,26 @@ def scan_intraday(
     setups: List[IntradaySetup] = []
     scanned = 0
     errors = 0
+    scan_feed: List[Dict] = []
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         futs = {pool.submit(_analyse_one, t): t for t in watchlist}
-        for fut in as_completed(futs, timeout=180):
+        for fut in as_completed(futs, timeout=300):
+            ticker = futs[fut]
             try:
                 s = fut.result(timeout=30)
                 scanned += 1
                 if s is not None:
                     setups.append(s)
+                    scan_feed.append({"ticker": ticker, "found": True,
+                                      "direction": s.direction, "setup": s.setup_type,
+                                      "conf": s.confidence, "rr": round(s.risk_reward, 1)})
+                else:
+                    scan_feed.append({"ticker": ticker, "found": False})
             except Exception:
                 errors += 1
                 scanned += 1
+                scan_feed.append({"ticker": ticker, "found": False, "error": True})
 
     # Enrich with daily regime
     if csv_dir:
@@ -389,6 +397,8 @@ def scan_intraday(
     return {
         "short_first": [_to_dict(s) for s in shorts],
         "long_first": [_to_dict(s) for s in longs],
+        "short_first_raw": shorts,
+        "long_first_raw": longs,
         "watchlist_size": len(watchlist),
         "scanned": scanned,
         "errors": errors,
@@ -396,6 +406,7 @@ def scan_intraday(
         "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "market_open": _is_market_open(),
         "time_quality": tq_label,
+        "scan_feed": scan_feed,
     }
 
 

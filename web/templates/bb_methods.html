@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ session.get('theme','dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bollinger Band Methods</title>
+{% include "_theme_head.html" %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --card-bg:#282f36;--card-border:#2f3944;
+  --g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc;--o:#f0883e;--c:#39d2c0;
+  --m1:#7c8aef;--m2:#0ab39c;--m3:#c084fc;--m4:#f0883e;
+}
+body{font-family:'Inter',sans-serif;background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+.sc-main{margin-top:70px!important}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,rgba(124,138,239,.08) 0%,rgba(192,132,252,.06) 50%,rgba(240,136,62,.04) 100%);border-bottom:1px solid rgba(255,255,255,.06);padding:2rem 0 1.5rem}
+.hero h1{font-size:1.9rem;font-weight:800;letter-spacing:-.02em}
+.hero p{color:#8b949e;font-size:.88rem;max-width:700px}
+
+/* Cards */
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px}
+.card-header{background:rgba(255,255,255,.02);border-bottom:1px solid var(--card-border);font-weight:600}
+.method-card{transition:transform .2s,box-shadow .2s}
+.method-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.method-card .accent{height:3px;border-radius:3px 3px 0 0}
+
+/* Stat tiles */
+.stat-tile{background:rgba(255,255,255,.03);border:1px solid var(--card-border);border-radius:12px;padding:1rem;text-align:center}
+.stat-val{font-size:1.5rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.stat-label{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:.6px;margin-top:2px}
+
+/* Badges */
+.badge-m1{background:rgba(124,138,239,.15);color:var(--m1)}
+.badge-m2{background:rgba(10,179,156,.15);color:var(--m2)}
+.badge-m3{background:rgba(192,132,252,.15);color:var(--m3)}
+.badge-m4{background:rgba(240,136,62,.15);color:var(--m4)}
+.badge-buy{background:rgba(10,179,156,.15);color:var(--g)}
+.badge-sell{background:rgba(240,101,72,.15);color:var(--r)}
+.badge-hold{background:rgba(124,138,239,.15);color:var(--b)}
+.badge-watch{background:rgba(247,184,75,.15);color:var(--y)}
+.badge-win{background:rgba(10,179,156,.12);color:var(--g)}
+.badge-loss{background:rgba(240,101,72,.12);color:var(--r)}
+
+/* Progress bars */
+.win-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}
+.win-bar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+
+/* Scan table */
+.scan-table{font-size:.82rem}
+.scan-table th{font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:#8b949e;border-bottom:1px solid var(--card-border)}
+.scan-table td{border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;padding:.55rem .5rem}
+.scan-table tr:hover{background:rgba(255,255,255,.03)}
+.ticker-link{color:var(--b);text-decoration:none;font-weight:600;font-family:'JetBrains Mono',monospace}
+.ticker-link:hover{text-decoration:underline}
+
+/* Method tabs */
+.method-tabs .nav-link{color:#8b949e;font-weight:600;font-size:.82rem;border:none;padding:.5rem 1rem;border-radius:8px;transition:all .2s}
+.method-tabs .nav-link.active{color:#fff}
+.method-tabs .nav-link[data-method="M1"].active{background:rgba(124,138,239,.2);color:var(--m1)}
+.method-tabs .nav-link[data-method="M2"].active{background:rgba(10,179,156,.2);color:var(--m2)}
+.method-tabs .nav-link[data-method="M3"].active{background:rgba(192,132,252,.2);color:var(--m3)}
+.method-tabs .nav-link[data-method="M4"].active{background:rgba(240,136,62,.2);color:var(--m4)}
+
+/* Buy btn */
+.btn-buy{background:rgba(10,179,156,.15);color:var(--g);border:1px solid rgba(10,179,156,.3);font-size:.75rem;padding:2px 10px;border-radius:6px;transition:all .15s}
+.btn-buy:hover{background:var(--g);color:#fff}
+
+/* Skeleton loader */
+.skeleton{background:linear-gradient(90deg,rgba(255,255,255,.04) 25%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.04) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px;height:20px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Confidence ring */
+.conf-ring{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:700}
+
+/* Toast */
+.toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999}
+
+/* Responsive */
+@media(max-width:767px){
+  .hero h1{font-size:1.4rem}
+  .stat-val{font-size:1.2rem}
+  .method-card{margin-bottom:1rem}
+}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+
+<div class="sc-main">
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+<div class="container-fluid px-4">
+  <div class="d-flex align-items-center gap-3 mb-2">
+    <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--m1),var(--m3));display:flex;align-items:center;justify-content:center">
+      <i class="bi bi-graph-up-arrow text-white" style="font-size:1.2rem"></i>
+    </div>
+    <div>
+      <h1 class="mb-0">Bollinger Band Methods</h1>
+      <p class="mb-0">All 4 methods from John Bollinger's book — accuracy, live scan, and portfolio tracking</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══ PORTFOLIO ACCURACY CARDS ═══ -->
+<div class="container-fluid px-4 mt-4">
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h5 class="mb-0 fw-bold"><i class="bi bi-bullseye me-2" style="color:var(--g)"></i>Your Portfolio Accuracy</h5>
+  <span class="text-muted" style="font-size:.75rem">From your real closed trades</span>
+</div>
+<div class="row g-3" id="accuracy-cards">
+  <!-- M1–M4 cards injected here -->
+  <div class="col-12 text-center py-4"><div class="skeleton mx-auto" style="width:200px;height:24px"></div><p class="text-muted mt-2" style="font-size:.8rem">Loading accuracy data...</p></div>
+</div>
+</div>
+
+<!-- ═══ BACKTEST ACCURACY ═══ -->
+<div class="container-fluid px-4 mt-4">
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between px-3 py-2">
+    <span><i class="bi bi-clock-history me-2"></i>Historical Backtest Accuracy</span>
+    <button class="btn btn-sm btn-outline-secondary" id="btn-refresh-bt" style="font-size:.72rem" title="Refresh backtest (may take a minute)">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+  </div>
+  <div class="card-body p-3" id="backtest-body">
+    <div class="text-center py-4"><div class="skeleton mx-auto" style="width:300px;height:24px"></div><p class="text-muted mt-2" style="font-size:.8rem">Loading backtest results...</p></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ LIVE SCAN ═══ -->
+<div class="container-fluid px-4 mt-4 mb-5">
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between px-3 py-2">
+    <span><i class="bi bi-radar me-2"></i>Live Scan — Current Signals</span>
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted" style="font-size:.7rem" id="scan-count"></span>
+      <button class="btn btn-sm btn-outline-secondary" id="btn-scan" style="font-size:.72rem">
+        <i class="bi bi-arrow-clockwise"></i> Scan Now
+      </button>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <!-- Method tabs -->
+    <ul class="nav method-tabs px-3 pt-2 gap-1" id="method-tabs">
+      <li class="nav-item"><a class="nav-link active" data-method="M1" href="#">M1 — Squeeze</a></li>
+      <li class="nav-item"><a class="nav-link" data-method="M2" href="#">M2 — Trend</a></li>
+      <li class="nav-item"><a class="nav-link" data-method="M3" href="#">M3 — Reversals</a></li>
+      <li class="nav-item"><a class="nav-link" data-method="M4" href="#">M4 — Walking</a></li>
+    </ul>
+    <div id="scan-body" class="p-3">
+      <div class="text-center py-4"><div class="skeleton mx-auto" style="width:200px;height:24px"></div><p class="text-muted mt-2" style="font-size:.8rem">Click "Scan Now" to find signals...</p></div>
+    </div>
+  </div>
+</div>
+</div>
+</div><!-- /sc-main -->
+
+<!-- ═══ BUY MODAL ═══ -->
+<div class="modal fade" id="buyModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px">
+  <div class="modal-header border-0 pb-0">
+    <h6 class="modal-title fw-bold"><i class="bi bi-cart-plus me-2" style="color:var(--g)"></i>Add to Portfolio</h6>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+  </div>
+  <div class="modal-body">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="font-mono fw-bold fs-5" id="buy-ticker"></span>
+      <span class="badge" id="buy-method-badge"></span>
+      <span class="font-mono text-muted" style="font-size:.8rem">@ ₹<span id="buy-cmp"></span></span>
+    </div>
+    <form id="buy-form">
+      <input type="hidden" id="buy-ticker-val">
+      <input type="hidden" id="buy-method-val">
+      <div class="row g-2 mb-2">
+        <div class="col-6">
+          <label class="form-label" style="font-size:.72rem;color:#8b949e">Buy Price (₹)</label>
+          <input type="number" step="0.01" class="form-control form-control-sm" id="buy-price" required style="background:rgba(255,255,255,.05);border-color:var(--card-border);color:var(--bs-body-color)">
+        </div>
+        <div class="col-6">
+          <label class="form-label" style="font-size:.72rem;color:#8b949e">Quantity</label>
+          <input type="number" min="1" class="form-control form-control-sm" id="buy-qty" value="1" required style="background:rgba(255,255,255,.05);border-color:var(--card-border);color:var(--bs-body-color)">
+        </div>
+      </div>
+      <div class="mb-2">
+        <label class="form-label" style="font-size:.72rem;color:#8b949e">Buy Date</label>
+        <input type="date" class="form-control form-control-sm" id="buy-date" required style="background:rgba(255,255,255,.05);border-color:var(--card-border);color:var(--bs-body-color)">
+      </div>
+      <div class="mb-3">
+        <label class="form-label" style="font-size:.72rem;color:#8b949e">Notes (optional)</label>
+        <input type="text" class="form-control form-control-sm" id="buy-notes" placeholder="e.g. Squeeze breakout on volume" style="background:rgba(255,255,255,.05);border-color:var(--card-border);color:var(--bs-body-color)">
+      </div>
+      <button type="submit" class="btn w-100" style="background:var(--g);color:#fff;font-weight:600;border-radius:10px">
+        <i class="bi bi-plus-circle me-1"></i> Add Position
+      </button>
+    </form>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast-container">
+  <div class="toast align-items-center border-0" id="app-toast" role="alert" style="background:var(--card-bg);border:1px solid var(--card-border)!important;border-radius:12px">
+    <div class="d-flex">
+      <div class="toast-body" id="toast-msg"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+const MC = {M1:"#7c8aef",M2:"#0ab39c",M3:"#c084fc",M4:"#f0883e"};
+const MN = {
+  M1:"Volatility Breakout",M2:"Trend Following",
+  M3:"Reversals (W/M)",M4:"Walking the Bands"
+};
+const MBOOK = {M1:"Ch.16–17",M2:"Ch.19",M3:"Ch.12–13, 20",M4:"Ch.14, 18"};
+
+let scanData = null;
+let activeMethod = "M1";
+
+// ── Helpers ──
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const fmt = (n,d=1) => n==null?'—':Number(n).toFixed(d);
+const fmtPct = (n,d=1) => n==null?'—':(n>0?'+':'')+Number(n).toFixed(d)+'%';
+const toast = msg => {
+  $('#toast-msg').innerHTML = msg;
+  bootstrap.Toast.getOrCreateInstance($('#app-toast'),{delay:3500}).show();
+};
+
+// ── 1. Portfolio Accuracy ──
+async function loadAccuracy(){
+  try{
+    const r = await fetch('/api/bb-methods/accuracy');
+    const d = await r.json();
+    renderAccuracyCards(d);
+  }catch(e){
+    $('#accuracy-cards').innerHTML = '<div class="col-12 text-center text-danger py-3">Failed to load accuracy</div>';
+  }
+}
+
+function renderAccuracyCards(data){
+  let html = '';
+  for(const m of ['M1','M2','M3','M4']){
+    const d = data[m]||{};
+    const c = MC[m];
+    const wr = d.win_rate||0;
+    const closed = d.closed||0;
+    const open = d.open||0;
+    const wins = d.wins||0;
+    const losses = d.losses||0;
+    html += `
+    <div class="col-xl-3 col-md-6">
+      <div class="card method-card h-100">
+        <div class="accent" style="background:${c}"></div>
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div>
+              <span class="badge badge-${m.toLowerCase()} me-1">${m}</span>
+              <span class="fw-bold" style="font-size:.85rem">${MN[m]}</span>
+            </div>
+            <span class="text-muted" style="font-size:.65rem">${MBOOK[m]}</span>
+          </div>
+
+          <!-- Win rate ring -->
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="conf-ring" style="background:conic-gradient(${c} ${wr*3.6}deg, rgba(255,255,255,.06) 0);color:${c}">
+              ${closed>0?fmt(wr,0)+'%':'—'}
+            </div>
+            <div>
+              <div style="font-size:.75rem;color:#8b949e">Win Rate</div>
+              <div class="font-mono" style="font-size:.82rem"><span style="color:var(--g)">${wins}W</span> / <span style="color:var(--r)">${losses}L</span> <span class="text-muted">of ${closed}</span></div>
+            </div>
+          </div>
+
+          <!-- Stats row -->
+          <div class="row g-2 mb-2">
+            <div class="col-4">
+              <div class="stat-tile py-2 px-1">
+                <div class="stat-val" style="font-size:1rem;color:${(d.avg_pnl_pct||0)>=0?'var(--g)':'var(--r)'}">${fmtPct(d.avg_pnl_pct)}</div>
+                <div class="stat-label" style="font-size:.6rem">Avg P&L</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="stat-tile py-2 px-1">
+                <div class="stat-val" style="font-size:1rem;color:var(--g)">${fmtPct(d.best_pct)}</div>
+                <div class="stat-label" style="font-size:.6rem">Best</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="stat-tile py-2 px-1">
+                <div class="stat-val" style="font-size:1rem;color:var(--r)">${fmtPct(d.worst_pct)}</div>
+                <div class="stat-label" style="font-size:.6rem">Worst</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Open positions + avg hold -->
+          <div class="d-flex justify-content-between" style="font-size:.72rem;color:#8b949e">
+            <span><i class="bi bi-briefcase me-1"></i>${open} open</span>
+            <span><i class="bi bi-calendar3 me-1"></i>Avg ${fmt(d.avg_hold_days,0)}d hold</span>
+          </div>
+
+          <!-- Win bar -->
+          <div class="win-bar mt-2">
+            <div class="win-bar-fill" style="width:${wr}%;background:${c}"></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+  if(Object.values(data).every(m=>(m.closed||0)===0)){
+    html += `<div class="col-12 text-center py-2"><span class="text-muted" style="font-size:.8rem"><i class="bi bi-info-circle me-1"></i>No closed trades yet. Buy stocks from the scan below and close them to see accuracy.</span></div>`;
+  }
+  $('#accuracy-cards').innerHTML = html;
+}
+
+// ── 2. Backtest Accuracy ──
+async function loadBacktest(refresh=false){
+  const url = '/api/bb-methods/backtest' + (refresh?'?refresh=1':'');
+  $('#backtest-body').innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-secondary"></div><p class="text-muted mt-2" style="font-size:.8rem">Running backtest across all stocks… this may take a minute</p></div>';
+  try{
+    const r = await fetch(url);
+    const d = await r.json();
+    renderBacktest(d);
+  }catch(e){
+    $('#backtest-body').innerHTML = '<div class="text-center text-danger py-3">Backtest failed</div>';
+  }
+}
+
+function renderBacktest(data){
+  let html = '<div class="row g-3">';
+  for(const m of ['M1','M2','M3','M4']){
+    const d = data[m]||{};
+    if(d.error){
+      html += `<div class="col-xl-3 col-md-6"><div class="stat-tile"><div class="text-danger">${m}: ${d.error}</div></div></div>`;
+      continue;
+    }
+    const c = MC[m];
+    const wr = d.win_rate||0;
+    html += `
+    <div class="col-xl-3 col-md-6">
+      <div class="stat-tile p-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="badge badge-${m.toLowerCase()}">${m}</span>
+          <span class="fw-semibold" style="font-size:.82rem">${MN[m]}</span>
+        </div>
+        <div class="row g-2 text-center">
+          <div class="col-4">
+            <div class="stat-val" style="font-size:1.3rem;color:${c}">${fmt(wr,1)}%</div>
+            <div class="stat-label">Win Rate</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-val" style="font-size:1.3rem">${d.total_trades||0}</div>
+            <div class="stat-label">Trades</div>
+          </div>
+          <div class="col-4">
+            <div class="stat-val" style="font-size:1.3rem;color:${(d.profit_factor||0)>=1.5?'var(--g)':(d.profit_factor||0)>=1?'var(--y)':'var(--r)'}">${fmt(d.profit_factor,2)}</div>
+            <div class="stat-label">Profit F.</div>
+          </div>
+        </div>
+        <div class="win-bar mt-2 mb-2">
+          <div class="win-bar-fill" style="width:${wr}%;background:${c}"></div>
+        </div>
+        <div class="row g-1 text-center" style="font-size:.7rem;color:#8b949e">
+          <div class="col-3">E[R]: ${fmt(d.expectancy_r,3)}</div>
+          <div class="col-3">W̄: ${fmt(d.avg_winner_r,2)}R</div>
+          <div class="col-3">L̄: ${fmt(d.avg_loser_r,2)}R</div>
+          <div class="col-3">${d.wins||0}W/${d.losses||0}L</div>
+        </div>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  $('#backtest-body').innerHTML = html;
+}
+
+// ── 3. Live Scan ──
+async function runScan(){
+  $('#scan-body').innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-secondary"></div><p class="text-muted mt-2" style="font-size:.8rem">Scanning all stocks…</p></div>';
+  try{
+    const r = await fetch('/api/scan/strategies');
+    scanData = await r.json();
+    $('#scan-count').textContent = scanData.length + ' stocks scanned';
+    renderScan();
+  }catch(e){
+    $('#scan-body').innerHTML = '<div class="text-center text-danger py-3">Scan failed</div>';
+  }
+}
+
+function renderScan(){
+  if(!scanData){$('#scan-body').innerHTML='<div class="text-center text-muted py-3">No scan data</div>';return;}
+
+  const filtered = [];
+  for(const s of scanData){
+    let signal = null, conf = 0, action = 'NONE', details = '';
+    if(activeMethod==='M1'){
+      const m1 = s.m1||{};
+      action = m1.buy_signal?'BUY':m1.sell_signal?'SELL':m1.phase==='COMPRESSION'?'WATCH':'NONE';
+      conf = m1.confidence||0;
+      details = m1.phase||'';
+    }else{
+      const idx = {M2:0,M3:1,M4:2}[activeMethod];
+      const st = (s.strategies||[])[idx];
+      if(st){
+        action = (st.signal||{}).action||'NONE';
+        conf = (st.signal||{}).confidence||0;
+        details = (st.signal||{}).details_short||st.description||'';
+      }
+    }
+    if(action==='NONE') continue;
+    filtered.push({
+      ticker: s.ticker, price: s.price,
+      action, conf, details,
+    });
+  }
+
+  filtered.sort((a,b)=>b.conf-a.conf);
+
+  if(filtered.length===0){
+    $('#scan-body').innerHTML = `<div class="text-center text-muted py-4"><i class="bi bi-search me-1"></i>No ${activeMethod} signals found today</div>`;
+    return;
+  }
+
+  let html = `<div class="table-responsive"><table class="table table-hover scan-table mb-0">
+  <thead><tr>
+    <th>Ticker</th><th>Price</th><th>Signal</th><th>Confidence</th><th>Details</th><th></th>
+  </tr></thead><tbody>`;
+
+  for(const s of filtered){
+    const ac = s.action.toUpperCase();
+    const bc = ac==='BUY'?'badge-buy':ac==='SELL'?'badge-sell':ac==='HOLD'?'badge-hold':'badge-watch';
+    const cc = MC[activeMethod];
+    html += `<tr>
+      <td><a href="/analyze/${s.ticker.replace('.NS','')}" class="ticker-link">${s.ticker.replace('.NS','')}</a></td>
+      <td class="font-mono">₹${Number(s.price).toFixed(2)}</td>
+      <td><span class="badge ${bc}">${ac}</span></td>
+      <td>
+        <div class="d-flex align-items-center gap-2">
+          <div class="win-bar" style="width:60px"><div class="win-bar-fill" style="width:${s.conf}%;background:${cc}"></div></div>
+          <span class="font-mono" style="font-size:.75rem">${s.conf}%</span>
+        </div>
+      </td>
+      <td style="max-width:250px;font-size:.75rem;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.details)}</td>
+      <td>${ac==='BUY'||ac==='WATCH'?`<button class="btn-buy" onclick="openBuy('${s.ticker}','${activeMethod}',${s.price})"><i class="bi bi-plus"></i> Buy</button>`:''}</td>
+    </tr>`;
+  }
+  html += '</tbody></table></div>';
+  $('#scan-body').innerHTML = html;
+}
+
+function escHtml(s){
+  if(!s) return '';
+  const d=document.createElement('div');d.textContent=String(s).substring(0,300);return d.innerHTML;
+}
+
+// ── 4. Buy Flow ──
+window.openBuy = function(ticker, method, price){
+  $('#buy-ticker').textContent = ticker.replace('.NS','');
+  const badge = $('#buy-method-badge');
+  badge.textContent = method;
+  badge.className = 'badge badge-'+method.toLowerCase();
+  $('#buy-cmp').textContent = Number(price).toFixed(2);
+  $('#buy-ticker-val').value = ticker;
+  $('#buy-method-val').value = method;
+  $('#buy-price').value = Number(price).toFixed(2);
+  $('#buy-date').value = new Date().toISOString().slice(0,10);
+  $('#buy-qty').value = 1;
+  $('#buy-notes').value = '';
+  new bootstrap.Modal($('#buyModal')).show();
+};
+
+$('#buy-form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const body = {
+    ticker: $('#buy-ticker-val').value,
+    strategy_code: $('#buy-method-val').value,
+    buy_price: parseFloat($('#buy-price').value),
+    buy_date: $('#buy-date').value,
+    quantity: parseInt($('#buy-qty').value)||1,
+    notes: $('#buy-notes').value||'',
+  };
+  try{
+    const r = await fetch('/api/portfolio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if(d.error){toast(`<span style="color:var(--r)"><i class="bi bi-x-circle me-1"></i>${d.error}</span>`);return;}
+    bootstrap.Modal.getInstance($('#buyModal')).hide();
+    const msg = d.merged
+      ? `<span style="color:var(--g)"><i class="bi bi-check-circle me-1"></i>Averaged into position: ${d.quantity} @ ₹${d.avg_buy_price}</span>`
+      : `<span style="color:var(--g)"><i class="bi bi-check-circle me-1"></i>Position added — ${body.ticker.replace('.NS','')} ${body.strategy_code}</span>`;
+    toast(msg);
+    loadAccuracy();
+  }catch(err){
+    toast(`<span style="color:var(--r)">Network error</span>`);
+  }
+});
+
+// ── Tab switching ──
+$$('#method-tabs .nav-link').forEach(tab=>{
+  tab.addEventListener('click', e=>{
+    e.preventDefault();
+    $$('#method-tabs .nav-link').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    activeMethod = tab.dataset.method;
+    renderScan();
+  });
+});
+
+// ── Button handlers ──
+$('#btn-scan').addEventListener('click', ()=>runScan());
+$('#btn-refresh-bt').addEventListener('click', ()=>loadBacktest(true));
+
+// ── Init ──
+loadAccuracy();
+loadBacktest();
+
+})();
+</script>
+</body>
+</html>

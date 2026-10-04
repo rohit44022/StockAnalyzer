@@ -234,6 +234,19 @@ body.sidebar-collapsed .ticker-strip{left:70px}
     <div class="card-body" id="portfolioRiskBody"></div>
   </div>
 
+  <!-- ═══════ METHOD ACCURACY — Per-method win rate from closed trades ═══════ -->
+  <div class="card mb-3" id="methodAccCard">
+    <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer" onclick="document.getElementById('methodAccBody').style.display=document.getElementById('methodAccBody').style.display==='none'?'block':'none'">
+      <span><i class="bi bi-bullseye me-1"></i> Method Accuracy — BB M1–M4</span>
+      <a href="/bb-methods" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.7rem" onclick="event.stopPropagation()"><i class="bi bi-box-arrow-up-right me-1"></i>Full Dashboard</a>
+    </div>
+    <div class="card-body p-3" id="methodAccBody">
+      <div class="row g-2" id="methodAccCards">
+        <div class="col-12 text-center py-2"><div class="spinner-border spinner-border-sm text-secondary"></div></div>
+      </div>
+    </div>
+  </div>
+
   <div class="card mb-3" id="dailyPnlCard" style="border-radius:16px;overflow:hidden">
     <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer" onclick="toggleDailyPnl(event)">
       <span><i class="bi bi-graph-up-arrow me-1"></i>Per-Day Unrealized Profit</span>
@@ -1576,7 +1589,8 @@ async function loadPositions() {
     allPositions = await res.json();
     renderPositions();
     loadDailyUnrealizedChart();
-    loadPortfolioRisk(); }
+    loadPortfolioRisk();
+    loadMethodAccuracy(); }
 
 function portPassesFilter(p) {
     if (portSearch) {
@@ -2897,6 +2911,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   } catch (_) {}
 });
+
+async function loadMethodAccuracy() {
+  try {
+    const res = await fetch('/api/bb-methods/accuracy');
+    const data = await res.json();
+    const MC = {M1:'#7c8aef',M2:'#0ab39c',M3:'#c084fc',M4:'#f0883e'};
+    const MN = {M1:'Squeeze',M2:'Trend',M3:'Reversals',M4:'Walking'};
+    let html = '';
+    for (const m of ['M1','M2','M3','M4']) {
+      const d = data[m]||{};
+      const wr = d.win_rate||0;
+      const c = MC[m];
+      const closed = d.closed||0;
+      html += `<div class="col-6 col-xl-3">
+        <div class="sum-card card p-2" style="border-left:3px solid ${c}">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge badge-${m.toLowerCase()}" style="font-size:.65rem">${m}</span>
+            <span style="font-size:.78rem;font-weight:600">${MN[m]}</span>
+          </div>
+          <div class="d-flex align-items-end justify-content-between">
+            <div>
+              <div class="sum-val" style="font-size:1.2rem;color:${c}">${closed>0?wr.toFixed(1)+'%':'—'}</div>
+              <div class="sum-label" style="font-size:.58rem">Win Rate (${d.wins||0}W/${d.losses||0}L)</div>
+            </div>
+            <div class="text-end">
+              <div class="font-mono" style="font-size:.78rem;color:${(d.avg_pnl_pct||0)>=0?'var(--g)':'var(--r)'}">${closed>0?(d.avg_pnl_pct>0?'+':'')+d.avg_pnl_pct.toFixed(1)+'%':'—'}</div>
+              <div class="sum-label" style="font-size:.58rem">Avg P&L</div>
+            </div>
+          </div>
+          <div style="height:4px;border-radius:2px;background:rgba(255,255,255,.06);margin-top:6px;overflow:hidden">
+            <div style="height:100%;width:${wr}%;background:${c};border-radius:2px;transition:width .6s"></div>
+          </div>
+        </div>
+      </div>`;
+    }
+    document.getElementById('methodAccCards').innerHTML = html;
+  } catch(e) {
+    document.getElementById('methodAccCards').innerHTML = '<div class="col-12 text-muted text-center" style="font-size:.8rem">Could not load method accuracy</div>';
+  }
+}
 
 async function loadPortfolioRisk() {
   try {

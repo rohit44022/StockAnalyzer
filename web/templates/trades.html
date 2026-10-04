@@ -44,6 +44,7 @@ body{font-family:var(--bs-body-font-family);background:var(--bs-body-bg)}
 .trade-tbl td{vertical-align:middle;font-size:.88rem}
 .trade-tbl tbody tr{cursor:pointer;transition:background .15s}
 .trade-tbl tbody tr:hover{background:rgba(124,138,239,.06)}
+.date-group-hdr:hover{background:rgba(124,138,239,.1)!important}
 
 /* Sortable headers */
 .trade-tbl th[data-sort]{cursor:pointer;user-select:none;position:relative;padding-right:1.3rem;transition:color .15s}
@@ -1093,32 +1094,55 @@ function renderTable(){
 
     const slice = filtered.slice((tradePage-1)*TRADE_PAGE_SIZE, tradePage*TRADE_PAGE_SIZE);
 
-    tb.innerHTML = slice.map((t, i)=>{
-        const p = t.pnl;
-        const brokerName = t.platform==='zerodha'?'Zerodha':t.platform==='groww'?'Groww':t.platform==='dhan'?'Dhan':t.platform;
-        const ownerTxt = (t.owner || 'Self');
-        const platformBadge = `<span class="badge badge-${t.platform}">${brokerName}</span><br><small class="text-secondary">${ownerTxt}</small>`;
-        const typeBadge = `<span class="badge badge-${t.trade_type}">${t.trade_type==='delivery'?'Delivery':'Intraday'}</span>`;
-        const taxBadge = `<span class="badge badge-${p.tax_category.toLowerCase()}">${p.tax_category}</span>`;
+    // Group slice by sell_date
+    const byDate = {};
+    slice.forEach(t => {
+        const d = t.sell_date || 'Unknown';
+        if (!byDate[d]) byDate[d] = [];
+        byDate[d].push(t);
+    });
 
-        return `<tr onclick="showDetail(${t.id})" style="animation-delay:${i*20}ms">
-            <td><strong>${t.stock}</strong><br><small class="text-secondary">${t.buy_date} → ${t.sell_date}</small></td>
-            <td>${platformBadge}</td>
-            <td>${typeBadge}</td>
-            <td class="text-end font-mono">${t.quantity}</td>
-            <td class="text-end font-mono text-secondary">${fmtR(t.buy_price)}</td>
-            <td class="text-end font-mono ${t.sell_price>=t.buy_price?'text-green':'text-red'}">${fmtR(t.sell_price)}</td>
-            <td class="text-end font-mono ${pnlCls(p.gross_pnl)}">${fmtR(p.gross_pnl)}</td>
-            <td class="text-end font-mono text-yellow">${fmtR(p.charges.total)}</td>
-            <td class="text-end font-mono ${pnlCls(p.net_pnl)}"><strong>${fmtR(p.net_pnl)}</strong></td>
-            <td>${taxBadge}<br><small class="text-purple font-mono">${fmtR(p.total_tax)}</small></td>
-            <td class="text-end font-mono ${pnlCls(p.post_tax_pnl)}"><strong>${fmtR(p.post_tax_pnl)}</strong></td>
-            <td class="text-center">
-                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();confirmDelete(${t.id})" title="Delete">
-                    <i class="bi bi-trash3"></i>
-                </button>
-            </td>
-        </tr>`; }).join('');
+    let gi = 0;
+    tb.innerHTML = Object.entries(byDate).map(([date, dTrades]) => {
+        const dNet = dTrades.reduce((s, t) => s + (t.pnl?.net_pnl || 0), 0);
+        const dId = 'dg' + date.replace(/\W/g, '');
+        const types = [...new Set(dTrades.map(t => t.trade_type))];
+        const typeLbl = types.map(t => `<span class="badge badge-${t} ms-2">${t==='delivery'?'Delivery':'Intraday'}</span>`).join('');
+        const hdr = `<tr class="date-group-hdr" onclick="document.querySelectorAll('.${dId}').forEach(r=>r.classList.toggle('d-none'));this.querySelector('.dg-chev').classList.toggle('bi-chevron-right');this.querySelector('.dg-chev').classList.toggle('bi-chevron-down')" style="cursor:pointer;background:rgba(124,138,239,.06)">
+            <td colspan="12" style="padding:.55rem 1rem;font-size:.82rem">
+                <i class="bi bi-chevron-down dg-chev" style="font-size:.6rem;margin-right:.5rem"></i>
+                <strong>${date}</strong>${typeLbl}
+                <span class="badge bg-secondary ms-2">${dTrades.length}</span>
+                <span class="float-end fw-bold font-mono ${pnlCls(dNet)}">${fmtR(dNet)}</span>
+            </td></tr>`;
+
+        const rows = dTrades.map((t, i) => {
+            const p = t.pnl;
+            const brokerName = t.platform==='zerodha'?'Zerodha':t.platform==='groww'?'Groww':t.platform==='dhan'?'Dhan':t.platform;
+            const ownerTxt = (t.owner || 'Self');
+            const platformBadge = `<span class="badge badge-${t.platform}">${brokerName}</span><br><small class="text-secondary">${ownerTxt}</small>`;
+            const typeBadge = `<span class="badge badge-${t.trade_type}">${t.trade_type==='delivery'?'Delivery':'Intraday'}</span>`;
+            const taxBadge = `<span class="badge badge-${p.tax_category.toLowerCase()}">${p.tax_category}</span>`;
+            return `<tr class="${dId}" onclick="showDetail(${t.id})" style="animation-delay:${gi++*20}ms">
+                <td><strong>${t.stock}</strong><br><small class="text-secondary">${t.buy_date} → ${t.sell_date}</small></td>
+                <td>${platformBadge}</td>
+                <td>${typeBadge}</td>
+                <td class="text-end font-mono">${t.quantity}</td>
+                <td class="text-end font-mono text-secondary">${fmtR(t.buy_price)}</td>
+                <td class="text-end font-mono ${t.sell_price>=t.buy_price?'text-green':'text-red'}">${fmtR(t.sell_price)}</td>
+                <td class="text-end font-mono ${pnlCls(p.gross_pnl)}">${fmtR(p.gross_pnl)}</td>
+                <td class="text-end font-mono text-yellow">${fmtR(p.charges.total)}</td>
+                <td class="text-end font-mono ${pnlCls(p.net_pnl)}"><strong>${fmtR(p.net_pnl)}</strong></td>
+                <td>${taxBadge}<br><small class="text-purple font-mono">${fmtR(p.total_tax)}</small></td>
+                <td class="text-end font-mono ${pnlCls(p.post_tax_pnl)}"><strong>${fmtR(p.post_tax_pnl)}</strong></td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();confirmDelete(${t.id})" title="Delete">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </td>
+            </tr>`; }).join('');
+        return hdr + rows;
+    }).join('');
 
     renderTradePager(filtered); }
 
@@ -2885,16 +2909,60 @@ function renderAccountPnl() {
     </div>`;
   }
 
-  fetch('/api/intraday/trades')
-    .then(r => r.ok ? r.json() : [])
-    .then(trades => {
+  Promise.all([
+    fetch('/api/intraday/trades').then(r => r.ok ? r.json() : []),
+    fetch('/api/intraday/broker/positions').then(r => r.ok ? r.json() : {positions:[]}).catch(() => ({positions:[]})),
+  ]).then(([trades, brokerData]) => {
       if (!trades.length) return;
+
+      // Enrich BROKER_CLOSED trades with actual broker prices/P&L
+      const bp = (brokerData.positions || []).filter(p => p.productType === 'INTRADAY' && (p.netQty||0) === 0);
+      const bpBySymbol = {};
+      bp.forEach(p => { bpBySymbol[p.tradingSymbol] = p; });
+      trades.forEach(t => {
+        const sym = (t.ticker||'').replace('.NS','');
+        const b = bpBySymbol[sym];
+        if (b && (t.exit_reason||'').includes('BROKER_CLOSED') && (t.pnl||0) === 0) {
+          const isLong = t.direction === 'LONG';
+          t.entry_price = isLong ? b.buyAvg : b.sellAvg;
+          t.exit_price = isLong ? b.sellAvg : b.buyAvg;
+          t.pnl = b.realizedProfit || 0;
+          const ch = t.charges || {};
+          const totalCh = ch.total || 0;
+          t.net_pnl = t.pnl - totalCh;
+        }
+      });
 
       document.getElementById('iaEmpty').style.display = 'none';
       document.getElementById('intradayCount').textContent = trades.length;
 
       const acc = document.getElementById('intradayAccordion');
-      acc.innerHTML = trades.reverse().map((t, i) => buildItem(t, i)).join('');
+
+      // Group by date
+      const byDate = {};
+      trades.reverse().forEach(t => {
+        const d = t.time ? t.time.split('T')[0] : 'Unknown';
+        if (!byDate[d]) byDate[d] = [];
+        byDate[d].push(t);
+      });
+      let idx = 0;
+      acc.innerHTML = Object.entries(byDate).map(([date, dayTrades]) => {
+        const dayNet = dayTrades.reduce((s, t) => s + (t.net_pnl || ((t.pnl||0) - ((t.charges||{}).total||0))), 0);
+        const dayWins = dayTrades.filter(t => (t.net_pnl || ((t.pnl||0) - ((t.charges||{}).total||0))) > 0).length;
+        const dateId = date.replace(/[^a-zA-Z0-9]/g, '');
+        const items = dayTrades.map(t => buildItem(t, idx++)).join('');
+        return `<div style="border-bottom:1px solid var(--card-border)">
+          <div style="padding:.6rem 1rem;background:rgba(124,138,239,.06);cursor:pointer;display:flex;align-items:center;gap:.6rem;font-size:.8rem"
+               onclick="const b=document.getElementById('iaDate${dateId}');b.style.display=b.style.display==='none'?'':'none';this.querySelector('.bi').classList.toggle('bi-chevron-right');this.querySelector('.bi').classList.toggle('bi-chevron-down')">
+            <i class="bi bi-chevron-right" style="font-size:.65rem"></i>
+            <strong>${date}</strong>
+            <span class="badge bg-secondary">${dayTrades.length}</span>
+            <span style="font-size:.7rem;color:var(--bs-secondary)">${dayWins}W / ${dayTrades.length - dayWins}L</span>
+            <span class="ms-auto fw-bold ${pnlI(dayNet)}">${signI(dayNet)}</span>
+          </div>
+          <div id="iaDate${dateId}" style="display:none">${items}</div>
+        </div>`;
+      }).join('');
 
       // Summary stats
       let grossSum = 0, chargesSum = 0, netSum = 0, wins = 0, rrSum = 0, rrCount = 0;

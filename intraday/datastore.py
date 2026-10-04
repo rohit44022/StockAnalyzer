@@ -20,13 +20,22 @@ if _ROOT not in sys.path:
 
 STORE_DIR = os.path.join(os.path.dirname(__file__), "5min_store")
 
-DEFAULT_WATCHLIST = [
-    "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS",
-    "SBIN.NS", "BHARTIARTL.NS", "ITC.NS", "LT.NS", "KOTAKBANK.NS",
-    "HINDUNILVR.NS", "BAJFINANCE.NS", "AXISBANK.NS", "MARUTI.NS",
-    "SUNPHARMA.NS", "TITAN.NS", "WIPRO.NS", "ULTRACEMCO.NS",
-    "TATAMOTORS.NS", "ADANIENT.NS",
-]
+def _get_watchlist():
+    """Use Nifty 500 list when available, else a small fallback."""
+    try:
+        from intraday.trader import _fetch_nifty500
+        tickers = _fetch_nifty500()
+        if len(tickers) >= 400:
+            return tickers
+    except Exception:
+        pass
+    return [
+        "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS",
+        "SBIN.NS", "BHARTIARTL.NS", "ITC.NS", "LT.NS", "KOTAKBANK.NS",
+        "HINDUNILVR.NS", "BAJFINANCE.NS", "AXISBANK.NS", "MARUTI.NS",
+        "SUNPHARMA.NS", "TITAN.NS", "WIPRO.NS", "ULTRACEMCO.NS",
+        "TATAMOTORS.NS", "ADANIENT.NS",
+    ]
 
 
 def _ticker_path(ticker: str) -> str:
@@ -87,7 +96,7 @@ def has_5min(ticker: str, date: str) -> bool:
 
 def download_all(tickers: list = None, days: int = 59):
     """Download 5-min data for all tickers."""
-    tickers = tickers or DEFAULT_WATCHLIST
+    tickers = tickers or _get_watchlist()
     print(f"Downloading 5-min data for {len(tickers)} tickers ({days} days)...")
     for t in tickers:
         try:
@@ -110,9 +119,10 @@ def main():
     parser.add_argument("--days", type=int, default=59, help="Days to fetch (max ~60)")
     args = parser.parse_args()
 
-    tl = None
     if args.tickers:
         tl = [t if t.endswith(".NS") else t + ".NS" for t in args.tickers]
+    else:
+        tl = _get_watchlist()
     download_all(tl, args.days)
 
 

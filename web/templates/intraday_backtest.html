@@ -146,8 +146,8 @@ body{background:#13141a;color:var(--text-primary);font-family:'Inter',system-ui,
     <div class="hero-left">
       <h1 class="hero-title"><i class="bi bi-clock-history" style="color:var(--accent)"></i> Intraday Backtest</h1>
       <p class="hero-sub">
-        Historical simulation of the Brooks PA intraday system.
-        Uses real 5-min bar-by-bar simulation (like live trader) when data exists,
+        Historical simulation of the Brooks PA intraday system on <strong>Nifty 500</strong> stocks.
+        Uses real 5-min bar-by-bar simulation with trailing stop (like live trader) when data exists,
         falls back to daily OHLC with industry-standard path model for older dates.
         Full Dhan charges + slippage model (entry/stop/hard-exit). Circuit breaker at -2% daily loss.
       </p>

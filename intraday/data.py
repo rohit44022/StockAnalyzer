@@ -1,27 +1,47 @@
 """
-Intraday data fetcher — pulls 5-min OHLCV candles.
-Primary: Dhan API (₹499/mo, 5yr history, reliable).
-Fallback: yfinance (free, 60 days, occasionally drops candles).
+Intraday data fetcher — pulls 5-min OHLCV candles via Dhan API.
 """
 
 from __future__ import annotations
 
 import io
+import json
 import os
+import threading
+import time as _time
+import logging
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from typing import Optional, Dict
+from datetime import datetime, timedelta, date
+from typing import Optional, Dict, List
+
+log = logging.getLogger(__name__)
 
 _SCRIP_CACHE: Dict[str, int] = {}
 _SCRIP_LOADED = False
+
+_rate_lock = threading.Lock()
+_rate_timestamps: list = []
+_RATE_LIMIT = 5
+
+_BAD_TICKERS_FILE = os.path.join(os.path.dirname(__file__), ".bad_tickers.json")
+
+def _throttle():
+    with _rate_lock:
+        now = _time.monotonic()
+        _rate_timestamps[:] = [t for t in _rate_timestamps if now - t < 1.0]
+        if len(_rate_timestamps) >= _RATE_LIMIT:
+            sleep_for = 1.0 - (now - _rate_timestamps[0])
+            if sleep_for > 0:
+                _time.sleep(sleep_for)
+        _rate_timestamps.append(_time.monotonic())
 
 
 def _load_dhan_context():
     """Load Dhan credentials from .env, return (ctx, ok)."""
     try:
         from dotenv import load_dotenv
-        load_dotenv()
+        load_dotenv(override=True)
         cid = os.getenv("DHAN_CLIENT_ID")
         tok = os.getenv("DHAN_ACCESS_TOKEN")
         if not cid or not tok:
@@ -42,7 +62,7 @@ def _load_scrip_master() -> Dict[str, int]:
     cache_fresh = False
     if os.path.exists(cache_path):
         age = datetime.now().timestamp() - os.path.getmtime(cache_path)
-        cache_fresh = age < 86400  # 24 hours
+        cache_fresh = age < 86400
 
     try:
         if cache_fresh:
@@ -76,6 +96,23 @@ def _ticker_to_sid(ticker: str) -> Optional[int]:
     return scrips.get(sym)
 
 
+def validate_tickers(tickers: List[str]) -> List[str]:
+    """Drop tickers that have no Dhan security_id (delisted/renamed/corrupt)."""
+    scrips = _load_scrip_master()
+    valid = []
+    dropped = []
+    for t in tickers:
+        sym = t.replace(".NS", "").replace(".BO", "").strip().upper()
+        if sym in scrips:
+            valid.append(t)
+        else:
+            dropped.append(t)
+    if dropped:
+        log.warning("Dropped %d tickers not in Dhan scrip master: %s",
+                     len(dropped), dropped[:10])
+    return valid
+
+
 def _interval_minutes(interval: str) -> int:
     return int(interval.replace("m", ""))
 
@@ -99,6 +136,7 @@ def _fetch_dhan(
         to_date = datetime.now().strftime("%Y-%m-%d")
         from_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
+        _throttle()
         resp = hd.intraday_minute_data(
             security_id=str(sid),
             exchange_segment="NSE_EQ",
@@ -122,7 +160,6 @@ def _fetch_dhan(
             "Close": d["close"],
             "Volume": d["volume"],
         })
-        # Convert epoch timestamps to IST datetime index
         from zoneinfo import ZoneInfo
         ist = ZoneInfo("Asia/Kolkata")
         df.index = pd.DatetimeIndex(
@@ -136,22 +173,25 @@ def _fetch_dhan(
         return None
 
 
-def _fetch_yfinance(
-    ticker: str, interval: str = "5m", days: int = 5
-) -> Optional[pd.DataFrame]:
-    """Fallback: fetch from yfinance."""
-    try:
-        import yfinance as yf
+# --- Bad tickers: persisted to disk, auto-expire daily ---
 
-        t = yf.Ticker(ticker)
-        df = t.history(period=f"{days}d", interval=interval)
-        if df is None or df.empty or len(df) < 20:
-            return None
-        df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
-        df.dropna(inplace=True)
-        return df
+def _load_bad_tickers() -> dict:
+    try:
+        with open(_BAD_TICKERS_FILE) as f:
+            data = json.load(f)
+        today = date.today().isoformat()
+        return {k: v for k, v in data.items() if v == today}
     except Exception:
-        return None
+        return {}
+
+def _save_bad_tickers(bt: dict):
+    try:
+        with open(_BAD_TICKERS_FILE, "w") as f:
+            json.dump(bt, f)
+    except Exception:
+        pass
+
+_bad_tickers: dict = _load_bad_tickers()
 
 
 def fetch_intraday(
@@ -159,11 +199,15 @@ def fetch_intraday(
     interval: str = "5m",
     days: int = 5,
 ) -> Optional[pd.DataFrame]:
-    """Fetch intraday candles. Tries Dhan first, falls back to yfinance."""
+    """Fetch intraday candles from Dhan."""
+    today = date.today().isoformat()
+    if _bad_tickers.get(ticker) == today:
+        return None
     df = _fetch_dhan(ticker, interval, days)
-    if df is not None:
-        return df
-    return _fetch_yfinance(ticker, interval, days)
+    if df is None:
+        _bad_tickers[ticker] = today
+        _save_bad_tickers(_bad_tickers)
+    return df
 
 
 def fetch_today_candles(ticker: str, interval: str = "5m") -> Optional[pd.DataFrame]:

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import warnings
+warnings.filterwarnings("ignore", message="resource_tracker.*leaked semaphore")
 """
 Web Dashboard — Bollinger Band Squeeze Strategy Analyser
 Flask backend that exposes the same analysis as the terminal app via a
@@ -116,6 +118,9 @@ app.register_blueprint(brooks_bp)
 
 from web.intraday_routes import intraday_bp
 app.register_blueprint(intraday_bp)
+
+from web.bb_methods_routes import bb_methods_bp
+app.register_blueprint(bb_methods_bp)
 from notes.db import init_notes_db
 init_notes_db()
 

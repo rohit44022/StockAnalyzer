@@ -116,9 +116,6 @@ app.register_blueprint(holdings_bp)
 from web.brooks_routes import brooks_bp
 app.register_blueprint(brooks_bp)
 
-from web.intraday_routes import intraday_bp
-app.register_blueprint(intraday_bp)
-
 from web.bb_methods_routes import bb_methods_bp
 app.register_blueprint(bb_methods_bp)
 from notes.db import init_notes_db

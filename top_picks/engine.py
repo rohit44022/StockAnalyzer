@@ -82,7 +82,7 @@ from top_picks.config import (
     HOLD_PERIOD_MAP, FUNDAMENTAL_FLOOR_SCORE, FUNDAMENTAL_FLOOR_SIGNAL,
 )
 from top_picks.scorer import compute_composite_score, _score_fundamental, _grade
-from brooks.engine import run_brooks_analysis
+from top_picks.config import WEIGHTS
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -735,21 +735,16 @@ def _deep_analyze_stock(
         if "error" in triple:
             return None
 
-        # Step 2b: Run Brooks PA directly (not via triple's stale PA data)
-        pa_flat = None
-        try:
-            br = run_brooks_analysis(df=df, ticker=ticker)
-            if br.success:
-                pa_flat = {
-                    "success": True,
-                    "pa_score": br.pa_score,
-                    "confidence": br.confidence,
-                    "quality_score": br.quality_score,
-                    "signal_type": br.signal_type,
-                    "setup_type": br.setup_type,
-                }
-        except Exception:
-            pass
+        # Extract Brooks PA from triple output (already ran inside run_triple_analysis)
+        pa_section = triple.get("pa", {})
+        pa_flat = {
+            "success": True,
+            "pa_score": pa_section.get("pa_score", 0),
+            "confidence": pa_section.get("confidence", 0),
+            "quality_score": pa_section.get("quality_score", 0),
+            "signal_type": pa_section.get("signal_type", "HOLD"),
+            "setup_type": pa_section.get("setup_type", "NONE"),
+        } if pa_section else None
 
         # Step 3: Extract individual components from triple output
         ta_signal = triple.get("ta_signal", {})

@@ -1013,7 +1013,7 @@ def run_triple_analysis(
         "ema20": _safe(pa_result.ema20),
         "trend_strength": _safe(pa_result.trend_strength),
         "last_bar_description": pa_result.last_bar_description,
-        "bar_summary": _safe_json(pa_result.bar_summary_data) if isinstance(pa_result.bar_summary_data, dict) else {},
+        "bar_summary": _safe_json(getattr(pa_result, 'bar_summary_data', {})) if isinstance(getattr(pa_result, 'bar_summary_data', None), dict) else {},
         "al_brooks_context": pa_result.al_brooks_context,
         "reasons": pa_result.reasons[:10],
     }

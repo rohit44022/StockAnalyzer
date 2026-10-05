@@ -3,7 +3,7 @@
 > Audit of the codebase against every concept, formula, strategy, and rule
 > in *Bollinger on Bollinger Bands* (John Bollinger, 2002).
 >
-> **Scope:** `bb_squeeze/`, `technical_analysis/`, `bollinger_squeeze_strategy.py`
+> **Scope:** `bb_squeeze/`, `technical_analysis/`
 >
 > **Verdict key:** ✅ = Correctly implemented | ⚠️ = Partially implemented / deviation | ❌ = Missing entirely
 

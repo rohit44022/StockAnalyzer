@@ -880,7 +880,6 @@ def test_trade_calculator(ticker, df_bb, errors):
         ("Short-term Profit", price * 0.9, price, "2025-12-01", "2026-03-01", "delivery"),
         ("Short-term Loss", price * 1.1, price, "2025-12-01", "2026-03-01", "delivery"),
         ("Long-term Gain", price * 0.6, price, "2024-06-01", "2026-03-01", "delivery"),
-        ("Intraday Profit", price * 0.98, price, "2026-03-01", "2026-03-01", "intraday"),
     ]
 
     for label, bp, sp, bd, sd, tt in test_trades:

@@ -1,0 +1,172 @@
+<!-- Live spot price ticker bar — include in any options page -->
+<style>
+.live-bar{display:flex;align-items:center;gap:16px;padding:9px 16px;font-size:.82rem;font-family:'JetBrains Mono',monospace;background:#181f2a;border-bottom:1px solid #2f3944;overflow-x:auto;white-space:nowrap;margin:-0px -0px 0 -0px}
+.live-bar .lb-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s}
+.live-bar .lb-dot.on{background:#0ab39c;animation:lbPulse 2s infinite}
+.live-bar .lb-dot.wait{background:#f7b84b;animation:lbPulse 1.2s infinite}
+.live-bar .lb-dot.off{background:#596275}
+@keyframes lbPulse{0%,100%{opacity:1}50%{opacity:.3}}
+.live-bar .lb-label{font-size:.72rem;color:#a0aab5;text-transform:uppercase;letter-spacing:.5px}
+.live-bar .lb-price{font-weight:700;font-size:.95rem;color:#e6edf3;min-width:70px;transition:color .3s}
+.live-bar .lb-chg{font-size:.78rem;font-weight:600;min-width:50px}
+.live-bar .lb-up{color:#0ab39c}.live-bar .lb-dn{color:#f06548}
+.live-bar .lb-stale{color:#8b949e;font-size:.75rem;font-style:italic;margin-left:auto;flex-shrink:0}
+@keyframes lbFlash{0%{background:rgba(10,179,156,.15)}100%{background:transparent}}
+@keyframes lbFlashR{0%{background:rgba(240,101,72,.15)}100%{background:transparent}}
+.live-bar .lb-flash-up{animation:lbFlash .5s ease}
+.live-bar .lb-flash-dn{animation:lbFlashR .5s ease}
+</style>
+
+<div class="live-bar" id="liveTicker">
+  <span class="lb-dot off" id="lbDot"></span>
+  <span class="lb-label" id="lbStatus">CONNECTING</span>
+  <span style="border-left:1px solid var(--card-border,#2f3944);height:20px;margin:0 4px"></span>
+  <span class="lb-label">NIFTY</span>
+  <span class="lb-price" id="lbNifty">—</span>
+  <span class="lb-chg" id="lbNiftyChg"></span>
+  <span style="border-left:1px solid var(--card-border,#2f3944);height:20px;margin:0 4px"></span>
+  <span class="lb-label">BANKNIFTY</span>
+  <span class="lb-price" id="lbBankNifty">—</span>
+  <span class="lb-chg" id="lbBankNiftyChg"></span>
+  <span class="lb-stale" id="lbStale"></span>
+</div>
+
+<script>
+(function(){
+  var _lbPrices = {};
+  var _lbEs = null, _lbLastData = 0, _lbRetries = 0;
+  var _lbMaxRetry = 30000; // cap backoff at 30s
+
+  function lbFmt(v){ return v == null ? '—' : '₹'+Number(v).toLocaleString('en-IN',{maximumFractionDigits:2}); }
+
+  function lbFlash(el, newVal, oldVal){
+    el.classList.remove('lb-flash-up','lb-flash-dn');
+    void el.offsetWidth; // reflow to restart animation
+    if(oldVal != null && newVal !== oldVal){
+      el.classList.add(newVal > oldVal ? 'lb-flash-up' : 'lb-flash-dn');
+    }
+  }
+
+  function lbSetDot(cls, label){
+    var dot = document.getElementById('lbDot');
+    var st = document.getElementById('lbStatus');
+    if(dot) dot.className = 'lb-dot ' + cls;
+    if(st) st.textContent = label;
+  }
+
+  var _lbMinInterval = 5000; // minimum ms between visible price updates
+  var _lbLastVisible = 0;
+
+  function lbUpdate(prices, wsLive){
+    _lbLastData = Date.now();
+    _lbRetries = 0;
+    var staleEl = document.getElementById('lbStale');
+    if(staleEl) staleEl.textContent = '';
+
+    // throttle visible updates to _lbMinInterval
+    if(Date.now() - _lbLastVisible < _lbMinInterval) return;
+    _lbLastVisible = Date.now();
+
+    if(wsLive){
+      lbSetDot('on', 'LIVE');
+    } else {
+      lbSetDot('wait', 'WS DOWN');
+    }
+
+    for(var sym in prices){
+      if(!prices.hasOwnProperty(sym)) continue;
+      var ltp = prices[sym];
+      var id = sym === 'NIFTY' ? 'lbNifty' : sym === 'BANKNIFTY' ? 'lbBankNifty' : null;
+      if(!id) continue;
+      var el = document.getElementById(id);
+      if(!el) continue;
+      var old = _lbPrices[sym];
+      _lbPrices[sym] = ltp;
+      el.textContent = lbFmt(ltp);
+      lbFlash(el, ltp, old);
+
+      var chgEl = document.getElementById(id+'Chg');
+      if(chgEl && old != null && ltp !== old){
+        var diff = ltp - old;
+        chgEl.textContent = (diff > 0 ? '+' : '') + diff.toFixed(2);
+        chgEl.className = 'lb-chg ' + (diff > 0 ? 'lb-up' : 'lb-dn');
+      }
+    }
+
+    window.dispatchEvent(new CustomEvent('live-tick', {detail: prices}));
+  }
+
+  function lbConnect(){
+    if(document.hidden) return; // don't reconnect while tab is hidden
+    if(_lbEs){
+      try{ _lbEs.close(); }catch(e){}
+      _lbEs = null;
+    }
+    lbSetDot('wait', 'CONNECTING');
+
+    try{
+      _lbEs = new EventSource('/api/options/live/stream');
+    } catch(e){
+      lbSetDot('off', 'OFFLINE');
+      lbScheduleRetry();
+      return;
+    }
+
+    _lbEs.addEventListener('status', function(e){
+      try{
+        var st = JSON.parse(e.data);
+        if(st.token_bad){lbSetDot('off','TOKEN EXPIRED');return;}
+        if(st.ws_live) lbSetDot('wait', 'CONNECTED');
+        else lbSetDot('wait', 'FEED STARTING');
+      } catch(err){}
+    });
+
+    _lbEs.onmessage = function(e){
+      try{
+        var payload = JSON.parse(e.data);
+        lbUpdate(payload.prices || payload, !!payload.ws_live);
+      } catch(err){}
+    };
+
+    _lbEs.onerror = function(){
+      lbSetDot('off', 'OFFLINE');
+      try{ _lbEs.close(); }catch(e){}
+      _lbEs = null;
+      lbScheduleRetry();
+    };
+  }
+
+  function lbScheduleRetry(){
+    var delay = Math.min(3000 * Math.pow(1.5, _lbRetries), _lbMaxRetry);
+    _lbRetries++;
+    setTimeout(lbConnect, delay);
+  }
+
+  // Stale detection
+  setInterval(function(){
+    if(!_lbLastData) return;
+    var age = Math.round((Date.now() - _lbLastData) / 1000);
+    var staleEl = document.getElementById('lbStale');
+    if(!staleEl) return;
+    if(age > 10){
+      staleEl.textContent = 'Last update ' + age + 's ago';
+    } else {
+      staleEl.textContent = '';
+    }
+  }, 5000);
+
+  // Pause SSE when tab hidden to save resources
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden){
+      if(_lbEs){ try{ _lbEs.close(); }catch(e){} _lbEs = null; }
+    } else {
+      if(!_lbEs){ _lbRetries = 0; lbConnect(); }
+    }
+  });
+
+  window._lbPrices = _lbPrices;
+  window._lbFeedConnected = function(){ return _lbEs && _lbEs.readyState !== 2; };
+
+  lbConnect();
+})();
+</script>

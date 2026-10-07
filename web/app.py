@@ -118,6 +118,10 @@ app.register_blueprint(brooks_bp)
 
 from web.bb_methods_routes import bb_methods_bp
 app.register_blueprint(bb_methods_bp)
+
+from web.options_routes import options_bp
+app.register_blueprint(options_bp)
+
 from notes.db import init_notes_db
 init_notes_db()
 

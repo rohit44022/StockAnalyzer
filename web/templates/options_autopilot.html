@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autopilot — Autonomous Paper Trading</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+/* ── Tokens ── */
+:root{--card-bg:#282f36;--card-border:#2f3944;--g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc;--muted:#596275;--text-dim:#8b949e;--surface:#1e242a;--R:14px}
+@media(prefers-color-scheme:light){:root:not([data-bs-theme="dark"]){--card-bg:#fff;--card-border:#e0e4e8;--g:#059669;--r:#dc2626;--y:#d97706;--b:#6366f1;--p:#9333ea;--muted:#94a3b8;--text-dim:#64748b;--surface:#f1f5f9;color-scheme:light}}
+:root[data-bs-theme="light"]{--card-bg:#fff;--card-border:#e0e4e8;--g:#059669;--r:#dc2626;--y:#d97706;--b:#6366f1;--p:#9333ea;--muted:#94a3b8;--text-dim:#64748b;--surface:#f1f5f9;color-scheme:light}
+body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg);font-size:.875rem}
+.fm{font-family:'JetBrains Mono',monospace}
+
+/* ── Toast ── */
+.toast-wrap{position:fixed;top:80px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+.toast-msg{padding:10px 18px;border-radius:10px;font-size:.85rem;font-weight:500;animation:toastIn .3s ease;max-width:380px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.toast-msg.success{background:rgba(10,179,156,.15);border:1px solid rgba(10,179,156,.3);color:var(--g)}
+.toast-msg.error{background:rgba(240,101,72,.15);border:1px solid rgba(240,101,72,.3);color:var(--r)}
+.toast-msg.info{background:rgba(124,138,239,.15);border:1px solid rgba(124,138,239,.3);color:var(--b)}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+
+/* ── Connection bar ── */
+.conn-bar{position:fixed;top:0;left:0;right:0;z-index:3000;text-align:center;padding:6px;font-size:.8rem;font-weight:600;display:none}
+.conn-bar.stale{display:block;background:rgba(247,184,75,.15);color:var(--y);border-bottom:1px solid rgba(247,184,75,.3)}
+.conn-bar.error{display:block;background:rgba(240,101,72,.15);color:var(--r);border-bottom:1px solid rgba(240,101,72,.3)}
+
+/* ── Loading overlay ── */
+.loading-overlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;display:none;text-align:center;color:var(--b)}
+.loading-overlay.show{display:block}
+.loading-overlay .spinner{width:36px;height:36px;border:3px solid var(--card-border);border-top-color:var(--b);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Hero ── */
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%);border-bottom:1px solid var(--card-border);padding:1.4rem 0}
+.hero h1{font-size:1.6rem;font-weight:800;background:linear-gradient(135deg,#0ab39c,#7c8aef,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-sub{font-size:.82rem;color:var(--text-dim);margin-top:3px;max-width:750px;line-height:1.5}
+.srow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:.82rem;margin-top:8px}
+.spill{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:14px;font-size:.75rem;font-weight:700;letter-spacing:.3px}
+.spill.on{background:rgba(10,179,156,.15);color:var(--g);border:1px solid rgba(10,179,156,.3)}
+.spill.off{background:rgba(240,101,72,.15);color:var(--r);border:1px solid rgba(240,101,72,.3)}
+.spill .dot{width:7px;height:7px;border-radius:50%;animation:pulse 2s infinite}
+.spill.on .dot{background:var(--g)}.spill.off .dot{background:var(--r)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.si{color:var(--text-dim);display:flex;align-items:center;gap:4px;cursor:help;position:relative}
+.si i{font-size:.9rem}
+
+/* ── Live indicator ── */
+.live-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:12px;font-size:.7rem;font-weight:700;letter-spacing:.3px;margin-left:6px}
+.live-pill.fast{background:rgba(10,179,156,.15);color:var(--g);border:1px solid rgba(10,179,156,.3)}
+.live-pill.slow{background:rgba(89,98,117,.15);color:var(--muted);border:1px solid rgba(89,98,117,.2)}
+.live-pill .ldot{width:6px;height:6px;border-radius:50%}
+.live-pill.fast .ldot{background:var(--g);animation:pulse 1s infinite}
+.live-pill.slow .ldot{background:var(--muted)}
+
+/* ── Value change flash ── */
+@keyframes vflash{0%{background:rgba(10,179,156,.25)}100%{background:transparent}}
+@keyframes vflashR{0%{background:rgba(240,101,72,.25)}100%{background:transparent}}
+.v-up{animation:vflash .8s ease}
+.v-dn{animation:vflashR .8s ease}
+
+/* ── Inline tip (replaces title tooltips — works on touch) ── */
+.tip{position:relative;cursor:help;border-bottom:1px dotted var(--muted)}
+.tip .tip-text{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:100;background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--text-dim);line-height:1.5;width:280px;box-shadow:0 8px 24px rgba(0,0,0,.3);font-weight:400;text-transform:none;letter-spacing:0;white-space:normal}
+.tip:hover .tip-text,.tip:focus .tip-text,.tip.active .tip-text{display:block}
+.tip .tip-text::before{content:'';position:absolute;top:-6px;left:14px;width:10px;height:10px;background:var(--card-bg);border-left:1px solid var(--card-border);border-top:1px solid var(--card-border);transform:rotate(45deg)}
+.tip-right .tip-text{left:auto;right:0}
+.tip-right .tip-text::before{left:auto;right:14px}
+
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--R)}
+
+/* ── Attention ── */
+.attn{border-radius:10px;padding:10px 16px;font-size:.82rem;display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;line-height:1.5}
+.attn.error{background:rgba(240,101,72,.1);border:1px solid rgba(240,101,72,.2);color:var(--r)}
+.attn.warn{background:rgba(247,184,75,.08);border:1px solid rgba(247,184,75,.2);color:var(--y)}
+.attn i{flex-shrink:0;margin-top:2px}
+
+/* ── How it works ── */
+.hiw{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--R);padding:16px 20px;margin-bottom:1rem}
+.hiw-toggle{background:none;border:none;color:var(--b);font-size:.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0;width:100%}
+.hiw-toggle:hover{color:var(--p)}
+.hiw-body{display:none;margin-top:12px;font-size:.82rem;color:var(--text-dim);line-height:1.7}
+.hiw-body.show{display:block}
+.hiw-body h6{font-size:.85rem;font-weight:700;color:inherit;margin:12px 0 6px}
+.hiw-body ul{padding-left:18px;margin:4px 0}
+.hiw-step{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--card-border)}
+.hiw-step:last-child{border:none}
+.hiw-num{width:28px;height:28px;border-radius:50%;background:rgba(124,138,239,.15);color:var(--b);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:1rem}
+.kpi{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--R);padding:14px 16px}
+.kpi .lb{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:2px;display:flex;align-items:center;gap:4px}
+.kpi .vl{font-family:'JetBrains Mono',monospace;font-size:1.15rem;font-weight:700;line-height:1.2}
+.kpi .ht{font-size:.75rem;color:var(--muted);margin-top:4px;line-height:1.4}
+
+/* ── Gauges ── */
+.ga-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:1rem}
+.ga{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--R);padding:12px 16px}
+.ga .lb{font-size:.75rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);display:flex;align-items:center;gap:4px}
+.ga-desc{font-size:.75rem;color:var(--muted);line-height:1.4;margin:2px 0 6px}
+.ga-bar{height:8px;background:var(--surface);border-radius:4px;overflow:hidden}
+.ga-fill{height:100%;border-radius:4px;transition:width .5s}
+.ga .nums{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-dim);margin-top:4px}
+
+/* ── Greeks ── */
+.greeks-bar{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:1rem}
+.greek{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--R);padding:14px 16px;text-align:center}
+.greek .sym{font-size:1.3rem;font-weight:300;color:var(--b)}
+.greek .gv{font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:700;margin:2px 0}
+.greek .gl{font-size:.75rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim)}
+.greek .gx{font-size:.75rem;color:var(--muted);margin-top:4px;line-height:1.4}
+
+/* ── Strategy cards ── */
+.sc{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--R);padding:16px;margin-bottom:10px}
+.sc .sh{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.sc .sn{font-weight:700;font-size:.95rem;text-transform:capitalize}
+.sb{padding:3px 10px;border-radius:10px;font-size:.75rem;font-weight:700;letter-spacing:.5px}
+.sb.INCUBATING{background:rgba(247,184,75,.15);color:var(--y);border:1px solid rgba(247,184,75,.3)}
+.sb.GRADUATED{background:rgba(10,179,156,.15);color:var(--g);border:1px solid rgba(10,179,156,.3)}
+.sb.ABORTED{background:rgba(240,101,72,.15);color:var(--r);border:1px solid rgba(240,101,72,.3)}
+.sm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+.sm{text-align:center}
+.sm .mv{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.95rem}
+.sm .ml{font-size:.68rem;text-transform:uppercase;letter-spacing:.3px;color:var(--text-dim)}
+.gc{margin-top:10px}
+.gc-title{font-size:.75rem;font-weight:600;color:var(--text-dim);margin-bottom:6px}
+.gc-items{display:flex;flex-wrap:wrap;gap:5px}
+.gi{font-size:.75rem;padding:3px 9px;border-radius:6px;display:flex;align-items:center;gap:3px}
+.gi.pass{background:rgba(10,179,156,.12);color:var(--g)}
+.gi.fail{background:rgba(240,101,72,.1);color:var(--r)}
+.gi.na{background:rgba(89,98,117,.1);color:var(--muted)}
+
+/* ── Tables ── */
+.dt{font-size:.82rem;width:100%;border-collapse:collapse}
+.dt th{font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);border-bottom:1px solid var(--card-border);padding:8px;text-align:left;white-space:nowrap;position:sticky;top:0;background:var(--card-bg);z-index:1}
+.dt td{border-bottom:1px solid var(--card-border);padding:7px 8px;vertical-align:top}
+.dt tr:last-child td{border:none}
+.dt tr:hover{background:rgba(124,138,239,.04)}
+.pp{color:var(--g);font-weight:600}.pn{color:var(--r);font-weight:600}.pz{color:var(--muted)}
+.src{font-size:.7rem;padding:2px 7px;border-radius:5px;font-weight:600;letter-spacing:.3px}
+.src.autopilot{background:rgba(192,132,252,.15);color:var(--p)}
+.src.manual{background:rgba(89,98,117,.15);color:var(--muted)}
+.rt{max-width:260px;color:var(--text-dim);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.rt.expanded{white-space:normal;overflow:visible;text-overflow:unset}
+
+/* ── Expandable trade detail ── */
+.trade-expand{cursor:pointer}
+.trade-expand:hover{background:rgba(124,138,239,.06) !important}
+.trade-expand td:first-child .bi{transition:transform .2s}
+.trade-expand.open td:first-child .bi{transform:rotate(90deg)}
+.trade-detail{display:none;background:var(--surface);border-bottom:1px solid var(--card-border)}
+.trade-detail.show{display:table-row}
+.expand-hint{font-size:.75rem;color:var(--muted);font-style:italic;padding:6px 8px}
+.leg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:14px 18px}
+.leg-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:12px 14px}
+.leg-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.leg-action{font-weight:700;font-size:.85rem}
+.leg-action.BUY{color:var(--g)}.leg-action.SELL{color:var(--r)}
+.leg-row{display:flex;justify-content:space-between;font-size:.8rem;padding:4px 0;border-bottom:1px solid var(--card-border)}
+.leg-row:last-child{border:none}
+.leg-label{color:var(--text-dim)}
+
+/* ── Risk meter ── */
+.risk-meter{height:10px;background:linear-gradient(90deg,var(--r) 0%,var(--y) 30%,var(--g) 60%,var(--g) 100%);border-radius:5px;position:relative;margin:6px 0}
+.risk-needle{position:absolute;top:-4px;width:3px;height:18px;background:#fff;border-radius:2px;transform:translateX(-50%)}
+.risk-labels{display:flex;justify-content:space-between;font-size:.68rem;color:var(--text-dim)}
+
+/* ── Section ── */
+.sec{margin-bottom:1.4rem}
+.sec-t{font-size:.95rem;font-weight:700;margin-bottom:.4rem;display:flex;align-items:center;gap:6px}
+.sec-t i{color:var(--b);font-size:1rem}
+.sec-desc{font-size:.8rem;color:var(--text-dim);line-height:1.6;margin-bottom:.8rem;padding:10px 14px;background:rgba(124,138,239,.04);border-left:3px solid rgba(124,138,239,.2);border-radius:0 6px 6px 0}
+.sec-desc strong{color:var(--b);font-weight:600}
+.cbtn{background:none;border:none;color:var(--b);font-size:.82rem;cursor:pointer;padding:3px 8px;border-radius:5px}
+.cbtn:hover{background:rgba(124,138,239,.1)}
+
+/* ── Buttons ── */
+.ba{border-radius:8px;font-size:.82rem;font-weight:600;padding:6px 16px;border:none;cursor:pointer;transition:all .2s}
+.ba.en{background:rgba(10,179,156,.15);color:var(--g);border:1px solid rgba(10,179,156,.3)}
+.ba.di{background:rgba(240,101,72,.15);color:var(--r);border:1px solid rgba(240,101,72,.3)}
+.ba.cy{background:rgba(124,138,239,.15);color:var(--b);border:1px solid rgba(124,138,239,.3)}
+.ba.em{background:rgba(240,101,72,.2);color:var(--r);border:2px solid var(--r);font-weight:700}
+.ba:hover{filter:brightness(1.2)}
+
+/* ── Config ── */
+.cr{display:flex;align-items:flex-start;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--card-border);font-size:.82rem;gap:12px}
+.cr:last-child{border:none}
+.cl{color:var(--text-dim);flex:1}
+.cl-name{font-weight:600;color:inherit}
+.cd{display:block;font-size:.75rem;color:var(--muted);font-weight:400;margin-top:2px;line-height:1.4}
+.ci{background:var(--surface);border:1px solid var(--card-border);border-radius:6px;color:inherit;padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:.82rem;width:95px;text-align:right;flex-shrink:0}
+.ci:focus{outline:none;border-color:var(--b)}
+
+/* ── Equity SVG ── */
+.eq-svg{width:100%;height:220px}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+.empty i{font-size:1.5rem;display:block;margin-bottom:8px;color:var(--card-border)}
+
+/* ── Cron banner ── */
+.cron{background:linear-gradient(90deg,rgba(10,179,156,.08),rgba(10,179,156,.03));border:1px solid rgba(10,179,156,.2);border-radius:8px;padding:10px 16px;font-size:.82rem;color:var(--g);display:flex;align-items:center;gap:8px;margin-bottom:1rem;line-height:1.5}
+
+/* ── Monthly ── */
+.mo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:10px}
+.mo-cell{background:var(--surface);border-radius:8px;padding:10px 12px;text-align:center}
+.mo-cell .mm{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.3px}
+.mo-cell .mv{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.95rem;margin:2px 0}
+.mo-cell .mx{font-size:.72rem;color:var(--text-dim);line-height:1.3}
+
+/* ── Decision log ── */
+.la{font-weight:600}
+.la.enter{color:var(--g)}.la.exit{color:var(--y)}.la.skip_entry,.la.skip_exit{color:var(--muted)}
+.la.error{color:var(--r)}.la.preflight_ok,.la.cycle_complete{color:var(--b)}
+.la.preflight_fail{color:var(--r)}.la.no_opportunity{color:var(--text-dim)}
+
+/* ── Error state ── */
+.err-state{background:rgba(240,101,72,.08);border:1px solid rgba(240,101,72,.2);border-radius:10px;padding:16px 20px;text-align:center;margin:1rem 0}
+.err-state i{font-size:1.5rem;color:var(--r);display:block;margin-bottom:6px}
+.err-state .err-msg{font-size:.85rem;color:var(--r)}
+.err-state .err-retry{margin-top:8px}
+
+/* ── Button loading state ── */
+.ba.loading{opacity:.6;pointer-events:none}
+.ba.loading i.bi{display:none}
+.ba.loading::before{content:'';display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;margin-right:6px;vertical-align:middle}
+
+/* ── Chart hover tooltip ── */
+.eq-tip{position:absolute;pointer-events:none;background:var(--card-bg);border:1px solid var(--card-border);border-radius:6px;padding:5px 10px;font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--text-dim);box-shadow:0 4px 12px rgba(0,0,0,.3);white-space:nowrap;z-index:50;display:none}
+
+/* ── Data freshness ── */
+.data-ts{font-size:.72rem;color:var(--muted);text-align:right;margin-top:-4px;margin-bottom:8px}
+
+/* ── Inline confirm modal ── */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:4000;display:flex;align-items:center;justify-content:center;padding:16px}
+.confirm-box{background:var(--card-bg);border:2px solid var(--r);border-radius:14px;padding:24px;max-width:420px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.4);animation:toastIn .2s ease}
+.confirm-box h3{color:var(--r);font-size:1.1rem;font-weight:800;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.confirm-box ol{color:var(--text-dim);font-size:.85rem;line-height:1.7;padding-left:20px;margin:10px 0 16px}
+.confirm-box .cb-safe{font-size:.8rem;color:var(--g);margin-bottom:14px}
+.confirm-box .cb-btns{display:flex;gap:10px;justify-content:flex-end}
+
+/* ── Config validation ── */
+.ci.invalid{border-color:var(--r);box-shadow:0 0 0 2px rgba(240,101,72,.2)}
+.ci-err{font-size:.68rem;color:var(--r);margin-top:1px;display:none}
+.ci.invalid+.ci-err{display:block}
+
+/* ── Load more ── */
+.load-more{text-align:center;padding:10px}
+.load-more button{background:rgba(124,138,239,.1);border:1px solid rgba(124,138,239,.2);color:var(--b);border-radius:8px;padding:6px 20px;font-size:.82rem;cursor:pointer;font-weight:600}
+.load-more button:hover{background:rgba(124,138,239,.2)}
+
+/* ── Responsive chart ── */
+@media(max-width:600px){.eq-svg{height:160px}}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+{% include "_live_ticker.html" %}
+
+<!-- Connection status bar -->
+<div id="connBar" class="conn-bar"></div>
+
+<!-- Initial loading -->
+<div id="loader" class="loading-overlay show"><div class="spinner"></div><div style="font-size:.85rem">Loading dashboard...</div></div>
+
+<div class="hero">
+<div class="container-fluid px-4">
+  <div class="d-flex align-items-center gap-3">
+    <h1><i class="bi bi-robot"></i> Autopilot</h1>
+    <span id="sp" class="spill off"><span class="dot"></span><span id="st">DISABLED</span></span>
+  </div>
+  <div class="hero-sub">Davey Ch.14 autonomous incubation engine. Paper-trades your INCUBATING strategies on a cron schedule, manages entries and exits, enforces risk circuit-breakers, and tracks all 11 graduation criteria — so you can evaluate strategies without screen-time.</div>
+  <div class="srow">
+    <span class="si tip" tabindex="0" onclick="this.classList.toggle('active')"><i class="bi bi-key"></i> Token: <strong id="tok">--</strong><span class="tip-text">Dhan API access token. Needed for live spot price and IV data. Valid for ~24h. Renew from your Dhan console when expired. Without a valid token, autopilot cannot fetch market data.</span></span>
+    <span class="si tip" tabindex="0" onclick="this.classList.toggle('active')"><i class="bi bi-clock"></i> Last cycle: <strong id="lc">--</strong><span class="tip-text">When the last autopilot cycle ran. Each cycle checks exits on open trades first, then scans for new entry opportunities. If this is stale (>6h on a trading day), cron may have failed.</span></span>
+    <span class="si tip tip-right" tabindex="0" onclick="this.classList.toggle('active')"><i class="bi bi-calendar-check"></i> Schedule: <strong id="scT">09:45, 15:20</strong><span class="tip-text">Cron schedule (IST, Mon-Fri only). 09:45 = morning entry scan after market opens. 15:20 = afternoon exit check before close. Auto-installed when you click Enable.</span></span>
+    <span class="si tip tip-right" tabindex="0" onclick="this.classList.toggle('active')"><i class="bi bi-lightning"></i> Today: <strong id="tcyc">0</strong><span class="tip-text">Number of completed autopilot cycles today. You can also trigger manual cycles with "Run Cycle Now" for immediate action.</span></span>
+    <span class="live-pill slow" id="livePill"><span class="ldot"></span><span id="liveText">30s</span></span>
+  </div>
+  <div class="d-flex flex-wrap gap-2 mt-2">
+    <button class="ba en" id="bE" onclick="tog(1)"><i class="bi bi-power"></i> Enable</button>
+    <button class="ba di" id="bD" onclick="tog(0)" style="display:none"><i class="bi bi-pause-fill"></i> Disable</button>
+    <button class="ba cy tip" onclick="cyc()" tabindex="0"><i class="bi bi-arrow-repeat"></i> Run Cycle Now<span class="tip-text" style="top:calc(100% + 8px);left:-40px">Runs one full cycle immediately: check all open trade exit conditions, then scan for new entries. Same logic as what cron runs on schedule. Results appear in the Decision Log below.</span></button>
+    <button class="ba em ms-auto" onclick="emg()"><i class="bi bi-exclamation-triangle-fill"></i> Emergency Stop</button>
+  </div>
+</div>
+</div>
+
+<div class="container-fluid px-4 py-3">
+
+<!-- ═══ Cron status ═══ -->
+<div id="cron" class="cron" style="display:none">
+  <i class="bi bi-check-circle-fill"></i> <span id="cronMsg">Cron jobs auto-installed</span>
+</div>
+
+<!-- Data freshness -->
+<div class="data-ts" id="dataTs"></div>
+
+<!-- ═══ How it works ═══ -->
+<div class="hiw">
+  <button class="hiw-toggle" onclick="togS('hiwB')"><i class="bi bi-lightbulb"></i> How does Autopilot work? <i class="bi bi-chevron-down ms-auto"></i></button>
+  <div id="hiwB" class="hiw-body">
+    <div class="hiw-step"><div class="hiw-num">1</div><div><strong>Enable</strong> — Installs 2 cron jobs (09:45 entry scan, 15:20 exit check). Runs Mon-Fri automatically, no manual intervention.</div></div>
+    <div class="hiw-step"><div class="hiw-num">2</div><div><strong>Entry Scan (09:45)</strong> — For each INCUBATING strategy, autopilot calls <code>recommend()</code> to find option setups, scores them (0-10), and enters trades scoring above your Min Score.</div></div>
+    <div class="hiw-step"><div class="hiw-num">3</div><div><strong>Exit Check (15:20)</strong> — For each open trade: hit profit target? hit stop loss? DTE too low? If any exit condition triggers, closes the trade and logs the reason.</div></div>
+    <div class="hiw-step"><div class="hiw-num">4</div><div><strong>Risk Controls</strong> — Before every entry, 4 circuit breakers are checked: max drawdown, daily loss, consecutive losses, capital deployed. ANY trip → skip new entries until clear.</div></div>
+    <div class="hiw-step"><div class="hiw-num">5</div><div><strong>Graduation</strong> — After each trade, metrics update. Once ALL 11 Davey Ch.14 criteria pass (30+ trades, 3+ months, return efficiency 70-130%, etc.), the strategy GRADUATES for real capital.</div></div>
+    <h6>Key terms for options beginners</h6>
+    <ul>
+      <li><strong>BSM (Black-Scholes-Merton)</strong> — Mathematical model to calculate fair option premium from spot price, strike, time to expiry, interest rate, and implied volatility</li>
+      <li><strong>Delta (Δ)</strong> — How much option price changes per ₹1 move in the underlying. Delta 0.5 = option gains ₹0.50 if NIFTY rises ₹1</li>
+      <li><strong>Gamma (Γ)</strong> — How fast Delta itself changes. High gamma near strikes = Delta can flip quickly</li>
+      <li><strong>Theta (Θ)</strong> — Daily time decay. Options lose value every day. Sellers earn theta, buyers pay it. Accelerates near expiry</li>
+      <li><strong>Vega (ν)</strong> — Sensitivity to implied volatility changes. Rising IV inflates premiums; falling IV deflates them</li>
+      <li><strong>DTE (Days To Expiry)</strong> — Calendar days until the option contract expires. Low DTE = high theta decay + pin risk</li>
+      <li><strong>IV (Implied Volatility)</strong> — Market's expectation of future price swings, embedded in option prices. Higher IV = more expensive options</li>
+      <li><strong>WFA (Walk-Forward Analysis)</strong> — Backtest method that trains on past data and tests on unseen future data, preventing curve-fitting</li>
+      <li><strong>Profit Factor</strong> — Total winning ₹ ÷ Total losing ₹. Above 1.0 = net profitable. Above 1.5 = healthy edge</li>
+      <li><strong>Return Efficiency</strong> — Actual return ÷ WFA expected return. 70-130% = strategy performing as expected. Below 70% = underperforming</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══ Attention ═══ -->
+<div id="attnBox"></div>
+
+<!-- ═══ Error state (shown if API fails) ═══ -->
+<div id="errState" class="err-state" style="display:none">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  <div class="err-msg" id="errMsg">Failed to load dashboard data</div>
+  <div class="err-retry"><button class="ba cy" onclick="load()"><i class="bi bi-arrow-clockwise"></i> Retry</button></div>
+</div>
+
+<!-- ═══ Portfolio KPIs ═══ -->
+<div class="sec" id="mainContent">
+  <div class="sec-t"><i class="bi bi-speedometer2"></i> Portfolio Overview</div>
+  <div class="sec-desc">Paper-trading account snapshot. <strong>Net P/L</strong> = closed trades after all costs (brokerage + STT + GST). <strong>Unrealized</strong> = open positions valued via BSM — not final until closed. <strong>Cost Drag</strong> = how much fees eat from gross edge. NSE options cost ~₹40-60/lot round-trip; a high drag can flip a marginal strategy negative.</div>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="lb"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Capital<span class="tip-text">The total paper-trading capital allocated for position sizing. This is your starting balance — autopilot sizes each trade as a fraction of this, minus the capital reserve.</span></span></div><div class="vl" id="kCap">--</div><div class="ht">Starting paper capital</div></div>
+    <div class="kpi"><div class="lb"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Net P/L (Realized)<span class="tip-text">Sum of all closed trades after deducting brokerage, STT, exchange fees, and GST. This is your ACTUAL edge — the money you keep. Compare against WFA expected return to gauge strategy health.</span></span></div><div class="vl" id="kPnl">--</div><div class="ht" id="kPnlX">After all trading costs</div></div>
+    <div class="kpi"><div class="lb"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Unrealized P/L<span class="tip-text">Paper profit/loss on positions still open, calculated using BSM model with current NIFTY spot and implied volatility. This number changes every cycle and is not locked in until the trade closes.</span></span></div><div class="vl" id="kUnreal">--</div><div class="ht">BSM mark-to-model on open trades</div></div>
+    <div class="kpi"><div class="lb"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Win Rate<span class="tip-text">Percentage of closed trades that ended in profit. Target: ≥45% for credit spreads (smaller wins, larger losses), ≥55% for directional trades. Win rate alone doesn't determine profitability — the ratio of avg win to avg loss matters equally.</span></span></div><div class="vl" id="kWR">--</div><div class="ht" id="kWRx">% of trades in profit</div></div>
+    <div class="kpi"><div class="lb"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Profit Factor<span class="tip-text">Total ₹ from winning trades ÷ Total ₹ from losing trades. Above 1.0 = net profitable. Above 1.5 = healthy edge. Above 2.0 = exceptional. Below 1.0 = strategy is losing money overall.</span></span></div><div class="vl" id="kPF">--</div><div class="ht">Σ wins ÷ |Σ losses|</div></div>
+    <div class="kpi"><div class="lb"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Avg Win / Avg Loss<span class="tip-text">Average ₹ per winning trade vs average ₹ per losing trade. If your average loss is bigger than your average win, you need a high win rate to compensate. Ideally, Avg Win ≥ Avg Loss.</span></span></div><div class="vl" id="kAWL">--</div><div class="ht">₹ per winning vs losing trade</div></div>
+    <div class="kpi"><div class="lb"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Total Trades<span class="tip-text">Number of closed trades. Davey Ch.14 requires 30+ trades for statistical significance before graduating a strategy. With fewer trades, results might be due to luck rather than a real edge.</span></span></div><div class="vl" id="kTT">--</div><div class="ht">Need 30+ for graduation</div></div>
+    <div class="kpi"><div class="lb"><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Cost Drag<span class="tip-text">Trading costs (brokerage + STT + exchange + GST) as a percentage of gross P/L. A 15% cost drag means ₹15 out of every ₹100 gross profit goes to fees. If cost drag exceeds your gross edge, the strategy loses money in live trading.</span></span></div><div class="vl" id="kCost">--</div><div class="ht" id="kCostX">Costs as % of gross P/L</div></div>
+  </div>
+</div>
+
+<!-- ═══ Monthly Summary ═══ -->
+<div class="sec" id="moSec" style="display:none">
+  <div class="sec-t"><i class="bi bi-calendar3"></i> Monthly P/L Trend</div>
+  <div class="sec-desc">Month-by-month breakdown. <strong>Consistent positive months</strong> = real edge. A single big month propping up the total = fragile. Watch for declining win rates across months — that signals strategy decay or regime change.</div>
+  <div id="moBox"></div>
+</div>
+
+<!-- ═══ Risk Gauges ═══ -->
+<div class="sec">
+  <div class="sec-t"><i class="bi bi-shield-check"></i> Risk Circuit Breakers</div>
+  <div class="sec-desc">Automatic safety limits. <strong style="color:var(--g)">Green</strong> = safe, <strong style="color:var(--y)">Yellow</strong> = caution (&gt;40%), <strong style="color:var(--r)">Red</strong> = danger (&gt;70%). At 100%, autopilot stops opening new trades until the condition clears.</div>
+  <div class="ga-grid">
+    <div class="ga"><div class="lb"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Drawdown<span class="tip-text">Peak-to-trough decline in your equity curve. If your capital peaked at ₹5.2L and is now ₹4.8L, your drawdown is 7.7%. Exceeding the max drawdown limit (default 15%) triggers an automatic pause to prevent further losses.</span></span></div><div class="ga-desc">Peak-to-trough equity decline</div><div class="ga-bar"><div class="ga-fill" id="gDD" style="width:0%"></div></div><div class="nums"><span id="gDDv">0%</span><span id="gDDm">Max 15%</span></div></div>
+    <div class="ga"><div class="lb"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Daily Loss<span class="tip-text">Total P/L today (realized + unrealized). Prevents compounding losses in a single bad session. If NIFTY gaps against you and all positions move adversely, this cap prevents the autopilot from adding more losing trades on the same day.</span></span></div><div class="ga-desc">Today's realized + unrealized P/L</div><div class="ga-bar"><div class="ga-fill" id="gDL" style="width:0%"></div></div><div class="nums"><span id="gDLv">₹0</span><span id="gDLm">Limit -₹15k</span></div></div>
+    <div class="ga"><div class="lb"><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Consec. Losses<span class="tip-text">Number of losing trades in a row. A long losing streak suggests the market regime has shifted away from what the strategy expects. Autopilot pauses for you to review whether conditions have changed before continuing.</span></span></div><div class="ga-desc">Losing streak — pauses for review if too long</div><div class="ga-bar"><div class="ga-fill" id="gCL" style="width:0%"></div></div><div class="nums"><span id="gCLv">0</span><span id="gCLm">Max 5</span></div></div>
+    <div class="ga"><div class="lb"><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Capital Deployed<span class="tip-text">Percentage of your capital currently tied up in open positions (margin). The remaining capital (reserve) stays liquid for adjustments, rolling positions, or absorbing adverse moves. Default cap is 70% deployed.</span></span></div><div class="ga-desc">% of capital in open positions</div><div class="ga-bar"><div class="ga-fill" id="gCU" style="width:0%"></div></div><div class="nums"><span id="gCUv">0%</span><span id="gCUm">Cap 70%</span></div></div>
+  </div>
+</div>
+
+<!-- ═══ Portfolio Greeks ═══ -->
+<div class="sec" id="greekSec" style="display:none">
+  <div class="sec-t"><i class="bi bi-graph-up"></i> Portfolio Greeks</div>
+  <div class="sec-desc">Aggregate risk sensitivities across all open positions, computed via BSM with current spot and IV. Greeks tell you <em>how</em> your portfolio reacts to market changes — essential for knowing your real exposure.</div>
+  <div class="greeks-bar">
+    <div class="greek"><div class="sym">Δ</div><div class="gv" id="gkD">0</div><div class="gl"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Delta<span class="tip-text">Net directional exposure. Positive = bullish (you profit when NIFTY rises). Negative = bearish. Delta of +50 means you gain ~₹50 per 1-point rise in NIFTY, across all open positions combined.</span></span></div><div class="gx">Directional exposure per 1pt NIFTY move</div></div>
+    <div class="greek"><div class="sym">Γ</div><div class="gv" id="gkG">0</div><div class="gl"><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Gamma<span class="tip-text">Rate of change of Delta. High gamma means your directional exposure can flip quickly with a large NIFTY move. Most dangerous near option strikes close to expiry — a 100pt move could turn a neutral position strongly directional.</span></span></div><div class="gx">How fast Delta shifts with spot moves</div></div>
+    <div class="greek"><div class="sym">Θ</div><div class="gv" id="gkT">0</div><div class="gl"><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Theta<span class="tip-text">Daily time decay in ₹. Negative = you're paying theta (long options decay against you). Positive = you're earning theta (credit spreads / short options decay in your favor). Theta accelerates exponentially as DTE approaches zero.</span></span></div><div class="gx" id="gkTx">Daily time decay cost/income</div></div>
+    <div class="greek"><div class="sym">ν</div><div class="gv" id="gkV">0</div><div class="gl"><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Vega<span class="tip-text">Sensitivity to implied volatility changes, in ₹ per 1% IV change. Positive = you benefit from rising IV (long volatility). Negative = you benefit from falling IV (short volatility). Watch this before events like RBI policy, elections, or earnings.</span></span></div><div class="gx">₹ P/L per 1% IV change</div></div>
+  </div>
+</div>
+
+<!-- ═══ Strategy Scorecard ═══ -->
+<div class="sec">
+  <div class="sec-t"><i class="bi bi-bullseye"></i> Strategy Scorecard</div>
+  <div class="sec-desc">Each strategy incubates 3-6 months (Davey Ch.14). Paper performance is compared against WFA backtest expectations. <strong>Return Efficiency</strong> = actual ÷ expected (70-130% = healthy). <strong>All graduation criteria must be green</strong> before real capital.</div>
+  <div id="sCards"><div class="empty"><i class="bi bi-hourglass"></i>No strategies incubating yet</div></div>
+</div>
+
+<!-- ═══ Open Positions ═══ -->
+<div class="sec">
+  <div class="sec-t"><i class="bi bi-wallet2"></i> Open Positions <span id="oCnt" class="fm" style="font-size:.78rem;color:var(--b)"></span></div>
+  <div class="sec-desc"><strong>Click any row to expand</strong> per-leg detail: BSM-repriced premiums, individual greeks, breakeven levels, and what-if scenarios (NIFTY ±1% to ±5%). The <strong>Risk Position</strong> meter shows where the trade sits between max-loss (left, red) and max-profit (right, green).</div>
+  <div class="card"><div style="overflow-x:auto">
+    <table class="dt"><thead><tr>
+      <th style="width:24px"></th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">#<span class="tip-text">Trade ID — unique identifier for this position in the database</span></span></th>
+      <th>Symbol</th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Strategy<span class="tip-text">The option strategy type (e.g., bull put spread, long strangle). Determines leg structure, profit/loss profile, and exit rules.</span></span></th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Days<span class="tip-text">Calendar days since trade was opened. Longer holding periods increase theta decay exposure.</span></span></th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Entry Spot<span class="tip-text">NIFTY spot price when the trade was entered. Compare with current spot to understand the underlying's movement since entry.</span></span></th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">DTE<span class="tip-text">Days To Expiry — how many days until the option contract expires. Low DTE = high theta decay + increased gamma risk. Autopilot auto-exits when DTE hits the configured threshold.</span></span></th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Unrealized P/L<span class="tip-text">Paper profit/loss based on BSM repricing with current spot and IV. Green = profitable, Red = losing. Not locked in until the trade is closed.</span></span></th>
+      <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Risk Position<span class="tip-text">Visual meter showing where the trade sits between max loss (left, red) and max profit (right, green). Needle position = current P/L relative to the strategy's defined risk/reward. BE = breakeven level(s).</span></span></th>
+      <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Θ/day<span class="tip-text">This trade's daily theta — how much ₹ you gain or lose per day just from time passing. Red = paying theta (long options). Green = earning theta (short/spreads).</span></span></th>
+      <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Δ<span class="tip-text">This trade's net delta — directional exposure. Positive = profits if NIFTY rises. Negative = profits if NIFTY falls.</span></span></th>
+      <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Source<span class="tip-text">Who opened this trade: "autopilot" = opened automatically by the engine, "manual" = opened by you through the Paper Trade page.</span></span></th>
+    </tr></thead><tbody id="oBody"><tr><td colspan="12" class="empty">Loading...</td></tr></tbody></table>
+  </div></div>
+</div>
+
+<!-- ═══ Equity ═══ -->
+<div class="sec" id="eqSec" style="display:none">
+  <div class="sec-t"><i class="bi bi-graph-up-arrow"></i> Equity Curve</div>
+  <div class="sec-desc">Cumulative P/L over time. Hover dots for exact values. A smooth upward curve = consistent edge. Large spikes/dips = volatile returns. Davey Ch.23: equity should stay within 2σ bands of WFA expected return to pass incubation.</div>
+  <div class="card" style="padding:14px;position:relative"><svg id="eqSvg" class="eq-svg" viewBox="0 0 700 220"></svg><div class="eq-tip" id="eqTip"></div></div>
+</div>
+
+<!-- ═══ Trade History ═══ -->
+<div class="sec">
+  <div class="sec-t"><i class="bi bi-journal-text"></i> Trade History <span id="cCnt" class="fm" style="font-size:.78rem;color:var(--text-dim)"></span></div>
+  <div class="sec-desc">Closed trades with full cost breakdown. <strong>Gross</strong> = raw P/L from premium change. <strong>Costs</strong> = brokerage + STT + exchange + GST. <strong>Net</strong> = what you keep. Compare Spot In→Out to see how the underlying moved during your hold.</div>
+  <div class="card"><div style="overflow-x:auto;max-height:500px;overflow-y:auto">
+    <table class="dt"><thead><tr>
+      <th>#</th><th>Symbol</th><th>Strategy</th><th>Opened</th><th>Closed</th><th>Days</th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Spot In→Out<span class="tip-text">NIFTY spot price at entry and exit. Shows how much the underlying moved during your trade's holding period.</span></span></th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Gross<span class="tip-text">Raw P/L from the change in option premiums, before any trading costs are deducted.</span></span></th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Costs<span class="tip-text">Total trading costs: Dhan brokerage (₹20/order) + STT + exchange transaction charges + SEBI fees + stamp duty + GST on brokerage.</span></span></th>
+      <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Net P/L<span class="tip-text">Final profit/loss after deducting all costs from gross P/L. This is what you actually keep — the true measure of the trade's outcome.</span></span></th>
+      <th>Source</th><th>Exit Reason</th>
+    </tr></thead><tbody id="cBody"><tr><td colspan="12" class="empty"><i class="bi bi-clock-history"></i>No closed trades yet</td></tr></tbody></table>
+  </div></div>
+  <div class="load-more" id="closedMore" style="display:none"><button onclick="rClosedPage()">Load more</button></div>
+</div>
+
+<!-- ═══ Decision Log ═══ -->
+<div class="sec">
+  <div class="sec-t"><i class="bi bi-journal-code"></i> Decision Log
+    <button class="cbtn ms-auto" onclick="togS('logC')"><i class="bi bi-chevron-down"></i></button>
+    <button class="ba cy" onclick="loadLog()" style="padding:3px 10px;font-size:.75rem"><i class="bi bi-arrow-clockwise"></i></button>
+  </div>
+  <div class="sec-desc">Full audit trail. <strong>enter</strong> = position opened. <strong>exit</strong> = position closed. <strong>skip_entry</strong> = opportunity found but rejected (score too low, risk limit hit, etc). A high skip rate with good reasons = autopilot being selective, which is healthy.</div>
+  <div id="logC" class="card"><div style="overflow-x:auto;max-height:400px;overflow-y:auto">
+    <table class="dt"><thead><tr>
+      <th>Time</th><th>Type</th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Action<span class="tip-text">What autopilot did: enter (opened trade), exit (closed trade), skip_entry (found opportunity but rejected), skip_exit (checked but not time yet), preflight_ok/fail (pre-cycle checks), no_opportunity (nothing found).</span></span></th>
+      <th>Symbol</th><th>Strategy</th>
+      <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Score<span class="tip-text">Strategy score out of 10. Combines market condition assessment, volatility regime, and strategy-specific signals. Only trades scoring above your Min Score threshold (default 7.0) are entered.</span></span></th>
+      <th>Reason</th>
+    </tr></thead>
+    <tbody id="logB"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody></table>
+  </div></div>
+</div>
+
+<!-- ═══ Config ═══ -->
+<div class="sec">
+  <div class="sec-t"><i class="bi bi-gear"></i> Configuration
+    <button class="cbtn ms-auto" onclick="togS('cfgC')"><i class="bi bi-chevron-down"></i></button>
+    <button class="ba cy" onclick="saveCfg()" style="padding:3px 10px;font-size:.75rem"><i class="bi bi-check2"></i> Save</button>
+  </div>
+  <div class="sec-desc">Autopilot settings — changes take effect on the next cycle. <strong>DTE exit</strong> = auto-close when days-to-expiry hits this level (prevents pin risk and gamma explosion). <strong>Reserve %</strong> = capital kept liquid.</div>
+  <div id="cfgC" class="card" style="display:none"><div class="p-3"><div class="row">
+    <div class="col-md-6">
+      <div class="cr"><span class="cl"><span class="cl-name">Symbols</span><span class="cd">Underlyings to scan (comma separated)</span></span><input class="ci" id="cS" value="NIFTY" style="width:120px"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Capital (₹)</span><span class="cd">Paper capital for position sizing</span></span><input class="ci" id="cCa" type="number" value="500000"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Min Score</span><span class="cd">Only enter if strategy scores ≥ this (max 10)</span></span><input class="ci" id="cMS" type="number" step="0.5" value="7.0"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Max Concurrent</span><span class="cd">Max open trades across all strategies</span></span><input class="ci" id="cMC" type="number" value="3"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Reserve %</span><span class="cd">Capital kept out of trades, stays liquid</span></span><input class="ci" id="cR" type="number" value="30"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Profit Target %</span><span class="cd">Auto-close when trade hits this % of max profit</span></span><input class="ci" id="cPT" type="number" value="50"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Stop Loss ×</span><span class="cd">Exit at N × max loss per lot. 1.0 = exact max loss</span></span><input class="ci" id="cSL" type="number" step="0.1" value="1.0"></div>
+    </div><div class="col-md-6">
+      <div class="cr"><span class="cl"><span class="cl-name">Max Daily Loss (₹)</span><span class="cd">Pause autopilot if today's losses hit this</span></span><input class="ci" id="cDL" type="number" value="15000"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Max Drawdown %</span><span class="cd">Pause if peak-to-trough decline exceeds this</span></span><input class="ci" id="cDD" type="number" value="15"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Max Trades/Day</span><span class="cd">Limit new entries per day (prevents overtrading)</span></span><input class="ci" id="cTD" type="number" value="2"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Max Consec Losses</span><span class="cd">Pause after N consecutive losing trades</span></span><input class="ci" id="cCL" type="number" value="5"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Weekly DTE Exit</span><span class="cd">Auto-close weekly options at this many days before expiry</span></span><input class="ci" id="cWD" type="number" value="1"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Monthly DTE Exit</span><span class="cd">Auto-close monthly options at this many days before expiry</span></span><input class="ci" id="cMD" type="number" value="2"></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Only INCUBATING</span><span class="cd">Only trade strategies still incubating</span></span><label class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="cIn" checked></label></div>
+    </div>
+  </div></div></div>
+</div>
+
+</div>
+<!-- Emergency confirm modal -->
+<div id="emgModal" class="confirm-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="confirm-box">
+    <h3><i class="bi bi-exclamation-triangle-fill"></i> Emergency Stop</h3>
+    <ol>
+      <li>Disable autopilot immediately</li>
+      <li>Close ALL autopilot trades at entry price</li>
+      <li>Remove cron jobs</li>
+    </ol>
+    <div class="cb-safe"><i class="bi bi-shield-check"></i> Manual trades are NOT affected</div>
+    <div class="cb-btns">
+      <button class="ba cy" onclick="$('emgModal').style.display='none'">Cancel</button>
+      <button class="ba em" id="emgConfirm" onclick="doEmg()"><i class="bi bi-exclamation-triangle-fill"></i> Confirm Stop</button>
+    </div>
+  </div>
+</div>
+<div id="tw" class="toast-wrap"></div>
+
+<script>
+const A='/api/options/autopilot';
+const $=id=>document.getElementById(id);
+let _lastOk=Date.now(),_failCount=0;
+const _CACHE_KEY='autopilot_dashboard_cache';
+const _TRADE_PAGE=50;
+let _allClosed=[],_closedShown=0;
+
+// Config bounds — mirrors server-side _CONFIG_BOUNDS
+const _BOUNDS={cCa:[100000,10000000],cMS:[1,10],cMC:[1,5],cR:[10,80],cPT:[20,90],cSL:[0.5,3],cDL:[1000,500000],cDD:[5,50],cTD:[1,5],cCL:[2,20],cWD:[0,3],cMD:[1,7]};
+
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function toast(m,t='info'){const d=document.createElement('div');d.className='toast-msg '+t;d.innerHTML='<i class="bi bi-'+(t==='error'?'exclamation-circle':'check-circle')+'"></i> '+esc(m);$('tw').appendChild(d);setTimeout(()=>d.remove(),4500)}
+function F(v){return v==null?'--':'₹'+Number(v).toLocaleString('en-IN',{maximumFractionDigits:0})}
+function pc(v){return v==null?'--':v.toFixed(1)+'%'}
+function pcl(v){return v>0?'pp':v<0?'pn':'pz'}
+function ps(v){return v>0?'+'+F(v):F(v)}
+function togS(id){const e=$(id);if(!e)return;if(e.classList.contains('hiw-body')){e.classList.toggle('show')}else{e.style.display=e.style.display==='none'?'':'none'}}
+
+// Close tips when clicking outside
+document.addEventListener('click',e=>{if(!e.target.closest('.tip')){document.querySelectorAll('.tip.active').forEach(t=>t.classList.remove('active'))}});
+
+function showConn(type,msg){const b=$('connBar');b.className='conn-bar '+type;b.textContent=msg}
+function hideConn(){$('connBar').className='conn-bar'}
+
+// localStorage cache helpers
+function cacheSet(d){try{localStorage.setItem(_CACHE_KEY,JSON.stringify({ts:Date.now(),data:d}))}catch(e){}}
+function cacheGet(){try{const raw=localStorage.getItem(_CACHE_KEY);if(!raw)return null;return JSON.parse(raw)}catch(e){return null}}
+
+function renderDash(d,stale){
+  $('loader').classList.remove('show');
+  $('errState').style.display='none';
+  $('mainContent').style.display='';
+  if(stale){
+    const ago=Math.round((Date.now()-stale)/60000);
+    $('dataTs').textContent='⚠ Showing cached data from '+ago+' min ago — server unavailable';
+    $('dataTs').style.color='var(--y)';
+  }else{
+    $('dataTs').textContent='Data as of '+new Date().toLocaleString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',day:'numeric',month:'short'});
+    $('dataTs').style.color='';
+  }
+
+  const en=d.config?.enabled;
+  $('sp').className='spill '+(en?'on':'off');$('st').textContent=en?'ENABLED':'DISABLED';
+  $('bE').style.display=en?'none':'';$('bD').style.display=en?'':'none';
+  if(en){$('cron').style.display='';const st=(d.config?.scan_times||[]).join(' & ');$('cronMsg').textContent='Autopilot active — cron auto-runs at '+st+' IST on weekdays. Entry scans, exit checks, and risk limits all automated.'}else{$('cron').style.display='none'}
+
+  const tk=d.token||{};const te=$('tok');
+  if(tk.active){te.textContent=tk.remaining_hours?.toFixed(1)+'h';te.style.color=tk.remaining_hours<2?'var(--y)':'var(--g)'}
+  else{te.textContent='EXPIRED';te.style.color='var(--r)'}
+
+  if(d.last_cycle){const ts=d.last_cycle.timestamp||'';$('lc').textContent=ts?new Date(ts).toLocaleString('en-IN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Never'}else{$('lc').textContent='Never'}
+  $('scT').textContent=(d.config?.scan_times||[]).join(', ');
+  $('tcyc').textContent=d.today_cycles||0;
+
+  const att=d.attention||[];
+  $('attnBox').innerHTML=att.map(a=>`<div class="attn ${esc(a.level)}"><i class="bi bi-${esc(a.icon)}"></i> ${esc(a.msg)}</div>`).join('');
+
+  const p=d.portfolio||{};
+  $('kCap').textContent=F(p.starting_capital);
+  const pe=$('kPnl');pe.textContent=ps(p.total_pnl);pe.className='vl '+pcl(p.total_pnl);
+  $('kPnlX').textContent=(p.total_pnl>=0?'+':'')+p.total_pnl_pct+'% return · Costs: '+F(p.total_costs);
+  const ue=$('kUnreal');ue.textContent=ps(p.total_unrealized);ue.className='vl '+pcl(p.total_unrealized);
+  $('kWR').textContent=p.total_trades>0?p.win_rate+'%':'--';
+  $('kWRx').textContent=p.total_trades>0?p.total_wins+'W / '+p.total_losses+'L of '+p.total_trades+' trades':'No closed trades yet';
+  $('kPF').textContent=p.total_trades>0?p.profit_factor.toFixed(2):'--';
+  $('kAWL').textContent=p.total_trades>0?F(p.avg_win)+' / '+F(p.avg_loss):'--';
+  $('kTT').textContent=p.total_trades;
+  $('kCost').textContent=p.cost_drag_pct+'%';
+  $('kCostX').textContent='₹'+((p.total_costs||0)/1000).toFixed(1)+'k costs from gross P/L';
+
+  rMonthly(d.monthly_summary||[]);
+
+  const pg=d.portfolio_greeks||{};
+  const hasOpen=(d.open_trades||[]).length>0;
+  $('greekSec').style.display=hasOpen?'':'none';
+  if(hasOpen){
+    $('gkD').textContent=pg.delta?.toFixed(1)||'0';
+    $('gkG').textContent=pg.gamma?.toFixed(3)||'0';
+    const th=pg.theta_daily||0;
+    $('gkT').textContent=F(th);$('gkT').style.color=th<0?'var(--r)':'var(--g)';
+    $('gkTx').textContent=th<0?'Losing '+F(Math.abs(th))+'/day to time decay':'Earning '+F(th)+'/day from theta';
+    $('gkV').textContent=pg.vega?.toFixed(1)||'0';
+  }
+
+  const rk=d.risk||{};
+  sGa('gDD',rk.dd_pct/Math.max(1,rk.max_dd_pct));$('gDDv').textContent=pc(rk.dd_pct);$('gDDm').textContent='Max '+pc(rk.max_dd_pct);
+  sGa('gDL',Math.abs(rk.daily_pnl)/Math.max(1,rk.max_daily_loss),rk.daily_pnl<0);$('gDLv').textContent=F(rk.daily_pnl);$('gDLm').textContent='Limit -'+F(rk.max_daily_loss);
+  sGa('gCL',rk.consec_losses/Math.max(1,rk.max_consec_losses));$('gCLv').textContent=rk.consec_losses;$('gCLm').textContent='Max '+rk.max_consec_losses;
+  sGa('gCU',rk.capital_utilization/100);$('gCUv').textContent=pc(rk.capital_utilization);$('gCUm').textContent=(100-(d.config?.capital_reserve_pct||30))+'% cap';
+
+  rStrat(d.strategies||[]);
+  rOpen(d.open_trades||[]);
+  rEquity(d.equity_curve||[]);
+  _allClosed=d.closed_trades||[];_closedShown=0;rClosedPage();
+  // popCfg moved to wrapper — skipped when user is editing config
+}
+
+let _loading=false;
+async function load(){
+if(_loading)return; // prevent concurrent fetches
+_loading=true;
+try{
+  if(_inflight)_inflight.abort();
+  _inflight=new AbortController();
+  const r=await fetch(A+'/dashboard',{signal:_inflight.signal});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  if(d.error){throw new Error(d.error)}
+
+  _lastOk=Date.now();_failCount=0;
+  hideConn();
+  // Cache without closed_trades to keep localStorage small
+  const lite=Object.assign({},d);delete lite.closed_trades;
+  cacheSet(lite);
+  renderDash(d,null);
+
+}catch(e){
+  if(e.name==='AbortError')return; // tab hidden, ignore
+  console.error(e);_failCount++;
+  $('loader').classList.remove('show');
+
+  // Try localStorage cache on first failure
+  if(_failCount===1){
+    const cached=cacheGet();
+    if(cached){renderDash(cached.data,cached.ts);showConn('stale','⚠ Using cached data — server unavailable');return}
+  }
+  if(_failCount>=3){
+    $('errState').style.display='';$('errMsg').textContent='Dashboard unavailable: '+e.message;
+  }
+  const staleMin=Math.round((Date.now()-_lastOk)/60000);
+  if(staleMin>1)showConn('stale','⚠ Data is '+staleMin+' min stale — server may be down');
+  else if(_failCount>=2)showConn('error','Connection lost — retrying...');
+}finally{_loading=false;_inflight=null}}
+
+function sGa(id,ratio,neg){const f=$(id);const w=Math.min(100,Math.max(0,(ratio||0)*100));f.style.width=w+'%';f.style.background=ratio>.7?'var(--r)':ratio>.4?'var(--y)':neg?'var(--y)':'var(--g)'}
+
+function rStrat(ss){
+  const el=$('sCards');
+  if(!ss.length){el.innerHTML='<div class="empty"><i class="bi bi-hourglass"></i>No strategies incubating. Start with:<br><code>python -m options.paper_trade incubate &lt;key&gt; &lt;report.json&gt;</code></div>';return}
+  el.innerHTML=ss.map(s=>{
+    const pf=s.profit_factor!=null?s.profit_factor.toFixed(2):'--';
+    const re=s.return_efficiency!=null?s.return_efficiency.toFixed(1)+'%':'--';
+    const gs=[
+      {l:'3+ months incubating',p:s.grad_months,v:s.months_incubating+' mo'},
+      {l:'30+ closed trades',p:s.grad_trades,v:s.trade_count+' trades'},
+      {l:'Return eff 70-130%',p:s.grad_return_eff,v:re},
+    ];
+    return `<div class="sc"><div class="sh">
+      <span class="sn">${esc(s.key.replace(/_/g,' '))}</span><span class="sb ${esc(s.status)}">${esc(s.status)}</span>
+      <span style="margin-left:auto;font-size:.78rem;color:var(--text-dim)">Since ${s.start_date} · ${s.months_incubating} months</span>
+    </div><div class="sm-grid">
+      <div class="sm"><div class="mv">${s.trade_count}</div><div class="ml">Trades</div></div>
+      <div class="sm"><div class="mv" style="color:${s.win_rate>=50?'var(--g)':'var(--r)'}">${s.win_rate}%</div><div class="ml">Win Rate</div></div>
+      <div class="sm"><div class="mv">${pf}</div><div class="ml">Profit Factor</div></div>
+      <div class="sm"><div class="mv">${F(s.avg_win)}</div><div class="ml">Avg Win</div></div>
+      <div class="sm"><div class="mv">${F(s.avg_loss)}</div><div class="ml">Avg Loss</div></div>
+      <div class="sm"><div class="mv ${pcl(s.total_pnl)}">${ps(s.total_pnl)}</div><div class="ml">Total P/L</div></div>
+      <div class="sm"><div class="mv">${re}</div><div class="ml">Return Eff</div></div>
+      <div class="sm"><div class="mv">${F(s.expectancy)}</div><div class="ml">Expectancy</div></div>
+    </div>
+    ${s.wfa_avg_pnl?`<div style="font-size:.78rem;color:var(--text-dim);margin-top:8px;padding:8px 12px;background:var(--surface);border-radius:6px"><strong>WFA Baseline:</strong> Avg ${F(s.wfa_avg_pnl)}/trade · Expected total: ${F(s.wfa_expected_return)} · MC abort DD: ${s.mc_abort_dd_pct!=null?s.mc_abort_dd_pct.toFixed(1)+'%':'--'}</div>`:''}
+    <div class="gc"><div class="gc-title">Graduation Criteria (all must be green):</div><div class="gc-items">
+      ${gs.map(g=>{const c=g.p===true?'pass':g.p===false?'fail':'na';const i=g.p===true?'check-lg':g.p===false?'x-lg':'dash';return `<span class="gi ${c}"><i class="bi bi-${i}"></i> ${g.l}: ${g.v}</span>`}).join('')}
+    </div></div></div>`}).join('')}
+
+function rOpen(ts){
+  $('oCnt').textContent=ts.length?`(${ts.length} open)`:'';
+  const tb=$('oBody');
+  if(!ts.length){tb.innerHTML='<tr><td colspan="12" class="empty"><i class="bi bi-inbox"></i>No open positions</td></tr>';return}
+  let html='';
+  ts.forEach((t,idx)=>{
+    const pnl=t.unrealized_pnl||0;const dte=t.current_dte!=null?t.current_dte+'d':'--';
+    const g=t.greeks||{};const src=t.source||'manual';
+    const rp=t.risk_position||50;const be=t.breakevens||[];
+
+    html+=`<tr class="trade-expand" onclick="togTrade(${t.id})">
+      <td><i class="bi bi-chevron-right" style="font-size:.78rem;color:var(--muted)"></i></td>
+      <td class="fm">${t.id}</td><td><strong>${esc(t.symbol)}</strong></td>
+      <td style="text-transform:capitalize">${esc((t.strategy||'').replace(/_/g,' '))}</td>
+      <td class="fm">${t.days_held}d</td>
+      <td class="fm">${t.entry_spot?.toFixed(0)||'--'}</td>
+      <td class="fm">${dte}</td>
+      <td class="fm ${pcl(pnl)}"><strong>${ps(pnl)}</strong></td>
+      <td style="min-width:150px">
+        <div class="risk-meter"><div class="risk-needle" style="left:${Math.min(100,Math.max(0,rp))}%"></div></div>
+        <div class="risk-labels"><span>Max Loss</span>${be.length?'<span>BE: '+be.join(', ')+'</span>':''}<span>Max Profit</span></div>
+      </td>
+      <td class="fm" style="color:${(g.theta_daily||0)<0?'var(--r)':'var(--g)'}">${F(g.theta_daily)}</td>
+      <td class="fm">${g.delta?.toFixed(1)||'0'}</td>
+      <td><span class="src ${src}">${src}</span></td>
+    </tr>`;
+    if(idx===0)html+=`<tr class="expand-hint-row"><td colspan="12" class="expand-hint"><i class="bi bi-hand-index"></i> Click any row above to see per-leg greeks, breakevens, and what-if scenarios</td></tr>`;
+
+    const lds=t.leg_details||[];const scen=t.scenarios||{};
+    html+=`<tr class="trade-detail" id="td${t.id}"><td colspan="12">
+      <div class="leg-grid">
+        ${lds.map(l=>`<div class="leg-card">
+          <div class="leg-head"><span class="leg-action ${l.action}">${l.action} ${l.strike.toFixed(0)}${l.option_type}</span><span class="fm ${pcl(l.leg_pnl)}" style="font-size:.92rem">${ps(l.leg_pnl)}</span></div>
+          <div class="leg-row"><span class="leg-label">Entry Premium</span><span class="fm">${l.entry_premium.toFixed(2)}</span></div>
+          <div class="leg-row"><span class="leg-label">Current (BSM)</span><span class="fm">${l.current_premium.toFixed(2)} <span style="color:${l.change>=0?'var(--g)':'var(--r)'}">(${l.change>=0?'+':''}${l.change.toFixed(2)})</span></span></div>
+          <div class="leg-row"><span class="leg-label">IV</span><span class="fm">${l.iv_pct}%</span></div>
+          <div class="leg-row"><span class="leg-label">Delta (Δ)</span><span class="fm">${l.delta.toFixed(4)}</span></div>
+          <div class="leg-row"><span class="leg-label">Theta (Θ/day)</span><span class="fm" style="color:${l.theta<0?'var(--r)':'var(--g)'}">₹${l.theta.toFixed(2)}</span></div>
+          <div class="leg-row"><span class="leg-label">Vega (ν)</span><span class="fm">${l.vega.toFixed(2)}</span></div>
+        </div>`).join('')}
+        <div class="leg-card" style="border-color:var(--b)">
+          <div class="leg-head"><span style="font-weight:700;font-size:.85rem;color:var(--b)"><i class="bi bi-signpost-split"></i> What-If Scenarios</span></div>
+          ${Object.entries(scen).map(([k,v])=>`<div class="leg-row"><span class="leg-label">NIFTY ${k}</span><span class="fm ${pcl(v)}">${ps(v)}</span></div>`).join('')}
+          <div style="margin-top:8px;font-size:.75rem;color:var(--muted)">Estimated P/L if NIFTY moves by this %. IV held constant. Helps gauge downside risk vs upside potential.</div>
+        </div>
+      </div>
+      <div style="padding:2px 18px 12px;font-size:.78rem;color:var(--text-dim)">
+        <strong>Entry Reason:</strong> ${esc(t.entry_reason||'--')} · <strong>Legs:</strong> ${esc(t.legs_summary||'--')}
+      </div>
+    </td></tr>`;
+  });
+  tb.innerHTML=html}
+
+function togTrade(id){const row=document.querySelector(`tr[onclick="togTrade(${id})"]`);const det=$('td'+id);if(!det)return;const isOpen=det.classList.contains('show');det.classList.toggle('show');if(row)row.classList.toggle('open',!isOpen);const hint=document.querySelector('.expand-hint-row');if(hint)hint.style.display='none'}
+
+function rEquity(pts){
+  $('eqSec').style.display=pts.length?'':'none';
+  if(!pts.length)return;
+  const svg=$('eqSvg');
+  const rect=svg.parentElement.getBoundingClientRect();
+  const W=Math.max(400,Math.round(rect.width-28));
+  const H=window.innerWidth<600?160:220;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const p={t:18,r:16,b:28,l:58};const pw=W-p.l-p.r,ph=H-p.t-p.b;
+  const dotR=window.innerWidth<600?8:6;
+  const vs=pts.map(q=>q.cumulative);const mn=Math.min(0,...vs),mx=Math.max(0,...vs),rn=mx-mn||1;
+  const x=i=>p.l+(i/Math.max(1,pts.length-1))*pw;const y=v=>p.t+ph-((v-mn)/rn)*ph;
+  const path=pts.map((q,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(q.cumulative).toFixed(1)}`).join(' ');
+  const area=path+` L${x(pts.length-1).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z`;
+  let yt='';for(let i=0;i<=4;i++){const v=mn+(rn*i/4);const ty=y(v);yt+=`<line x1="${p.l}" x2="${W-p.r}" y1="${ty}" y2="${ty}" stroke="var(--card-border)" stroke-width="1"/><text x="${p.l-5}" y="${ty+3}" text-anchor="end" fill="var(--text-dim)" font-size="10" font-family="JetBrains Mono,monospace">${v>=0?'+':''}${(v/1000).toFixed(0)}k</text>`}
+  let xl='';[0,Math.floor(pts.length/4),Math.floor(pts.length/2),Math.floor(pts.length*3/4),pts.length-1].forEach(i=>{if(pts[i])xl+=`<text x="${x(i)}" y="${H-5}" text-anchor="middle" fill="var(--text-dim)" font-size="10" font-family="JetBrains Mono,monospace">${pts[i].date.slice(5)}</text>`});
+  const _pts=pts;
+  // Replace SVG node to clear all old event listeners (prevents listener leak on re-render)
+  const newSvg=svg.cloneNode(false);
+  svg.parentNode.replaceChild(newSvg,svg);
+  newSvg.id='eqSvg';newSvg.setAttribute('class','eq-svg');
+  newSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  newSvg.innerHTML=`<defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--g)" stop-opacity=".3"/><stop offset="100%" stop-color="var(--g)" stop-opacity="0"/></linearGradient></defs>${yt}<line x1="${p.l}" x2="${W-p.r}" y1="${y(0)}" y2="${y(0)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/><path d="${area}" fill="url(#eg)"/><path d="${path}" fill="none" stroke="var(--g)" stroke-width="2"/>${pts.map((q,i)=>`<circle cx="${x(i)}" cy="${y(q.cumulative)}" r="${dotR}" fill="${q.cumulative>=0?'var(--g)':'var(--r)'}" opacity=".8" data-i="${i}" style="cursor:pointer"/>`).join('')}${xl}`;
+  const tip=$('eqTip'),wrap=newSvg.parentElement;
+  function showTip(c){const i=+c.dataset.i,q=_pts[i];tip.style.display='block';tip.innerHTML=`${q.date}: ${q.cumulative>=0?'+':''}₹${q.cumulative.toLocaleString('en-IN')}`;const br=wrap.getBoundingClientRect(),cr=c.getBoundingClientRect();tip.style.left=Math.max(0,Math.min(br.width-tip.offsetWidth,(cr.left-br.left+cr.width/2-tip.offsetWidth/2)))+'px';tip.style.top=(cr.top-br.top-28)+'px'}
+  newSvg.addEventListener('mousemove',ev=>{const c=ev.target.closest('circle[data-i]');if(!c){tip.style.display='none';return}showTip(c)});
+  newSvg.addEventListener('mouseleave',()=>{tip.style.display='none'});
+  newSvg.addEventListener('click',ev=>{const c=ev.target.closest('circle[data-i]');if(c)showTip(c)})}
+
+function _tradeRow(t){
+  const n=t.net_pnl||0,g=t.gross_pnl||0,c=t.total_cost||0;
+  const od=t.opened_at?new Date(t.opened_at).toLocaleDateString('en-IN',{month:'short',day:'numeric'}):'--';
+  const cd=t.closed_at?new Date(t.closed_at).toLocaleDateString('en-IN',{month:'short',day:'numeric'}):'--';
+  return `<tr>
+    <td class="fm">${t.id}</td><td><strong>${esc(t.symbol)}</strong></td>
+    <td style="text-transform:capitalize">${esc((t.strategy||'').replace(/_/g,' '))}</td>
+    <td class="fm">${od}</td><td class="fm">${cd}</td><td class="fm">${t.hold_days}d</td>
+    <td class="fm">${t.entry_spot?.toFixed(0)||'--'}→${t.exit_spot?.toFixed(0)||'--'}</td>
+    <td class="fm ${pcl(g)}">${ps(g)}</td>
+    <td class="fm" style="color:var(--y)">${F(c)}</td>
+    <td class="fm ${pcl(n)}"><strong>${ps(n)}</strong></td>
+    <td><span class="src ${t.source||'manual'}">${t.source||'manual'}</span></td>
+    <td class="rt" onclick="this.classList.toggle('expanded')">${esc(t.exit_reason||'--')}</td>
+  </tr>`}
+
+function rClosedPage(){
+  $('cCnt').textContent=_allClosed.length?`(${_allClosed.length} trades)`:'';
+  const tb=$('cBody');
+  if(!_allClosed.length){tb.innerHTML='<tr><td colspan="12" class="empty"><i class="bi bi-clock-history"></i>No closed trades yet</td></tr>';return}
+  const end=Math.min(_closedShown+_TRADE_PAGE,_allClosed.length);
+  const page=_allClosed.slice(_closedShown,end);
+  if(_closedShown===0)tb.innerHTML='';
+  tb.insertAdjacentHTML('beforeend',page.map(_tradeRow).join(''));
+  _closedShown=end;
+  const lm=$('closedMore');
+  if(lm){if(_closedShown>=_allClosed.length)lm.style.display='none';else{lm.style.display='';lm.querySelector('button').textContent=`Load more (${_allClosed.length-_closedShown} remaining)`}}
+}
+
+function rMonthly(ms){
+  const sec=$('moSec');const el=$('moBox');
+  if(!ms.length){sec.style.display='none';el.innerHTML='';return}
+  sec.style.display='';
+  el.innerHTML='<div class="mo-grid">'+ms.map(m=>`<div class="mo-cell"><div class="mm">${m.month}</div><div class="mv ${pcl(m.net)}">${ps(m.net)}</div><div class="mx">${m.trades} trades · ${m.win_rate}% WR<br>Costs: ${F(m.costs)}</div></div>`).join('')+'</div>'}
+
+function popCfg(c){$('cS').value=(c.symbols||['NIFTY']).join(',');$('cCa').value=c.capital||500000;$('cMS').value=c.min_score||7;$('cMC').value=c.max_concurrent_trades||3;$('cR').value=c.capital_reserve_pct||30;$('cPT').value=c.profit_target_pct||50;$('cSL').value=c.stop_loss_multiplier||1;$('cDL').value=c.max_daily_loss||15000;$('cDD').value=c.max_drawdown_pct||15;$('cTD').value=c.max_trades_per_day||2;$('cCL').value=c.max_consecutive_losses||5;$('cWD').value=c.weekly_dte_exit??1;$('cMD').value=c.monthly_dte_exit??2;$('cIn').checked=c.only_incubating!==false}
+
+function validateCfg(){
+  let ok=true;
+  for(const[id,[lo,hi]] of Object.entries(_BOUNDS)){
+    const inp=$(id);if(!inp)continue;
+    const v=+inp.value;
+    if(isNaN(v)||v<lo||v>hi){inp.classList.add('invalid');ok=false}
+    else{inp.classList.remove('invalid')}
+  }
+  return ok}
+
+async function saveCfg(){
+  if(!validateCfg()){toast('Fix highlighted values (out of range)','error');return}
+  const c={symbols:$('cS').value.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean),capital:+$('cCa').value,min_score:+$('cMS').value,max_concurrent_trades:+$('cMC').value,capital_reserve_pct:+$('cR').value,profit_target_pct:+$('cPT').value,stop_loss_multiplier:+$('cSL').value,max_daily_loss:+$('cDL').value,max_drawdown_pct:+$('cDD').value,max_trades_per_day:+$('cTD').value,max_consecutive_losses:+$('cCL').value,weekly_dte_exit:+$('cWD').value,monthly_dte_exit:+$('cMD').value,only_incubating:$('cIn').checked};try{const r=await fetch(A+'/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});const d=await r.json();if(d.error){toast(d.error,'error');return}toast('Configuration saved','success');_configDirty=false;load()}catch(e){toast('Save failed','error')}}
+
+async function tog(on){const btn=$(on?'bE':'bD');btn.classList.add('loading');try{const r=await fetch(A+'/'+(on?'enable':'disable'),{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const d=await r.json();if(d.error){toast(d.error,'error');return}if(on){const ci=d.cron||{};toast(ci.installed?'Enabled — '+ci.installed+' cron job(s) auto-installed':'Enabled — cron install skipped','success')}else{toast('Disabled — cron jobs removed','success')}load()}catch(e){toast('Failed','error')}finally{btn.classList.remove('loading')}}
+async function cyc(){const btn=document.querySelector('.ba.cy[onclick="cyc()"]');if(btn)btn.classList.add('loading');try{toast('Running cycle...','info');const r=await fetch(A+'/cycle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cycle_type:'auto'})});const d=await r.json();if(d.error){toast(d.error,'error');return}toast(d.preflight?'Skipped: '+d.preflight:`Cycle done: ${d.entries||0} entries, ${d.exits||0} exits, ${d.checks||0} checked`,d.preflight?'info':'success');load();loadLog()}catch(e){toast('Cycle failed','error')}finally{if(btn)btn.classList.remove('loading')}}
+
+function emg(){$('emgModal').style.display='flex'}
+async function doEmg(){$('emgModal').style.display='none';const btn=$('emgConfirm');btn.classList.add('loading');try{const r=await fetch(A+'/emergency',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const d=await r.json();toast(`Emergency: ${d.trades_closed} trade(s) closed, autopilot disabled`,'error');load();loadLog()}catch(e){toast('Emergency failed','error')}finally{btn.classList.remove('loading')}}
+
+async function loadLog(){try{const r=await fetch(A+'/log?limit=80');const d=await r.json();const tb=$('logB');const es=d.entries||[];if(!es.length){tb.innerHTML='<tr><td colspan="7" class="empty">No decisions logged yet</td></tr>';return}
+tb.innerHTML=es.map(e=>{const ts=e.timestamp?new Date(e.timestamp).toLocaleString('en-IN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';const a=(e.action||'');return `<tr><td class="fm" style="white-space:nowrap">${ts}</td><td><span class="badge bg-secondary bg-opacity-25" style="font-size:.68rem">${esc(e.cycle_type||'')}</span></td><td class="la ${esc(a)}">${esc(a.replace(/_/g,' '))}</td><td>${esc(e.symbol||'')}</td><td style="text-transform:capitalize">${esc((e.strategy||'').replace(/_/g,' '))}</td><td class="fm">${e.score!=null?e.score.toFixed(1):''}</td><td class="rt" onclick="this.classList.toggle('expanded')">${esc(e.reason||'--')}</td></tr>`}).join('')}catch(e){console.error(e)}}
+
+// Escape key closes emergency modal
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const m=$('emgModal');if(m)m.style.display='none'}});
+
+// ── Adaptive polling (fixes: timer leak, concurrent fetch, abort on hide) ──
+let _timer=null,_interval=30000,_hasOpen=false;
+let _prevVals={};
+let _inflight=null; // AbortController for current fetch
+let _configDirty=false; // true while user is editing config
+let _expandedTrades=new Set(); // preserve expansion state across re-renders
+let _lastLogPoll=0;
+
+// IST offset: +5:30 = 330 minutes. Avoids fragile toLocaleString date parsing.
+function istMinutes(){
+  const now=new Date();
+  const utcMin=now.getUTCHours()*60+now.getUTCMinutes();
+  return (utcMin+330)%1440;
+}
+function istDay(){
+  const now=new Date();
+  const utcDay=now.getUTCDay();
+  const utcMin=now.getUTCHours()*60+now.getUTCMinutes();
+  // Day rolls over at 18:30 UTC (00:00 IST)
+  return utcMin+330>=1440?(utcDay+1)%7:utcDay;
+}
+function isMarketHours(){
+  const day=istDay();
+  if(day===0||day===6)return false;
+  const mins=istMinutes();
+  return mins>=555&&mins<=930; // 09:15 to 15:30
+}
+
+function getInterval(){
+  if(isMarketHours()&&_hasOpen)return 5000;
+  if(isMarketHours())return 15000;
+  return 30000;
+}
+
+function updateLivePill(){
+  const pill=$('livePill'),txt=$('liveText');
+  if(!pill)return;
+  const feedLive=typeof window._lbFeedConnected==='function'&&window._lbFeedConnected();
+  const dot=document.getElementById('lbDot');
+  const wsLive=dot&&dot.classList.contains('on');
+  if(feedLive&&wsLive){
+    pill.className='live-pill fast';
+    txt.textContent='LIVE';
+  } else {
+    const fast=_interval<=5000;
+    pill.className='live-pill '+(fast?'fast':'slow');
+    txt.textContent=fast?'5s':'30s';
+  }
+}
+
+function startPoll(){
+  stopPoll();
+  _interval=getInterval();
+  updateLivePill();
+  _timer=setInterval(tick,_interval);
+}
+function stopPoll(){
+  if(_timer!==null){clearInterval(_timer);_timer=null}
+  if(_inflight){_inflight.abort();_inflight=null}
+}
+function tick(){
+  const newInt=getInterval();
+  if(newInt!==_interval){_interval=newInt;updateLivePill();clearInterval(_timer);_timer=setInterval(tick,_interval)}
+  load();
+  // Also refresh decision log periodically during market hours
+  if(isMarketHours()&&Date.now()-_lastLogPoll>60000){_lastLogPoll=Date.now();loadLog()}
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){stopPoll()}else{load();loadLog();startPoll()}});
+
+// ── Value change flash ──
+function flashVal(id,newVal){
+  const el=$(id);if(!el)return;
+  const prev=_prevVals[id];
+  if(prev!==undefined&&prev!==newVal){
+    el.classList.remove('v-up','v-dn');
+    void el.offsetWidth;
+    const n=parseFloat(String(newVal).replace(/[₹,+%]/g,''));
+    const p=parseFloat(String(prev).replace(/[₹,+%]/g,''));
+    if(!isNaN(n)&&!isNaN(p)){el.classList.add(n>p?'v-up':'v-dn')}
+    else{el.classList.add('v-up')}
+  }
+  _prevVals[id]=newVal;
+}
+
+// ── Config dirty tracking (prevents poll overwriting user edits) ──
+document.querySelectorAll('.ci').forEach(inp=>{
+  inp.addEventListener('focus',()=>{_configDirty=true});
+  inp.addEventListener('blur',()=>{setTimeout(()=>{_configDirty=false},500)});
+});
+
+// ── Wrap renderDash: flash values, preserve expansion, skip config if dirty ──
+const _origRender=renderDash;
+renderDash=function(d,stale){
+  _hasOpen=(d.open_trades||[]).length>0;
+  const p=d.portfolio||{};
+  const fv={kPnl:ps(p.total_pnl),kUnreal:ps(p.total_unrealized),kWR:p.total_trades>0?p.win_rate+'%':'--',kPF:p.total_trades>0?p.profit_factor?.toFixed(2):'--',kTT:''+p.total_trades};
+
+  // Save expanded trade IDs before re-render
+  document.querySelectorAll('.trade-detail.show').forEach(el=>{const id=el.id?.replace('td','');if(id)_expandedTrades.add(id)});
+
+  _origRender(d,stale);
+
+  // Restore expanded trades, prune stale IDs
+  const _alive=new Set();
+  _expandedTrades.forEach(id=>{
+    const det=$('td'+id);
+    if(det){det.classList.add('show');_alive.add(id);
+      const row=document.querySelector(`tr[onclick="togTrade(${id})"]`);if(row)row.classList.add('open');
+    }
+  });
+  _expandedTrades.clear();_alive.forEach(id=>_expandedTrades.add(id));
+  if(_expandedTrades.size>0){const h=document.querySelector('.expand-hint-row');if(h)h.style.display='none'}
+
+  for(const[id,v] of Object.entries(fv))flashVal(id,v);
+
+  // Don't overwrite config if user is editing
+  if(!_configDirty)popCfg(d.config||{});
+
+  const newInt=getInterval();
+  if(newInt!==_interval){_interval=newInt;updateLivePill();clearInterval(_timer);_timer=setInterval(tick,_interval)}
+};
+
+load();loadLog();startPoll();
+</script>
+</body>
+</html>

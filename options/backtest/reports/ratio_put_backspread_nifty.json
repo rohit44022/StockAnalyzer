@@ -1,0 +1,430 @@
+{
+  "generated": "2026-10-06T12:24:57.922447",
+  "strategy": "ratio_put_backspread",
+  "symbol": "NIFTY",
+  "period": {
+    "start": "2026-04-06",
+    "end": "2026-10-05",
+    "trading_days": 125
+  },
+  "config": {
+    "strategy_key": "ratio_put_backspread",
+    "symbol": "NIFTY",
+    "lot_size": 25,
+    "initial_capital": 500000,
+    "max_lots": 1,
+    "max_concurrent": 1,
+    "r": 0.07,
+    "entry_dte_range": [
+      3,
+      7
+    ],
+    "vp_threshold": 0.02,
+    "slippage_mult": 1.5,
+    "rv_window": 21,
+    "profit_target_pct": 0.5,
+    "stop_loss_pct": 0.7,
+    "exit_dte": 1,
+    "signal_mode": "always"
+  },
+  "summary": {
+    "total_trades": 27,
+    "net_pnl": 47823.38,
+    "gross_pnl": 48694.54,
+    "total_costs": 871.16,
+    "cost_pct_of_gross": 1.8,
+    "win_rate_pct": 59.3,
+    "profit_factor": 3.5,
+    "avg_trade": {
+      "avg_win": 4186.47,
+      "avg_loss": -1741.83,
+      "avg_all": 1771.24,
+      "n_wins": 16,
+      "n_losses": 11
+    }
+  },
+  "risk_metrics": {
+    "sharpe": 1.2655,
+    "sortino": 2.8703,
+    "gsr": 1.304,
+    "calmar": 6.02,
+    "return_dd_ratio": 2.99,
+    "max_drawdown": {
+      "amount": 17053.78,
+      "pct": 3.33,
+      "peak_idx": 25,
+      "trough_idx": 78,
+      "duration": 53
+    },
+    "tharp_expectancy": 1.02
+  },
+  "davey_gates": {
+    "return_dd_ratio": {
+      "value": 2.99,
+      "threshold": ">2.0",
+      "pass": "True"
+    },
+    "profit_factor": {
+      "value": 3.5,
+      "threshold": ">1.0",
+      "pass": "True"
+    },
+    "max_dd_pct": {
+      "value": 3.33,
+      "threshold": "<40%",
+      "pass": "True"
+    },
+    "min_trades": {
+      "value": 27,
+      "threshold": "\u226530",
+      "pass": false
+    },
+    "mc_risk_of_ruin": {
+      "value": 0.0,
+      "threshold": "<10%",
+      "pass": true
+    }
+  },
+  "cost_analysis": {
+    "total": 871.16,
+    "per_trade_avg": 32.27,
+    "pct_of_gross": 1.0
+  },
+  "trades": [
+    {
+      "id": 1,
+      "entry": "2026-04-06",
+      "exit": "2026-04-08",
+      "days": 2,
+      "gross": 787.31,
+      "costs": 7.78,
+      "net": 779.53,
+      "reason": "dte_1"
+    },
+    {
+      "id": 2,
+      "entry": "2026-04-09",
+      "exit": "2026-04-15",
+      "days": 6,
+      "gross": -1978.0,
+      "costs": 20.7,
+      "net": -1998.7,
+      "reason": "dte_1"
+    },
+    {
+      "id": 3,
+      "entry": "2026-04-16",
+      "exit": "2026-04-22",
+      "days": 6,
+      "gross": -366.94,
+      "costs": 13.44,
+      "net": -380.38,
+      "reason": "dte_1"
+    },
+    {
+      "id": 4,
+      "entry": "2026-04-23",
+      "exit": "2026-04-29",
+      "days": 6,
+      "gross": 169.59,
+      "costs": 31.1,
+      "net": 138.49,
+      "reason": "dte_1"
+    },
+    {
+      "id": 5,
+      "entry": "2026-04-30",
+      "exit": "2026-05-06",
+      "days": 6,
+      "gross": 1195.92,
+      "costs": 35.48,
+      "net": 1160.44,
+      "reason": "dte_1"
+    },
+    {
+      "id": 6,
+      "entry": "2026-05-07",
+      "exit": "2026-05-13",
+      "days": 6,
+      "gross": 12174.11,
+      "costs": 112.76,
+      "net": 12061.35,
+      "reason": "dte_1"
+    },
+    {
+      "id": 7,
+      "entry": "2026-05-14",
+      "exit": "2026-05-20",
+      "days": 6,
+      "gross": -1558.26,
+      "costs": 14.87,
+      "net": -1573.13,
+      "reason": "dte_1"
+    },
+    {
+      "id": 8,
+      "entry": "2026-05-21",
+      "exit": "2026-05-27",
+      "days": 6,
+      "gross": -17.44,
+      "costs": 11.73,
+      "net": -29.17,
+      "reason": "dte_1"
+    },
+    {
+      "id": 9,
+      "entry": "2026-05-29",
+      "exit": "2026-06-03",
+      "days": 5,
+      "gross": -4621.55,
+      "costs": 20.12,
+      "net": -4641.67,
+      "reason": "dte_1"
+    },
+    {
+      "id": 10,
+      "entry": "2026-06-04",
+      "exit": "2026-06-10",
+      "days": 6,
+      "gross": -5458.06,
+      "costs": 19.37,
+      "net": -5477.43,
+      "reason": "dte_1"
+    },
+    {
+      "id": 11,
+      "entry": "2026-06-11",
+      "exit": "2026-06-17",
+      "days": 6,
+      "gross": 27.99,
+      "costs": 11.44,
+      "net": 16.55,
+      "reason": "dte_1"
+    },
+    {
+      "id": 12,
+      "entry": "2026-06-18",
+      "exit": "2026-06-24",
+      "days": 6,
+      "gross": -1593.87,
+      "costs": 13.82,
+      "net": -1607.69,
+      "reason": "dte_1"
+    },
+    {
+      "id": 13,
+      "entry": "2026-06-25",
+      "exit": "2026-07-01",
+      "days": 6,
+      "gross": -932.79,
+      "costs": 10.58,
+      "net": -943.37,
+      "reason": "dte_1"
+    },
+    {
+      "id": 14,
+      "entry": "2026-07-02",
+      "exit": "2026-07-08",
+      "days": 6,
+      "gross": -738.71,
+      "costs": 27.31,
+      "net": -766.02,
+      "reason": "dte_1"
+    },
+    {
+      "id": 15,
+      "entry": "2026-07-09",
+      "exit": "2026-07-15",
+      "days": 6,
+      "gross": 434.45,
+      "costs": 8.7,
+      "net": 425.75,
+      "reason": "dte_1"
+    },
+    {
+      "id": 16,
+      "entry": "2026-07-16",
+      "exit": "2026-07-22",
+      "days": 6,
+      "gross": -1405.98,
+      "costs": 10.94,
+      "net": -1416.92,
+      "reason": "dte_1"
+    },
+    {
+      "id": 17,
+      "entry": "2026-07-23",
+      "exit": "2026-07-29",
+      "days": 6,
+      "gross": 431.28,
+      "costs": 9.15,
+      "net": 422.13,
+      "reason": "dte_1"
+    },
+    {
+      "id": 18,
+      "entry": "2026-07-30",
+      "exit": "2026-08-05",
+      "days": 6,
+      "gross": 6511.91,
+      "costs": 48.35,
+      "net": 6463.56,
+      "reason": "dte_1"
+    },
+    {
+      "id": 19,
+      "entry": "2026-08-06",
+      "exit": "2026-08-12",
+      "days": 6,
+      "gross": 5613.35,
+      "costs": 56.41,
+      "net": 5556.94,
+      "reason": "dte_1"
+    },
+    {
+      "id": 20,
+      "entry": "2026-08-13",
+      "exit": "2026-08-19",
+      "days": 6,
+      "gross": 7071.85,
+      "costs": 60.94,
+      "net": 7010.91,
+      "reason": "dte_1"
+    },
+    {
+      "id": 21,
+      "entry": "2026-08-20",
+      "exit": "2026-08-26",
+      "days": 6,
+      "gross": 457.58,
+      "costs": 20.89,
+      "net": 436.69,
+      "reason": "dte_1"
+    },
+    {
+      "id": 22,
+      "entry": "2026-08-27",
+      "exit": "2026-09-02",
+      "days": 6,
+      "gross": 5544.0,
+      "costs": 55.79,
+      "net": 5488.21,
+      "reason": "dte_1"
+    },
+    {
+      "id": 23,
+      "entry": "2026-09-03",
+      "exit": "2026-09-09",
+      "days": 6,
+      "gross": 7131.27,
+      "costs": 62.57,
+      "net": 7068.7,
+      "reason": "dte_1"
+    },
+    {
+      "id": 24,
+      "entry": "2026-09-10",
+      "exit": "2026-09-16",
+      "days": 6,
+      "gross": 12118.8,
+      "costs": 81.1,
+      "net": 12037.7,
+      "reason": "dte_1"
+    },
+    {
+      "id": 25,
+      "entry": "2026-09-17",
+      "exit": "2026-09-23",
+      "days": 6,
+      "gross": 995.58,
+      "costs": 24.25,
+      "net": 971.33,
+      "reason": "dte_1"
+    },
+    {
+      "id": 26,
+      "entry": "2026-09-24",
+      "exit": "2026-09-30",
+      "days": 6,
+      "gross": 7012.93,
+      "costs": 67.67,
+      "net": 6945.26,
+      "reason": "dte_1"
+    },
+    {
+      "id": 27,
+      "entry": "2026-10-01",
+      "exit": "2026-10-05",
+      "days": 4,
+      "gross": -311.78,
+      "costs": 13.9,
+      "net": -325.68,
+      "reason": "end_of_backtest"
+    }
+  ],
+  "warnings": [
+    "2026-04-08: entry skipped (illiquid/build failed)",
+    "2026-04-15: entry skipped (illiquid/build failed)",
+    "2026-04-22: entry skipped (illiquid/build failed)",
+    "2026-04-29: entry skipped (illiquid/build failed)",
+    "2026-05-06: entry skipped (illiquid/build failed)",
+    "2026-05-13: entry skipped (illiquid/build failed)",
+    "2026-05-20: entry skipped (illiquid/build failed)",
+    "2026-05-27: entry skipped (illiquid/build failed)",
+    "2026-06-03: entry skipped (illiquid/build failed)",
+    "2026-06-10: entry skipped (illiquid/build failed)",
+    "2026-06-17: entry skipped (illiquid/build failed)",
+    "2026-06-24: entry skipped (illiquid/build failed)",
+    "2026-07-01: entry skipped (illiquid/build failed)",
+    "2026-07-08: entry skipped (illiquid/build failed)",
+    "2026-07-15: entry skipped (illiquid/build failed)",
+    "2026-07-22: entry skipped (illiquid/build failed)",
+    "2026-07-29: entry skipped (illiquid/build failed)",
+    "2026-08-05: entry skipped (illiquid/build failed)",
+    "2026-08-12: entry skipped (illiquid/build failed)",
+    "2026-08-19: entry skipped (illiquid/build failed)",
+    "2026-08-26: entry skipped (illiquid/build failed)",
+    "2026-09-02: entry skipped (illiquid/build failed)",
+    "2026-09-09: entry skipped (illiquid/build failed)",
+    "2026-09-16: entry skipped (illiquid/build failed)",
+    "2026-09-23: entry skipped (illiquid/build failed)",
+    "2026-09-30: entry skipped (illiquid/build failed)"
+  ],
+  "monte_carlo": {
+    "n_sims": 10000,
+    "n_trades": 27,
+    "risk_of_ruin_pct": 0.0,
+    "ruin_threshold": 0.5,
+    "max_dd_percentiles": {
+      "5": 0.53,
+      "10": 0.55,
+      "25": 0.63,
+      "50": 0.75,
+      "75": 0.94,
+      "90": 1.15,
+      "95": 1.26
+    },
+    "return_percentiles": {
+      "5": 4.78,
+      "10": 4.78,
+      "25": 4.78,
+      "50": 4.78,
+      "75": 4.78,
+      "90": 4.78,
+      "95": 4.78
+    },
+    "return_dd_percentiles": {
+      "5": 3.79,
+      "10": 4.17,
+      "25": 5.07,
+      "50": 6.41,
+      "75": 7.53,
+      "90": 8.73,
+      "95": 8.95
+    },
+    "median_dd_pct": 0.75,
+    "median_return_pct": 4.78,
+    "median_return_dd": 6.41,
+    "pass_davey": "True"
+  }
+}

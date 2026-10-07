@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Options — Volatility</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--card-bg:#282f36;--card-border:#2f3944;--g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc}
+body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%);border-bottom:1px solid var(--card-border);padding:1.5rem 0 1.2rem}
+.hero h1{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#f7b84b,#f06548);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:1.5rem}
+.controls select{background:var(--card-bg);border:1px solid var(--card-border);color:var(--bs-body-color);border-radius:8px;padding:6px 12px;font-size:.85rem}
+
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:1.5rem;border-top:3px solid var(--b)}
+.card h6{font-weight:700;margin-bottom:1rem;color:var(--bs-body-color)}
+
+.chart-wrap{position:relative;height:320px}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem}
+.stat-item{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:1rem;text-align:center;border-top:3px solid var(--y);transition:border-color .15s}
+.stat-item:hover{border-top-color:var(--b)}
+.stat-val{font-size:1.2rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.stat-label{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+.ts-tbl{width:100%;font-size:.85rem;border-collapse:separate;border-spacing:0}
+.ts-tbl th{font-size:.7rem;text-transform:uppercase;color:#8b949e;padding:8px 12px;border-bottom:2px solid var(--card-border)}
+.ts-tbl td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);font-family:'JetBrains Mono',monospace}
+.ts-tbl tr:hover td{background:rgba(124,138,239,.06)}
+
+.empty-state{text-align:center;padding:3rem;color:#596275}
+.empty-state i{font-size:2.5rem;display:block;margin-bottom:.75rem}
+.inverted-badge{font-size:.72rem;padding:3px 10px;border-radius:20px;font-weight:600;display:inline-block}
+.inverted-badge.yes{background:rgba(240,101,72,.15);color:var(--r)}
+.inverted-badge.no{background:rgba(10,179,156,.15);color:var(--g)}
+.tip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;font-size:.65rem;color:#596275;cursor:help;vertical-align:middle;margin-left:4px;border:1px solid rgba(255,255,255,.08);border-radius:50%;transition:color .15s}
+.tip:hover{color:var(--b);border-color:var(--b)}
+.section-help{font-size:.78rem;color:#596275;margin-bottom:1rem;line-height:1.5}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+{% include "_live_ticker.html" %}
+
+<div class="hero">
+  <div class="container-fluid px-4">
+    <h1><i class="bi bi-activity"></i> Volatility Surface</h1>
+    <div class="section-help">Visualise how implied volatility varies across expiries (term structure) and strikes (smile/skew).
+      <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Volatility Surface</b> (Natenberg Ch.20, Sinclair Ch.4): A 3D view of IV across all strikes and expiries. In theory (Black-Scholes), IV should be the same everywhere. In reality, it varies — these patterns reveal market fear, demand, and mispricings that traders can exploit.">?</span>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid px-4 py-3">
+  <div class="controls">
+    <select id="symbolSel"><option value="NIFTY">NIFTY</option><option value="BANKNIFTY">BANKNIFTY</option></select>
+    <button class="btn btn-sm" style="background:var(--b);color:#fff;border-radius:8px;padding:6px 16px" onclick="loadVol()">Load</button>
+    <span id="spotLabel" style="font-size:.85rem;color:#8b949e;margin-left:auto">Spot: —</span>
+  </div>
+
+  <div id="volContent">
+    <div class="empty-state"><i class="bi bi-activity"></i>Select symbol and click Load</div>
+  </div>
+</div>
+
+{% include "_theme_picker.html" %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let tsChart = null, skewChart = null;
+
+function loadVol(){
+  const sym = document.getElementById('symbolSel').value;
+  const el = document.getElementById('volContent');
+  el.innerHTML = '<div class="empty-state"><div class="spinner-border spinner-border-sm"></div> Loading…</div>';
+
+  fetch(`/api/options/vol/${sym}`).then(r=>r.json()).then(d => {
+    if(d.error){
+      el.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i>'+d.error+'</div>';
+      return;
+    }
+
+    document.getElementById('spotLabel').textContent = 'Spot: ₹' + (d.spot ? Number(d.spot).toLocaleString('en-IN') : '—');
+
+    let html = '';
+
+    // Term structure
+    if(d.term_structure && d.term_structure.length){
+      html += `<div class="stat-grid">
+        <div class="stat-item"><div class="stat-val">${d.term_structure[0].atm_iv != null ? (d.term_structure[0].atm_iv*100).toFixed(1)+'%' : '—'}</div><div class="stat-label">Near ATM IV <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Near-term ATM IV</b>: Implied volatility of the at-the-money option for the nearest expiry. This reflects the market's short-term volatility expectation. Higher near-term IV often signals an upcoming event (earnings, elections, RBI policy).">?</span></div></div>
+        <div class="stat-item"><div class="stat-val">${d.term_structure.length>1 && d.term_structure[d.term_structure.length-1].atm_iv != null ? (d.term_structure[d.term_structure.length-1].atm_iv*100).toFixed(1)+'%' : '—'}</div><div class="stat-label">Far ATM IV <span class="tip" data-bs-toggle="tooltip" title="ATM IV of the farthest expiry. Normally higher than near-term (uncertainty increases with time). If lower, the term structure is inverted.">?</span></div></div>
+        <div class="stat-item"><div class="stat-val"><span class="inverted-badge ${d.inverted?'yes':'no'}">${d.inverted?'INVERTED':'NORMAL'}</span></div><div class="stat-label">Term Structure <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Normal</b>: Far-term IV &gt; near-term IV (the usual state). Uncertainty grows with time.<br><b>Inverted</b>: Near-term IV &gt; far-term IV. Signals fear or an imminent event. Strategies: sell near-term premium (it's overpriced), or buy calendar spreads to profit from the inversion normalising.">?</span></div></div>
+      </div>`;
+
+      html += '<div class="row g-4 mb-4"><div class="col-lg-7"><div class="card"><h6>Term Structure <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Term Structure</b> (Natenberg Ch.20): ATM IV plotted across expiry dates. A rising line is normal. A falling line (inverted) suggests near-term fear. Trade idea: when inverted, sell near-term options and buy far-term — profit when the curve normalises.">?</span></h6><div class="chart-wrap"><canvas id="tsCanvas"></canvas></div></div></div>';
+      html += '<div class="col-lg-5"><div class="card"><h6>Expiry Table</h6><table class="ts-tbl"><thead><tr><th>Expiry</th><th data-bs-toggle="tooltip" title="Days To Expiry — how many calendar days until this contract expires.">DTE</th><th data-bs-toggle="tooltip" title="At-The-Money Implied Volatility for this expiry. The single most important volatility number for each tenor.">ATM IV</th></tr></thead><tbody>';
+      d.term_structure.forEach(t => {
+        html += `<tr><td>${t.expiry||'—'}</td><td>${t.days!=null?Math.round(t.days):''}</td><td>${t.atm_iv!=null?(t.atm_iv*100).toFixed(1)+'%':'—'}</td></tr>`;
+      });
+      html += '</tbody></table></div></div></div>';
+    }
+
+    // Surface data
+    if(d.surface){
+      html += '<div class="card mb-4"><h6>Volatility Smile / Skew <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Vol Smile/Skew</b> (Natenberg Ch.20, Sinclair Ch.4):<br>• <b>Smile</b>: IV is higher for deep OTM puts AND calls vs ATM — a U-shape. Common in indices after crashes.<br>• <b>Skew</b>: OTM puts have higher IV than OTM calls — the curve tilts down to the right. This is the \'fear premium\' — crash protection is expensive.<br>• Indian markets (NIFTY) typically show <b>negative skew</b>: put IV &gt; call IV at same distance from ATM.">?</span></h6>';
+      if(d.surface.expiries && d.surface.expiries.length){
+        html += '<div class="chart-wrap"><canvas id="skewCanvas"></canvas></div>';
+      } else {
+        html += '<div class="empty-state" style="padding:1.5rem"><i class="bi bi-graph-down" style="font-size:1.5rem"></i>No surface data</div>';
+      }
+      html += '</div>';
+    }
+
+    if(!html) html = `<div class="empty-state"><i class="bi bi-activity"></i>No volatility data available
+      <div style="font-size:.82rem;margin-top:8px;max-width:400px;text-align:center;margin-left:auto;margin-right:auto;color:#596275">
+        The vol surface needs chain snapshots with <strong>multiple expiries</strong> and computed IV.
+        Current chain data has only one expiry or missing IV values.
+        Run <code>python -m options.data.collect_daily</code> to collect richer data.
+      </div></div>`;
+    el.innerHTML = html;
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => { if(!bootstrap.Tooltip.getInstance(el)) new bootstrap.Tooltip(el, {trigger:'hover focus'}); });
+
+    // Render term structure chart
+    if(d.term_structure && d.term_structure.length){
+      const ctx = document.getElementById('tsCanvas');
+      if(ctx){
+        if(tsChart) tsChart.destroy();
+        tsChart = new Chart(ctx, {
+          type:'line',
+          data:{
+            labels: d.term_structure.map(t=>Math.round(t.days||0)+' DTE'),
+            datasets:[{
+              label:'ATM IV',
+              data: d.term_structure.map(t=>t.atm_iv!=null?t.atm_iv*100:null),
+              borderColor:'#f7b84b', backgroundColor:'rgba(247,184,75,.1)',
+              borderWidth:2, pointRadius:5, pointBackgroundColor:'#f7b84b',
+              fill:true, tension:0.3,
+            }]
+          },
+          options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{display:false}},
+            scales:{
+              x:{grid:{color:'rgba(255,255,255,.04)'}},
+              y:{ticks:{callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(255,255,255,.04)'}}
+            }
+          }
+        });
+      }
+    }
+
+    // Render skew chart
+    if(d.surface && d.surface.expiries && d.surface.expiries.length){
+      const ctx = document.getElementById('skewCanvas');
+      if(ctx){
+        if(skewChart) skewChart.destroy();
+        const colors = ['#7c8aef','#0ab39c','#f7b84b','#f06548','#c084fc'];
+        const datasets = d.surface.expiries.slice(0,5).map((exp,i) => ({
+          label: exp.expiry || ('Exp '+(i+1)),
+          data: exp.strikes ? exp.strikes.map((s,j)=>({x:s, y:exp.ivs[j]*100})) : [],
+          borderColor: colors[i%colors.length],
+          borderWidth: 2, pointRadius: 1, tension: 0.3, fill: false,
+        }));
+        skewChart = new Chart(ctx, {
+          type:'line',
+          data:{datasets},
+          options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:12}}},
+            scales:{
+              x:{type:'linear',title:{display:true,text:'Strike',color:'#8b949e'},
+                 ticks:{callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(255,255,255,.04)'}},
+              y:{title:{display:true,text:'IV %',color:'#8b949e'},
+                 ticks:{callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(255,255,255,.04)'}}
+            }
+          }
+        });
+      }
+    }
+  }).catch(e => {
+    el.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i>'+e.message+'</div>';
+  });
+}
+</script>
+</body>
+</html>

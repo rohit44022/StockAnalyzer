@@ -97,6 +97,11 @@ forge.yaml
 .backtest_results.json
 intraday/5min_store/
 
+# ── Options caches & credentials ──
+_real_chain_cache.json
+_data_cache.json
+.dhan_token.json
+
 # ── Books / copyrighted material ──
 *.pdf
 *.epub

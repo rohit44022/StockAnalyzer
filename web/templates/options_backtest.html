@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Options — Backtest Results</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--card-bg:#282f36;--card-border:#2f3944;--g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc}
+body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%);border-bottom:1px solid var(--card-border);padding:1.5rem 0 1.2rem}
+.hero h1{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#0ab39c,#7c8aef);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:1.5rem;border-top:3px solid var(--b)}
+
+.report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:2rem}
+.report-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:1.4rem;cursor:pointer;transition:all .15s;border-left:3px solid var(--r)}
+.report-card.all-pass{border-left-color:var(--g)}
+.report-card:hover{border-color:var(--b);transform:translateY(-2px)}
+.report-card.active{border-color:var(--b);box-shadow:0 0 0 1px var(--b)}
+.report-card .rc-name{font-weight:700;font-size:1rem;margin-bottom:6px}
+.report-card .rc-meta{font-size:.78rem;color:#8b949e}
+.report-card .rc-pnl{font-size:1.2rem;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:6px}
+.up{color:var(--g)}.down{color:var(--r)}
+
+.gate-badge{font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:4px;display:inline-block;margin:2px}
+.gate-badge.pass{background:rgba(10,179,156,.15);color:var(--g)}
+.gate-badge.fail{background:rgba(240,101,72,.15);color:var(--r)}
+
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin:1rem 0}
+.d-item{text-align:center}
+.d-val{font-size:1.1rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.d-label{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
+
+.chart-wrap{position:relative;height:300px;margin-top:1rem}
+
+.gate-tbl{width:100%;font-size:.85rem;border-collapse:separate;border-spacing:0}
+.gate-tbl th{font-size:.7rem;text-transform:uppercase;color:#8b949e;padding:8px 10px;border-bottom:2px solid var(--card-border)}
+.gate-tbl td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+.gate-tbl tr:hover td{background:rgba(124,138,239,.06)}
+
+.empty-state{text-align:center;padding:3rem;color:#596275}
+.empty-state i{font-size:2.5rem;display:block;margin-bottom:.75rem}
+.tip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;font-size:.65rem;color:#596275;cursor:help;vertical-align:middle;margin-left:4px;border:1px solid rgba(255,255,255,.08);border-radius:50%;transition:color .15s}
+.tip:hover{color:var(--b);border-color:var(--b)}
+.section-help{font-size:.78rem;color:#596275;margin-bottom:1rem;line-height:1.5}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+{% include "_live_ticker.html" %}
+
+<div class="hero">
+  <div class="container-fluid px-4">
+    <h1><i class="bi bi-clock-history"></i> Backtest Results</h1>
+    <div class="section-help">WFA-validated backtest reports with Davey gate checks, Monte Carlo validation, and equity curves.
+      <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Backtest Pipeline</b> (Davey Ch.7–14):<br>1. <b>Backtest</b>: Run strategy on historical data.<br>2. <b>Walk-Forward Analysis (WFA)</b>: Optimise on in-sample, test on out-of-sample windows. Prevents curve-fitting.<br>3. <b>Monte Carlo</b>: Shuffle trade order 1000× to test robustness — a fragile strategy breaks under reordering.<br>4. <b>Davey Gates</b>: 11 cross-checks a strategy must pass before paper trading. If any gate fails, the strategy is not ready.">?</span>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid px-4 py-3">
+  <div id="reportList"><div class="empty-state"><div class="spinner-border spinner-border-sm"></div> Loading reports…</div></div>
+  <div id="reportDetail" style="display:none"></div>
+</div>
+
+{% include "_theme_picker.html" %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let eqChart = null;
+const fmt = (v,dp=0) => v==null?'—':Number(v).toFixed(dp);
+const pnlFmt = v => v==null?'—':(v>=0?'+':'')+'₹'+Math.abs(v).toLocaleString('en-IN',{maximumFractionDigits:0});
+
+fetch('/api/options/reports').then(r=>r.json()).then(d => {
+  const el = document.getElementById('reportList');
+  if(!d.reports || !d.reports.length){
+    el.innerHTML = '<div class="empty-state"><i class="bi bi-folder2-open"></i>No backtest reports found<br><span style="font-size:.8rem">Run WFA pipeline to generate reports</span></div>';
+    return;
+  }
+
+  // Filter + search
+  let html = '<div style="margin-bottom:1rem"><input type="text" id="reportSearch" placeholder="Filter strategies…" style="background:var(--card-bg);border:1px solid var(--card-border);color:var(--bs-body-color);border-radius:8px;padding:6px 14px;font-size:.85rem;width:260px" oninput="filterReports(this.value)"></div>';
+  html += '<div class="report-grid" id="reportGrid">';
+  d.reports.forEach(r => {
+    const gateKeys = r.gates ? Object.keys(r.gates) : [];
+    const passCount = gateKeys.filter(k => { const p = r.gates[k] && r.gates[k].pass; return p === true || p === 'True'; }).length;
+    const totalGates = gateKeys.length;
+    const allPass = passCount === totalGates && totalGates > 0;
+    const variantTag = r.variant ? `<span style="font-size:.62rem;padding:1px 6px;border-radius:4px;background:rgba(124,138,239,.12);color:var(--b);margin-left:6px">${r.variant}</span>` : '';
+    const cleanName = (r.strategy||r.filename).replace(/_nifty$/,'').replace(/_/g,' ');
+
+    html += `<div class="report-card ${allPass?'all-pass':''}" data-name="${cleanName}" onclick="loadReport('${r.filename}',this)">
+      <div class="rc-name">${cleanName}${variantTag}</div>
+      <div class="rc-meta">${r.symbol||''} · ${r.trades||0} trades</div>
+      <div class="rc-pnl ${r.net_pnl!=null?((r.net_pnl||0)>=0?'up':'down'):''}">${pnlFmt(r.net_pnl)}</div>
+      <div style="margin-top:6px">
+        <span class="gate-badge ${allPass?'pass':'fail'}" data-bs-toggle="tooltip" title="${allPass?'All Davey gates passed — strategy is eligible for incubation.':'Some gates failed — strategy needs improvement before paper trading.'}">${passCount}/${totalGates} GATES</span>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el, {trigger:'hover focus'}));
+});
+
+function filterReports(q){
+  q = q.toLowerCase();
+  document.querySelectorAll('.report-card').forEach(c => {
+    c.style.display = c.dataset.name.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function loadReport(filename, btn){
+  document.querySelectorAll('.report-card').forEach(c=>c.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+
+  const el = document.getElementById('reportDetail');
+  el.style.display = '';
+  el.innerHTML = '<div class="empty-state"><div class="spinner-border spinner-border-sm"></div> Loading…</div>';
+
+  fetch(`/api/options/report/${filename}`).then(r=>r.json()).then(d => {
+    if(d.error){ el.innerHTML='<div class="empty-state">'+d.error+'</div>'; return; }
+
+    const m = d.summary || d.metrics || {};
+    const g = d.davey_gates || d.risk_metrics || {};
+    const wfa = d.wfa || {};
+    const mc = d.monte_carlo || d.mc || {};
+
+    let html = '<div class="row g-4">';
+
+    // Metrics summary
+    html += '<div class="col-lg-6"><div class="card"><h6 style="font-weight:700">Performance Metrics</h6><div class="detail-grid">';
+    const metrics = [
+      ['Net P/L', pnlFmt(m.net_pnl), (m.net_pnl||0)>=0?'up':'down', 'Total profit minus total loss across all trades.'],
+      ['Trades', m.total_trades||0, '', 'Total number of completed trades. Davey requires ≥30 for statistical significance.'],
+      ['Win Rate', m.win_rate!=null?(m.win_rate*100).toFixed(1)+'%':'—', '', 'Percentage of trades that were profitable. Note: win rate alone is misleading — a 30% win rate can be profitable if avg win >> avg loss.'],
+      ['Profit Factor', fmt(m.profit_factor,2), '', 'Gross Profit ÷ Gross Loss. >1.0 = profitable. >1.5 = good. >2.0 = excellent. Davey gate threshold: >1.0.'],
+      ['Max DD', m.max_dd_pct!=null?fmt(m.max_dd_pct*100,1)+'%':'—', 'down', 'Maximum Drawdown: largest peak-to-trough decline in equity. The pain you must endure. Davey gate: <40%.'],
+      ['Return/DD', fmt(m.return_dd_ratio,1), '', 'Net Return ÷ Max Drawdown. How much you earn per unit of pain. Davey gate: >2.0. Higher = better risk-adjusted returns.'],
+      ['Avg Win', pnlFmt(m.avg_win), 'up', 'Average profit on winning trades. Compare with Avg Loss to understand if the strategy relies on few big wins or many small ones.'],
+      ['Avg Loss', pnlFmt(m.avg_loss), 'down', 'Average loss on losing trades. The ratio of Avg Win / Avg Loss combined with Win Rate determines edge.'],
+    ];
+    metrics.forEach(([label,val,cls,tip]) => {
+      html += `<div class="d-item"><div class="d-val ${cls}">${val}</div><div class="d-label">${label} ${tip?'<span class="tip" data-bs-toggle="tooltip" title="'+tip+'">?</span>':''}</div></div>`;
+    });
+    html += '</div></div></div>';
+
+    // Davey gates
+    html += '<div class="col-lg-6"><div class="card"><h6 style="font-weight:700">Davey Gates <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Davey Gates</b> (Davey Ch.7–14): A set of cross-checks every strategy must pass before live trading. Each gate has a threshold — if ANY gate fails, the strategy is not ready. Gates include: profit factor &gt;1.0, return/DD &gt;2.0, max DD &lt;40%, minimum trades ≥30, Monte Carlo risk of ruin &lt;10%, and t-test significance. Think of gates as a pre-flight checklist.">?</span></h6>';
+    const gateEntries = Object.entries(g);
+    if(gateEntries.length){
+      html += '<table class="gate-tbl"><thead><tr><th>Gate</th><th>Value</th><th>Threshold</th><th>Result</th></tr></thead><tbody>';
+      gateEntries.forEach(([name, gate]) => {
+        const pass = gate.pass === true || gate.pass === 'True';
+        html += `<tr>
+          <td style="font-weight:500">${name.replace(/_/g,' ')}</td>
+          <td class="font-mono">${typeof gate.value==='number'?gate.value.toFixed(3):gate.value}</td>
+          <td class="font-mono" style="color:#8b949e">${gate.threshold||''}</td>
+          <td><span class="gate-badge ${pass?'pass':'fail'}">${pass?'PASS':'FAIL'}</span></td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+    } else {
+      html += '<div style="color:#596275;font-size:.85rem">No gates data</div>';
+    }
+    html += '</div></div>';
+
+    // Equity curve
+    if(d.equity_curve && d.equity_curve.length){
+      html += '<div class="col-12"><div class="card"><h6 style="font-weight:700">Equity Curve <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Equity Curve</b>: Cumulative P/L over time (trade by trade). A steadily rising curve = consistent edge. Long flat periods = strategy is dormant. Sharp drops = drawdowns. Ideally, the curve should look like a staircase going up, not a roller coaster.">?</span></h6><div class="chart-wrap"><canvas id="eqCanvas"></canvas></div></div></div>';
+    }
+
+    // WFA summary
+    if(wfa && wfa.oos_metrics){
+      html += '<div class="col-lg-6"><div class="card"><h6 style="font-weight:700">Walk-Forward (OOS) <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Walk-Forward Analysis</b> (Davey Ch.11–12): Divides historical data into overlapping windows. Each window: optimise parameters on the first portion (in-sample), then test on the next portion (out-of-sample/OOS). OOS results are the only ones that matter — they show how the strategy performs on data it was NOT fitted to. If OOS results are poor, the strategy is curve-fitted.">?</span></h6><div class="detail-grid">';
+      const om = wfa.oos_metrics;
+      [['OOS Return', pnlFmt(om.net_pnl),''], ['OOS Trades',om.total_trades||0,''],
+       ['OOS Win Rate',om.win_rate!=null?(om.win_rate*100).toFixed(1)+'%':'—',''],
+       ['OOS Return/DD',fmt(om.return_dd_ratio,1),'']].forEach(([l,v,c])=>{
+        html+=`<div class="d-item"><div class="d-val ${c}">${v}</div><div class="d-label">${l}</div></div>`;
+      });
+      html += '</div></div></div>';
+    }
+
+    // MC summary
+    if(mc && mc.percentiles){
+      html += '<div class="col-lg-6"><div class="card"><h6 style="font-weight:700">Monte Carlo <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Monte Carlo Simulation</b> (Davey Ch.13–14): Randomly reorders your trades 1000 times and measures the distribution of outcomes. A robust strategy performs similarly regardless of trade order. Key outputs: <b>Median Return</b> (expected outcome), <b>95th Percentile DD</b> (worst-case drawdown in 95% of simulations), <b>Risk of Ruin</b> (probability of losing everything — must be &lt;10%).">?</span></h6><div class="detail-grid">';
+      const p = mc.percentiles;
+      [['Median Return', pnlFmt(p.return_50 || mc.median_return),''],
+       ['95th DD', p.dd_95!=null?fmt(p.dd_95*100,1)+'%':'—','down'],
+       ['Risk of Ruin', mc.risk_of_ruin!=null?fmt(mc.risk_of_ruin*100,1)+'%':'—',''],
+       ['Simulations', mc.n_sims||1000,'']].forEach(([l,v,c])=>{
+        html+=`<div class="d-item"><div class="d-val ${c}">${v}</div><div class="d-label">${l}</div></div>`;
+      });
+      html += '</div></div></div>';
+    }
+
+    html += '</div>';
+    el.innerHTML = html;
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => { if(!bootstrap.Tooltip.getInstance(el)) new bootstrap.Tooltip(el, {trigger:'hover focus'}); });
+
+    // Equity chart
+    if(d.equity_curve && d.equity_curve.length){
+      const ctx = document.getElementById('eqCanvas');
+      if(ctx){
+        if(eqChart) eqChart.destroy();
+        const eq = d.equity_curve;
+        eqChart = new Chart(ctx, {
+          type:'line',
+          data:{
+            labels: eq.map((_,i)=>'Trade '+(i+1)),
+            datasets:[{
+              data: eq,
+              borderColor:'#7c8aef', borderWidth:2, pointRadius:0,
+              fill:{target:'origin', above:'rgba(124,138,239,.08)'},
+              tension:0.2,
+            }]
+          },
+          options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{display:false}},
+            scales:{
+              x:{ticks:{maxTicksLimit:8},grid:{color:'rgba(255,255,255,.04)'}},
+              y:{ticks:{callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(255,255,255,.04)'}}
+            }
+          }
+        });
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>

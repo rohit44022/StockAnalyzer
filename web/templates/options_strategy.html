@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Options — Strategy Builder</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--card-bg:#282f36;--card-border:#2f3944;--g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc}
+body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%);border-bottom:1px solid var(--card-border);padding:1.5rem 0 1.2rem}
+.hero h1{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#c084fc,#f7b84b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:1.5rem}
+.controls select,.controls input{background:var(--card-bg);border:1px solid var(--card-border);color:var(--bs-body-color);border-radius:8px;padding:6px 12px;font-size:.85rem}
+
+.strat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:2rem}
+.strat-btn{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:12px 16px;cursor:pointer;transition:all .15s;text-align:left;border-left:3px solid transparent}
+.strat-btn:hover{border-color:var(--b);border-left-color:var(--b);transform:translateY(-1px)}
+.strat-btn.active{border-color:var(--b);border-left-color:var(--b);background:rgba(124,138,239,.1)}
+.strat-btn[data-cat="INCOME"]{border-left-color:var(--g)}
+.strat-btn[data-cat="DIRECTIONAL"]{border-left-color:var(--b)}
+.strat-btn[data-cat="VOLATILITY"]{border-left-color:var(--y)}
+.strat-btn[data-cat="RANGEBOUND"]{border-left-color:var(--p)}
+.strat-btn .strat-name{font-weight:600;font-size:.88rem;color:var(--bs-body-color)}
+.strat-btn .strat-meta{font-size:.7rem;color:#8b949e;margin-top:2px}
+.strat-btn .strat-cat{font-size:.62rem;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.06);color:#8b949e;display:inline-block;margin-top:4px}
+
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:1.5rem;border-top:3px solid var(--b)}
+
+.legs-tbl{width:100%;font-size:.85rem;border-collapse:separate;border-spacing:0}
+.legs-tbl th{font-size:.7rem;text-transform:uppercase;color:#8b949e;padding:8px 10px;border-bottom:2px solid var(--card-border)}
+.legs-tbl td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-family:'JetBrains Mono',monospace}
+.legs-tbl .buy{color:var(--g);font-weight:600}.legs-tbl .sell{color:var(--r);font-weight:600}
+.legs-tbl tr:hover td{background:rgba(124,138,239,.06)}
+
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:1rem}
+.s-item{text-align:center}
+.s-val{font-size:1.1rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.s-label{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
+.up{color:var(--g)}.down{color:var(--r)}
+
+.chart-wrap{position:relative;height:350px;margin-top:1.5rem}
+.empty-state{text-align:center;padding:3rem;color:#596275}
+.empty-state i{font-size:2.5rem;display:block;margin-bottom:.75rem}
+.tip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;font-size:.65rem;color:#596275;cursor:help;vertical-align:middle;margin-left:4px;border:1px solid rgba(255,255,255,.08);border-radius:50%;transition:color .15s}
+.tip:hover{color:var(--b);border-color:var(--b)}
+.section-help{font-size:.78rem;color:#596275;margin-bottom:1rem;line-height:1.5}
+.cat-help{font-size:.72rem;color:#596275;margin-bottom:8px;line-height:1.4}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+{% include "_live_ticker.html" %}
+
+<div class="hero">
+  <div class="container-fluid px-4">
+    <h1><i class="bi bi-diagram-3"></i> Strategy Builder</h1>
+    <div class="section-help">Select a strategy to see its payoff diagram, legs, and risk profile. Adjust spot, IV, and lot size to simulate different scenarios.
+      <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Payoff Diagram</b>: Shows your profit/loss at expiry for every possible price of the underlying. The x-axis is the underlying price, y-axis is P/L. Green area = profit, red area = loss. The <b>breakeven</b> point is where the line crosses zero.">?</span>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid px-4 py-3">
+  <div class="controls">
+    <label style="font-size:.82rem;color:#8b949e">Spot <span class="tip" data-bs-toggle="tooltip" title="Current price of the underlying index (NIFTY/BANKNIFTY). Strike prices for each leg are calculated relative to this value.">?</span>:</label>
+    <input type="number" id="spotInput" value="24000" step="50" style="width:120px">
+    <label style="font-size:.82rem;color:#8b949e">IV <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Implied Volatility</b>: Used to estimate option premiums. Higher IV = more expensive options = wider breakevens. NIFTY typically: 10-15% (calm), 15-25% (normal), 25%+ (volatile/event).">?</span>:</label>
+    <input type="number" id="ivInput" value="15" step="1" min="5" max="80" style="width:80px">
+    <label style="font-size:.82rem;color:#8b949e">%</label>
+    <label style="font-size:.82rem;color:#8b949e;margin-left:12px">Lot Size <span class="tip" data-bs-toggle="tooltip" title="Number of units per lot. NIFTY = 75, BANKNIFTY = 30 (as of 2024). P/L is multiplied by this — larger lots = larger absolute gains/losses.">?</span>:</label>
+    <input type="number" id="lotInput" value="75" step="25" style="width:80px">
+  </div>
+
+  <div id="stratList">
+    <div class="empty-state"><div class="spinner-border spinner-border-sm"></div> Loading strategies…</div>
+  </div>
+
+  <div class="row g-4 mt-2" id="resultSection" style="display:none">
+    <div class="col-lg-5">
+      <div class="card">
+        <h6 style="font-weight:700;margin-bottom:1rem" id="stratTitle">—</h6>
+        <table class="legs-tbl" id="legsTable">
+          <thead><tr><th>Leg</th><th>Type</th><th>Strike</th><th>Premium</th><th>Qty</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="summary-grid" id="summaryGrid"></div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div class="card">
+        <h6 style="font-weight:700;margin-bottom:.5rem">Payoff at Expiry</h6>
+        <div class="chart-wrap"><canvas id="payoffChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "_theme_picker.html" %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let payoffChart = null;
+
+fetch('/api/options/strategies').then(r=>r.json()).then(d => {
+  const el = document.getElementById('stratList');
+  if(!d.strategies || !d.strategies.length){ el.innerHTML='<div class="empty-state">No strategies registered</div>'; return; }
+
+  const cats = {};
+  d.strategies.forEach(s => { (cats[s.category] = cats[s.category]||[]).push(s); });
+
+  const catHelp = {
+    'INCOME': 'Sell options to collect premium (theta). Profit when the market stays in a range. Risk: large moves against you. (Cohen Ch.8, Sinclair Ch.7)',
+    'DIRECTIONAL': 'Bet on the market moving up or down. Buy calls for bullish, puts for bearish, or use spreads to reduce cost. (McMillan Ch.7–9)',
+    'VOLATILITY': 'Profit from large moves in either direction (long vol) or from the market staying still (short vol). (Natenberg Ch.11, Sinclair Ch.6)',
+    'RANGEBOUND': 'Profit when the underlying stays within a defined range. Maximum profit at a specific strike or zone. (Cohen Ch.10)',
+  };
+  let html = '';
+  Object.entries(cats).forEach(([cat, strats]) => {
+    const help = catHelp[cat.toUpperCase()] || '';
+    html += `<div style="font-size:.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin:1rem 0 .5rem;font-weight:600">${cat} <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="${help}">?</span></div>${help?'<div class=cat-help>'+help+'</div>':''}<div class="strat-grid">`;
+    strats.forEach(s => {
+      html += `<div class="strat-btn" data-key="${s.key}" data-cat="${cat.toUpperCase()}" onclick="selectStrat('${s.key}',this)">
+        <div class="strat-name">${s.name}</div>
+        <div class="strat-meta">${s.outlook} · ${s.vol_regime} vol · ${s.legs_count} legs</div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  el.innerHTML = html;
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el, {trigger:'hover focus'}));
+});
+
+function selectStrat(key, btn){
+  document.querySelectorAll('.strat-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+
+  const spot = document.getElementById('spotInput').value;
+  const iv = (document.getElementById('ivInput').value / 100).toFixed(2);
+  const lot = document.getElementById('lotInput').value;
+
+  const resultEl = document.getElementById('resultSection');
+  resultEl.style.display = '';
+  resultEl.innerHTML = '<div class="col-12"><div class="card"><div style="text-align:center;padding:2rem;color:#596275"><div class="spinner-border spinner-border-sm"></div> Loading payoff…</div></div></div>';
+
+  fetch(`/api/options/payoff/${key}?spot=${spot}&iv=${iv}&lot_size=${lot}`)
+    .then(r=>r.json())
+    .then(d => {
+      if(d.error){ resultEl.innerHTML = '<div class="col-12"><div class="card"><div style="text-align:center;padding:2rem;color:var(--r)"><i class="bi bi-exclamation-triangle"></i> '+d.error+'</div></div></div>'; return; }
+      resultEl.innerHTML = `<div class="col-lg-5"><div class="card">
+        <h6 style="font-weight:700;margin-bottom:1rem" id="stratTitle"></h6>
+        <table class="legs-tbl" id="legsTable"><thead><tr><th>Leg</th><th data-bs-toggle="tooltip" title="BUY = you pay premium (debit), long the option. SELL = you receive premium (credit), short the option. CE = Call, PE = Put.">Type</th><th data-bs-toggle="tooltip" title="The price at which you can exercise. Calculated from spot ± offset for each leg.">Strike</th><th data-bs-toggle="tooltip" title="Estimated option price based on spot and IV. In real trading, check the live chain for actual premiums.">Premium</th><th data-bs-toggle="tooltip" title="Number of lots for this leg. Ratio spreads use different quantities per leg.">Qty</th></tr></thead><tbody></tbody></table>
+        <div class="summary-grid" id="summaryGrid"></div>
+      </div></div><div class="col-lg-7"><div class="card">
+        <h6 style="font-weight:700;margin-bottom:.5rem">Payoff at Expiry</h6>
+        <div class="chart-wrap"><canvas id="payoffChart"></canvas></div>
+      </div></div>`;
+      document.getElementById('stratTitle').textContent = d.name + ' — ' + d.outlook;
+
+      // Legs table
+      const tbody = document.querySelector('#legsTable tbody');
+      tbody.innerHTML = d.legs.map((l,i) => `<tr>
+        <td>${i+1}</td>
+        <td class="${l.action==='BUY'?'buy':'sell'}">${l.action} ${l.option_type}</td>
+        <td>₹${Number(l.strike).toLocaleString('en-IN')}</td>
+        <td>₹${l.premium.toFixed(2)}</td>
+        <td>${l.qty}</td>
+      </tr>`).join('');
+
+      // Summary
+      const s = d.summary;
+      const pnlFmt = v => v==null?'—':(v>=0?'+':'')+'₹'+Math.abs(v).toLocaleString('en-IN',{maximumFractionDigits:0});
+      document.getElementById('summaryGrid').innerHTML = `
+        <div class="s-item"><div class="s-val up">${pnlFmt(s.max_profit)}</div><div class="s-label">Max Profit <span class="tip" data-bs-toggle="tooltip" title="The best-case profit if the underlying moves perfectly in your favor. For credit strategies this is the premium collected; for debit strategies it depends on how far the market moves.">?</span></div></div>
+        <div class="s-item"><div class="s-val down">${pnlFmt(s.max_loss)}</div><div class="s-label">Max Loss <span class="tip" data-bs-toggle="tooltip" title="The worst-case loss. For defined-risk strategies (spreads, condors) this is capped. For naked/undefined strategies it can be unlimited. Never risk more than you can afford to lose.">?</span></div></div>
+        <div class="s-item"><div class="s-val">${s.breakevens?s.breakevens.map(b=>'₹'+b.toLocaleString('en-IN')).join(', '):'—'}</div><div class="s-label">Breakeven <span class="tip" data-bs-toggle="tooltip" title="The underlying price(s) at which you neither profit nor lose at expiry. Some strategies have two breakevens (upper and lower), forming a profit zone between them.">?</span></div></div>
+        <div class="s-item"><div class="s-val">${s.risk_reward?s.risk_reward.toFixed(2):'—'}</div><div class="s-label">Risk:Reward <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Risk:Reward Ratio</b>: Max Loss ÷ Max Profit. Lower is better. <b>&lt;1</b> = you risk less than you can gain (debit spreads). <b>&gt;1</b> = you risk more than you can gain but win more often (credit strategies, iron condors).">?</span></div></div>
+      `;
+      // Re-init tooltips for dynamically added content
+      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => { if(!bootstrap.Tooltip.getInstance(el)) new bootstrap.Tooltip(el, {trigger:'hover focus'}); });
+
+      // Chart
+      const pc = d.payoff_curve;
+      if(payoffChart) payoffChart.destroy();
+      const ctx = document.getElementById('payoffChart').getContext('2d');
+      const labels = pc.spot_range.map(v=>Math.round(v));
+      const colors = pc.pnl.map(v=>v>=0?'rgba(10,179,156,.6)':'rgba(240,101,72,.6)');
+
+      payoffChart = new Chart(ctx, {
+        type:'line',
+        data:{
+          labels,
+          datasets:[{
+            data: pc.pnl,
+            borderColor: '#7c8aef',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: {target:'origin', above:'rgba(10,179,156,.08)', below:'rgba(240,101,72,.08)'},
+            tension: 0.1,
+          }]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{legend:{display:false}, tooltip:{
+            callbacks:{
+              label: ctx => '₹'+ctx.parsed.y.toFixed(0),
+              title: ctx => 'Spot: ₹'+ctx[0].label,
+            }
+          }},
+          scales:{
+            x:{ticks:{maxTicksLimit:10, callback:v=>labels[v]?'₹'+labels[v].toLocaleString('en-IN'):''},grid:{color:'rgba(255,255,255,.04)'}},
+            y:{ticks:{callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'rgba(255,255,255,.04)'},
+              border:{dash:[4,4]}}
+          },
+          interaction:{mode:'index',intersect:false},
+        }
+      });
+    });
+}
+</script>
+</body>
+</html>

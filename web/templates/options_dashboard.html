@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Options — Dashboard</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--card-bg:#282f36;--card-border:#2f3944;--g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc}
+body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;border-top:3px solid var(--b)}
+
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%);border-bottom:1px solid var(--card-border);padding:2rem 0 1.5rem}
+.hero h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#c084fc,#7c8aef,#0ab39c);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero .subtitle{font-size:.85rem;color:#8b949e}
+
+.sum-card{border-radius:14px;padding:1.2rem 1.4rem;background:var(--card-bg);border:1px solid var(--card-border);transition:all .15s;border-left:3px solid transparent}
+.sum-card:hover{transform:translateY(-2px);border-left-color:var(--b)}
+.sum-card:nth-child(1) .sum-card{border-left-color:var(--b)}
+.row .col-6:nth-child(1) .sum-card{border-left-color:var(--b)}
+.row .col-6:nth-child(2) .sum-card{border-left-color:var(--p)}
+.row .col-6:nth-child(3) .sum-card{border-left-color:var(--g)}
+.row .col-6:nth-child(4) .sum-card{border-left-color:var(--y)}
+.sum-val{font-size:1.45rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sum-label{font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+.sec-title{font-size:1rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.sec-title i{font-size:1.1rem}
+.sec-title .bi-hourglass-split{color:var(--y)}
+.sec-title .bi-database{color:var(--p)}
+.sec-title .bi-lightbulb{color:var(--g)}
+.sec-title .bi-arrow-left-right{color:var(--b)}
+
+.status-badge{font-size:.7rem;font-weight:600;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+.status-badge.incubating{background:rgba(247,184,75,.15);color:var(--y)}
+.status-badge.graduated{background:rgba(10,179,156,.15);color:var(--g)}
+.status-badge.aborted{background:rgba(240,101,72,.15);color:var(--r)}
+.status-badge.open{background:rgba(124,138,239,.15);color:var(--b)}
+.status-badge.pending{background:rgba(255,255,255,.08);color:#8b949e}
+.status-badge.entered{background:rgba(10,179,156,.15);color:var(--g)}
+.status-badge.expired{background:rgba(255,255,255,.06);color:#596275}
+.status-badge.closed{background:rgba(192,132,252,.15);color:var(--p)}
+
+.lc-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:1.4rem;margin-bottom:1rem;border-left:3px solid var(--y);transition:border-color .15s}
+.lc-card:hover{border-left-color:var(--b)}
+.lc-card .lc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.lc-card .lc-key{font-weight:700;font-size:1.05rem}
+.lc-card .lc-metric{display:flex;flex-direction:column;gap:2px}
+.lc-card .lc-metric-label{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
+.lc-card .lc-metric-val{font-family:'JetBrains Mono',monospace;font-size:.95rem;font-weight:600}
+.lc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+
+.tbl{width:100%;border-collapse:separate;border-spacing:0}
+.tbl th{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:#8b949e;padding:10px 14px;border-bottom:2px solid var(--card-border);position:sticky;top:0;background:var(--card-bg);white-space:nowrap}
+.tbl td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-size:.85rem;vertical-align:middle}
+.tbl tr:hover td{background:rgba(124,138,239,.06)}
+.tbl .num{font-family:'JetBrains Mono',monospace;text-align:right;white-space:nowrap}
+.up{color:var(--g)}.down{color:var(--r)}
+
+.progress-bar-wrap{height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin-top:6px}
+.progress-bar-fill{height:100%;border-radius:3px;transition:width .5s}
+
+.empty-state{text-align:center;padding:3rem 1rem;color:#596275}
+.empty-state i{font-size:2.5rem;margin-bottom:.75rem;display:block}
+
+.quick-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:1rem}
+.quick-links a{font-size:.82rem;padding:6px 14px;border-radius:8px;background:rgba(124,138,239,.1);color:var(--b);text-decoration:none;transition:background .15s}
+.quick-links a:hover{background:rgba(124,138,239,.2)}
+.tip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;font-size:.65rem;color:#596275;cursor:help;vertical-align:middle;margin-left:4px;border:1px solid rgba(255,255,255,.08);border-radius:50%;transition:color .15s}
+.tip:hover{color:var(--b);border-color:var(--b)}
+.section-help{font-size:.78rem;color:#596275;margin-bottom:1rem;line-height:1.5}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+{% include "_live_ticker.html" %}
+
+<div class="hero">
+  <div class="container-fluid px-4">
+    <h1><i class="bi bi-graph-up-arrow"></i> Options Dashboard</h1>
+    <div class="subtitle">Incubation tracking · Paper trades · Chain data <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Options Dashboard</b><br>Tracks your paper-traded strategies through <em>incubation</em> — a 3-month minimum trial period (Davey Ch.14) before committing real capital. Monitors trade counts, drawdowns, and statistical tests to decide if a strategy should graduate to live trading or be aborted.">?</span></div>
+    <div class="quick-links">
+      <a href="/options/chain"><i class="bi bi-grid-3x3 me-1"></i>Chain</a>
+      <a href="/options/strategy"><i class="bi bi-diagram-3 me-1"></i>Strategy</a>
+      <a href="/options/volatility"><i class="bi bi-activity me-1"></i>Volatility</a>
+      <a href="/options/backtest"><i class="bi bi-clock-history me-1"></i>Backtest</a>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid px-4 py-4">
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4" id="summaryCards">
+    <div class="col-6 col-md-3"><div class="sum-card"><div class="sum-val" id="openCount">—</div><div class="sum-label">Open Trades <span class="tip" data-bs-toggle="tooltip" title="Paper trades currently live — entered but not yet exited. These are simulated, no real money at risk.">?</span></div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card"><div class="sum-val" id="closedCount">—</div><div class="sum-label">Closed Trades <span class="tip" data-bs-toggle="tooltip" title="Paper trades that have been exited (at target, stop-loss, or expiry). The more closed trades, the more reliable the statistics.">?</span></div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card"><div class="sum-val" id="totalPnl">—</div><div class="sum-label">Total P/L <span class="tip" data-bs-toggle="tooltip" title="Sum of all closed paper trade profits and losses. This is simulated P/L — it does not include slippage or real brokerage costs.">?</span></div></div></div>
+    <div class="col-6 col-md-3"><div class="sum-card"><div class="sum-val" id="chainRows">—</div><div class="sum-label">Chain Snapshots <span class="tip" data-bs-toggle="tooltip" title="Number of option chain rows stored in the database. Chain data is collected daily from NSE/Dhan and used for OI analysis, IV calculation, and strategy selection.">?</span></div></div></div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Lifecycle / Incubation -->
+    <div class="col-lg-7">
+      <div class="sec-title"><i class="bi bi-hourglass-split"></i> Incubation Lifecycle <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Incubation</b> (Davey Ch.14): Paper-trade a strategy for at least 90 days and 30+ trades before going live. If paper results statistically match backtest expectations (t-test p&gt;0.44), the strategy <em>graduates</em>. If drawdown exceeds the abort threshold, it's <em>aborted</em>.">?</span></div>
+      <div id="lifecycleSection">
+        <div class="empty-state"><i class="bi bi-hourglass"></i>Loading…</div>
+      </div>
+    </div>
+
+    <!-- Chain Store Stats -->
+    <div class="col-lg-5">
+      <div class="sec-title"><i class="bi bi-database"></i> Chain Store</div>
+      <div class="card p-3 mb-4" id="chainStoreCard">
+        <div class="empty-state"><i class="bi bi-database"></i>Loading…</div>
+      </div>
+
+      <div class="sec-title"><i class="bi bi-lightbulb"></i> Recent Recommendations</div>
+      <div class="card" style="max-height:340px;overflow-y:auto" id="recsCard">
+        <div class="empty-state"><i class="bi bi-lightbulb"></i>Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Open Trades -->
+  <div class="mt-4">
+    <div class="sec-title"><i class="bi bi-arrow-left-right"></i> Open Trades</div>
+    <div class="card" id="tradesCard">
+      <div class="empty-state"><i class="bi bi-arrow-left-right"></i>Loading…</div>
+    </div>
+  </div>
+</div>
+
+{% include "_theme_picker.html" %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function(){
+  const fmt = (v,dp=0) => v == null ? '—' : (dp ? v.toFixed(dp) : v.toLocaleString('en-IN'));
+  const pnlClass = v => v == null ? '' : v >= 0 ? 'up' : 'down';
+  const pnlFmt = v => v == null ? '—' : (v >= 0 ? '+' : '') + '₹' + Math.abs(v).toLocaleString('en-IN',{maximumFractionDigits:0});
+
+  fetch('/api/options/dashboard')
+    .then(r => r.json())
+    .then(d => {
+      if(d.error){ document.getElementById('lifecycleSection').innerHTML='<div class="empty-state"><i class="bi bi-exclamation-triangle"></i>'+d.error+'</div>'; return; }
+
+      // Summary cards
+      document.getElementById('openCount').textContent = d.open_trades.length;
+      document.getElementById('closedCount').textContent = d.closed_summary.count;
+      const tp = document.getElementById('totalPnl');
+      tp.textContent = pnlFmt(d.closed_summary.total_pnl);
+      tp.className = 'sum-val ' + pnlClass(d.closed_summary.total_pnl);
+
+      const cs = d.chain_store;
+      document.getElementById('chainRows').textContent = cs.exists ? fmt(cs.snapshot_rows + cs.bhavcopy_rows) : '0';
+
+      // Lifecycle
+      const lcEl = document.getElementById('lifecycleSection');
+      if(!d.lifecycles || !d.lifecycles.length){
+        lcEl.innerHTML = '<div class="empty-state"><i class="bi bi-hourglass"></i>No strategies in incubation yet</div>';
+      } else {
+        lcEl.innerHTML = d.lifecycles.map(lc => {
+          const status = (lc.status||'').toLowerCase();
+          const startDate = lc.start_date ? new Date(lc.start_date) : null;
+          const daysSince = startDate ? Math.floor((Date.now() - startDate) / 86400000) : 0;
+          const pct = Math.min(100, (daysSince / 90) * 100);
+          const color = status === 'graduated' ? 'var(--g)' : status === 'aborted' ? 'var(--r)' : 'var(--y)';
+          return `<div class="lc-card">
+            <div class="lc-header">
+              <span class="lc-key">${lc.strategy_key}</span>
+              <span class="status-badge ${status}">${lc.status}</span>
+            </div>
+            <div class="lc-grid">
+              <div class="lc-metric"><div class="lc-metric-label">Start</div><div class="lc-metric-val">${lc.start_date||'—'}</div></div>
+              <div class="lc-metric"><div class="lc-metric-label">Days <span class="tip" data-bs-toggle="tooltip" title="Days since incubation started. Minimum 90 days required for graduation (Davey Ch.14).">?</span></div><div class="lc-metric-val">${daysSince}</div></div>
+              <div class="lc-metric"><div class="lc-metric-label">Trades <span class="tip" data-bs-toggle="tooltip" title="Number of completed paper trades. Need at least 30 for statistical significance (Davey Ch.6).">?</span></div><div class="lc-metric-val">${lc.trade_count||0}</div></div>
+              <div class="lc-metric"><div class="lc-metric-label">t-test p <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Two-sample t-test</b>: Compares paper trade P/L distribution against backtest WFA results. <b>p &gt; 0.44</b> means the two distributions are NOT statistically different — paper trading matches backtest = GOOD. <b>p &lt; 0.10</b> means they've diverged = ABORT.">?</span></div><div class="lc-metric-val">${lc.t_test_compare_p != null ? lc.t_test_compare_p.toFixed(2) : '—'}</div></div>
+              <div class="lc-metric"><div class="lc-metric-label">Return Eff <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Return Efficiency</b> (Davey Ch.23): Actual return ÷ expected return from backtest. Target: <b>0.70–1.30</b>. Below 0.70 = strategy underperforming. Above 1.30 = suspiciously good, likely to revert.">?</span></div><div class="lc-metric-val">${lc.return_efficiency != null ? lc.return_efficiency.toFixed(2) : '—'}</div></div>
+              <div class="lc-metric"><div class="lc-metric-label">DD Eff <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Drawdown Efficiency</b> (Davey Ch.23): 1 − (actual DD ÷ expected DD). Target: <b>&gt; 0.0</b>. Positive means actual drawdown is less than expected. Negative means worse than expected.">?</span></div><div class="lc-metric-val">${lc.dd_efficiency != null ? lc.dd_efficiency.toFixed(2) : '—'}</div></div>
+              <div class="lc-metric"><div class="lc-metric-label">Abort DD% <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Abort Threshold</b> (Davey Ch.14): Average of 1.5× worst historical drawdown and 95th percentile Monte Carlo drawdown. If current DD exceeds this, the strategy must be stopped — the edge may be gone.">?</span></div><div class="lc-metric-val">${lc.mc_abort_dd_pct != null ? lc.mc_abort_dd_pct.toFixed(1)+'%' : '—'}</div></div>
+              <div class="lc-metric"><div class="lc-metric-label">Current DD% <span class="tip" data-bs-toggle="tooltip" title="Current drawdown from peak equity in paper trading. If this exceeds Abort DD%, the strategy is automatically aborted.">?</span></div><div class="lc-metric-val ${lc.current_dd_pct > (lc.mc_abort_dd_pct||999) ? 'down' : ''}">${lc.current_dd_pct != null ? lc.current_dd_pct.toFixed(1)+'%' : '—'}</div></div>
+            </div>
+            <div class="progress-bar-wrap mt-3">
+              <div class="progress-bar-fill" style="width:${pct.toFixed(0)}%;background:${color}"></div>
+            </div>
+            <div style="font-size:.68rem;color:#596275;margin-top:4px">${daysSince === 0 ? 'Started today' : daysSince + '/90 days to minimum graduation'}</div>
+          </div>`;
+        }).join('');
+      }
+
+      // Chain store stats
+      const csEl = document.getElementById('chainStoreCard');
+      if(!cs.exists){
+        csEl.innerHTML = '<div class="empty-state"><i class="bi bi-database-x"></i>No chain store database</div>';
+      } else {
+        csEl.innerHTML = `<div class="lc-grid">
+          <div class="lc-metric"><div class="lc-metric-label">Snapshots</div><div class="lc-metric-val">${fmt(cs.snapshot_rows)}</div></div>
+          <div class="lc-metric"><div class="lc-metric-label">Bhavcopy</div><div class="lc-metric-val">${fmt(cs.bhavcopy_rows)}</div></div>
+          <div class="lc-metric"><div class="lc-metric-label">Snap Range</div><div class="lc-metric-val" style="font-size:.75rem">${cs.snapshot_range?(cs.snapshot_range[0]||'').substring(0,10)||'—':'—'}</div></div>
+          <div class="lc-metric"><div class="lc-metric-label">Bhav Range</div><div class="lc-metric-val" style="font-size:.75rem">${cs.bhavcopy_range?cs.bhavcopy_range[0]||'—':'—'}</div></div>
+        </div>`;
+      }
+
+      // Recommendations
+      const recsEl = document.getElementById('recsCard');
+      if(!d.recent_recommendations || !d.recent_recommendations.length){
+        recsEl.innerHTML = '<div class="empty-state"><i class="bi bi-lightbulb-off"></i>No recommendations yet</div>';
+      } else {
+        let html = '<table class="tbl"><thead><tr><th>#</th><th>Time</th><th>Strategy</th><th>Spot</th><th>Score</th><th>Status</th></tr></thead><tbody>';
+        d.recent_recommendations.forEach(r => {
+          const st = (r.status||'').toLowerCase();
+          html += `<tr>
+            <td class="num">${r.id}</td>
+            <td style="font-size:.78rem">${(r.timestamp||'').substring(0,16)}</td>
+            <td><strong>${r.strategy}</strong><br><span style="font-size:.72rem;color:#8b949e">${r.symbol||''}</span></td>
+            <td class="num">${fmt(r.spot)}</td>
+            <td class="num">${r.score != null ? r.score.toFixed(1) : '—'}</td>
+            <td><span class="status-badge ${st}">${r.status||'—'}</span></td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        recsEl.innerHTML = html;
+      }
+
+      // Open trades
+      const trEl = document.getElementById('tradesCard');
+      if(!d.open_trades.length){
+        trEl.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i>No open trades</div>';
+      } else {
+        let html = '<table class="tbl"><thead><tr><th>#</th><th>Opened</th><th>Strategy</th><th>Symbol</th><th>Spot</th><th>Lots</th><th>Capital</th><th>Status</th></tr></thead><tbody>';
+        d.open_trades.forEach(t => {
+          html += `<tr>
+            <td class="num">${t.id}</td>
+            <td style="font-size:.78rem">${(t.opened_at||'').substring(0,10)}</td>
+            <td><strong>${t.strategy}</strong></td>
+            <td>${t.symbol}</td>
+            <td class="num">${fmt(t.entry_spot)}</td>
+            <td class="num">${t.lots}</td>
+            <td class="num">₹${fmt(t.capital_risked)}</td>
+            <td><span class="status-badge ${(t.status||'').toLowerCase()}">${t.status}</span></td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        trEl.innerHTML = html;
+      }
+    })
+    .catch(e => {
+      document.getElementById('lifecycleSection').innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i>Failed to load: '+e.message+'</div>';
+    })
+    .finally(() => {
+      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el, {trigger:'hover focus'}));
+    });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme_mode|default('dark') }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Options — Chain Viewer</title>
+{% include "_theme_head.html" %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{--card-bg:#282f36;--card-border:#2f3944;--g:#0ab39c;--r:#f06548;--y:#f7b84b;--b:#7c8aef;--p:#c084fc}
+body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)}
+.font-mono{font-family:'JetBrains Mono',monospace}
+
+.hero{background:linear-gradient(135deg,var(--bs-body-bg),var(--bs-tertiary-bg) 50%);border-bottom:1px solid var(--card-border);padding:1.5rem 0 1.2rem}
+.hero h1{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#0ab39c,#7c8aef);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:1.5rem}
+.controls select,.controls input{background:var(--card-bg);border:1px solid var(--card-border);color:var(--bs-body-color);border-radius:8px;padding:6px 12px;font-size:.85rem;font-family:'Inter',sans-serif}
+.controls select:focus,.controls input:focus{outline:none;border-color:var(--b)}
+
+.oi-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:1.5rem}
+.oi-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:1rem;text-align:center;transition:border-color .15s}
+.oi-card:hover{border-color:var(--b)}
+.oi-card .oi-val{font-size:1.3rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.oi-card .oi-label{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+.chain-wrap{overflow-x:auto;border-radius:14px;border:1px solid var(--card-border);background:var(--card-bg);border-top:3px solid var(--b)}
+.chain-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:.82rem}
+.chain-tbl th{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:#8b949e;padding:8px 10px;border-bottom:2px solid var(--card-border);position:sticky;top:0;background:var(--card-bg);white-space:nowrap;text-align:center}
+.chain-tbl td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.03);text-align:center;font-family:'JetBrains Mono',monospace;font-size:.78rem;white-space:nowrap}
+.chain-tbl .strike-col{background:rgba(124,138,239,.08);font-weight:700;font-size:.85rem;position:sticky;left:0}
+.chain-tbl .ce-side{background:rgba(10,179,156,.04)}
+.chain-tbl .pe-side{background:rgba(240,101,72,.04)}
+.chain-tbl .itm{background:rgba(255,255,255,.07) !important}
+.chain-tbl .atm-row{border-top:2px solid var(--b);border-bottom:2px solid var(--b);background:rgba(124,138,239,.06) !important}
+.chain-tbl .atm-row td{padding-top:8px;padding-bottom:8px}
+.chain-tbl tr:hover td{background:rgba(124,138,239,.04) !important}
+
+.oi-bar{height:6px;border-radius:3px;margin-top:3px;opacity:.8}
+.oi-bar.ce{background:linear-gradient(90deg,var(--g),rgba(10,179,156,.4))}.oi-bar.pe{background:linear-gradient(90deg,var(--r),rgba(240,101,72,.4))}
+
+.empty-state{text-align:center;padding:3rem;color:#596275}
+.empty-state i{font-size:2.5rem;display:block;margin-bottom:.75rem}
+.tip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;font-size:.65rem;color:#596275;cursor:help;vertical-align:middle;margin-left:4px;border:1px solid rgba(255,255,255,.08);border-radius:50%;transition:color .15s}
+.tip:hover{color:var(--b);border-color:var(--b)}
+.section-help{font-size:.78rem;color:#596275;margin-bottom:1rem;line-height:1.5}
+</style>
+</head>
+<body>
+{% include "_nav.html" %}
+{% include "_live_ticker.html" %}
+
+<div class="hero">
+  <div class="container-fluid px-4">
+    <h1><i class="bi bi-grid-3x3"></i> Option Chain</h1>
+    <div class="section-help">NSE-style option chain showing live prices, Open Interest, and Greeks for each strike.
+      <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Option Chain</b>: Shows all available Calls (CE) and Puts (PE) for a given underlying (NIFTY/BANKNIFTY), organized by strike price. <b>ITM</b> (In-The-Money) rows are shaded — for calls: strike &lt; spot; for puts: strike &gt; spot. The <b>ATM</b> (At-The-Money) row is the strike closest to the current spot price.">?</span>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid px-4 py-3">
+  <div class="controls">
+    <select id="symbolSel"><option value="NIFTY">NIFTY</option><option value="BANKNIFTY">BANKNIFTY</option></select>
+    <input type="date" id="dateInput">
+    <button class="btn btn-sm" style="background:var(--b);color:#fff;border-radius:8px;padding:6px 16px" onclick="loadChain()">Load</button>
+    <span id="spotLabel" style="font-size:.85rem;color:#8b949e;margin-left:auto">Spot: —</span>
+  </div>
+
+  <div class="oi-cards" id="oiCards" style="display:none"></div>
+
+  <div id="chainContent">
+    <div class="empty-state"><i class="bi bi-grid-3x3"></i>Select symbol and click Load</div>
+  </div>
+</div>
+
+{% include "_theme_picker.html" %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const fmt = (v,dp=2) => v == null ? '' : Number(v).toFixed(dp);
+const fmtInt = v => v == null ? '' : Number(v).toLocaleString('en-IN');
+
+document.getElementById('dateInput').value = new Date().toISOString().slice(0,10);
+
+function loadChain(){
+  const sym = document.getElementById('symbolSel').value;
+  const dt = document.getElementById('dateInput').value;
+  const el = document.getElementById('chainContent');
+  el.innerHTML = '<div class="empty-state"><div class="spinner-border spinner-border-sm"></div> Loading chain…</div>';
+
+  Promise.all([
+    fetch(`/api/options/chain/${sym}?date=${dt}`).then(r=>r.json()),
+    fetch(`/api/options/oi/${sym}?date=${dt}`).then(r=>r.json()).catch(()=>({}))
+  ]).then(([chain, oi]) => {
+    if(chain.error || !chain.rows || !chain.rows.length){
+      el.innerHTML = `<div class="empty-state"><i class="bi bi-inbox"></i>${chain.error||'No chain data found'}
+        <div style="font-size:.82rem;margin-top:8px;max-width:420px;margin-left:auto;margin-right:auto;color:#596275">
+          No chain snapshots exist for <strong>${sym}</strong> on ${dt}.<br>
+          Run <code style="color:var(--b)">python -m options.data.collect_daily --symbol ${sym}</code> to collect chain data from Dhan API.
+        </div></div>`;
+      return;
+    }
+
+    document.getElementById('spotLabel').textContent = 'Spot: ' + (chain.spot ? '₹'+Number(chain.spot).toLocaleString('en-IN') : '—');
+
+    // OI summary cards
+    const oiEl = document.getElementById('oiCards');
+    if(oi.pcr || oi.max_pain){
+      oiEl.style.display = 'grid';
+      let cards = '';
+      if(oi.pcr){
+        const pcr = oi.pcr;
+        cards += `<div class="oi-card"><div class="oi-val">${fmt(pcr.pcr,2)}</div><div class="oi-label">PCR (OI) <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Put-Call Ratio</b>: Total Put OI ÷ Total Call OI.<br><b>&gt;1.0</b> = more puts = bearish sentiment (but can be contrarian bullish).<br><b>&lt;0.7</b> = more calls = bullish sentiment.<br><b>0.7–1.0</b> = neutral.">?</span></div></div>`;
+        cards += `<div class="oi-card"><div class="oi-val" style="color:${pcr.signal==='bullish'?'var(--g)':pcr.signal==='bearish'?'var(--r)':'var(--y)'}">${pcr.signal||'—'}</div><div class="oi-label">Signal <span class="tip" data-bs-toggle="tooltip" title="Derived from PCR value. Note: extreme PCR readings often act as contrarian indicators — very high put buying can signal a bottom.">?</span></div></div>`;
+      }
+      if(oi.max_pain){
+        cards += `<div class="oi-card"><div class="oi-val">₹${fmtInt(oi.max_pain.strike)}</div><div class="oi-label">Max Pain <span class="tip" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Max Pain</b>: The strike price where option <em>writers</em> (sellers) lose the least money, and option <em>buyers</em> lose the most. Markets tend to gravitate toward max pain near expiry — option sellers have an incentive to pin the price there.">?</span></div></div>`;
+      }
+      if(oi.support_resistance){
+        const sr = oi.support_resistance;
+        if(sr.supports && sr.supports.length) cards += `<div class="oi-card"><div class="oi-val" style="color:var(--g)">₹${fmtInt(sr.supports[0].strike)}</div><div class="oi-label">Support #1 <span class="tip" data-bs-toggle="tooltip" title="Strike with highest Put OI below spot. High put OI = writers have sold puts here = they'll defend this level, creating support.">?</span></div></div>`;
+        if(sr.resistances && sr.resistances.length) cards += `<div class="oi-card"><div class="oi-val" style="color:var(--r)">₹${fmtInt(sr.resistances[0].strike)}</div><div class="oi-label">Resistance #1 <span class="tip" data-bs-toggle="tooltip" title="Strike with highest Call OI above spot. High call OI = writers have sold calls here = they'll defend this level, creating resistance.">?</span></div></div>`;
+      }
+      oiEl.innerHTML = cards;
+    } else {
+      oiEl.style.display = 'none';
+    }
+
+    // Build chain table
+    const spot = chain.spot || 0;
+    const strikes = [...new Set(chain.rows.map(r=>r.strike))].sort((a,b)=>a-b);
+    const ceMap = {}, peMap = {};
+    chain.rows.forEach(r => {
+      const m = r.option_type === 'CE' ? ceMap : peMap;
+      m[r.strike] = r;
+    });
+
+    const atmStrike = strikes.reduce((best,s) => Math.abs(s-spot) < Math.abs(best-spot) ? s : best, strikes[0]);
+    const maxOI = Math.max(...chain.rows.map(r=>r.oi||0), 1);
+
+    let html = `<div class="chain-wrap"><table class="chain-tbl"><thead><tr>
+      <th colspan="7" style="text-align:center;color:var(--g);border-right:2px solid var(--card-border)">CALLS</th>
+      <th class="strike-col">Strike</th>
+      <th colspan="7" style="text-align:center;color:var(--r);border-left:2px solid var(--card-border)">PUTS</th>
+    </tr><tr>
+      <th class="ce-side" data-bs-toggle="tooltip" title="Open Interest: total outstanding contracts. Rising OI with rising price = strong trend.">OI</th><th class="ce-side" data-bs-toggle="tooltip" title="Volume: contracts traded today. High volume = active interest at this strike.">Vol</th><th class="ce-side" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Implied Volatility</b> (Natenberg Ch.4): The market's forecast of future volatility, derived from the option's price using Black-Scholes. Higher IV = more expensive options. Compare with historical (realized) volatility to find over/under-priced options.">IV</th><th class="ce-side" data-bs-toggle="tooltip" title="Last Traded Price: the most recent price at which this option contract traded.">LTP</th><th class="ce-side" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Delta</b> (Natenberg Ch.7): How much the option price moves per ₹1 move in the underlying. Call delta: 0 to 1 (ATM ≈ 0.5). Put delta: -1 to 0. Also roughly = probability of expiring ITM.">Δ</th><th class="ce-side" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Gamma</b> (Natenberg Ch.7): Rate of change of delta. Highest at ATM, near expiry. High gamma = delta changes fast = position needs frequent adjustment.">Γ</th><th class="ce-side" style="border-right:2px solid var(--card-border)" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Theta</b> (Natenberg Ch.7): Daily time decay in ₹. Options lose value every day — theta is always negative for buyers. Accelerates near expiry. Sellers collect theta as income.">Θ</th>
+      <th class="strike-col" data-bs-toggle="tooltip" title="Strike Price: the price at which you can buy (call) or sell (put) the underlying if you exercise the option."></th>
+      <th class="pe-side" style="border-left:2px solid var(--card-border)" data-bs-toggle="tooltip" title="Last Traded Price of the put option.">LTP</th><th class="pe-side" data-bs-toggle="tooltip" title="Implied Volatility of the put option.">IV</th><th class="pe-side" data-bs-toggle="tooltip" title="Put Delta: ranges from -1 to 0. ATM put ≈ -0.5.">Δ</th><th class="pe-side" data-bs-toggle="tooltip" title="Gamma of the put option.">Γ</th><th class="pe-side" data-bs-toggle="tooltip" title="Theta (time decay) of the put option.">Θ</th><th class="pe-side" data-bs-toggle="tooltip" title="Volume: contracts traded today.">Vol</th><th class="pe-side" data-bs-toggle="tooltip" title="Open Interest for put options at this strike.">OI</th>
+    </tr></thead><tbody>`;
+
+    strikes.forEach(s => {
+      const ce = ceMap[s] || {};
+      const pe = peMap[s] || {};
+      const isAtm = s === atmStrike;
+      const ceItm = s < spot;
+      const peItm = s > spot;
+      const rowClass = isAtm ? 'atm-row' : '';
+
+      const ceLtp = ce.ltp || ce.close || null;
+      const peLtp = pe.ltp || pe.close || null;
+      const ceIV = ce.computed_iv || ce.iv || null;
+      const peIV = pe.computed_iv || pe.iv || null;
+
+      html += `<tr class="${rowClass}">
+        <td class="ce-side ${ceItm?'itm':''}">${fmtInt(ce.oi)}<div class="oi-bar ce" style="width:${((ce.oi||0)/maxOI*100).toFixed(0)}%"></div></td>
+        <td class="ce-side ${ceItm?'itm':''}">${fmtInt(ce.volume)}</td>
+        <td class="ce-side ${ceItm?'itm':''}">${ceIV!=null?(ceIV*100).toFixed(1)+'%':''}</td>
+        <td class="ce-side ${ceItm?'itm':''}" style="font-weight:600">${ceLtp!=null?fmt(ceLtp):''}</td>
+        <td class="ce-side ${ceItm?'itm':''}">${fmt(ce.delta,3)}</td>
+        <td class="ce-side ${ceItm?'itm':''}">${fmt(ce.gamma,5)}</td>
+        <td class="ce-side ${ceItm?'itm':''}" style="border-right:2px solid var(--card-border)">${fmt(ce.theta,1)}</td>
+        <td class="strike-col" style="${isAtm?'color:var(--b);font-size:.9rem':''}">₹${fmtInt(s)}</td>
+        <td class="pe-side ${peItm?'itm':''}" style="border-left:2px solid var(--card-border);font-weight:600">${peLtp!=null?fmt(peLtp):''}</td>
+        <td class="pe-side ${peItm?'itm':''}">${peIV!=null?(peIV*100).toFixed(1)+'%':''}</td>
+        <td class="pe-side ${peItm?'itm':''}">${fmt(pe.delta,3)}</td>
+        <td class="pe-side ${peItm?'itm':''}">${fmt(pe.gamma,5)}</td>
+        <td class="pe-side ${peItm?'itm':''}">${fmt(pe.theta,1)}</td>
+        <td class="pe-side ${peItm?'itm':''}">${fmtInt(pe.volume)}</td>
+        <td class="pe-side ${peItm?'itm':''}">${fmtInt(pe.oi)}<div class="oi-bar pe" style="width:${((pe.oi||0)/maxOI*100).toFixed(0)}%"></div></td>
+      </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+
+    // Scroll to ATM
+    setTimeout(() => {
+      const atm = el.querySelector('.atm-row');
+      if(atm) atm.scrollIntoView({block:'center',behavior:'smooth'});
+    }, 100);
+    // Init tooltips after chain renders
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el, {trigger:'hover focus'}));
+  }).catch(e => {
+    el.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i>'+e.message+'</div>';
+  });
+}
+// Init static tooltips on page load
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el, {trigger:'hover focus'}));
+
+// Live spot from SSE ticker (detail is already {NIFTY: x, BANKNIFTY: y})
+window.addEventListener('live-tick', function(e){
+  var sel = document.getElementById('symbolSel');
+  if(!sel) return;
+  var ltp = e.detail[sel.value];
+  if(ltp != null){
+    var el = document.getElementById('spotLabel');
+    if(el) el.textContent = 'Spot: ₹'+Number(ltp).toLocaleString('en-IN',{maximumFractionDigits:2});
+  }
+});
+</script>
+</body>
+</html>

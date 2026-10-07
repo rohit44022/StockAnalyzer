@@ -1,0 +1,649 @@
+{
+  "generated": "2026-10-06T12:23:08.150933",
+  "strategy": "bull_put_spread",
+  "symbol": "NIFTY",
+  "period": {
+    "start": "2026-04-06",
+    "end": "2026-10-05",
+    "trading_days": 125
+  },
+  "config": {
+    "strategy_key": "bull_put_spread",
+    "symbol": "NIFTY",
+    "lot_size": 25,
+    "initial_capital": 500000,
+    "max_lots": 1,
+    "max_concurrent": 1,
+    "r": 0.07,
+    "entry_dte_range": [
+      3,
+      7
+    ],
+    "vp_threshold": 0.02,
+    "slippage_mult": 1.5,
+    "rv_window": 21,
+    "profit_target_pct": 0.5,
+    "stop_loss_pct": 0.7,
+    "exit_dte": 1,
+    "signal_mode": "always"
+  },
+  "summary": {
+    "total_trades": 39,
+    "net_pnl": -4512.62,
+    "gross_pnl": -3929.8,
+    "total_costs": 582.82,
+    "cost_pct_of_gross": -14.8,
+    "win_rate_pct": 56.4,
+    "profit_factor": 0.72,
+    "avg_trade": {
+      "avg_win": 526.85,
+      "avg_loss": -947.25,
+      "avg_all": -115.71,
+      "n_wins": 22,
+      "n_losses": 17
+    }
+  },
+  "risk_metrics": {
+    "sharpe": -6.0409,
+    "sortino": -6.2155,
+    "gsr": -6.303,
+    "calmar": -1.19,
+    "return_dd_ratio": 0.0,
+    "max_drawdown": {
+      "amount": 7601.8,
+      "pct": 1.51,
+      "peak_idx": 19,
+      "trough_idx": 124,
+      "duration": 105
+    },
+    "tharp_expectancy": -0.12
+  },
+  "davey_gates": {
+    "return_dd_ratio": {
+      "value": 0.0,
+      "threshold": ">2.0",
+      "pass": false
+    },
+    "profit_factor": {
+      "value": 0.72,
+      "threshold": ">1.0",
+      "pass": "False"
+    },
+    "max_dd_pct": {
+      "value": 1.51,
+      "threshold": "<40%",
+      "pass": "True"
+    },
+    "min_trades": {
+      "value": 39,
+      "threshold": "\u226530",
+      "pass": true
+    },
+    "mc_risk_of_ruin": {
+      "value": 0.0,
+      "threshold": "<10%",
+      "pass": true
+    }
+  },
+  "cost_analysis": {
+    "total": 582.82,
+    "per_trade_avg": 14.94,
+    "pct_of_gross": 2.1
+  },
+  "trades": [
+    {
+      "id": 1,
+      "entry": "2026-04-06",
+      "exit": "2026-04-07",
+      "days": 1,
+      "gross": 446.82,
+      "costs": 8.3,
+      "net": 438.52,
+      "reason": "profit_target"
+    },
+    {
+      "id": 2,
+      "entry": "2026-04-09",
+      "exit": "2026-04-15",
+      "days": 6,
+      "gross": 989.14,
+      "costs": 14.84,
+      "net": 974.3,
+      "reason": "dte_1"
+    },
+    {
+      "id": 3,
+      "entry": "2026-04-16",
+      "exit": "2026-04-20",
+      "days": 4,
+      "gross": 517.73,
+      "costs": 10.62,
+      "net": 507.11,
+      "reason": "profit_target"
+    },
+    {
+      "id": 4,
+      "entry": "2026-04-20",
+      "exit": "2026-04-21",
+      "days": 1,
+      "gross": 503.86,
+      "costs": 10.72,
+      "net": 493.14,
+      "reason": "profit_target"
+    },
+    {
+      "id": 5,
+      "entry": "2026-04-23",
+      "exit": "2026-04-29",
+      "days": 6,
+      "gross": -56.66,
+      "costs": 19.27,
+      "net": -75.93,
+      "reason": "dte_1"
+    },
+    {
+      "id": 6,
+      "entry": "2026-04-30",
+      "exit": "2026-05-06",
+      "days": 6,
+      "gross": 177.77,
+      "costs": 22.06,
+      "net": 155.71,
+      "reason": "dte_1"
+    },
+    {
+      "id": 7,
+      "entry": "2026-05-07",
+      "exit": "2026-05-11",
+      "days": 4,
+      "gross": -1300.8,
+      "costs": 36.16,
+      "net": -1336.96,
+      "reason": "stop_loss"
+    },
+    {
+      "id": 8,
+      "entry": "2026-05-11",
+      "exit": "2026-05-13",
+      "days": 2,
+      "gross": -1634.65,
+      "costs": 25.16,
+      "net": -1659.81,
+      "reason": "dte_1"
+    },
+    {
+      "id": 9,
+      "entry": "2026-05-14",
+      "exit": "2026-05-20",
+      "days": 6,
+      "gross": 747.57,
+      "costs": 9.68,
+      "net": 737.89,
+      "reason": "dte_1"
+    },
+    {
+      "id": 10,
+      "entry": "2026-05-21",
+      "exit": "2026-05-25",
+      "days": 4,
+      "gross": 745.44,
+      "costs": 8.05,
+      "net": 737.39,
+      "reason": "profit_target"
+    },
+    {
+      "id": 11,
+      "entry": "2026-05-25",
+      "exit": "2026-05-27",
+      "days": 2,
+      "gross": 397.38,
+      "costs": 9.36,
+      "net": 388.02,
+      "reason": "dte_1"
+    },
+    {
+      "id": 12,
+      "entry": "2026-05-29",
+      "exit": "2026-06-03",
+      "days": 5,
+      "gross": 29.21,
+      "costs": 12.96,
+      "net": 16.25,
+      "reason": "dte_1"
+    },
+    {
+      "id": 13,
+      "entry": "2026-06-04",
+      "exit": "2026-06-10",
+      "days": 6,
+      "gross": -1422.41,
+      "costs": 12.53,
+      "net": -1434.94,
+      "reason": "dte_1"
+    },
+    {
+      "id": 14,
+      "entry": "2026-06-11",
+      "exit": "2026-06-12",
+      "days": 1,
+      "gross": 703.87,
+      "costs": 7.96,
+      "net": 695.91,
+      "reason": "profit_target"
+    },
+    {
+      "id": 15,
+      "entry": "2026-06-12",
+      "exit": "2026-06-15",
+      "days": 3,
+      "gross": 599.62,
+      "costs": 9.28,
+      "net": 590.34,
+      "reason": "profit_target"
+    },
+    {
+      "id": 16,
+      "entry": "2026-06-15",
+      "exit": "2026-06-16",
+      "days": 1,
+      "gross": 422.9,
+      "costs": 7.11,
+      "net": 415.79,
+      "reason": "profit_target"
+    },
+    {
+      "id": 17,
+      "entry": "2026-06-18",
+      "exit": "2026-06-23",
+      "days": 5,
+      "gross": -1339.84,
+      "costs": 18.93,
+      "net": -1358.77,
+      "reason": "stop_loss"
+    },
+    {
+      "id": 18,
+      "entry": "2026-06-25",
+      "exit": "2026-07-01",
+      "days": 6,
+      "gross": 139.44,
+      "costs": 6.0,
+      "net": 133.44,
+      "reason": "dte_1"
+    },
+    {
+      "id": 19,
+      "entry": "2026-07-02",
+      "exit": "2026-07-06",
+      "days": 4,
+      "gross": 697.24,
+      "costs": 4.99,
+      "net": 692.25,
+      "reason": "profit_target"
+    },
+    {
+      "id": 20,
+      "entry": "2026-07-06",
+      "exit": "2026-07-08",
+      "days": 2,
+      "gross": -1894.44,
+      "costs": 31.27,
+      "net": -1925.71,
+      "reason": "dte_1"
+    },
+    {
+      "id": 21,
+      "entry": "2026-07-09",
+      "exit": "2026-07-10",
+      "days": 1,
+      "gross": 510.69,
+      "costs": 6.2,
+      "net": 504.49,
+      "reason": "profit_target"
+    },
+    {
+      "id": 22,
+      "entry": "2026-07-10",
+      "exit": "2026-07-15",
+      "days": 5,
+      "gross": -370.79,
+      "costs": 5.05,
+      "net": -375.84,
+      "reason": "dte_1"
+    },
+    {
+      "id": 23,
+      "entry": "2026-07-16",
+      "exit": "2026-07-17",
+      "days": 1,
+      "gross": 530.78,
+      "costs": 6.38,
+      "net": 524.4,
+      "reason": "profit_target"
+    },
+    {
+      "id": 24,
+      "entry": "2026-07-17",
+      "exit": "2026-07-22",
+      "days": 5,
+      "gross": -1707.09,
+      "costs": 17.33,
+      "net": -1724.42,
+      "reason": "dte_1"
+    },
+    {
+      "id": 25,
+      "entry": "2026-07-23",
+      "exit": "2026-07-27",
+      "days": 4,
+      "gross": 432.31,
+      "costs": 6.79,
+      "net": 425.52,
+      "reason": "profit_target"
+    },
+    {
+      "id": 26,
+      "entry": "2026-07-27",
+      "exit": "2026-07-29",
+      "days": 2,
+      "gross": 754.1,
+      "costs": 6.14,
+      "net": 747.96,
+      "reason": "dte_1"
+    },
+    {
+      "id": 27,
+      "entry": "2026-07-30",
+      "exit": "2026-08-03",
+      "days": 4,
+      "gross": 625.42,
+      "costs": 3.62,
+      "net": 621.8,
+      "reason": "profit_target"
+    },
+    {
+      "id": 28,
+      "entry": "2026-08-03",
+      "exit": "2026-08-05",
+      "days": 2,
+      "gross": -592.88,
+      "costs": 5.48,
+      "net": -598.36,
+      "reason": "dte_1"
+    },
+    {
+      "id": 29,
+      "entry": "2026-08-06",
+      "exit": "2026-08-12",
+      "days": 6,
+      "gross": -520.82,
+      "costs": 33.01,
+      "net": -553.83,
+      "reason": "dte_1"
+    },
+    {
+      "id": 30,
+      "entry": "2026-08-13",
+      "exit": "2026-08-19",
+      "days": 6,
+      "gross": -762.77,
+      "costs": 35.08,
+      "net": -797.85,
+      "reason": "dte_1"
+    },
+    {
+      "id": 31,
+      "entry": "2026-08-20",
+      "exit": "2026-08-25",
+      "days": 5,
+      "gross": 609.89,
+      "costs": 5.46,
+      "net": 604.43,
+      "reason": "profit_target"
+    },
+    {
+      "id": 32,
+      "entry": "2026-08-27",
+      "exit": "2026-09-02",
+      "days": 6,
+      "gross": -489.92,
+      "costs": 32.68,
+      "net": -522.6,
+      "reason": "dte_1"
+    },
+    {
+      "id": 33,
+      "entry": "2026-09-03",
+      "exit": "2026-09-09",
+      "days": 6,
+      "gross": -1023.45,
+      "costs": 35.82,
+      "net": -1059.27,
+      "reason": "dte_1"
+    },
+    {
+      "id": 34,
+      "entry": "2026-09-10",
+      "exit": "2026-09-15",
+      "days": 5,
+      "gross": -1558.82,
+      "costs": 17.75,
+      "net": -1576.57,
+      "reason": "stop_loss"
+    },
+    {
+      "id": 35,
+      "entry": "2026-09-17",
+      "exit": "2026-09-21",
+      "days": 4,
+      "gross": 703.04,
+      "costs": 6.82,
+      "net": 696.22,
+      "reason": "profit_target"
+    },
+    {
+      "id": 36,
+      "entry": "2026-09-21",
+      "exit": "2026-09-23",
+      "days": 2,
+      "gross": -157.03,
+      "costs": 17.62,
+      "net": -174.65,
+      "reason": "dte_1"
+    },
+    {
+      "id": 37,
+      "entry": "2026-09-24",
+      "exit": "2026-09-30",
+      "days": 6,
+      "gross": -873.32,
+      "costs": 39.4,
+      "net": -912.72,
+      "reason": "dte_1"
+    },
+    {
+      "id": 38,
+      "entry": "2026-10-01",
+      "exit": "2026-10-05",
+      "days": 4,
+      "gross": 497.28,
+      "costs": 7.55,
+      "net": 489.73,
+      "reason": "profit_target"
+    },
+    {
+      "id": 39,
+      "entry": "2026-10-05",
+      "exit": "2026-10-05",
+      "days": 0,
+      "gross": -5.61,
+      "costs": 9.39,
+      "net": -15.0,
+      "reason": "end_of_backtest"
+    }
+  ],
+  "warnings": [
+    "2026-04-07: entry skipped (illiquid/build failed)",
+    "2026-04-08: entry skipped (illiquid/build failed)",
+    "2026-04-15: entry skipped (illiquid/build failed)",
+    "2026-04-21: entry skipped (illiquid/build failed)",
+    "2026-04-22: entry skipped (illiquid/build failed)",
+    "2026-04-29: entry skipped (illiquid/build failed)",
+    "2026-05-06: entry skipped (illiquid/build failed)",
+    "2026-05-13: entry skipped (illiquid/build failed)",
+    "2026-05-20: entry skipped (illiquid/build failed)",
+    "2026-05-27: entry skipped (illiquid/build failed)",
+    "2026-06-03: entry skipped (illiquid/build failed)",
+    "2026-06-10: entry skipped (illiquid/build failed)",
+    "2026-06-16: entry skipped (illiquid/build failed)",
+    "2026-06-17: entry skipped (illiquid/build failed)",
+    "2026-06-23: entry skipped (illiquid/build failed)",
+    "2026-06-24: entry skipped (illiquid/build failed)",
+    "2026-07-01: entry skipped (illiquid/build failed)",
+    "2026-07-08: entry skipped (illiquid/build failed)",
+    "2026-07-15: entry skipped (illiquid/build failed)",
+    "2026-07-22: entry skipped (illiquid/build failed)",
+    "2026-07-29: entry skipped (illiquid/build failed)",
+    "2026-08-05: entry skipped (illiquid/build failed)",
+    "2026-08-12: entry skipped (illiquid/build failed)",
+    "2026-08-19: entry skipped (illiquid/build failed)",
+    "2026-08-25: entry skipped (illiquid/build failed)",
+    "2026-08-26: entry skipped (illiquid/build failed)",
+    "2026-09-02: entry skipped (illiquid/build failed)",
+    "2026-09-09: entry skipped (illiquid/build failed)",
+    "2026-09-15: entry skipped (illiquid/build failed)",
+    "2026-09-16: entry skipped (illiquid/build failed)",
+    "2026-09-23: entry skipped (illiquid/build failed)",
+    "2026-09-30: entry skipped (illiquid/build failed)"
+  ],
+  "monte_carlo": {
+    "n_sims": 10000,
+    "n_trades": 13,
+    "risk_of_ruin_pct": 0.0,
+    "ruin_threshold": 0.5,
+    "max_dd_percentiles": {
+      "5": 0.36,
+      "10": 0.36,
+      "25": 0.38,
+      "50": 0.4,
+      "75": 0.44,
+      "90": 0.47,
+      "95": 0.48
+    },
+    "return_percentiles": {
+      "5": -0.36,
+      "10": -0.36,
+      "25": -0.36,
+      "50": -0.36,
+      "75": -0.36,
+      "90": -0.36,
+      "95": -0.36
+    },
+    "return_dd_percentiles": {
+      "5": -1.0,
+      "10": -1.0,
+      "25": -0.96,
+      "50": -0.91,
+      "75": -0.84,
+      "90": -0.78,
+      "95": -0.75
+    },
+    "median_dd_pct": 0.4,
+    "median_return_pct": -0.36,
+    "median_return_dd": -0.91,
+    "pass_davey": "False"
+  },
+  "walk_forward": {
+    "windows": [
+      {
+        "window": 1,
+        "in_start": "2026-04-06",
+        "in_end": "2026-08-10",
+        "out_start": "2026-08-11",
+        "out_end": "2026-08-21",
+        "best_params": {
+          "entry_dte_min": 4,
+          "entry_dte_max": 7,
+          "_fitness": 0.49
+        },
+        "in_sample_fitness": 0.49,
+        "out_trades": 2,
+        "out_net_pnl": -611.61
+      },
+      {
+        "window": 2,
+        "in_start": "2026-04-20",
+        "in_end": "2026-08-21",
+        "out_start": "2026-08-24",
+        "out_end": "2026-09-03",
+        "best_params": {
+          "entry_dte_min": 2,
+          "entry_dte_max": 5,
+          "_fitness": 0.0
+        },
+        "in_sample_fitness": 0.0,
+        "out_trades": 3,
+        "out_net_pnl": -152.6
+      },
+      {
+        "window": 3,
+        "in_start": "2026-05-04",
+        "in_end": "2026-09-03",
+        "out_start": "2026-09-04",
+        "out_end": "2026-09-17",
+        "best_params": {
+          "entry_dte_min": 2,
+          "entry_dte_max": 5,
+          "_fitness": 0.0
+        },
+        "in_sample_fitness": 0.0,
+        "out_trades": 3,
+        "out_net_pnl": -2613.27
+      },
+      {
+        "window": 4,
+        "in_start": "2026-05-15",
+        "in_end": "2026-09-17",
+        "out_start": "2026-09-18",
+        "out_end": "2026-10-05",
+        "best_params": {
+          "entry_dte_min": 2,
+          "entry_dte_max": 5,
+          "_fitness": 0.0
+        },
+        "in_sample_fitness": 0.0,
+        "out_trades": 5,
+        "out_net_pnl": -264.2
+      }
+    ],
+    "oos_metrics": {
+      "total_trades": 13,
+      "net_pnl": -3641.68,
+      "gross_pnl": -3411.54,
+      "total_costs": 230.14,
+      "cost_pct_of_gross": -6.7,
+      "sharpe": -10.4697,
+      "sortino": -9.1337,
+      "gsr": -11.3639,
+      "calmar": -15.04,
+      "return_dd_ratio": 0.0,
+      "profit_factor": 0.28,
+      "win_rate_pct": 30.8,
+      "max_drawdown": {
+        "amount": 4116.41,
+        "pct": 0.82,
+        "peak_idx": 0,
+        "trough_idx": 11,
+        "duration": 11
+      },
+      "avg_trade": {
+        "avg_win": 351.41,
+        "avg_loss": -560.81,
+        "avg_all": -280.13,
+        "n_wins": 4,
+        "n_losses": 9
+      },
+      "tharp_expectancy": -0.5
+    }
+  }
+}

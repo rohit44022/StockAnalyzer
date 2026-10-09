@@ -601,7 +601,7 @@ def api_paper_explain(rec_id):
 
         import json
         rec_data = {k: row[k] for k in row.keys()}
-        legs = json.loads(rec_data.get('legs_json', '[]'))
+        legs = json.loads(rec_data.get('legs', '[]'))
         strategy = rec_data.get('strategy', '')
 
         from options.strategies import registry, explainer as expl_mod
@@ -740,14 +740,46 @@ def api_strategies():
 
 @options_bp.route("/options/autopilot")
 def options_autopilot():
-    return render_template("options_autopilot.html")
+    try:
+        from options.autopilot import load_config
+        cfg = load_config()
+    except Exception:
+        cfg = {}
+    import datetime, zoneinfo
+    now = datetime.datetime.now(zoneinfo.ZoneInfo("Asia/Kolkata"))
+    is_holiday = False
+    try:
+        from options.data import event_calendar
+        is_holiday = event_calendar.is_nse_holiday(now.date())
+    except Exception:
+        pass
+    mkt_open = now.weekday() < 5 and not is_holiday and datetime.time(9, 15) <= now.time() < datetime.time(15, 30)
+    live_mode = cfg.get('live_mode', 'paper')
+    effective_live = live_mode == 'live' and mkt_open
+    return render_template("options_autopilot.html",
+                           live_mode=live_mode, effective_live=effective_live, cfg=cfg)
 
 
 @options_bp.route("/api/options/autopilot/dashboard")
 def api_autopilot_dashboard():
     try:
         from options import autopilot
+        import datetime, zoneinfo
         data = autopilot.dashboard_data()
+        now = datetime.datetime.now(zoneinfo.ZoneInfo("Asia/Kolkata"))
+        is_hol = False
+        try:
+            from options.data import event_calendar as ec
+            is_hol = ec.is_nse_holiday(now.date())
+        except Exception:
+            pass
+        data['market_open'] = now.weekday() < 5 and not is_hol and datetime.time(9, 15) <= now.time() < datetime.time(15, 30)
+        try:
+            from options import paper_trade
+            dash_spot = data.get('spot') or data.get('last_spot')
+            data['portfolio_greeks'] = paper_trade.portfolio_greeks(spot=dash_spot)
+        except Exception:
+            data['portfolio_greeks'] = None
         return jsonify(_json_clean(data))
     except Exception as e:
         log.exception("autopilot dashboard error")
@@ -817,7 +849,7 @@ def api_autopilot_run_cycle():
     try:
         from options import autopilot
         cycle_type = (request.json or {}).get('cycle_type', 'auto')
-        result = autopilot.run_cycle(cycle_type=cycle_type)
+        result = autopilot.cron_run_cycle(cycle_type=cycle_type)
         return jsonify(_json_clean(result))
     except Exception as e:
         log.exception("autopilot cycle error")
@@ -831,6 +863,266 @@ def api_autopilot_log():
         limit = request.args.get('limit', 50, type=int)
         entries = autopilot.get_decision_log(limit=limit)
         return jsonify(_json_clean({'entries': entries}))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ── V5: Alerts + Execution Stats ─────────────────────────────────
+
+
+@options_bp.route("/api/options/autopilot/alerts")
+def api_autopilot_alerts():
+    try:
+        from options import autopilot
+        limit = request.args.get('limit', 50, type=int)
+        unacked = request.args.get('unacked', '0') == '1'
+        alerts = autopilot.get_alerts(limit=limit, unacked_only=unacked)
+        return jsonify(_json_clean({'alerts': alerts}))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@options_bp.route("/api/options/autopilot/alerts/ack", methods=['POST'])
+def api_autopilot_alerts_ack():
+    try:
+        from options import autopilot
+        alert_id = (request.json or {}).get('id')
+        if not alert_id:
+            return jsonify({'error': 'Missing alert id'}), 400
+        autopilot.ack_alert(int(alert_id))
+        return jsonify({'acknowledged': alert_id})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@options_bp.route("/api/options/autopilot/alerts/stream")
+def api_autopilot_alerts_stream():
+    """SSE: polls autopilot_alerts for new rows. Works across all processes (cron, Flask)."""
+    import time as _t
+    since = int(request.args.get('since', 0))
+    SSE_MAX_LIFETIME = 300
+
+    def generate():
+        nonlocal since
+        start = _t.time()
+        while _t.time() - start < SSE_MAX_LIFETIME:
+            try:
+                from options import paper_trade
+                db = paper_trade._db_path()
+                conn = sqlite3.connect(db, timeout=5)
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    "SELECT id, timestamp, severity, category, title, detail "
+                    "FROM autopilot_alerts WHERE id > ? ORDER BY id LIMIT 10",
+                    (since,)
+                ).fetchall()
+                conn.close()
+                for row in rows:
+                    since = row['id']
+                    yield f"data: {json.dumps(dict(row))}\n\n"
+                if not rows:
+                    yield ": heartbeat\n\n"
+            except Exception:
+                yield ": heartbeat\n\n"
+            _t.sleep(2)
+
+    return Response(stream_with_context(generate()),
+                    content_type='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+
+@options_bp.route("/api/options/autopilot/killswitch", methods=['POST'])
+def api_autopilot_killswitch():
+    """Activate/deactivate Dhan kill switch directly."""
+    try:
+        from options.data import dhan_fetch
+        action = (request.json or {}).get('action', 'status')
+        if action == 'activate':
+            return jsonify(_json_clean(dhan_fetch.activate_kill_switch()))
+        elif action == 'deactivate':
+            return jsonify(_json_clean(dhan_fetch.deactivate_kill_switch()))
+        else:
+            return jsonify(_json_clean(dhan_fetch.kill_switch_status()))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@options_bp.route("/api/options/autopilot/execution")
+def api_autopilot_execution():
+    try:
+        from options import paper_trade
+        import sqlite3
+        db = paper_trade._db_path()
+        conn = sqlite3.connect(db, timeout=10)
+        try:
+            conn.execute('PRAGMA busy_timeout=10000')
+            conn.row_factory = sqlite3.Row
+        except Exception:
+            conn.close()
+            raise
+
+        stats = {}
+
+        # Queue stats
+        try:
+            q = conn.execute(
+                "SELECT status, COUNT(*) as n FROM order_queue GROUP BY status"
+            ).fetchall()
+            stats['queue'] = {r['status']: r['n'] for r in q}
+        except Exception:
+            stats['queue'] = {}
+
+        # Recent order events
+        try:
+            events = conn.execute(
+                "SELECT * FROM order_events ORDER BY id DESC LIMIT 20"
+            ).fetchall()
+            stats['recent_events'] = [dict(r) for r in events]
+        except Exception:
+            stats['recent_events'] = []
+
+        # Safety events
+        try:
+            safety = conn.execute(
+                "SELECT * FROM safety_events ORDER BY id DESC LIMIT 10"
+            ).fetchall()
+            stats['safety_events'] = [dict(r) for r in safety]
+        except Exception:
+            stats['safety_events'] = []
+
+        # Last reconciliation
+        try:
+            recon = conn.execute(
+                "SELECT * FROM reconciliation_log ORDER BY id DESC LIMIT 5"
+            ).fetchall()
+            stats['reconciliation'] = [dict(r) for r in recon]
+        except Exception:
+            stats['reconciliation'] = []
+
+        # Shadow comparison stats
+        try:
+            shadow = conn.execute(
+                "SELECT COUNT(*) as total, SUM(match) as matches FROM shadow_log"
+            ).fetchone()
+            stats['shadow'] = {
+                'total': shadow['total'] or 0,
+                'matches': shadow['matches'] or 0,
+                'match_rate': round((shadow['matches'] or 0) / max(1, shadow['total'] or 1) * 100, 1),
+            }
+        except Exception:
+            stats['shadow'] = {'total': 0, 'matches': 0, 'match_rate': 0}
+
+        return jsonify(_json_clean(stats))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+@options_bp.route("/api/options/autopilot/account")
+def api_autopilot_account():
+    try:
+        from options.data import dhan_fetch
+        tok_status = dhan_fetch.get_token_status()
+        result = {'token': tok_status, 'funds': None, 'positions': None}
+        client = None
+        if tok_status.get('active'):
+            try:
+                client = dhan_fetch._get_client()
+                resp = client.get_fund_limits()
+                if resp.get('status') == 'success':
+                    result['funds'] = resp.get('data', {})
+            except Exception as e:
+                result['funds_error'] = str(e)
+            try:
+                if not client:
+                    client = dhan_fetch._get_client()
+                pos = client.get_positions()
+                if pos.get('status') == 'success':
+                    raw = pos.get('data', []) or []
+                    result['positions'] = {
+                        'count': len(raw),
+                        'items': [{'symbol': p.get('tradingSymbol', ''),
+                                   'qty': p.get('netQty', 0),
+                                   'pnl': p.get('realizedProfit', 0) + p.get('unrealizedProfit', 0),
+                                   'exchange': p.get('exchangeSegment', '')}
+                                  for p in raw if p.get('netQty', 0) != 0],
+                    }
+            except Exception as e:
+                result['positions_error'] = str(e)
+        return jsonify(_json_clean(result))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@options_bp.route("/api/options/autopilot/today")
+def api_autopilot_today():
+    try:
+        from options import autopilot, paper_trade
+        today = datetime.datetime.now().strftime('%Y-%m-%d')
+        log = autopilot.get_decision_log(limit=200)
+        today_log = [e for e in log if (e.get('timestamp') or '')[:10] == today]
+        entries = sum(1 for e in today_log if e.get('action') == 'enter')
+        exits = sum(1 for e in today_log if e.get('action') == 'exit')
+        skips = sum(1 for e in today_log if e.get('action') in ('skip_entry', 'no_opportunity'))
+        cycles = sum(1 for e in today_log if e.get('action') == 'cycle_complete')
+        preflight_ok = any(e.get('action') == 'preflight_ok' for e in today_log)
+
+        db = paper_trade._db_path()
+        conn = sqlite3.connect(db, timeout=10)
+        conn.execute('PRAGMA busy_timeout=10000')
+        conn.row_factory = sqlite3.Row
+        closed_today = conn.execute(
+            "SELECT COUNT(*) as n, COALESCE(SUM(net_pnl),0) as pnl, "
+            "COALESCE(SUM(COALESCE(entry_cost,0)+COALESCE(exit_cost,0)),0) as costs "
+            "FROM trades WHERE closed_at LIKE ? AND status='closed'",
+            (today + '%',)
+        ).fetchone()
+        conn.close()
+
+        return jsonify(_json_clean({
+            'date': today,
+            'entries': entries, 'exits': exits, 'skips': skips,
+            'cycles': cycles, 'preflight_ok': preflight_ok,
+            'closed_trades': closed_today['n'],
+            'realized_pnl': closed_today['pnl'],
+            'costs': closed_today['costs'],
+        }))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@options_bp.route("/api/options/autopilot/config-audit")
+def api_autopilot_config_audit():
+    try:
+        from options.autopilot import _CONFIG_AUDIT
+        entries = []
+        if os.path.exists(_CONFIG_AUDIT):
+            with open(_CONFIG_AUDIT) as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            entries.append(json.loads(line))
+                        except Exception:
+                            pass
+        entries.reverse()
+        limit = request.args.get('limit', 20, type=int)
+        return jsonify({'entries': entries[:limit]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@options_bp.route("/api/options/autopilot/syslog")
+def api_autopilot_syslog():
+    try:
+        from options.autopilot import get_syslog
+        limit = request.args.get('limit', 100, type=int)
+        level = request.args.get('level', None)
+        return jsonify({'entries': get_syslog(limit, level)})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -865,12 +1157,14 @@ def api_live_stream():
     def generate():
         last = {}
         last_send = _t.time()
+        started = last_send
+        SSE_MAX_LIFETIME = 300
         last_rest_poll = 0
         REST_POLL_INTERVAL = 10
         st = feed.status()
         yield f"event: status\ndata: {_json.dumps(st)}\n\n"
         try:
-            while True:
+            while _t.time() - started < SSE_MAX_LIFETIME:
                 if not feed.connected and not feed._token_bad:
                     try:
                         feed.reconnect()
@@ -926,10 +1220,12 @@ def api_order_stream():
     def generate():
         seen = 0
         last_send = _t.time()
+        started = last_send
+        SSE_MAX_LIFETIME = 300
         st = order_feed.status()
         yield f"event: status\ndata: {_json.dumps(st)}\n\n"
         try:
-            while True:
+            while _t.time() - started < SSE_MAX_LIFETIME:
                 if not order_feed._started and not order_feed._token_bad:
                     try:
                         order_feed.reconnect()
@@ -965,10 +1261,12 @@ def api_depth_stream():
     def generate():
         last_snap = {}
         last_send = _t.time()
+        started = last_send
+        SSE_MAX_LIFETIME = 300
         st = depth_feed.status()
         yield f"event: status\ndata: {_json.dumps(st)}\n\n"
         try:
-            while True:
+            while _t.time() - started < SSE_MAX_LIFETIME:
                 if not depth_feed._started and not depth_feed._token_bad and depth_feed._instruments:
                     try:
                         depth_feed.reconnect()
@@ -1023,10 +1321,12 @@ def api_chain_stream():
     def generate():
         last_ts = 0
         last_send = _t.time()
+        started = last_send
+        SSE_MAX_LIFETIME = 300
         st = chain_poller.status()
         yield f"event: status\ndata: {_json.dumps(st)}\n\n"
         try:
-            while True:
+            while _t.time() - started < SSE_MAX_LIFETIME:
                 chain_poller.wait_update(timeout=0.5)
                 chain = chain_poller.chain(symbol)
                 if chain and chain.get('timestamp', 0) > last_ts:
@@ -1062,11 +1362,13 @@ def api_positions_stream():
 
     def generate():
         last_send = _t.time()
+        started = last_send
+        SSE_MAX_LIFETIME = 300
         last_data = None
         st = position_poller.status()
         yield f"event: status\ndata: {_json.dumps(st)}\n\n"
         try:
-            while True:
+            while _t.time() - started < SSE_MAX_LIFETIME:
                 position_poller.wait_update(timeout=0.5)
                 current = {
                     'positions': position_poller.positions(),

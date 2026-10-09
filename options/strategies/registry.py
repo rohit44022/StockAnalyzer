@@ -55,14 +55,14 @@ STRATEGIES = {
         (L('PE', 'BUY', -6), L('PE', 'SELL', -4),
          L('CE', 'SELL', +4), L('CE', 'BUY', +6)),
         'limited', 'limited', True,
-        (0, -1, +1, -1), ('high', 'normal'), 14, 2,
+        (0, -1, +1, -1), ('high', 'normal'), 7, 2,
     ),
     'iron_butterfly': Strategy(
         'iron_butterfly', 'Iron Butterfly', 'income', 'neutral',
         (L('PE', 'BUY', -4), L('PE', 'SELL', 0),
          L('CE', 'SELL', 0), L('CE', 'BUY', +4)),
         'limited', 'limited', True,
-        (0, -1, +1, -1), ('high',), 14, 2,
+        (0, -1, +1, -1), ('high',), 7, 2,
     ),
     'bull_put_spread': Strategy(
         'bull_put_spread', 'Bull Put Spread', 'income', 'bullish',
@@ -81,7 +81,7 @@ STRATEGIES = {
         (L('PE', 'SELL', -4),
          L('CE', 'SELL', +4), L('CE', 'BUY', +6)),
         'limited', 'unlimited', True,
-        (+1, -1, +1, -1), ('high', 'normal'), 14, 3,
+        (+1, -1, +1, -1), ('high', 'normal'), 7, 3,
     ),
     'calendar_call': Strategy(
         'calendar_call', 'Calendar Call Spread', 'income', 'neutral',

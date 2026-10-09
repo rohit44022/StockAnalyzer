@@ -13,6 +13,11 @@
 :root[data-bs-theme="light"]{--card-bg:#fff;--card-border:#e0e4e8;--g:#059669;--r:#dc2626;--y:#d97706;--b:#6366f1;--p:#9333ea;--muted:#94a3b8;--text-dim:#64748b;--surface:#f1f5f9;color-scheme:light}
 body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg);font-size:.875rem}
 .fm{font-family:'JetBrains Mono',monospace}
+.pc{color:var(--green,#0a8)}.nc{color:var(--red,#c33)}
+.sl-e{color:var(--r)}.sl-w{color:var(--y)}.sl-i{color:var(--g)}.sl-d{color:var(--muted)}
+.sl-row{border-bottom:1px solid var(--card-border);padding:2px 0;display:flex;gap:8px}
+.sl-row:last-child{border-bottom:none}
+.sl-ts{color:var(--muted);min-width:70px}.sl-lv{min-width:55px;font-weight:600}.sl-msg{flex:1;word-break:break-word}
 
 /* ── Toast ── */
 .toast-wrap{position:fixed;top:80px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
@@ -28,9 +33,10 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
 .conn-bar.error{display:block;background:rgba(240,101,72,.15);color:var(--r);border-bottom:1px solid rgba(240,101,72,.3)}
 
 /* ── Loading overlay ── */
-.loading-overlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;display:none;text-align:center;color:var(--b)}
+.loading-overlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;display:none;text-align:center;color:var(--b);pointer-events:none}
 .loading-overlay.show{display:block}
 .loading-overlay .spinner{width:36px;height:36px;border:3px solid var(--card-border);border-top-color:var(--b);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px}
+.loading-overlay.fade{opacity:0;transition:opacity .3s}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ── Hero ── */
@@ -252,6 +258,120 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
 .load-more button{background:rgba(124,138,239,.1);border:1px solid rgba(124,138,239,.2);color:var(--b);border-radius:8px;padding:6px 20px;font-size:.82rem;cursor:pointer;font-weight:600}
 .load-more button:hover{background:rgba(124,138,239,.2)}
 
+/* ── V5: Alerts ── */
+.alert-panel{max-height:300px;overflow-y:auto}
+.alert-row{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-bottom:1px solid var(--card-border);font-size:.82rem}
+.alert-row:last-child{border:none}
+.alert-row.acked{opacity:.5}
+.alert-sev{padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700;letter-spacing:.3px;flex-shrink:0;text-transform:uppercase}
+.alert-sev.EMERGENCY{background:rgba(240,101,72,.2);color:var(--r);border:1px solid rgba(240,101,72,.4)}
+.alert-sev.CRITICAL{background:rgba(240,101,72,.15);color:var(--r);border:1px solid rgba(240,101,72,.3)}
+.alert-sev.WARNING{background:rgba(247,184,75,.15);color:var(--y);border:1px solid rgba(247,184,75,.3)}
+.alert-sev.INFO{background:rgba(124,138,239,.12);color:var(--b);border:1px solid rgba(124,138,239,.2)}
+.alert-body{flex:1;min-width:0}
+.alert-title{font-weight:600}
+.alert-detail{font-size:.78rem;color:var(--text-dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.alert-detail.expanded{white-space:normal}
+.alert-meta{font-size:.72rem;color:var(--muted);display:flex;gap:8px;margin-top:3px}
+.alert-ack{background:none;border:1px solid var(--card-border);border-radius:5px;font-size:.7rem;color:var(--muted);cursor:pointer;padding:1px 6px;flex-shrink:0;align-self:center}
+.alert-ack:hover{border-color:var(--g);color:var(--g)}
+
+/* ── V5: Live status badge ── */
+.ls{padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700;letter-spacing:.3px}
+.ls.FILLED{background:rgba(10,179,156,.15);color:var(--g);border:1px solid rgba(10,179,156,.3)}
+.ls.PENDING{background:rgba(124,138,239,.12);color:var(--b);border:1px solid rgba(124,138,239,.2)}
+.ls.EXITED{background:rgba(89,98,117,.12);color:var(--muted);border:1px solid rgba(89,98,117,.2)}
+.ls.FAILED{background:rgba(240,101,72,.15);color:var(--r);border:1px solid rgba(240,101,72,.3)}
+.ls.EXIT_FAILED{background:rgba(240,101,72,.2);color:var(--r);border:1px solid rgba(240,101,72,.4)}
+.ls.RESIDUAL{background:rgba(240,101,72,.25);color:var(--r);border:2px solid var(--r);animation:pulse 1.5s infinite}
+.ls.EXPIRED{background:rgba(89,98,117,.1);color:var(--muted);border:1px solid rgba(89,98,117,.2)}
+.ls.paper{background:rgba(192,132,252,.1);color:var(--p);border:1px solid rgba(192,132,252,.2)}
+
+/* ── V5: Execution health ── */
+.exec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.exec-stat{background:var(--surface);border-radius:8px;padding:10px 12px;text-align:center}
+.exec-stat .ev{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1rem}
+.exec-stat .el{font-size:.7rem;text-transform:uppercase;letter-spacing:.3px;color:var(--text-dim)}
+
+/* ── Mode Banner ── */
+.mode-banner{position:sticky;top:0;z-index:2500;text-align:center;padding:7px 16px;font-size:.82rem;font-weight:700;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:8px}
+.mode-banner.paper{background:rgba(10,179,156,.08);color:var(--g);border-bottom:1px solid rgba(10,179,156,.2)}
+.mode-banner.live{background:linear-gradient(90deg,rgba(240,101,72,.15),rgba(247,184,75,.1));color:var(--r);border-bottom:2px solid rgba(240,101,72,.4)}
+.mode-banner .pulse-dot{display:inline-block;width:8px;height:8px;border-radius:50%;animation:pulse 1.5s infinite}
+.mode-banner.paper .pulse-dot{background:var(--g)}.mode-banner.live .pulse-dot{background:var(--r)}
+
+/* ── Today's Session ── */
+.today-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.today-stat{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;background:var(--surface);font-size:.8rem}
+.today-stat .tv{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.9rem}
+.today-stat .tl{color:var(--text-dim);font-size:.72rem}
+
+/* ── Dhan Account ── */
+.acct-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.acct-card{background:var(--surface);border-radius:10px;padding:12px 14px;text-align:center}
+.acct-card .av{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.1rem}
+.acct-card .al{font-size:.7rem;text-transform:uppercase;letter-spacing:.3px;color:var(--text-dim);margin-top:2px}
+.acct-card.primary{border:1px solid rgba(10,179,156,.25)}
+.tok-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:10px;font-size:.72rem;font-weight:600}
+.tok-pill.valid{background:rgba(10,179,156,.12);color:var(--g);border:1px solid rgba(10,179,156,.25)}
+.tok-pill.expired{background:rgba(240,101,72,.12);color:var(--r);border:1px solid rgba(240,101,72,.25)}
+.tok-pill .tdot{width:6px;height:6px;border-radius:50%}
+.tok-pill.valid .tdot{background:var(--g)}.tok-pill.expired .tdot{background:var(--r)}
+
+/* ── Go-Live Readiness ── */
+.gl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px}
+.gl-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;font-size:.82rem;background:var(--surface)}
+.gl-item .gl-icon{font-size:1rem;flex-shrink:0}
+.gl-item.pass .gl-icon{color:var(--g)}.gl-item.fail .gl-icon{color:var(--r)}.gl-item.warn .gl-icon{color:var(--y)}
+.gl-item .gl-label{flex:1}.gl-item .gl-val{font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600;color:var(--text-dim)}
+.gl-summary{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 14px;border-radius:10px;font-size:.85rem;font-weight:600}
+.gl-summary.ready{background:rgba(10,179,156,.1);color:var(--g);border:1px solid rgba(10,179,156,.2)}
+.gl-summary.not-ready{background:rgba(240,101,72,.08);color:var(--r);border:1px solid rgba(240,101,72,.15)}
+.gl-summary.partial{background:rgba(247,184,75,.1);color:var(--y);border:1px solid rgba(247,184,75,.2)}
+
+/* ── Position Sync ── */
+.sync-bar{display:flex;align-items:center;gap:12px;margin-top:10px;padding:8px 14px;border-radius:8px;font-size:.82rem}
+.sync-bar.ok{background:rgba(10,179,156,.08);border:1px solid rgba(10,179,156,.15)}
+.sync-bar.warn{background:rgba(240,101,72,.08);border:1px solid rgba(240,101,72,.15)}
+.sync-bar.na{background:var(--surface);border:1px solid var(--card-border)}
+.sync-icon{font-size:1.1rem}
+.sync-bar.ok .sync-icon{color:var(--g)}.sync-bar.warn .sync-icon{color:var(--r)}.sync-bar.na .sync-icon{color:var(--muted)}
+
+/* ── Config Audit ── */
+.audit-entry{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--card-border);font-size:.8rem}
+.audit-entry:last-child{border:none}
+.audit-ts{color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:.75rem;white-space:nowrap;min-width:120px}
+.audit-changes{display:flex;flex-wrap:wrap;gap:4px}
+.audit-chip{padding:2px 8px;border-radius:6px;background:rgba(124,138,239,.1);color:var(--b);font-size:.72rem;font-family:'JetBrains Mono',monospace}
+
+/* ── Paper vs Live ── */
+.pvl-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pvl-col{padding:12px;border-radius:10px;text-align:center}
+.pvl-col.paper{background:rgba(192,132,252,.06);border:1px solid rgba(192,132,252,.15)}
+.pvl-col.live{background:rgba(10,179,156,.06);border:1px solid rgba(10,179,156,.15)}
+.pvl-col .pvl-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);margin-bottom:6px}
+.pvl-col .pvl-val{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.1rem}
+
+/* ── Slippage ── */
+.slip-bar{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:.82rem}
+.slip-val{font-family:'JetBrains Mono',monospace;font-weight:600}
+
+/* ── Notification bell ── */
+.notif-bell{position:fixed;bottom:20px;right:20px;z-index:2000;background:var(--card-bg);border:1px solid var(--card-border);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3);font-size:1.2rem;color:var(--b);display:none}
+.notif-bell.active{display:flex}
+.notif-bell .notif-count{position:absolute;top:-4px;right:-4px;background:var(--r);color:#fff;font-size:.65rem;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+
+/* ── V5: Staging badge ── */
+.stage-badge{padding:3px 10px;border-radius:10px;font-size:.72rem;font-weight:700;letter-spacing:.5px}
+.stage-badge.BURN_IN{background:rgba(247,184,75,.15);color:var(--y);border:1px solid rgba(247,184,75,.3)}
+.stage-badge.RAMP_UP{background:rgba(124,138,239,.12);color:var(--b);border:1px solid rgba(124,138,239,.2)}
+.stage-badge.FULL_DEPLOY{background:rgba(10,179,156,.15);color:var(--g);border:1px solid rgba(10,179,156,.3)}
+.regime-badge{padding:2px 8px;border-radius:8px;font-size:.78rem;font-weight:600;letter-spacing:.3px}
+.regime-trending_up{background:rgba(10,179,156,.15);color:var(--g);border:1px solid rgba(10,179,156,.3)}
+.regime-trending_down{background:rgba(240,101,72,.15);color:var(--r);border:1px solid rgba(240,101,72,.3)}
+.regime-rangebound{background:rgba(124,138,239,.12);color:var(--b);border:1px solid rgba(124,138,239,.2)}
+.regime-high_vol{background:rgba(247,184,75,.15);color:var(--y);border:1px solid rgba(247,184,75,.3)}
+
 /* ── Responsive chart ── */
 @media(max-width:600px){.eq-svg{height:160px}}
 </style>
@@ -259,6 +379,9 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
 <body>
 {% include "_nav.html" %}
 {% include "_live_ticker.html" %}
+
+<!-- Mode Banner -->
+<div id="modeBanner" class="mode-banner {{ 'live' if effective_live else 'paper' }}"><span class="pulse-dot"></span> <span id="modeBannerText">{% if effective_live and cfg.get('staging') == 'FULL_DEPLOY' %}LIVE TRADING ACTIVE — Real money at risk via Dhan{% elif effective_live %}BURN-IN — Paper orders only (market open){% elif live_mode == 'live' %}MARKET CLOSED — Live trading resumes at next market open{% else %}PAPER TRADING — No real orders placed{% endif %}</span></div>
 
 <!-- Connection status bar -->
 <div id="connBar" class="conn-bar"></div>
@@ -271,6 +394,7 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
   <div class="d-flex align-items-center gap-3">
     <h1><i class="bi bi-robot"></i> Autopilot</h1>
     <span id="sp" class="spill off"><span class="dot"></span><span id="st">DISABLED</span></span>
+    <span id="stageBadge" class="stage-badge" style="display:none"></span>
   </div>
   <div class="hero-sub">Davey Ch.14 autonomous incubation engine. Paper-trades your INCUBATING strategies on a cron schedule, manages entries and exits, enforces risk circuit-breakers, and tracks all 11 graduation criteria — so you can evaluate strategies without screen-time.</div>
   <div class="srow">
@@ -299,6 +423,13 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
 <!-- Data freshness -->
 <div class="data-ts" id="dataTs"></div>
 
+<!-- ═══ Market Regime ═══ -->
+<div id="regimeSec" class="srow" style="display:none;margin:8px 0;gap:12px;flex-wrap:wrap">
+  <span class="si"><i class="bi bi-compass"></i> Regime: <strong id="regimeLabel" class="regime-badge">--</strong></span>
+  <span class="si"><i class="bi bi-graph-up"></i> RoC: <strong id="regimeRoc">--</strong></span>
+  <span class="si"><i class="bi bi-speedometer2"></i> VP: <strong id="regimeVpConf">--</strong></span>
+</div>
+
 <!-- ═══ How it works ═══ -->
 <div class="hiw">
   <button class="hiw-toggle" onclick="togS('hiwB')"><i class="bi bi-lightbulb"></i> How does Autopilot work? <i class="bi bi-chevron-down ms-auto"></i></button>
@@ -324,6 +455,12 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
   </div>
 </div>
 
+<!-- ═══ Today's Session ═══ -->
+<div class="sec" id="todaySec" style="display:none">
+  <div class="sec-t"><i class="bi bi-calendar-day"></i> Today's Session <span id="todayDate" style="font-weight:400;font-size:.78rem;color:var(--text-dim);margin-left:6px"></span></div>
+  <div class="today-bar" id="todayBar"></div>
+</div>
+
 <!-- ═══ Attention ═══ -->
 <div id="attnBox"></div>
 
@@ -332,6 +469,30 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
   <i class="bi bi-exclamation-triangle-fill"></i>
   <div class="err-msg" id="errMsg">Failed to load dashboard data</div>
   <div class="err-retry"><button class="ba cy" onclick="load()"><i class="bi bi-arrow-clockwise"></i> Retry</button></div>
+</div>
+
+<!-- ═══ V5: Alerts ═══ -->
+<div id="alertSec" style="display:none">
+  <div class="sec-t"><i class="bi bi-bell"></i> Alerts <span id="alertBadge" class="badge" style="display:none"></span>
+    <span class="sec-desc" style="display:inline;margin:0 0 0 8px;font-weight:400;font-size:.78rem">Live execution alerts — click detail to expand, ✓ to acknowledge</span>
+  </div>
+  <div class="card alert-panel" id="alertBody"></div>
+</div>
+
+<!-- ═══ Dhan Account ═══ -->
+<div class="sec" id="acctSec" style="display:none">
+  <div class="sec-t"><i class="bi bi-bank2"></i> Dhan Account
+    <span id="tokPill" class="tok-pill expired" style="margin-left:8px"><span class="tdot"></span><span id="tokText">Checking...</span></span>
+  </div>
+  <div class="sec-desc">Real brokerage account balance from Dhan API. <strong>Available</strong> = cash you can deploy. <strong>Used Margin</strong> = blocked for open positions. <strong>Collateral</strong> = pledged holdings. Token must be valid to fetch — refresh at <a href="/options" style="color:var(--b)">Options Dashboard</a> if expired.</div>
+  <div class="acct-grid" id="acctGrid">
+    <div class="acct-card primary"><div class="av" id="aAvail">--</div><div class="al">Available Balance</div></div>
+    <div class="acct-card"><div class="av" id="aUsed">--</div><div class="al">Used Margin</div></div>
+    <div class="acct-card"><div class="av" id="aCollat">--</div><div class="al">Collateral</div></div>
+    <div class="acct-card"><div class="av" id="aWithdraw">--</div><div class="al">Withdrawable</div></div>
+    <div class="acct-card"><div class="av" id="aSOD">--</div><div class="al">Start of Day</div></div>
+  </div>
+  <div id="syncBar" class="sync-bar na"><i class="bi bi-arrow-repeat sync-icon"></i> <span id="syncText">Position sync: waiting for data...</span></div>
 </div>
 
 <!-- ═══ Portfolio KPIs ═══ -->
@@ -405,8 +566,9 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
       <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Risk Position<span class="tip-text">Visual meter showing where the trade sits between max loss (left, red) and max profit (right, green). Needle position = current P/L relative to the strategy's defined risk/reward. BE = breakeven level(s).</span></span></th>
       <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Θ/day<span class="tip-text">This trade's daily theta — how much ₹ you gain or lose per day just from time passing. Red = paying theta (long options). Green = earning theta (short/spreads).</span></span></th>
       <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Δ<span class="tip-text">This trade's net delta — directional exposure. Positive = profits if NIFTY rises. Negative = profits if NIFTY falls.</span></span></th>
+      <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Live<span class="tip-text">Live execution status. PAPER = paper-only. PENDING = order sent. FILLED = real position open. EXITED = closed. FAILED = entry failed. RESIDUAL = partial unwind failed — manual intervention needed.</span></span></th>
       <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Source<span class="tip-text">Who opened this trade: "autopilot" = opened automatically by the engine, "manual" = opened by you through the Paper Trade page.</span></span></th>
-    </tr></thead><tbody id="oBody"><tr><td colspan="12" class="empty">Loading...</td></tr></tbody></table>
+    </tr></thead><tbody id="oBody"><tr><td colspan="13" class="empty">Loading...</td></tr></tbody></table>
   </div></div>
 </div>
 
@@ -453,14 +615,74 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
   </div></div>
 </div>
 
+<!-- ═══ V5: Execution Health ═══ -->
+<div id="execSec" style="display:none">
+  <div class="sec-t"><i class="bi bi-cpu"></i> Execution Health
+    <span class="sec-desc" style="display:inline;margin:0 0 0 8px;font-weight:400;font-size:.78rem">Order queue, safety events, reconciliation, shadow comparison stats</span>
+  </div>
+  <div class="card" style="padding:14px">
+    <div class="exec-grid" id="execGrid"></div>
+    <details style="margin-top:12px"><summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-dim)">Recent Order Events</summary>
+      <div style="overflow-x:auto;max-height:200px;overflow-y:auto;margin-top:8px">
+        <table class="data-table"><thead><tr><th>Time</th><th>Type</th><th>Order ID</th><th>Status</th><th>Qty</th><th>Price</th></tr></thead>
+        <tbody id="execEventsBody"><tr><td colspan="6" class="empty">—</td></tr></tbody></table>
+      </div>
+    </details>
+    <details style="margin-top:8px"><summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-dim)">Safety Events</summary>
+      <div style="overflow-x:auto;max-height:200px;overflow-y:auto;margin-top:8px">
+        <table class="data-table"><thead><tr><th>Time</th><th>Event</th><th>Severity</th><th>Action</th><th>Detail</th></tr></thead>
+        <tbody id="execSafetyBody"><tr><td colspan="5" class="empty">—</td></tr></tbody></table>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- ═══ Paper vs Live P/L ═══ -->
+<div id="pvlSec" class="sec" style="display:none">
+  <div class="sec-t"><i class="bi bi-bar-chart-line"></i> Paper vs Live Comparison</div>
+  <div class="sec-desc">Side-by-side comparison of paper trade P/L vs actual Dhan fills. Shows whether real execution matches paper expectations — the key validation before scaling up.</div>
+  <div class="pvl-grid">
+    <div class="pvl-col paper"><div class="pvl-title"><i class="bi bi-file-earmark-text"></i> Paper Trades</div><div class="pvl-val" id="pvlPaper">--</div><div style="font-size:.72rem;color:var(--text-dim);margin-top:4px" id="pvlPaperSub">--</div></div>
+    <div class="pvl-col live"><div class="pvl-title"><i class="bi bi-lightning-charge"></i> Live Trades</div><div class="pvl-val" id="pvlLive">--</div><div style="font-size:.72rem;color:var(--text-dim);margin-top:4px" id="pvlLiveSub">--</div></div>
+  </div>
+  <div id="pvlNote" style="font-size:.78rem;color:var(--text-dim);margin-top:8px;text-align:center"></div>
+</div>
+
+<!-- ═══ System Log ═══ -->
+<div class="sec">
+  <div class="sec-t"><i class="bi bi-terminal"></i> System Log
+    <select id="syslogLevel" onchange="loadSyslog()" style="margin-left:auto;font-size:.75rem;padding:2px 6px;background:var(--surface);color:var(--text);border:1px solid var(--card-border);border-radius:4px">
+      <option value="">All Levels</option>
+      <option value="ERROR">Errors</option>
+      <option value="WARNING">Warnings</option>
+      <option value="INFO">Info</option>
+      <option value="DEBUG">Debug</option>
+    </select>
+    <button class="cbtn" onclick="loadSyslog()" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+    <button class="cbtn" onclick="copySyslog()" title="Copy all logs"><i class="bi bi-clipboard"></i> Copy</button>
+  </div>
+  <div class="sec-desc">Live Python log output from the options module. Use the copy button to share logs for debugging.</div>
+  <div id="syslogBox" style="max-height:600px;overflow-y:auto;background:var(--bg);border:1px solid var(--card-border);border-radius:6px;padding:8px;font-family:'JetBrains Mono',monospace;font-size:.75rem;line-height:1.6">
+    <div style="color:var(--muted)">Loading...</div>
+  </div>
+</div>
+
+<!-- ═══ Go-Live Readiness ═══ -->
+<div class="sec" id="goliveSec">
+  <div class="sec-t"><i class="bi bi-rocket-takeoff"></i> Go-Live Readiness</div>
+  <div class="sec-desc">Advisory checklist for live trading confidence. Live mode is controlled by the <strong>Live Mode</strong> config below — these gates are informational, not blocking. The system trades when autopilot is enabled + Live Mode = Live + market is open.</div>
+  <div class="gl-grid" id="goliveGrid"></div>
+  <div id="goliveSummary"></div>
+</div>
+
 <!-- ═══ Config ═══ -->
 <div class="sec">
   <div class="sec-t"><i class="bi bi-gear"></i> Configuration
     <button class="cbtn ms-auto" onclick="togS('cfgC')"><i class="bi bi-chevron-down"></i></button>
     <button class="ba cy" onclick="saveCfg()" style="padding:3px 10px;font-size:.75rem"><i class="bi bi-check2"></i> Save</button>
   </div>
-  <div class="sec-desc">Autopilot settings — changes take effect on the next cycle. <strong>DTE exit</strong> = auto-close when days-to-expiry hits this level (prevents pin risk and gamma explosion). <strong>Reserve %</strong> = capital kept liquid.</div>
-  <div id="cfgC" class="card" style="display:none"><div class="p-3"><div class="row">
+  <div class="sec-desc">Autopilot settings — changes take effect on the next cycle. <strong>DTE exit</strong> = auto-close when days-to-expiry hits this level (prevents pin risk and gamma explosion). <strong>Reserve %</strong> = capital kept liquid. <span style="color:var(--g)">Config auto-saves to disk — set once, runs daily without changes.</span></div>
+  <div id="cfgC" class="card"><div class="p-3"><div class="row">
     <div class="col-md-6">
       <div class="cr"><span class="cl"><span class="cl-name">Symbols</span><span class="cd">Underlyings to scan (comma separated)</span></span><input class="ci" id="cS" value="NIFTY" style="width:120px"></div>
       <div class="cr"><span class="cl"><span class="cl-name">Capital (₹)</span><span class="cd">Paper capital for position sizing</span></span><input class="ci" id="cCa" type="number" value="500000"></div>
@@ -477,21 +699,32 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
       <div class="cr"><span class="cl"><span class="cl-name">Weekly DTE Exit</span><span class="cd">Auto-close weekly options at this many days before expiry</span></span><input class="ci" id="cWD" type="number" value="1"></div>
       <div class="cr"><span class="cl"><span class="cl-name">Monthly DTE Exit</span><span class="cd">Auto-close monthly options at this many days before expiry</span></span><input class="ci" id="cMD" type="number" value="2"></div>
       <div class="cr"><span class="cl"><span class="cl-name">Only INCUBATING</span><span class="cd">Only trade strategies still incubating</span></span><label class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="cIn" checked></label></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Live Mode</span><span class="cd">paper = no real orders, live = real money via Dhan</span></span><select class="ci" id="cLM" style="width:120px"><option value="paper" {% if live_mode != 'live' %}selected{% endif %}>Paper</option><option value="live" {% if live_mode == 'live' %}selected{% endif %}>Live</option></select></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Staging</span><span class="cd">BURN_IN (₹400 cap), RAMP_UP, FULL_DEPLOY</span></span><select class="ci" id="cST" style="width:140px"><option value="BURN_IN">BURN_IN</option><option value="RAMP_UP">RAMP_UP</option><option value="FULL_DEPLOY">FULL_DEPLOY</option></select></div>
+      <div class="cr"><span class="cl"><span class="cl-name">Max Loss/Trade</span><span class="cd">Per-trade loss cap in ₹ (enforced in BURN_IN)</span></span><input class="ci" id="cMLT" type="number" value="400"></div>
     </div>
   </div></div></div>
+  <details style="margin-top:12px"><summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-dim)"><i class="bi bi-clock-history"></i> Config Change History</summary>
+    <div id="auditBody" style="max-height:200px;overflow-y:auto;margin-top:8px;padding:0 8px"></div>
+  </details>
 </div>
 
 </div>
+
+<!-- Notification bell -->
+<div id="notifBell" class="notif-bell" onclick="requestNotifPermission()"><i class="bi bi-bell"></i></div>
+
 <!-- Emergency confirm modal -->
 <div id="emgModal" class="confirm-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
   <div class="confirm-box">
     <h3><i class="bi bi-exclamation-triangle-fill"></i> Emergency Stop</h3>
     <ol>
       <li>Disable autopilot immediately</li>
-      <li>Close ALL autopilot trades at entry price</li>
+      <li>Close ALL live Dhan positions (real money exits)</li>
+      <li>Close ALL paper trades</li>
       <li>Remove cron jobs</li>
     </ol>
-    <div class="cb-safe"><i class="bi bi-shield-check"></i> Manual trades are NOT affected</div>
+    <div class="cb-safe" style="color:var(--red,#c00)"><i class="bi bi-exclamation-triangle-fill"></i> This will send SELL orders to Dhan for any live positions</div>
     <div class="cb-btns">
       <button class="ba cy" onclick="$('emgModal').style.display='none'">Cancel</button>
       <button class="ba em" id="emgConfirm" onclick="doEmg()"><i class="bi bi-exclamation-triangle-fill"></i> Confirm Stop</button>
@@ -529,6 +762,9 @@ function hideConn(){$('connBar').className='conn-bar'}
 function cacheSet(d){try{localStorage.setItem(_CACHE_KEY,JSON.stringify({ts:Date.now(),data:d}))}catch(e){}}
 function cacheGet(){try{const raw=localStorage.getItem(_CACHE_KEY);if(!raw)return null;return JSON.parse(raw)}catch(e){return null}}
 
+// Auto-hide loader after 2s even if dashboard is still loading
+setTimeout(()=>{const l=$('loader');if(l)l.classList.remove('show')},2000);
+
 function renderDash(d,stale){
   $('loader').classList.remove('show');
   $('errState').style.display='none';
@@ -544,6 +780,7 @@ function renderDash(d,stale){
 
   const en=d.config?.enabled;
   $('sp').className='spill '+(en?'on':'off');$('st').textContent=en?'ENABLED':'DISABLED';
+  const stg=d.config?.staging||'';if(stg){const sb=$('stageBadge');sb.textContent=stg.replace('_',' ');sb.className='stage-badge '+stg;sb.style.display=''}else{$('stageBadge').style.display='none'}
   $('bE').style.display=en?'none':'';$('bD').style.display=en?'':'none';
   if(en){$('cron').style.display='';const st=(d.config?.scan_times||[]).join(' & ');$('cronMsg').textContent='Autopilot active — cron auto-runs at '+st+' IST on weekdays. Entry scans, exit checks, and risk limits all automated.'}else{$('cron').style.display='none'}
 
@@ -554,6 +791,20 @@ function renderDash(d,stale){
   if(d.last_cycle){const ts=d.last_cycle.timestamp||'';$('lc').textContent=ts?new Date(ts).toLocaleString('en-IN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Never'}else{$('lc').textContent='Never'}
   $('scT').textContent=(d.config?.scan_times||[]).join(', ');
   $('tcyc').textContent=d.today_cycles||0;
+
+  // Market regime from last recommendation
+  const ms=d.market_state||{};
+  if(ms.regime){
+    $('regimeSec').style.display='';
+    const rl=$('regimeLabel');
+    const rn={'trending_up':'Trending Up','trending_down':'Trending Down','rangebound':'Rangebound','high_vol':'High Vol'};
+    rl.textContent=rn[ms.regime]||ms.regime;
+    rl.className='regime-badge regime-'+ms.regime;
+    $('regimeRoc').textContent=(ms.roc>=0?'+':'')+((ms.roc||0)*100).toFixed(1)+'%';
+    const vpc=ms.vp_confidence||'--';
+    $('regimeVpConf').textContent=vpc.charAt(0).toUpperCase()+vpc.slice(1);
+    $('regimeVpConf').style.color=vpc==='strong'?'var(--g)':vpc==='weak'?'var(--r)':'var(--y)';
+  }else{$('regimeSec').style.display='none'}
 
   const att=d.attention||[];
   $('attnBox').innerHTML=att.map(a=>`<div class="attn ${esc(a.level)}"><i class="bi bi-${esc(a.icon)}"></i> ${esc(a.msg)}</div>`).join('');
@@ -690,9 +941,10 @@ function rOpen(ts){
       </td>
       <td class="fm" style="color:${(g.theta_daily||0)<0?'var(--r)':'var(--g)'}">${F(g.theta_daily)}</td>
       <td class="fm">${g.delta?.toFixed(1)||'0'}</td>
+      <td><span class="ls ${t.live_status||'paper'}">${t.live_status||'PAPER'}</span></td>
       <td><span class="src ${src}">${src}</span></td>
     </tr>`;
-    if(idx===0)html+=`<tr class="expand-hint-row"><td colspan="12" class="expand-hint"><i class="bi bi-hand-index"></i> Click any row above to see per-leg greeks, breakevens, and what-if scenarios</td></tr>`;
+    if(idx===0)html+=`<tr class="expand-hint-row"><td colspan="13" class="expand-hint"><i class="bi bi-hand-index"></i> Click any row above to see per-leg greeks, breakevens, and what-if scenarios</td></tr>`;
 
     const lds=t.leg_details||[];const scen=t.scenarios||{};
     html+=`<tr class="trade-detail" id="td${t.id}"><td colspan="12">
@@ -785,7 +1037,7 @@ function rMonthly(ms){
   sec.style.display='';
   el.innerHTML='<div class="mo-grid">'+ms.map(m=>`<div class="mo-cell"><div class="mm">${m.month}</div><div class="mv ${pcl(m.net)}">${ps(m.net)}</div><div class="mx">${m.trades} trades · ${m.win_rate}% WR<br>Costs: ${F(m.costs)}</div></div>`).join('')+'</div>'}
 
-function popCfg(c){$('cS').value=(c.symbols||['NIFTY']).join(',');$('cCa').value=c.capital||500000;$('cMS').value=c.min_score||7;$('cMC').value=c.max_concurrent_trades||3;$('cR').value=c.capital_reserve_pct||30;$('cPT').value=c.profit_target_pct||50;$('cSL').value=c.stop_loss_multiplier||1;$('cDL').value=c.max_daily_loss||15000;$('cDD').value=c.max_drawdown_pct||15;$('cTD').value=c.max_trades_per_day||2;$('cCL').value=c.max_consecutive_losses||5;$('cWD').value=c.weekly_dte_exit??1;$('cMD').value=c.monthly_dte_exit??2;$('cIn').checked=c.only_incubating!==false}
+function popCfg(c){$('cS').value=(c.symbols||['NIFTY']).join(',');$('cCa').value=c.capital||500000;$('cMS').value=c.min_score||7;$('cMC').value=c.max_concurrent_trades||3;$('cR').value=c.capital_reserve_pct||30;$('cPT').value=c.profit_target_pct||50;$('cSL').value=c.stop_loss_multiplier||1;$('cDL').value=c.max_daily_loss||15000;$('cDD').value=c.max_drawdown_pct||15;$('cTD').value=c.max_trades_per_day||2;$('cCL').value=c.max_consecutive_losses||5;$('cWD').value=c.weekly_dte_exit??1;$('cMD').value=c.monthly_dte_exit??2;$('cIn').checked=c.only_incubating!==false;$('cLM').value=c.live_mode||'paper';$('cST').value=c.staging||'BURN_IN';$('cMLT').value=c.max_loss_per_trade||400}
 
 function validateCfg(){
   let ok=true;
@@ -799,19 +1051,349 @@ function validateCfg(){
 
 async function saveCfg(){
   if(!validateCfg()){toast('Fix highlighted values (out of range)','error');return}
-  const c={symbols:$('cS').value.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean),capital:+$('cCa').value,min_score:+$('cMS').value,max_concurrent_trades:+$('cMC').value,capital_reserve_pct:+$('cR').value,profit_target_pct:+$('cPT').value,stop_loss_multiplier:+$('cSL').value,max_daily_loss:+$('cDL').value,max_drawdown_pct:+$('cDD').value,max_trades_per_day:+$('cTD').value,max_consecutive_losses:+$('cCL').value,weekly_dte_exit:+$('cWD').value,monthly_dte_exit:+$('cMD').value,only_incubating:$('cIn').checked};try{const r=await fetch(A+'/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});const d=await r.json();if(d.error){toast(d.error,'error');return}toast('Configuration saved','success');_configDirty=false;load()}catch(e){toast('Save failed','error')}}
+  const c={symbols:$('cS').value.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean),capital:+$('cCa').value,min_score:+$('cMS').value,max_concurrent_trades:+$('cMC').value,capital_reserve_pct:+$('cR').value,profit_target_pct:+$('cPT').value,stop_loss_multiplier:+$('cSL').value,max_daily_loss:+$('cDL').value,max_drawdown_pct:+$('cDD').value,max_trades_per_day:+$('cTD').value,max_consecutive_losses:+$('cCL').value,weekly_dte_exit:+$('cWD').value,monthly_dte_exit:+$('cMD').value,only_incubating:$('cIn').checked,live_mode:$('cLM').value,staging:$('cST').value,max_loss_per_trade:+$('cMLT').value};try{const r=await fetch(A+'/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});const d=await r.json();if(d.error){toast(d.error,'error');return}toast('Configuration saved','success');_configDirty=false;load()}catch(e){toast('Save failed','error')}}
 
 async function tog(on){const btn=$(on?'bE':'bD');btn.classList.add('loading');try{const r=await fetch(A+'/'+(on?'enable':'disable'),{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const d=await r.json();if(d.error){toast(d.error,'error');return}if(on){const ci=d.cron||{};toast(ci.installed?'Enabled — '+ci.installed+' cron job(s) auto-installed':'Enabled — cron install skipped','success')}else{toast('Disabled — cron jobs removed','success')}load()}catch(e){toast('Failed','error')}finally{btn.classList.remove('loading')}}
-async function cyc(){const btn=document.querySelector('.ba.cy[onclick="cyc()"]');if(btn)btn.classList.add('loading');try{toast('Running cycle...','info');const r=await fetch(A+'/cycle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cycle_type:'auto'})});const d=await r.json();if(d.error){toast(d.error,'error');return}toast(d.preflight?'Skipped: '+d.preflight:`Cycle done: ${d.entries||0} entries, ${d.exits||0} exits, ${d.checks||0} checked`,d.preflight?'info':'success');load();loadLog()}catch(e){toast('Cycle failed','error')}finally{if(btn)btn.classList.remove('loading')}}
+async function cyc(){const btn=document.querySelector('.ba.cy[onclick="cyc()"]');if(btn?.classList.contains('loading'))return;if(btn)btn.classList.add('loading');try{toast('Running cycle...','info');const r=await fetch(A+'/cycle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cycle_type:'auto'})});const d=await r.json();if(d.error){toast(d.error,'error');return}toast(d.preflight?'Skipped: '+d.preflight:`Cycle done: ${d.entries||0} entries, ${d.exits||0} exits, ${d.checks||0} checked`,d.preflight?'info':'success');load();loadLog();loadAlerts();loadExec()}catch(e){toast('Cycle failed','error')}finally{if(btn)btn.classList.remove('loading')}}
 
 function emg(){$('emgModal').style.display='flex'}
-async function doEmg(){$('emgModal').style.display='none';const btn=$('emgConfirm');btn.classList.add('loading');try{const r=await fetch(A+'/emergency',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const d=await r.json();toast(`Emergency: ${d.trades_closed} trade(s) closed, autopilot disabled`,'error');load();loadLog()}catch(e){toast('Emergency failed','error')}finally{btn.classList.remove('loading')}}
+async function doEmg(){$('emgModal').style.display='none';const btn=$('emgConfirm');btn.classList.add('loading');try{const r=await fetch(A+'/emergency',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const d=await r.json();toast(`Emergency: ${d.trades_closed} trade(s) closed${d.live_closed?' ('+d.live_closed+' live)':''}, autopilot disabled`,'error');load();loadLog();loadAlerts();loadExec()}catch(e){toast('Emergency failed','error')}finally{btn.classList.remove('loading')}}
 
 async function loadLog(){try{const r=await fetch(A+'/log?limit=80');const d=await r.json();const tb=$('logB');const es=d.entries||[];if(!es.length){tb.innerHTML='<tr><td colspan="7" class="empty">No decisions logged yet</td></tr>';return}
 tb.innerHTML=es.map(e=>{const ts=e.timestamp?new Date(e.timestamp).toLocaleString('en-IN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';const a=(e.action||'');return `<tr><td class="fm" style="white-space:nowrap">${ts}</td><td><span class="badge bg-secondary bg-opacity-25" style="font-size:.68rem">${esc(e.cycle_type||'')}</span></td><td class="la ${esc(a)}">${esc(a.replace(/_/g,' '))}</td><td>${esc(e.symbol||'')}</td><td style="text-transform:capitalize">${esc((e.strategy||'').replace(/_/g,' '))}</td><td class="fm">${e.score!=null?e.score.toFixed(1):''}</td><td class="rt" onclick="this.classList.toggle('expanded')">${esc(e.reason||'--')}</td></tr>`}).join('')}catch(e){console.error(e)}}
 
 // Escape key closes emergency modal
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const m=$('emgModal');if(m)m.style.display='none'}});
+
+// ── V5: Alerts ──
+async function loadAlerts(){
+  try{
+    const r=await fetch(A+'/alerts?limit=30');const d=await r.json();
+    const alerts=d.alerts||[];const sec=$('alertSec');const body=$('alertBody');const badge=$('alertBadge');
+    const unacked=alerts.filter(a=>!a.acknowledged);
+    if(!alerts.length){sec.style.display='none';return}
+    sec.style.display='';
+    if(unacked.length){badge.textContent=unacked.length;badge.style.display='inline'}else{badge.style.display='none'}
+    checkAlertNotifications(alerts);
+    body.innerHTML=alerts.map(a=>{
+      const ts=(a.timestamp||'').substring(0,16).replace('T',' ');
+      const acked=a.acknowledged?'acked':'';
+      return `<div class="alert-row ${acked}">
+        <span class="alert-sev ${a.severity}">${a.severity}</span>
+        <div class="alert-body">
+          <div class="alert-title">${esc(a.category)}: ${esc(a.title)}</div>
+          ${a.detail?`<div class="alert-detail" onclick="this.classList.toggle('expanded')">${esc(a.detail)}</div>`:''}
+          <div class="alert-meta"><span>${ts}</span><span>#${a.id}</span></div>
+        </div>
+        ${!a.acknowledged?`<button class="alert-ack" onclick="ackAlert(${a.id},this)" title="Acknowledge">✓</button>`:''}
+      </div>`;
+    }).join('');
+  }catch(e){console.warn('alerts load error',e)}
+}
+async function ackAlert(id,btn){
+  try{
+    btn.disabled=true;
+    await fetch(A+'/alerts/ack',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    loadAlerts();toast('Alert acknowledged','success');
+  }catch(e){toast('Ack failed','error');btn.disabled=false}
+}
+
+// ── V5: Execution Health ──
+async function loadExec(){
+  try{
+    const r=await fetch(A+'/execution');const d=await r.json();
+    if(d.error){$('execSec').style.display='none';return}
+    $('execSec').style.display='';
+    const q=d.queue||{};const sh=d.shadow||{};
+    const qTotal=Object.values(q).reduce((a,b)=>a+b,0);
+    const grid=$('execGrid');
+    grid.innerHTML=`
+      <div class="exec-stat"><div class="ev">${qTotal}</div><div class="el">Queue Total</div></div>
+      <div class="exec-stat"><div class="ev">${q.DONE||0}</div><div class="el">Filled</div></div>
+      <div class="exec-stat"><div class="ev">${q.FAILED||0}</div><div class="el">Failed</div></div>
+      <div class="exec-stat"><div class="ev">${q.PENDING||0}</div><div class="el">Pending</div></div>
+      <div class="exec-stat"><div class="ev">${(d.reconciliation||[])[0]?.clean?'✓':'—'}</div><div class="el">Recon Clean</div></div>
+      <div class="exec-stat"><div class="ev">${sh.match_rate||0}%</div><div class="el">Shadow Match</div></div>
+    `;
+    // Recent events
+    const evTb=$('execEventsBody');
+    const evts=d.recent_events||[];
+    if(evts.length){
+      evTb.innerHTML=evts.map(e=>{
+        const ts=esc((e.timestamp||'').substring(0,16).replace('T',' '));
+        return `<tr><td>${ts}</td><td>${esc(e.event_type||'')}</td><td class="fm">${esc(e.dhan_order_id||'—')}</td>
+          <td>${esc(e.dhan_status||'')}</td><td class="fm">${e.filled_qty??'—'}</td><td class="fm">${e.price?'₹'+Number(e.price).toFixed(1):'—'}</td></tr>`;
+      }).join('');
+    }else{evTb.innerHTML='<tr><td colspan="6" class="empty">No events yet</td></tr>'}
+    // Safety events
+    const sfTb=$('execSafetyBody');
+    const sfs=d.safety_events||[];
+    if(sfs.length){
+      sfTb.innerHTML=sfs.map(e=>{
+        const ts=(e.timestamp||'').substring(0,16).replace('T',' ');
+        return `<tr><td>${esc(ts)}</td><td>${esc(e.event_type||'')}</td><td>${esc(e.severity||'')}</td>
+          <td>${esc(e.action||'')}</td><td>${esc((e.detail||'').substring(0,80))}</td></tr>`;
+      }).join('');
+    }else{sfTb.innerHTML='<tr><td colspan="5" class="empty">No safety events</td></tr>'}
+  }catch(e){console.warn('exec load error',e);$('execSec').style.display='none'}
+}
+
+// ── Mode Banner ──
+function updateModeBanner(cfg){
+  const b=$('modeBanner'),t=$('modeBannerText');
+  if(!b||!t)return;
+  const wantsLive=cfg?.live_mode==='live';
+  const stage=cfg?.staging||'BURN_IN';
+  const mktOpen=cfg?.market_open??false;
+  const live=wantsLive&&mktOpen;
+  b.className='mode-banner '+(live?'live':'paper');
+  t.textContent=live
+    ?(stage==='FULL_DEPLOY'
+      ?'LIVE TRADING ACTIVE — Real money at risk via Dhan'
+      :'BURN-IN — Paper orders only (market open)')
+    :wantsLive
+      ?'MARKET CLOSED — Live trading resumes at next market open'
+      :'PAPER TRADING — No real orders placed';
+}
+
+// ── Today's Session ──
+async function loadToday(){
+  try{
+    const r=await fetch(A+'/today');const d=await r.json();
+    if(d.error||!d.date){$('todaySec').style.display='none';return}
+    const hasCycles=d.cycles>0||d.entries>0||d.exits>0||d.skips>0||d.closed_trades>0;
+    $('todaySec').style.display=hasCycles?'':'none';
+    if(!hasCycles)return;
+    $('todayDate').textContent=new Date(d.date).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
+    const pnl=d.realized_pnl||0;
+    $('todayBar').innerHTML=`
+      <div class="today-stat"><div><div class="tv">${d.cycles}</div><div class="tl">Cycles</div></div></div>
+      <div class="today-stat"><div><div class="tv" style="color:var(--g)">${d.entries}</div><div class="tl">Entries</div></div></div>
+      <div class="today-stat"><div><div class="tv" style="color:var(--b)">${d.exits}</div><div class="tl">Exits</div></div></div>
+      <div class="today-stat"><div><div class="tv">${d.skips}</div><div class="tl">Skipped</div></div></div>
+      <div class="today-stat"><div><div class="tv">${d.closed_trades}</div><div class="tl">Closed</div></div></div>
+      <div class="today-stat"><div><div class="tv ${pnl>=0?'pc':'nc'}">${pnl>=0?'+':''}₹${Math.abs(pnl).toLocaleString('en-IN')}</div><div class="tl">Realized P/L</div></div></div>
+      <div class="today-stat"><div><div class="tv" style="color:var(--y)">₹${Math.abs(d.costs||0).toLocaleString('en-IN')}</div><div class="tl">Costs</div></div></div>
+      <div class="today-stat"><div><div class="tv" style="color:${d.preflight_ok?'var(--g)':'var(--r)'}"><i class="bi ${d.preflight_ok?'bi-check-circle':'bi-x-circle'}"></i></div><div class="tl">Preflight</div></div></div>
+    `;
+  }catch(e){console.warn('today load error',e)}
+}
+
+// ── Dhan Account + Position Sync ──
+let _acctCache=null;
+let _dhanPositions=null;
+async function loadAccount(){
+  try{
+    const r=await fetch(A+'/account');const d=await r.json();
+    if(d.error){$('acctSec').style.display='none';return}
+    $('acctSec').style.display='';
+    const tok=d.token||{};
+    const pill=$('tokPill'),txt=$('tokText'),grid=$('acctGrid');
+    if(tok.active){
+      pill.className='tok-pill valid';txt.textContent='Token Valid';
+      grid.style.display='';
+    }else{
+      pill.className='tok-pill expired';txt.textContent='Token Expired';
+      grid.style.display='none';
+    }
+    const f=d.funds;
+    if(f){
+      grid.style.display='';
+      const fmt=v=>v!=null?'₹'+Number(v).toLocaleString('en-IN',{maximumFractionDigits:0}):'--';
+      $('aAvail').textContent=fmt(f.availabelBalance??f.availableBalance??f.available_balance);
+      $('aUsed').textContent=fmt(f.utilizedAmount??f.utilized_amount);
+      $('aCollat').textContent=fmt(f.collateralAmount??f.collateral_amount);
+      $('aWithdraw').textContent=fmt(f.withdrawableBalance??f.withdrawable_balance);
+      $('aSOD').textContent=fmt(f.sodLimit??f.sod_limit);
+      _acctCache=f;
+      if(window._lastDashData)renderGoLive(window._lastDashData);
+    }else if(d.funds_error){
+      $('aAvail').textContent='—';$('aAvail').title=d.funds_error;
+    }
+    // Position sync
+    _dhanPositions=d.positions;
+    renderPositionSync();
+  }catch(e){console.warn('account load error',e)}
+}
+
+let _paperOpenCount=0;
+function renderPositionSync(){
+  const bar=$('syncBar'),txt=$('syncText');
+  if(!bar)return;
+  const paperOpen=_paperOpenCount;
+  const liveMode=document.querySelector('#cLM')?.value==='live';
+  if(!liveMode){
+    bar.className='sync-bar na';
+    txt.innerHTML=`<strong>Paper mode</strong> — ${paperOpen} paper positions open. No Dhan positions to sync.`;
+    return;
+  }
+  if(!_dhanPositions){
+    bar.className='sync-bar na';
+    txt.innerHTML='Position sync unavailable — token expired or API error';
+    return;
+  }
+  const dhanCount=_dhanPositions.items?.length||0;
+  if(dhanCount===paperOpen){
+    bar.className='sync-bar ok';
+    txt.innerHTML=`<strong>Synced ✓</strong> — Paper: ${paperOpen} · Dhan: ${dhanCount} positions`;
+  }else{
+    bar.className='sync-bar warn';
+    txt.innerHTML=`<strong>Mismatch ⚠</strong> — Paper: ${paperOpen} · Dhan: ${dhanCount} positions. Check reconciler.`;
+  }
+}
+
+// ── System Log ──
+async function loadSyslog(){
+  try{
+    const lvl=$('syslogLevel')?.value||'';
+    const url=A+'/syslog?limit=200'+(lvl?'&level='+lvl:'');
+    const r=await fetch(url);const d=await r.json();
+    const box=$('syslogBox');
+    if(!d.entries||!d.entries.length){box.innerHTML='<div style="color:var(--muted)">No log entries yet. Run a cycle to generate logs.</div>';return}
+    const lvlClass={ERROR:'sl-e',WARNING:'sl-w',INFO:'sl-i',DEBUG:'sl-d'};
+    box.innerHTML=d.entries.map(e=>{
+      const cls=lvlClass[e.level]||'sl-d';
+      const ts=e.ts.substring(11,19);
+      return `<div class="sl-row"><span class="sl-ts">${esc(ts)}</span><span class="sl-lv ${cls}">${esc(e.level)}</span><span class="sl-msg">${esc(e.msg)}</span></div>`;
+    }).join('');
+    box.scrollTop=box.scrollHeight;
+  }catch(e){$('syslogBox').innerHTML='<div style="color:var(--r)">Failed to load logs</div>'}
+}
+function copySyslog(){
+  const box=$('syslogBox');
+  const rows=box.querySelectorAll('.sl-row');
+  if(!rows.length){toast('No logs to copy','info');return}
+  const text=Array.from(rows).map(r=>{
+    const ts=r.querySelector('.sl-ts')?.textContent||'';
+    const lv=r.querySelector('.sl-lv')?.textContent||'';
+    const msg=r.querySelector('.sl-msg')?.textContent||'';
+    return `${ts} [${lv}] ${msg}`;
+  }).join('\n');
+  navigator.clipboard.writeText(text).then(()=>toast('Logs copied to clipboard','success')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Logs copied','success');
+  });
+}
+
+// ── Paper vs Live comparison ──
+function renderPaperVsLive(dashData){
+  const sec=$('pvlSec');
+  const cfg=dashData?.config||{};
+  if(cfg.live_mode!=='live'){sec.style.display='none';return}
+  sec.style.display='';
+  const p=dashData?.portfolio||{};
+  const paperPnl=p.total_pnl||0;
+  $('pvlPaper').textContent=(paperPnl>=0?'+':'')+'₹'+Math.abs(paperPnl).toLocaleString('en-IN');
+  $('pvlPaper').className='pvl-val '+(paperPnl>=0?'pc':'nc');
+  $('pvlPaperSub').textContent=`${p.total_trades||0} trades · ${p.win_rate||0}% WR`;
+  if(_dhanPositions){
+    const livePnl=_dhanPositions.items?.reduce((s,p)=>s+(p.pnl||0),0)||0;
+    $('pvlLive').textContent=(livePnl>=0?'+':'')+'₹'+Math.abs(livePnl).toLocaleString('en-IN');
+    $('pvlLive').className='pvl-val '+(livePnl>=0?'pc':'nc');
+    $('pvlLiveSub').textContent=`${_dhanPositions.count||0} open positions on Dhan`;
+  }else{
+    $('pvlLive').textContent='—';
+    $('pvlLiveSub').textContent='Connect Dhan token to see live P/L';
+  }
+  $('pvlNote').textContent='Comparing paper simulation vs actual Dhan execution. Divergence indicates slippage or execution issues.';
+}
+
+// ── Config Audit ──
+async function loadConfigAudit(){
+  try{
+    const r=await fetch(A+'/config-audit?limit=15');const d=await r.json();
+    const body=$('auditBody');
+    if(!d.entries?.length){body.innerHTML='<div style="font-size:.8rem;color:var(--text-dim);padding:8px">No config changes recorded yet</div>';return}
+    body.innerHTML=d.entries.map(e=>{
+      const ts=e.ts?.substring(0,16).replace('T',' ')||'—';
+      const chips=Object.entries(e.changes||{}).map(([k,v])=>`<span class="audit-chip">${esc(k)}: ${esc(JSON.stringify(v.from))}→${esc(JSON.stringify(v.to))}</span>`).join('');
+      return `<div class="audit-entry"><span class="audit-ts">${ts}</span><div class="audit-changes">${chips}</div></div>`;
+    }).join('');
+  }catch(e){console.warn('audit load error',e)}
+}
+
+// ── Browser Notifications ──
+let _notifPermission='default';
+let _prevAlertCount=0;
+function requestNotifPermission(){
+  if(!('Notification' in window)){toast('Browser notifications not supported','info');return}
+  Notification.requestPermission().then(p=>{
+    _notifPermission=p;
+    if(p==='granted'){toast('Notifications enabled','success');$('notifBell').style.display='none'}
+    else{toast('Notifications blocked — enable in browser settings','info')}
+  });
+}
+function sendNotif(title,body,tag){
+  if(_notifPermission!=='granted')return;
+  try{new Notification(title,{body,tag,icon:'/static/favicon.ico',silent:false})}catch(e){}
+}
+function checkNotifications(dashData){
+  // Show bell if permission not granted
+  const bell=$('notifBell');
+  if('Notification' in window){
+    _notifPermission=Notification.permission;
+    if(bell)bell.className='notif-bell'+(_notifPermission!=='granted'?' active':'');
+  }
+  // Notify on mode changes, emergency, strategy graduation
+  const cfg=dashData?.config||{};
+  const lc=dashData?.lifecycle||[];
+  if(lc.some(s=>s.status==='GRADUATED')){sendNotif('Strategy Graduated! 🎓','A strategy has passed all 11 graduation criteria','grad')}
+}
+function checkAlertNotifications(alerts){
+  if(!alerts?.length)return;
+  const unacked=alerts.filter(a=>!a.acknowledged);
+  if(unacked.length>_prevAlertCount&&_prevAlertCount>=0){
+    const latest=unacked[0];
+    sendNotif(`${latest.severity}: ${latest.category}`,latest.title||latest.detail||'','alert-'+latest.id);
+  }
+  _prevAlertCount=unacked.length;
+}
+
+// ── Go-Live Readiness ──
+function renderGoLive(dashData){
+  const grid=$('goliveGrid'),sum=$('goliveSummary');
+  if(!grid)return;
+  const cfg=dashData?.config||{};
+  const lc=dashData?.lifecycle||[];
+  const tok=document.querySelector('#tokPill')?.classList.contains('valid')||false;
+  const hasGraduated=lc.some(s=>s.status==='GRADUATED');
+  const allIncubating=lc.length>0&&lc.every(s=>s.status==='INCUBATING');
+  const anyAborted=lc.some(s=>s.status==='ABORTED');
+  const liveMode=cfg.live_mode||'paper';
+  const staging=cfg.staging||'BURN_IN';
+  const trades=dashData?.portfolio?.total_trades||0;
+  const months=lc.length?Math.max(...lc.map(s=>s.months||0)):0;
+
+  const checks=[
+    {label:'Dhan Token Valid',pass:tok,val:tok?'✓':'Expired',tip:'API token must be valid to place orders'},
+    {label:'Strategy Graduated',pass:hasGraduated,val:hasGraduated?lc.filter(s=>s.status==='GRADUATED').length+' graduated':'0 graduated',warn:allIncubating,tip:'At least 1 strategy must pass all 11 Davey Ch.14 graduation criteria'},
+    {label:'3+ Months Incubation',pass:months>=3,val:months.toFixed(1)+' mo',tip:'Minimum paper trading duration (Davey Ch.14)'},
+    {label:'30+ Closed Trades',pass:trades>=30,val:trades+' trades',tip:'Minimum trade count for statistical significance'},
+    {label:'Account Has Funds',pass:_acctCache!=null&&(_acctCache.availabelBalance??_acctCache.availableBalance??0)>0,val:_acctCache?'₹'+((_acctCache.availabelBalance??_acctCache.availableBalance??0)/1000).toFixed(0)+'k':'Unknown',tip:'Dhan account must have available balance'},
+    {label:'Staging: BURN_IN First',pass:staging==='BURN_IN'||staging==='RAMP_UP',val:staging,warn:staging==='FULL_DEPLOY'&&!hasGraduated,tip:'Start with BURN_IN (₹400 cap) to limit risk'},
+    {label:'Live Mode',pass:liveMode==='live',val:liveMode==='paper'?'Paper (safe)':'LIVE ⚡',warn:liveMode==='live'&&!hasGraduated,tip:'Must be switched to Live manually in Config'},
+  ];
+
+  const passed=checks.filter(c=>c.pass).length;
+  const total=checks.length;
+
+  grid.innerHTML=checks.map(c=>{
+    const cls=c.pass?'pass':(c.warn?'warn':'fail');
+    const icon=c.pass?'bi-check-circle-fill':(c.warn?'bi-exclamation-triangle-fill':'bi-x-circle-fill');
+    return `<div class="gl-item ${cls}" title="${c.tip||''}">
+      <i class="bi ${icon} gl-icon"></i>
+      <span class="gl-label">${c.label}</span>
+      <span class="gl-val">${c.val}</span>
+    </div>`;
+  }).join('');
+
+  if(passed===total){
+    sum.innerHTML='<div class="gl-summary ready"><i class="bi bi-check-circle-fill"></i> All advisory gates green — full confidence for live trading.</div>';
+  }else if(liveMode==='live'){
+    sum.innerHTML=`<div class="gl-summary partial"><i class="bi bi-hourglass-split"></i> ${passed}/${total} advisory gates met. Live mode is ON — system will trade when market opens and scanner finds opportunities. ${total-passed} gate(s) pending for full confidence.</div>`;
+  }else{
+    sum.innerHTML=`<div class="gl-summary not-ready"><i class="bi bi-shield-x"></i> ${passed}/${total} advisory gates met. Set Live Mode to "Live" in Config to enable real orders.</div>`;
+  }
+}
 
 // ── Adaptive polling (fixes: timer leak, concurrent fetch, abort on hide) ──
 let _timer=null,_interval=30000,_hasOpen=false;
@@ -878,9 +1460,9 @@ function tick(){
   if(newInt!==_interval){_interval=newInt;updateLivePill();clearInterval(_timer);_timer=setInterval(tick,_interval)}
   load();
   // Also refresh decision log periodically during market hours
-  if(isMarketHours()&&Date.now()-_lastLogPoll>60000){_lastLogPoll=Date.now();loadLog()}
+  if(isMarketHours()&&Date.now()-_lastLogPoll>60000){_lastLogPoll=Date.now();loadLog();loadAlerts();loadExec();loadAccount();loadToday();loadSyslog()}
 }
-document.addEventListener('visibilitychange',()=>{if(document.hidden){stopPoll()}else{load();loadLog();startPoll()}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){stopPoll()}else{load();loadLog();loadAlerts();loadExec();loadAccount();loadToday();loadSyslog();startPoll()}});
 
 // ── Value change flash ──
 function flashVal(id,newVal){
@@ -907,6 +1489,7 @@ document.querySelectorAll('.ci').forEach(inp=>{
 const _origRender=renderDash;
 renderDash=function(d,stale){
   _hasOpen=(d.open_trades||[]).length>0;
+  _paperOpenCount=(d.open_trades||[]).length;
   const p=d.portfolio||{};
   const fv={kPnl:ps(p.total_pnl),kUnreal:ps(p.total_unrealized),kWR:p.total_trades>0?p.win_rate+'%':'--',kPF:p.total_trades>0?p.profit_factor?.toFixed(2):'--',kTT:''+p.total_trades};
 
@@ -931,11 +1514,45 @@ renderDash=function(d,stale){
   // Don't overwrite config if user is editing
   if(!_configDirty)popCfg(d.config||{});
 
+  updateModeBanner(d.config);
+  window._lastDashData=d;
+  renderGoLive(d);
+  renderPaperVsLive(d);
+  renderPositionSync();
+  checkNotifications(d);
+
   const newInt=getInterval();
   if(newInt!==_interval){_interval=newInt;updateLivePill();clearInterval(_timer);_timer=setInterval(tick,_interval)}
 };
 
-load();loadLog();startPoll();
+load();loadLog();loadAlerts();loadExec();loadAccount();loadToday();loadConfigAudit();loadSyslog();startPoll();
+
+// ── G12+G1: SSE alert stream + title flash fallback ──
+let _titleInterval=null;
+function flashTitle(msg){
+  if(typeof Notification!=='undefined'&&Notification.permission==='granted')return;
+  const orig=document.title;let on=true;
+  clearInterval(_titleInterval);
+  _titleInterval=setInterval(()=>{document.title=on?'⚠️ '+msg:orig;on=!on},1000);
+  window.addEventListener('focus',()=>{clearInterval(_titleInterval);document.title=orig},{once:true});
+}
+(function connectSSE(){
+  let lastId=0;
+  try{lastId=parseInt(localStorage.getItem('sse_last_alert_id'))||0}catch(e){}
+  const src=new EventSource('/api/options/autopilot/alerts/stream?since='+lastId);
+  src.onmessage=function(ev){
+    try{
+      const a=JSON.parse(ev.data);
+      if(a.id){try{localStorage.setItem('sse_last_alert_id',a.id)}catch(e){}}
+      loadAlerts();
+      if(a.severity==='EMERGENCY'||a.severity==='CRITICAL'){
+        sendNotif(a.severity+': '+a.category, a.title||a.detail||'','sse-'+a.id);
+        flashTitle(a.title||a.category);
+      }
+    }catch(e){}
+  };
+  src.onerror=function(){src.close();setTimeout(connectSSE,10000)};
+})();
 </script>
 </body>
 </html>

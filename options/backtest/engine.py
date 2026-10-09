@@ -42,6 +42,7 @@ def run(config, chain_loader, spot_series):
     equity_dates = []
     warn = []
     tid = 0
+    prev_regime = None
 
     dates_sorted = sorted(spot_series.keys())
     start = cfg.get('start_date', dates_sorted[0])
@@ -94,7 +95,9 @@ def run(config, chain_loader, spot_series):
                     enter = vp_val >= cfg['vp_threshold']
 
             elif cfg['signal_mode'] == 'regime':
-                reg = regime.detect_regime(spot_list, idx, dt, atm_iv_val, rv, w)
+                reg = regime.detect_regime(spot_list, idx, dt, atm_iv_val, rv, w,
+                                           prev_regime=prev_regime)
+                prev_regime = reg.get('regime')
                 strat = registry.get(cfg['strategy_key'])
                 if strat and regime.strategy_fits_regime(strat, reg):
                     enter = True

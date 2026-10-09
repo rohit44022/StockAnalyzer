@@ -30,15 +30,24 @@ log = logging.getLogger(__name__)
 
 _DB_NAME = 'paper_trades.db'
 DEFAULT_CAPITAL = 500_000
+SLIPPAGE_PER_LEG = 2.0  # ₹2 per point per unit; total = 2 × legs × lot_size × lots
+
+_last_good_spot = {}  # {symbol: (spot, timestamp)}
 
 
 def _db_path():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), _DB_NAME)
 
 
+def _connect(db=None):
+    conn = sqlite3.connect(db or _db_path(), timeout=10)
+    conn.execute('PRAGMA journal_mode=WAL')
+    return conn
+
+
 def init_db(db=None):
     db = db or _db_path()
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     c = conn.cursor()
 
     c.execute('''CREATE TABLE IF NOT EXISTS recommendations (
@@ -153,6 +162,27 @@ def init_db(db=None):
         c.execute("ALTER TABLE trades ADD COLUMN max_loss_per_lot REAL")
     if 'margin_per_lot' not in cols:
         c.execute("ALTER TABLE trades ADD COLUMN margin_per_lot REAL")
+    if 'live_status' not in cols:
+        c.execute("ALTER TABLE trades ADD COLUMN live_status TEXT")
+    if 'standing_sl_ids' not in cols:
+        c.execute("ALTER TABLE trades ADD COLUMN standing_sl_ids TEXT")
+
+    c.execute('''CREATE TABLE IF NOT EXISTS autopilot_alerts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        category TEXT NOT NULL,
+        title TEXT NOT NULL,
+        detail TEXT,
+        context_json TEXT,
+        acknowledged INTEGER DEFAULT 0
+    )''')
+
+    c.execute('CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_trades_source_status ON trades(source, status)')
+
+    c.execute('PRAGMA journal_mode=WAL')
+    c.execute('PRAGMA busy_timeout=10000')
 
     conn.commit()
     conn.close()
@@ -195,7 +225,7 @@ def incubate(strategy_key, wfa_report_path, db=None):
                   for t in oos_trades]
 
     # Guard: don't silently overwrite a finalized strategy
-    conn_check = sqlite3.connect(db, timeout=10)
+    conn_check = _connect(db)
     conn_check.row_factory = sqlite3.Row
     existing = conn_check.execute(
         'SELECT status FROM strategy_lifecycle WHERE strategy_key=?',
@@ -235,7 +265,7 @@ def incubate(strategy_key, wfa_report_path, db=None):
     if not all_pass:
         log.warning(f'{strategy_key}: not all Davey gates pass — incubating anyway for monitoring')
 
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     try:
         conn.execute(
             '''INSERT OR REPLACE INTO strategy_lifecycle
@@ -299,7 +329,7 @@ def check_lifecycle(strategy_key, db=None):
     db = db or _db_path()
     init_db(db)
 
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     conn.row_factory = sqlite3.Row
     row = conn.execute(
         'SELECT * FROM strategy_lifecycle WHERE strategy_key=?',
@@ -402,7 +432,7 @@ def check_lifecycle(strategy_key, db=None):
         new_status = 'INCUBATING'
 
     # Update DB
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     try:
         updates = {
             'trade_count': n_paper,
@@ -453,7 +483,7 @@ def lifecycle_status(strategy_key=None, db=None):
     db = db or _db_path()
     init_db(db)
 
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     conn.row_factory = sqlite3.Row
     if strategy_key:
         rows = conn.execute(
@@ -511,19 +541,41 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None):
         chain_df, spot = dhan_fetch.fetch_multi_expiry_chain(symbol, n_expiries=3)
     except Exception as e:
         return {'status': 'error', 'reason': f'Dhan fetch failed: {e}'}
-    if chain_df.empty or spot <= 0:
-        return {'status': 'error', 'reason': 'Empty chain or invalid spot from Dhan'}
+    if spot and spot > 0:
+        _last_good_spot[symbol] = (spot, datetime.datetime.now())
+    if chain_df.empty or not spot or spot <= 0:
+        cached = _last_good_spot.get(symbol)
+        if cached:
+            age_min = (datetime.datetime.now() - cached[1]).total_seconds() / 60
+            if age_min < 30:
+                log.warning(f'[{symbol}] Spot=0 from API, using cached {cached[0]:.2f} ({age_min:.0f}m old)')
+                spot = cached[0]
+            else:
+                return {'status': 'error', 'reason': f'Spot stale ({age_min:.0f}m) and chain empty'}
+        else:
+            return {'status': 'error', 'reason': 'Empty chain or invalid spot from Dhan'}
     log.info(f'[{symbol}] {len(chain_df)} rows, spot={spot:.2f}')
 
     # 2. VIX
-    vix_value = 14.0
+    vix_value = None
     try:
         from .data import india_vix
         vdf = india_vix.load_vix_history()
         if not vdf.empty:
             vix_value = float(vdf.iloc[-1]['close'])
     except Exception as e:
-        log.warning(f'VIX load failed, using default 14: {e}')
+        log.warning(f'VIX load failed: {e}')
+    if vix_value is None:
+        # ponytail: don't pretend VIX=14 — that silently enables premium-selling.
+        # Use chain ATM IV as proxy; if that also fails, flag it.
+        try:
+            atm = chain_df.iloc[(chain_df['strike'] - spot).abs().argsort()[:2]]
+            vix_value = float(atm['iv'].mean()) * 100 if 'iv' in atm.columns else None
+        except Exception:
+            pass
+        if vix_value is None:
+            vix_value = 14.0
+            log.warning('VIX unavailable, ATM IV unavailable — using fallback 14.0')
 
     # 3. Historical prices for vol forecast
     prices = None
@@ -557,45 +609,84 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None):
         reason = result.get('error', 'No strategies passed signal/gate filters')
         return {'status': 'no_recommendation', 'reason': reason}
 
-    reco = result['recommendations'][0]
     sigs = result['signals']
+    candidates = result['recommendations'][:3]
+
+    # Try top-3: if #1 fails entry gate, try #2, #3
+    reco = gate = lots = max_loss_per_lot = None
+    for candidate in candidates:
+        _key = candidate['strategy_key']
+        _legs = candidate['raw_legs']
+        _dte = candidate['dte']
+
+        # Position sizing
+        _max_loss_unit = candidate.get('max_loss') or float('-inf')
+        if _max_loss_unit != float('-inf') and _max_loss_unit < 0:
+            _max_loss_per_lot = abs(_max_loss_unit) * lot_size
+        else:
+            _max_loss_per_lot = spot * lot_size * 0.05
+
+        _kelly_frac = 0.10
+        conn_k = _connect(db)
+        conn_k.row_factory = sqlite3.Row
+        lc_row = conn_k.execute(
+            'SELECT wfa_oos_trades_json FROM strategy_lifecycle WHERE strategy_key=? AND status=?',
+            (_key, 'INCUBATING')
+        ).fetchone()
+        conn_k.close()
+        if lc_row and lc_row['wfa_oos_trades_json']:
+            wfa_trades = json.loads(lc_row['wfa_oos_trades_json'])
+            pnls = [t.get('net_pnl', 0) for t in wfa_trades]
+            wins = [p for p in pnls if p > 0]
+            losses = [p for p in pnls if p < 0]
+            if wins and losses:
+                wr = len(wins) / len(pnls)
+                avg_w = sum(wins) / len(wins)
+                avg_l = abs(sum(losses) / len(losses))
+                _kelly_frac = sizing.kelly_fraction(wr, avg_w, avg_l)
+
+        size = sizing.position_size(capital, _kelly_frac, _max_loss_per_lot, lot_size=lot_size)
+        _lots = max(1, size.get('lots', 1))
+
+        _vp_conf = candidate.get('vp_confidence', 'moderate')
+        _vp_scale = {'strong': 1.0, 'moderate': 0.75, 'weak': 0.5}.get(_vp_conf, 0.75)
+        _lots = max(1, int(_lots * _vp_scale))
+
+        # Entry gate (Sinclair Ch.8)
+        _daily_theta = abs(candidate.get('daily_theta', 0)) * lot_size
+        _gate = scenarios.entry_gate(_legs, spot, daily_theta=max(_daily_theta, 0.01),
+                                     lot_size=lot_size, dte=_dte)
+
+        reco, gate, lots, max_loss_per_lot = candidate, _gate, _lots, _max_loss_per_lot
+        if _gate.get('passes', False):
+            log.info(f'[{symbol}] Candidate {_key} passes entry gate')
+            break
+        log.info(f'[{symbol}] Candidate {_key} failed gate (ratio={_gate.get("ratio",0):.1f}), trying next')
+
     top_key = reco['strategy_key']
     legs = reco['raw_legs']
     dte = reco['dte']
 
-    # 9. Position sizing — Kelly from WFA incubation overrides half-Kelly default
-    max_loss_unit = reco.get('max_loss') or float('-inf')
-    if max_loss_unit != float('-inf') and max_loss_unit < 0:
-        max_loss_per_lot = abs(max_loss_unit) * lot_size
-    else:
-        max_loss_per_lot = spot * lot_size * 0.05
-
-    kelly_frac = 0.10
-    conn_k = sqlite3.connect(db, timeout=10)
-    conn_k.row_factory = sqlite3.Row
-    lc_row = conn_k.execute(
-        'SELECT wfa_oos_trades_json FROM strategy_lifecycle WHERE strategy_key=? AND status=?',
-        (top_key, 'INCUBATING')
-    ).fetchone()
-    conn_k.close()
-    if lc_row and lc_row['wfa_oos_trades_json']:
-        wfa_trades = json.loads(lc_row['wfa_oos_trades_json'])
-        pnls = [t.get('net_pnl', 0) for t in wfa_trades]
-        wins = [p for p in pnls if p > 0]
-        losses = [p for p in pnls if p < 0]
-        if wins and losses:
-            wr = len(wins) / len(pnls)
-            avg_w = sum(wins) / len(wins)
-            avg_l = abs(sum(losses) / len(losses))
-            kelly_frac = sizing.kelly_fraction(wr, avg_w, avg_l)
-
-    size = sizing.position_size(capital, kelly_frac, max_loss_per_lot, lot_size=lot_size)
-    lots = max(1, size.get('lots', 1))
-
-    # 10. Entry gate (Sinclair Ch.8)
-    daily_theta = abs(reco.get('daily_theta', 0)) * lot_size
-    gate = scenarios.entry_gate(legs, spot, daily_theta=max(daily_theta, 0.01),
-                                lot_size=lot_size, dte=dte)
+    # 10b. Opposite-direction check: warn if new strategy conflicts with open positions
+    conn_chk = _connect(db)
+    conn_chk.row_factory = sqlite3.Row
+    try:
+        open_trades = conn_chk.execute(
+            "SELECT strategy FROM trades WHERE status='open' AND symbol=?", (symbol,)
+        ).fetchall()
+        if open_trades:
+            from .strategies import registry
+            new_strat = registry.get(top_key)
+            new_bias = getattr(new_strat, 'outlook', 'neutral') if new_strat else 'neutral'
+            for ot in open_trades:
+                old_strat = registry.get(ot['strategy'])
+                old_bias = getattr(old_strat, 'outlook', 'neutral') if old_strat else 'neutral'
+                if (new_bias == 'bullish' and old_bias == 'bearish') or \
+                   (new_bias == 'bearish' and old_bias == 'bullish'):
+                    log.warning(f'[{symbol}] Opposite-direction conflict: {top_key}({new_bias}) vs open {ot["strategy"]}({old_bias})')
+                    return {'status': 'blocked', 'reason': f'Opposite-direction conflict: {top_key} vs open {ot["strategy"]}'}
+    finally:
+        conn_chk.close()
 
     # 11. Pre-trade audit
     net_premium = sum(
@@ -615,7 +706,7 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None):
         'available_capital': capital,
         'max_loss': max_loss_per_lot * lots,
         'exit_plan': {
-            'stop_loss': -max_loss_per_lot if max_loss_unit != float('-inf') else None,
+            'stop_loss': -max_loss_per_lot if max_loss_per_lot != float('-inf') else None,
             'take_profit': (reco.get('max_profit') or 0) * lot_size * 0.5,
         },
     }
@@ -642,10 +733,12 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None):
         'audit': audit_result,
         'signals': sigs,
         'vix': vix_value,
+        'regime': reco.get('regime'),
+        'vp_confidence': reco.get('vp_confidence'),
         'build_warnings': reco.get('build_warnings', []),
     }
 
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     conn.execute(
         '''INSERT INTO recommendations
            (timestamp, symbol, strategy, spot, legs, lots, lot_size,
@@ -671,74 +764,82 @@ def enter(recommendation_id=None, db=None):
     """Confirm a pending recommendation as a paper trade."""
     db = db or _db_path()
     init_db(db)
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute('BEGIN IMMEDIATE')
 
-    if recommendation_id is None:
-        row = conn.execute(
-            "SELECT * FROM recommendations WHERE status='pending' "
-            "ORDER BY id DESC LIMIT 1"
+        if recommendation_id is None:
+            row = conn.execute(
+                "SELECT * FROM recommendations WHERE status='pending' "
+                "ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT * FROM recommendations WHERE id=?", (recommendation_id,)
+            ).fetchone()
+
+        if row is None:
+            conn.rollback()
+            return {'status': 'error', 'reason': 'No pending recommendation found'}
+
+        existing = conn.execute(
+            "SELECT id FROM trades WHERE recommendation_id=?", (row['id'],)
         ).fetchone()
-    else:
-        row = conn.execute(
-            "SELECT * FROM recommendations WHERE id=?", (recommendation_id,)
-        ).fetchone()
+        if existing:
+            conn.rollback()
+            return {'status': 'error',
+                    'reason': f'Recommendation #{row["id"]} already entered as trade #{existing["id"]}'}
 
-    if row is None:
+        audit_result = json.loads(row['audit'])
+        if audit_result.get('decision') == 'REJECT':
+            reasons = audit_result.get('rejection_reasons', [])
+            conn.rollback()
+            return {'status': 'rejected', 'reason': f'Audit rejected: {reasons}'}
+
+        legs = json.loads(row['legs'])
+
+        from .core import cost_model
+        cost_legs = [{'premium': l.get('premium', l.get('ltp', 0)),
+                      'action': l['action']} for l in legs]
+        cost_est = cost_model.round_trip_cost(cost_legs, lot_size=row['lot_size'])
+        n_legs = len(legs)
+        slippage = SLIPPAGE_PER_LEG * n_legs * row['lot_size'] * row['lots']
+        entry_cost = round(cost_est.get('total', 0) * row['lots'] + slippage, 2)
+
+        capital_risked = round(
+            (row['max_loss_per_lot'] or row['spot'] * row['lot_size'] * 0.05) * row['lots'], 2
+        )
+
+        reasons_json = row['reasons'] or '[]'
+        reasons = json.loads(reasons_json)
+        sig_summary = '; '.join(reasons[:5]) if reasons else row['strategy']
+
+        from .data import event_calendar
+        target_exp = event_calendar.next_expiry(row['symbol'])
+
+        now = datetime.datetime.now().isoformat()
+        conn.execute(
+            '''INSERT INTO trades
+               (recommendation_id, opened_at, symbol, strategy, entry_spot, legs,
+                lots, lot_size, capital_risked, entry_cost, entry_reason,
+                target_expiry, status,
+                max_profit_per_lot, max_loss_per_lot, margin_per_lot)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (row['id'], now, row['symbol'], row['strategy'], row['spot'],
+             row['legs'], row['lots'], row['lot_size'],
+             capital_risked, entry_cost, sig_summary,
+             target_exp.isoformat(), 'open',
+             row['max_profit_per_lot'], row['max_loss_per_lot'], row['margin_per_lot'])
+        )
+        conn.execute("UPDATE recommendations SET status='entered' WHERE id=?", (row['id'],))
+        trade_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
         conn.close()
-        return {'status': 'error', 'reason': 'No pending recommendation found'}
-
-    existing = conn.execute(
-        "SELECT id FROM trades WHERE recommendation_id=?", (row['id'],)
-    ).fetchone()
-    if existing:
-        conn.close()
-        return {'status': 'error',
-                'reason': f'Recommendation #{row["id"]} already entered as trade #{existing["id"]}'}
-
-    audit_result = json.loads(row['audit'])
-    if audit_result.get('decision') == 'REJECT':
-        conn.close()
-        reasons = audit_result.get('rejection_reasons', [])
-        return {'status': 'rejected', 'reason': f'Audit rejected: {reasons}'}
-
-    legs = json.loads(row['legs'])
-
-    from .core import cost_model
-    cost_legs = [{'premium': l.get('premium', l.get('ltp', 0)),
-                  'action': l['action']} for l in legs]
-    cost_est = cost_model.round_trip_cost(cost_legs, lot_size=row['lot_size'])
-    entry_cost = round(cost_est.get('total', 0) * row['lots'], 2)
-
-    capital_risked = round(
-        (row['max_loss_per_lot'] or row['spot'] * row['lot_size'] * 0.05) * row['lots'], 2
-    )
-
-    reasons_json = row['reasons'] or '[]'
-    reasons = json.loads(reasons_json)
-    sig_summary = '; '.join(reasons[:5]) if reasons else row['strategy']
-
-    from .data import event_calendar
-    target_exp = event_calendar.next_expiry(row['symbol'])
-
-    now = datetime.datetime.now().isoformat()
-    conn.execute(
-        '''INSERT INTO trades
-           (recommendation_id, opened_at, symbol, strategy, entry_spot, legs,
-            lots, lot_size, capital_risked, entry_cost, entry_reason,
-            target_expiry, status,
-            max_profit_per_lot, max_loss_per_lot, margin_per_lot)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-        (row['id'], now, row['symbol'], row['strategy'], row['spot'],
-         row['legs'], row['lots'], row['lot_size'],
-         capital_risked, entry_cost, sig_summary,
-         target_exp.isoformat(), 'open',
-         row['max_profit_per_lot'], row['max_loss_per_lot'], row['margin_per_lot'])
-    )
-    conn.execute("UPDATE recommendations SET status='entered' WHERE id=?", (row['id'],))
-    conn.commit()
-    trade_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-    conn.close()
 
     log.info(f'Trade #{trade_id} entered: {row["strategy"]} {row["symbol"]} '
              f'{row["lots"]}L @{row["spot"]:.0f}')
@@ -754,142 +855,174 @@ def daily_check(spot=None, db=None):
     """Check all open trades: reprice, run adjustments, log."""
     db = db or _db_path()
     init_db(db)
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     conn.row_factory = sqlite3.Row
+    try:
+        open_trades = conn.execute("SELECT * FROM trades WHERE status='open'").fetchall()
+        if not open_trades:
+            log.info('No open trades.')
+            return []
 
-    open_trades = conn.execute("SELECT * FROM trades WHERE status='open'").fetchall()
-    if not open_trades:
-        log.info('No open trades.')
+        from .strategies import adjustments
+        from .data import event_calendar
+        from .core import bsm
+
+        today = datetime.date.today()
+        results = []
+
+        # Pre-fetch chain for LTP pricing when any trade is near expiry
+        _ltp_chain = None
+        for t in open_trades:
+            if t['target_expiry']:
+                d = max(0, (datetime.date.fromisoformat(t['target_expiry']) - today).days)
+                if d < 3:
+                    try:
+                        from .data import dhan_fetch
+                        _ltp_chain, _ = dhan_fetch.fetch_multi_expiry_chain(
+                            open_trades[0]['symbol'], n_expiries=1)
+                    except Exception:
+                        pass
+                    break
+
+        for trade in open_trades:
+            symbol = trade['symbol']
+            legs = json.loads(trade['legs'])
+            entry_spot = trade['entry_spot']
+            lot_size = trade['lot_size']
+
+            trade_spot = spot
+            if trade_spot is None:
+                try:
+                    from .data import dhan_fetch
+                    trade_spot = dhan_fetch.fetch_spot(symbol)
+                except Exception:
+                    log.warning(f'Trade #{trade["id"]}: Dhan spot fetch failed, using entry spot')
+                    trade_spot = entry_spot
+
+            if trade['target_expiry']:
+                exp = datetime.date.fromisoformat(trade['target_expiry'])
+            else:
+                exp = event_calendar.next_expiry(symbol)
+            dte = max(0, (exp - today).days)
+
+            current_pnl = _reprice_pnl(legs, trade_spot, dte, chain_df=_ltp_chain)
+            pnl_per_lot = current_pnl * lot_size
+            total_pnl = round(pnl_per_lot * trade['lots'], 2)
+
+            net_premium = sum(
+                (l.get('premium', 0) if l.get('action') == 'SELL' else -l.get('premium', 0))
+                for l in legs
+            )
+            position = {
+                'strategy': trade['strategy'], 'legs': legs,
+                'max_loss': None, 'max_profit': None,
+                'net_premium': net_premium,
+            }
+
+            adj = adjustments.check(position, spot=trade_spot,
+                                    entry_spot=entry_spot, dte=dte)
+            max_urg = min((r.get('urgency', 3) for r in adj), default=3) if adj else 3
+
+            result = {
+                'trade_id': trade['id'], 'symbol': symbol,
+                'strategy': trade['strategy'],
+                'entry_spot': entry_spot, 'current_spot': trade_spot,
+                'dte': dte, 'lots': trade['lots'],
+                'pnl_per_lot': round(pnl_per_lot, 2),
+                'total_pnl': total_pnl,
+                'adjustments': adj, 'max_urgency': max_urg,
+                'opened': trade['opened_at'][:10],
+            }
+            results.append(result)
+
+            conn.execute(
+                '''INSERT INTO daily_checks
+                   (trade_id, check_date, spot, dte, current_pnl, adjustments, max_urgency)
+                   VALUES (?,?,?,?,?,?,?)''',
+                (trade['id'], today.isoformat(), trade_spot, dte,
+                 total_pnl, json.dumps(adj, default=_json_default), max_urg)
+            )
+
+        conn.commit()
+        return results
+    finally:
         conn.close()
-        return []
-
-    from .strategies import adjustments
-    from .data import event_calendar
-    from .core import bsm
-
-    today = datetime.date.today()
-    results = []
-
-    for trade in open_trades:
-        symbol = trade['symbol']
-        legs = json.loads(trade['legs'])
-        entry_spot = trade['entry_spot']
-        lot_size = trade['lot_size']
-
-        trade_spot = spot
-        if trade_spot is None:
-            try:
-                from .data import dhan_fetch
-                trade_spot = dhan_fetch.fetch_spot(symbol)
-            except Exception:
-                log.warning(f'Trade #{trade["id"]}: Dhan spot fetch failed, using entry spot')
-                trade_spot = entry_spot
-
-        if trade['target_expiry']:
-            exp = datetime.date.fromisoformat(trade['target_expiry'])
-        else:
-            exp = event_calendar.next_expiry(symbol)
-        dte = max(0, (exp - today).days)
-
-        current_pnl = _reprice_pnl(legs, trade_spot, dte)
-        pnl_per_lot = current_pnl * lot_size
-        total_pnl = round(pnl_per_lot * trade['lots'], 2)
-
-        net_premium = sum(
-            (l.get('premium', 0) if l.get('action') == 'SELL' else -l.get('premium', 0))
-            for l in legs
-        )
-        position = {
-            'strategy': trade['strategy'], 'legs': legs,
-            'max_loss': None, 'max_profit': None,
-            'net_premium': net_premium,
-        }
-
-        adj = adjustments.check(position, spot=trade_spot,
-                                entry_spot=entry_spot, dte=dte)
-        max_urg = min((r.get('urgency', 3) for r in adj), default=3) if adj else 3
-
-        result = {
-            'trade_id': trade['id'], 'symbol': symbol,
-            'strategy': trade['strategy'],
-            'entry_spot': entry_spot, 'current_spot': trade_spot,
-            'dte': dte, 'lots': trade['lots'],
-            'pnl_per_lot': round(pnl_per_lot, 2),
-            'total_pnl': total_pnl,
-            'adjustments': adj, 'max_urgency': max_urg,
-            'opened': trade['opened_at'][:10],
-        }
-        results.append(result)
-
-        conn.execute(
-            '''INSERT INTO daily_checks
-               (trade_id, check_date, spot, dte, current_pnl, adjustments, max_urgency)
-               VALUES (?,?,?,?,?,?,?)''',
-            (trade['id'], today.isoformat(), trade_spot, dte,
-             total_pnl, json.dumps(adj, default=_json_default), max_urg)
-        )
-
-    conn.commit()
-    conn.close()
-    return results
 
 
 def exit_trade(trade_id, spot=None, reason='manual', db=None):
     """Close a paper trade, compute final P/L with costs."""
     db = db or _db_path()
     init_db(db)
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     conn.row_factory = sqlite3.Row
+    try:
+        trade = conn.execute(
+            "SELECT * FROM trades WHERE id=? AND status='open'", (trade_id,)
+        ).fetchone()
+        if trade is None:
+            return {'status': 'error', 'reason': f'No open trade #{trade_id}'}
 
-    trade = conn.execute(
-        "SELECT * FROM trades WHERE id=? AND status='open'", (trade_id,)
-    ).fetchone()
-    if trade is None:
+        from .core import bsm, cost_model
+        from .data import event_calendar
+
+        symbol = trade['symbol']
+        legs = json.loads(trade['legs'])
+        lot_size = trade['lot_size']
+        lots = trade['lots']
+
+        if spot is None:
+            try:
+                from .data import dhan_fetch
+                spot = dhan_fetch.fetch_spot(symbol)
+            except Exception:
+                return {'status': 'error', 'reason': 'Provide --spot (Dhan unavailable)'}
+
+        if trade['target_expiry']:
+            exp = datetime.date.fromisoformat(trade['target_expiry'])
+        else:
+            exp = event_calendar.next_expiry(symbol)
+        dte = max(0, (exp - datetime.date.today()).days)
+
+        exit_chain = None
+        if dte < 3:
+            try:
+                from .data import dhan_fetch as _df
+                exit_chain, _ = _df.fetch_multi_expiry_chain(symbol, n_expiries=1)
+            except Exception:
+                pass
+
+        gross_pnl_unit = _reprice_pnl(legs, spot, dte, chain_df=exit_chain)
+        gross_pnl = round(gross_pnl_unit * lot_size * lots, 2)
+
+        ltp_map = {}
+        if exit_chain is not None and not exit_chain.empty:
+            for _, row in exit_chain.iterrows():
+                key = (float(row.get('strike', 0)), row.get('option_type', ''))
+                ltp = row.get('ltp', row.get('last_price', 0))
+                if ltp and ltp > 0:
+                    ltp_map[key] = float(ltp)
+        exit_legs = []
+        for l in legs:
+            key = (float(l['strike']), l['option_type'])
+            price = ltp_map.get(key) if dte < 3 and key in ltp_map else _bsm_reprice(l, spot, dte)
+            exit_legs.append({'premium': price,
+                              'action': 'BUY' if l['action'] == 'SELL' else 'SELL'})
+        exit_cost_est = cost_model.round_trip_cost(exit_legs, lot_size=lot_size)
+        exit_slippage = SLIPPAGE_PER_LEG * len(legs) * lot_size * lots
+        exit_cost = round(exit_cost_est.get('total', 0) * lots + exit_slippage, 2)
+
+        entry_cost = trade['entry_cost'] or 0
+        net_pnl = round(gross_pnl - entry_cost - exit_cost, 2)
+
+        now = datetime.datetime.now().isoformat()
+        conn.execute(
+            '''UPDATE trades SET status='closed', closed_at=?, exit_spot=?,
+               exit_reason=?, exit_cost=?, gross_pnl=?, net_pnl=? WHERE id=?''',
+            (now, spot, reason, exit_cost, gross_pnl, net_pnl, trade_id)
+        )
+        conn.commit()
+    finally:
         conn.close()
-        return {'status': 'error', 'reason': f'No open trade #{trade_id}'}
-
-    from .core import bsm, cost_model
-    from .data import event_calendar
-
-    symbol = trade['symbol']
-    legs = json.loads(trade['legs'])
-    lot_size = trade['lot_size']
-    lots = trade['lots']
-
-    if spot is None:
-        try:
-            from .data import dhan_fetch
-            spot = dhan_fetch.fetch_spot(symbol)
-        except Exception:
-            conn.close()
-            return {'status': 'error', 'reason': 'Provide --spot (Dhan unavailable)'}
-
-    if trade['target_expiry']:
-        exp = datetime.date.fromisoformat(trade['target_expiry'])
-    else:
-        exp = event_calendar.next_expiry(symbol)
-    dte = max(0, (exp - datetime.date.today()).days)
-
-    gross_pnl_unit = _reprice_pnl(legs, spot, dte)
-    gross_pnl = round(gross_pnl_unit * lot_size * lots, 2)
-
-    exit_legs = [{'premium': _bsm_reprice(l, spot, dte),
-                  'action': 'BUY' if l['action'] == 'SELL' else 'SELL'}
-                 for l in legs]
-    exit_cost_est = cost_model.round_trip_cost(exit_legs, lot_size=lot_size)
-    exit_cost = round(exit_cost_est.get('total', 0) * lots, 2)
-
-    entry_cost = trade['entry_cost'] or 0
-    net_pnl = round(gross_pnl - entry_cost - exit_cost, 2)
-
-    now = datetime.datetime.now().isoformat()
-    conn.execute(
-        '''UPDATE trades SET status='closed', closed_at=?, exit_spot=?,
-           exit_reason=?, exit_cost=?, gross_pnl=?, net_pnl=? WHERE id=?''',
-        (now, spot, reason, exit_cost, gross_pnl, net_pnl, trade_id)
-    )
-    conn.commit()
-    conn.close()
 
     log.info(f'Trade #{trade_id} closed: gross=₹{gross_pnl:,.0f} '
              f'costs=₹{entry_cost + exit_cost:,.0f} net=₹{net_pnl:,.0f}')
@@ -907,7 +1040,7 @@ def expire_old(db=None):
     db = db or _db_path()
     init_db(db)
     cutoff = (datetime.datetime.now() - datetime.timedelta(hours=20)).isoformat()
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     n = conn.execute(
         "UPDATE recommendations SET status='expired' "
         "WHERE status='pending' AND timestamp < ?", (cutoff,)
@@ -925,7 +1058,7 @@ def journal(symbol=None, db=None):
 
     db = db or _db_path()
     init_db(db)
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
 
     query = "SELECT id, opened_at, symbol, strategy, entry_spot, lots, " \
             "status, exit_spot, entry_cost, exit_cost, gross_pnl, net_pnl, " \
@@ -968,12 +1101,24 @@ def journal(symbol=None, db=None):
     print('=' * 90 + '\n')
 
 
-def _reprice_pnl(legs, spot, dte):
-    """Per-unit P/L at given spot/DTE using entry IV."""
-    from .core import bsm
+def _reprice_pnl(legs, spot, dte, chain_df=None):
+    """Per-unit P/L at given spot/DTE. Uses LTP when DTE<3 and chain available."""
+    use_ltp = dte < 3 and chain_df is not None and not chain_df.empty
+    ltp_map = {}
+    if use_ltp:
+        for _, row in chain_df.iterrows():
+            key = (float(row.get('strike', 0)), row.get('option_type', ''))
+            ltp = row.get('ltp', row.get('last_price', 0))
+            if ltp and ltp > 0:
+                ltp_map[key] = float(ltp)
+
     pnl = 0.0
     for leg in legs:
-        exit_price = _bsm_reprice(leg, spot, dte)
+        key = (float(leg['strike']), leg['option_type'])
+        if use_ltp and key in ltp_map:
+            exit_price = ltp_map[key]
+        else:
+            exit_price = _bsm_reprice(leg, spot, dte)
         entry_price = leg.get('premium', 0)
         qty = leg.get('qty', 1)
         if leg.get('action') == 'SELL':
@@ -988,6 +1133,73 @@ def _bsm_reprice(leg, spot, dte):
     t = max(dte / 365, 1 / 365)
     iv = max(leg.get('iv', 0.15), 0.01)
     return bsm.bsm_price(spot, leg['strike'], t, 0.07, iv, leg['option_type'])
+
+
+def portfolio_greeks(spot=None, db=None):
+    """
+    Aggregate Greeks (delta, gamma, theta, vega) across all open positions.
+
+    Returns dict: {delta, gamma, theta, vega, by_trade: [{trade_id, strategy, ...}]}
+    """
+    from .core import bsm
+    from .data import event_calendar
+
+    conn = _connect(db)
+    conn.row_factory = sqlite3.Row
+    try:
+        trades = conn.execute("SELECT * FROM trades WHERE status='open'").fetchall()
+        if not trades:
+            return {'delta': 0, 'gamma': 0, 'theta': 0, 'vega': 0, 'by_trade': []}
+
+        if spot is None:
+            try:
+                from .data import dhan_fetch
+                spot = dhan_fetch.fetch_spot(trades[0]['symbol'])
+            except Exception:
+                spot = trades[0]['entry_spot']
+
+        today = datetime.date.today()
+        totals = {'delta': 0.0, 'gamma': 0.0, 'theta': 0.0, 'vega': 0.0}
+        by_trade = []
+
+        for trade in trades:
+            legs = json.loads(trade['legs'])
+            lot_size = trade['lot_size']
+            lots = trade['lots']
+
+            if trade['target_expiry']:
+                exp = datetime.date.fromisoformat(trade['target_expiry'])
+            else:
+                exp = event_calendar.next_expiry(trade['symbol'])
+            dte = max(0, (exp - today).days)
+            t = max(dte / 365, 1 / 365)
+
+            trade_greeks = {'delta': 0.0, 'gamma': 0.0, 'theta': 0.0, 'vega': 0.0}
+            for leg in legs:
+                iv = max(leg.get('iv', 0.15), 0.01)
+                g = bsm.bsm_greeks(spot, leg['strike'], t, 0.07, iv, leg['option_type'])
+                qty = leg.get('qty', 1)
+                sign = -1 if leg.get('action') == 'SELL' else 1
+                multiplier = sign * qty * lot_size * lots
+                trade_greeks['delta'] += g['delta'] * multiplier
+                trade_greeks['gamma'] += g['gamma'] * multiplier
+                trade_greeks['theta'] += g['theta'] * multiplier
+                trade_greeks['vega'] += g['vega'] * multiplier
+
+            for k in totals:
+                totals[k] += trade_greeks[k]
+            by_trade.append({
+                'trade_id': trade['id'],
+                'strategy': trade['strategy'],
+                **{k: round(v, 4) for k, v in trade_greeks.items()},
+            })
+
+        return {
+            **{k: round(v, 4) for k, v in totals.items()},
+            'by_trade': by_trade,
+        }
+    finally:
+        conn.close()
 
 
 def _json_default(obj):
@@ -1120,7 +1332,7 @@ def _self_check():
     )
 
     # Insert a synthetic recommendation
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     conn.execute(
         '''INSERT INTO recommendations
            (timestamp, symbol, strategy, spot, legs, lots, lot_size,
@@ -1157,7 +1369,7 @@ def _self_check():
     assert 'net_pnl' in ex
 
     # expire
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     conn.execute(
         "INSERT INTO recommendations "
         "(timestamp, symbol, strategy, spot, legs, lots, lot_size, "
@@ -1173,7 +1385,7 @@ def _self_check():
     assert n == 1
 
     # verify trade is closed
-    conn = sqlite3.connect(db, timeout=10)
+    conn = _connect(db)
     conn.row_factory = sqlite3.Row
     t = conn.execute("SELECT * FROM trades WHERE id=1").fetchone()
     assert t['status'] == 'closed'
@@ -1254,7 +1466,7 @@ def _cli():
     elif args.command == 'abort':
         db = _db_path()
         init_db(db)
-        conn = sqlite3.connect(db, timeout=10)
+        conn = _connect(db)
         cur = conn.execute(
             "UPDATE strategy_lifecycle SET status='ABORTED', abort_date=?, abort_reason=? "
             "WHERE strategy_key=? AND status='INCUBATING'",

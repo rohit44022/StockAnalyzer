@@ -42,10 +42,9 @@ def select(signals, risk_budget='moderate', dte=None):
 def _infer_vol_regime(sig_map):
     vix_sig = sig_map.get('vix_regime', {})
     vp_sig = sig_map.get('variance_premium', {})
-    detail = vix_sig.get('detail', '')
 
     if vix_sig.get('direction') == 'caution' and vix_sig.get('strength', 0) > 0.7:
-        return 'low' if 'too low' in detail else 'crisis'
+        return 'low' if vix_sig.get('value', 14) < 11 else 'crisis'
 
     if vp_sig.get('direction') == 'sell_premium' and vp_sig.get('strength', 0) > 0.5:
         return 'high'
@@ -56,7 +55,7 @@ def _infer_vol_regime(sig_map):
 
 def _infer_direction(sig_map):
     bullish = bearish = 0.0
-    for t in ('pcr', 'oi_regime'):
+    for t in ('pcr', 'oi_regime', 'price_trend'):
         sig = sig_map.get(t, {})
         s = sig.get('strength', 0)
         if sig.get('direction') == 'bullish':

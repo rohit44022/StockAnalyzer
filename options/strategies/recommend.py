@@ -158,6 +158,8 @@ def _build_reco(scored_item, build_result, dte, lot_size,
         'dte': dte,
         'reasons': scored_item['reasons'],
         'backtest_ref': scored_item.get('backtest_ref'),
+        'regime': scored_item.get('regime'),
+        'vp_confidence': scored_item.get('vp_confidence'),
     }
 
 
@@ -167,6 +169,10 @@ def _market_state(sigs, pipe_result, spot, vix_value, dte):
     iv = vp_data.get('iv', 0)
     rv = vp_data.get('rv', float('nan'))
 
+    sig_map = {s['type']: s for s in sigs}
+    regime = scorer._detect_regime(sig_map)
+    roc = sig_map.get('price_trend', {}).get('roc', 0)
+
     return {
         'spot': spot,
         'vix': vix_value,
@@ -174,6 +180,8 @@ def _market_state(sigs, pipe_result, spot, vix_value, dte):
         'rv': round(rv, 4) if rv is not None and rv == rv else None,
         'vp': round(vp, 4) if vp is not None else None,
         'vp_signal': vp_data.get('signal', 'unknown'),
+        'regime': regime,
+        'roc': round(roc, 4),
         'dte': dte,
         'event_near': core_calendar.event_near(datetime.date.today()),
     }

@@ -53,6 +53,10 @@ def scan_signals(pipeline_result):
     if inverted is not None:
         signals.append(_term_structure_signal(inverted))
 
+    trend = pipeline_result.get('price_trend')
+    if trend:
+        signals.append(_trend_signal(trend))
+
     return signals
 
 
@@ -98,19 +102,19 @@ def _vix_signal(vix):
 
     if value < 11:
         return {'type': 'vix_regime', 'direction': 'caution',
-                'strength': 0.7,
+                'strength': 0.7, 'value': value,
                 'detail': f'VIX={value:.1f} — too low, premium thin'}
     if value <= 22:
         strength = min(1.0, 0.5 + (value - 11) / 22)
         return {'type': 'vix_regime', 'direction': 'sell_premium',
-                'strength': round(strength, 2),
+                'strength': round(strength, 2), 'value': value,
                 'detail': f'VIX={value:.1f} — sweet spot for premium selling'}
     if value <= 25:
         return {'type': 'vix_regime', 'direction': 'sell_premium',
-                'strength': 0.6,
+                'strength': 0.6, 'value': value,
                 'detail': f'VIX={value:.1f} — elevated, rich premium but size down'}
     return {'type': 'vix_regime', 'direction': 'caution',
-            'strength': 0.8,
+            'strength': 0.8, 'value': value,
             'detail': f'VIX={value:.1f} — crisis zone, spreads only'}
 
 
@@ -191,6 +195,22 @@ def _event_signal(events, event_window):
         return {'type': 'event', 'direction': 'vol_up', 'strength': 0.5,
                 'detail': f'{nearest.get("name", "Event")} in {days_away}d — IV may expand'}
     return None
+
+
+def _trend_signal(trend):
+    """Price trend from composite RoC (3d+5d+10d) — the directional edge."""
+    roc = trend.get('composite', trend.get('roc_5d', 0))
+    abs_roc = abs(roc)
+    if abs_roc < 0.01:
+        return {'type': 'price_trend', 'direction': 'neutral',
+                'strength': 0.1, 'detail': f'RoC={roc:+.1%} — rangebound',
+                'roc': roc}
+    direction = 'bullish' if roc > 0 else 'bearish'
+    strength = min(0.9, abs_roc / 0.05)
+    return {'type': 'price_trend', 'direction': direction,
+            'strength': round(strength, 2),
+            'detail': f'RoC={roc:+.1%} — trending {direction}',
+            'roc': roc}
 
 
 def _term_structure_signal(inverted):

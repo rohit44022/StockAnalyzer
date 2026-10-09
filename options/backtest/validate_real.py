@@ -20,6 +20,7 @@ from options.backtest.run_batch import nifty_lot_size, STRATEGIES
 
 CACHE_PATH = os.path.join(os.path.dirname(__file__), 'reports', '_real_chain_cache.json')
 
+# ponytail: Dhan expired_options_data only supports ATM±10 labels
 STRIKE_LABELS = [f'ATM{s:+d}' if s != 0 else 'ATM'
                  for s in range(-10, 11)]
 
@@ -27,7 +28,7 @@ STRIKE_LABELS = [f'ATM{s:+d}' if s != 0 else 'ATM'
 def _get_dhan():
     from dotenv import load_dotenv
     from dhanhq import dhanhq, DhanContext
-    load_dotenv()
+    load_dotenv(override=True)
     cid = os.getenv('DHAN_CLIENT_ID')
     tok = os.getenv('DHAN_ACCESS_TOKEN')
     if not cid or not tok:
@@ -38,68 +39,87 @@ def _get_dhan():
 def download_chains(days_back=45):
     """Download real option chain data from Dhan expired_options_data API."""
     dhan = _get_dhan()
-    to_d = datetime.date.today().isoformat()
-    from_d = (datetime.date.today() - datetime.timedelta(days=days_back)).isoformat()
+    today = datetime.date.today()
+
+    # ponytail: API caps at ~40 days; split into 35-day chunks
+    chunk_size = 35
+    date_ranges = []
+    end = today
+    remaining = days_back
+    while remaining > 0:
+        span = min(remaining, chunk_size)
+        start = end - datetime.timedelta(days=span)
+        date_ranges.append((start.isoformat(), end.isoformat()))
+        end = start
+        remaining -= span
+    date_ranges.reverse()
 
     all_data = {}
-    total_calls = len(STRIKE_LABELS) * 2  # CE + PE
+    total_calls = len(STRIKE_LABELS) * 2 * len(date_ranges)
     call_num = 0
 
-    for opt_type in ['CALL', 'PUT']:
-        for strike_label in STRIKE_LABELS:
-            call_num += 1
-            print(f'  [{call_num}/{total_calls}] {opt_type} {strike_label}...', end='', flush=True)
+    for from_d, to_d in date_ranges:
+        print(f'\n  Chunk: {from_d} -> {to_d}')
+        for opt_type in ['CALL', 'PUT']:
+            for strike_label in STRIKE_LABELS:
+                call_num += 1
+                print(f'  [{call_num}/{total_calls}] {opt_type} {strike_label}...', end='', flush=True)
 
-            try:
-                resp = dhan.expired_options_data(
-                    security_id='13',
-                    exchange_segment='NSE_FNO',
-                    instrument_type='OPTIDX',
-                    expiry_flag='WEEK',
-                    expiry_code=1,
-                    strike=strike_label,
-                    drv_option_type=opt_type,
-                    required_data=['close', 'iv', 'oi', 'volume', 'strike', 'spot'],
-                    from_date=from_d,
-                    to_date=to_d,
-                    interval=60,
-                )
+                try:
+                    resp = dhan.expired_options_data(
+                        security_id='13',
+                        exchange_segment='NSE_FNO',
+                        instrument_type='OPTIDX',
+                        expiry_flag='WEEK',
+                        expiry_code=1,
+                        strike=strike_label,
+                        drv_option_type=opt_type,
+                        required_data=['close', 'iv', 'oi', 'volume', 'strike', 'spot'],
+                        from_date=from_d,
+                        to_date=to_d,
+                        interval=60,
+                    )
 
-                data = resp.get('data', '')
-                if not isinstance(data, dict):
-                    print(' no data')
-                    time.sleep(3)
-                    continue
+                    data = resp.get('data', '')
+                    if not isinstance(data, dict):
+                        print(' no data')
+                        time.sleep(3)
+                        continue
 
-                inner = data.get('data', data)
-                if not isinstance(inner, dict):
-                    print(' no inner data')
-                    time.sleep(3)
-                    continue
+                    inner = data.get('data', data)
+                    if not isinstance(inner, dict):
+                        print(' no inner data')
+                        time.sleep(3)
+                        continue
 
-                resp_key = 'ce' if opt_type == 'CALL' else 'pe'
-                series = inner.get(resp_key, {})
-                if not series or not series.get('timestamp'):
-                    print(' empty')
-                    time.sleep(3)
-                    continue
+                    resp_key = 'ce' if opt_type == 'CALL' else 'pe'
+                    series = inner.get(resp_key, {})
+                    if not series or not series.get('timestamp'):
+                        print(' empty')
+                        time.sleep(3)
+                        continue
 
-                n = len(series['timestamp'])
-                print(f' {n} candles')
+                    n = len(series['timestamp'])
+                    print(f' {n} candles')
 
-                key = f'{opt_type}_{strike_label}'
-                all_data[key] = {
-                    'timestamp': series['timestamp'],
-                    'close': series['close'],
-                    'iv': series.get('iv', [0] * n),
-                    'oi': series.get('oi', [0] * n),
-                    'volume': series.get('volume', [0] * n),
-                    'strike': series.get('strike', [0] * n),
-                    'spot': series.get('spot', [0] * n),
-                }
+                    key = f'{opt_type}_{strike_label}'
+                    chunk = {
+                        'timestamp': series['timestamp'],
+                        'close': series['close'],
+                        'iv': series.get('iv', [0] * n),
+                        'oi': series.get('oi', [0] * n),
+                        'volume': series.get('volume', [0] * n),
+                        'strike': series.get('strike', [0] * n),
+                        'spot': series.get('spot', [0] * n),
+                    }
+                    if key in all_data:
+                        for field in chunk:
+                            all_data[key][field].extend(chunk[field])
+                    else:
+                        all_data[key] = chunk
 
-            except Exception as e:
-                print(f' ERROR: {e}')
+                except Exception as e:
+                    print(f' ERROR: {e}')
 
             time.sleep(3)
 
@@ -107,8 +127,8 @@ def download_chains(days_back=45):
     with open(CACHE_PATH, 'w') as f:
         json.dump({
             'downloaded': datetime.datetime.now().isoformat(),
-            'from_date': from_d,
-            'to_date': to_d,
+            'from_date': date_ranges[0][0],
+            'to_date': date_ranges[-1][1],
             'data': all_data,
         }, f)
 

@@ -143,16 +143,22 @@ def entry_gate(legs, spot, daily_theta, r=0.07, lot_size=65, dte=None):
 
     table = scenario_table(legs, spot, r, lot_size)
     worst_pnl = table['worst_case']['pnl_per_lot']
+
+    # ponytail: gate is Sinclair Ch.8 for premium-selling only;
+    # BUY strategies (long straddle/strangle/put/call) pay theta, don't collect it
+    net_premium = sum(l.get('premium', 0) if l.get('action') == 'SELL'
+                      else -l.get('premium', 0) for l in legs)
+    is_net_debit = net_premium < 0
     theta_income = daily_theta * dte
 
-    if theta_income <= 0:
+    if theta_income <= 0 or is_net_debit:
         return {
             'worst_pnl': worst_pnl,
             'theta_income': theta_income,
             'horizon_days': dte,
-            'ratio': float('inf'),
-            'passes': False,
-            'reason': 'Non-positive theta — not a premium-selling position',
+            'ratio': 0.0,
+            'passes': True,
+            'reason': 'Premium-buying strategy — theta gate N/A',
         }
 
     ratio = abs(worst_pnl) / theta_income

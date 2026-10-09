@@ -520,7 +520,7 @@ class ExecutionBridge:
             'exchangeSegment': 'NSE_FNO',
             'productType': 'NORMAL',
             'orderType': 'LIMIT',
-            'quantity': leg.get('qty', leg.get('quantity', 75)),
+            'quantity': leg.get('qty', leg.get('quantity', 65)),
             'price': price,
             'validity': 'DAY',
             'securityId': str(leg.get('security_id', '')),

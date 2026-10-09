@@ -88,7 +88,7 @@ def score(signals, backtest_dir=None,
        confidence, entry_timing, reasons}
     """
     dt = dt or datetime.date.today()
-    # NSE weekly expiry = Thursday. When DTE to this week's expiry is
+    # NSE weekly expiry = Tuesday (Sep 2025 onward). When DTE to this week's expiry is
     # too short for any strategy (all need min_dte >= 7), target next
     # week's expiry. The builder picks the right chain at trade time.
     if dte is not None and dte < 7:
@@ -115,7 +115,7 @@ def score(signals, backtest_dir=None,
 
     # VP strength → lot-sizing confidence (separate from strategy selection)
     vp_sig = sig_map.get('variance_premium', {})
-    vp_str = vp_sig.get('strength', 0) if vp_sig.get('direction') == 'sell_premium' else 0
+    vp_str = (vp_sig.get('strength') or 0) if vp_sig.get('direction') == 'sell_premium' else 0
 
     # Include strategies with strong recent performance even if selector scored them low
     ranked_keys = {k for k, _, _ in ranked}

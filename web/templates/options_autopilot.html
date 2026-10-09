@@ -547,6 +547,17 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
   <div class="sec-t"><i class="bi bi-bullseye"></i> Strategy Scorecard</div>
   <div class="sec-desc">Each strategy incubates 3-6 months (Davey Ch.14). Paper performance is compared against WFA backtest expectations. <strong>Return Efficiency</strong> = actual ÷ expected (70-130% = healthy). <strong>All graduation criteria must be green</strong> before real capital.</div>
   <div id="sCards"><div class="empty"><i class="bi bi-hourglass"></i>No strategies incubating yet</div></div>
+  <div id="gradProgress" style="display:none;margin-top:10px">
+    <div class="card" style="padding:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <i class="bi bi-trophy" style="color:var(--y)"></i>
+        <span style="font-weight:700;font-size:.85rem">Graduation Progress</span>
+        <span id="gradStage" class="spill on" style="margin-left:auto"></span>
+      </div>
+      <div id="gradCriteria" class="exec-grid"></div>
+      <div id="gradAction" style="margin-top:8px;font-size:.8rem"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ Open Positions ═══ -->
@@ -596,6 +607,29 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
   <div class="load-more" id="closedMore" style="display:none"><button onclick="rClosedPage()">Load more</button></div>
 </div>
 
+<!-- ═══ Tax Report ═══ -->
+<div class="sec">
+  <div class="sec-t"><i class="bi bi-receipt"></i> F&amp;O Tax Report
+    <button class="ba cy ms-auto" onclick="loadTax()" style="padding:3px 10px;font-size:.75rem"><i class="bi bi-calculator"></i> Generate</button>
+  </div>
+  <div class="sec-desc">Financial year summary for ITR filing. F&amp;O profits are <strong>business income</strong> under Section 43(5), not capital gains. Turnover = abs(profit) + abs(loss) per trade — if &lt; ₹2Cr, presumptive taxation (44AD) may apply.</div>
+  <div id="taxReport" style="display:none">
+    <div class="card" style="padding:14px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <span style="font-weight:700;font-size:.9rem" id="taxFY"></span>
+        <span style="font-size:.78rem;color:var(--text-dim)" id="taxPeriod"></span>
+      </div>
+      <div class="exec-grid" id="taxGrid"></div>
+      <details style="margin-top:10px"><summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-dim)">Trade-wise Breakdown</summary>
+        <div style="overflow-x:auto;max-height:300px;overflow-y:auto;margin-top:8px">
+          <table class="data-table"><thead><tr><th>#</th><th>Symbol</th><th>Strategy</th><th>Opened</th><th>Closed</th><th>Lots</th><th>Gross</th><th>Costs</th><th>Net</th><th>Turnover</th></tr></thead>
+          <tbody id="taxBody"></tbody></table>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ Decision Log ═══ -->
 <div class="sec">
   <div class="sec-t"><i class="bi bi-journal-code"></i> Decision Log
@@ -627,6 +661,13 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
         <table class="data-table"><thead><tr><th>Time</th><th>Type</th><th>Order ID</th><th>Status</th><th>Qty</th><th>Price</th></tr></thead>
         <tbody id="execEventsBody"><tr><td colspan="6" class="empty">—</td></tr></tbody></table>
       </div>
+    </details>
+    <details style="margin-top:8px"><summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-dim)">Run Reconciliation</summary>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:10px">
+        <button class="ba cy" onclick="runReconcile(this)" style="padding:4px 12px;font-size:.75rem"><i class="bi bi-arrow-repeat"></i> Reconcile Now</button>
+        <span id="reconResult" style="font-size:.8rem"></span>
+      </div>
+      <div id="reconDetail" style="margin-top:6px;font-size:.78rem;display:none"></div>
     </details>
     <details style="margin-top:8px"><summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-dim)">Safety Events</summary>
       <div style="overflow-x:auto;max-height:200px;overflow-y:auto;margin-top:8px">
@@ -673,6 +714,13 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
   <div class="sec-desc">Advisory checklist for live trading confidence. Live mode is controlled by the <strong>Live Mode</strong> config below — these gates are informational, not blocking. The system trades when autopilot is enabled + Live Mode = Live + market is open.</div>
   <div class="gl-grid" id="goliveGrid"></div>
   <div id="goliveSummary"></div>
+  <details style="margin-top:10px"><summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-dim)"><i class="bi bi-wrench"></i> System Health Check</summary>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:10px">
+      <button class="ba cy" onclick="runEnvCheck(this)" style="padding:4px 12px;font-size:.75rem"><i class="bi bi-shield-check"></i> Run Check</button>
+      <span id="envStatus" style="font-size:.8rem;font-weight:600"></span>
+    </div>
+    <div id="envIssues" style="margin-top:6px;display:none"></div>
+  </details>
 </div>
 
 <!-- ═══ Config ═══ -->
@@ -1138,6 +1186,119 @@ async function loadExec(){
   }catch(e){console.warn('exec load error',e);$('execSec').style.display='none'}
 }
 
+// ── Reconcile Now ──
+async function runReconcile(btn){
+  btn.classList.add('loading');btn.disabled=true;
+  const res=$('reconResult'),det=$('reconDetail');
+  res.textContent='Running...';det.style.display='none';
+  try{
+    const r=await fetch(A+'/reconcile',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const d=await r.json();
+    if(d.action==='skip'){res.innerHTML='<span style="color:var(--muted)">Skipped — paper mode (no Dhan positions to check)</span>';return}
+    if(d.error){res.innerHTML=`<span style="color:var(--r)">${esc(d.error)}</span>`;return}
+    const ok=d.mismatches===0&&d.phantoms===0&&(d.qty_mismatches||0)===0;
+    res.innerHTML=ok
+      ?`<span style="color:var(--g)"><i class="bi bi-check-circle-fill"></i> All ${d.matched} trade(s) reconciled OK</span>`
+      :`<span style="color:var(--r)"><i class="bi bi-exclamation-triangle-fill"></i> ${d.mismatches} mismatch, ${d.qty_mismatches||0} qty mismatch, ${d.phantoms} phantom</span>`;
+    det.innerHTML=`<span class="fm" style="color:var(--text-dim)">Checked ${d.live_trades_checked} live trade(s) · Matched: ${d.matched}</span>`;
+    det.style.display='';
+    loadExec();
+  }catch(e){res.innerHTML=`<span style="color:var(--r)">Failed: ${esc(e.message)}</span>`}
+  finally{btn.classList.remove('loading');btn.disabled=false}
+}
+
+// ── Tax Report ──
+async function loadTax(){
+  const sec=$('taxReport');
+  try{
+    const r=await fetch(A+'/tax-report');const d=await r.json();
+    if(d.error){toast(d.error,'error');return}
+    sec.style.display='';
+    $('taxFY').textContent='FY '+d.fy;
+    $('taxPeriod').textContent=d.period;
+    const t=d.totals||{};const fmt=v=>'₹'+Number(v||0).toLocaleString('en-IN',{maximumFractionDigits:0});
+    const nc=v=>v>=0?'pc':'nc';
+    $('taxGrid').innerHTML=`
+      <div class="exec-stat"><div class="ev">${d.trade_count}</div><div class="el">Trades</div></div>
+      <div class="exec-stat"><div class="ev">${d.wins}W / ${d.losses}L</div><div class="el">Win/Loss</div></div>
+      <div class="exec-stat"><div class="ev ${nc(t.gross_pnl)}">${fmt(t.gross_pnl)}</div><div class="el">Gross P&L</div></div>
+      <div class="exec-stat"><div class="ev" style="color:var(--r)">${fmt(t.total_cost)}</div><div class="el">Total Costs</div></div>
+      <div class="exec-stat"><div class="ev ${nc(t.net_pnl)}" style="font-weight:800">${fmt(t.net_pnl)}</div><div class="el">Net P&L</div></div>
+      <div class="exec-stat"><div class="ev">${fmt(t.turnover)}</div><div class="el">Turnover</div></div>
+    `;
+    const tb=$('taxBody');
+    if(d.trades&&d.trades.length){
+      tb.innerHTML=d.trades.map(r=>`<tr>
+        <td>${r.id}</td><td>${esc(r.symbol)}</td><td style="text-transform:capitalize">${esc((r.strategy||'').replace(/_/g,' '))}</td>
+        <td>${r.opened}</td><td>${r.closed}</td><td class="fm">${r.lots}</td>
+        <td class="fm ${nc(r.gross_pnl)}">${fmt(r.gross_pnl)}</td><td class="fm" style="color:var(--r)">${fmt(r.total_cost)}</td>
+        <td class="fm ${nc(r.net_pnl)}" style="font-weight:600">${fmt(r.net_pnl)}</td><td class="fm">${fmt(r.turnover)}</td>
+      </tr>`).join('');
+    }else{tb.innerHTML='<tr><td colspan="10" class="empty">No closed trades this FY</td></tr>'}
+  }catch(e){toast('Tax report failed: '+e.message,'error')}
+}
+
+// ── System Health Check ──
+async function runEnvCheck(btn){
+  btn.classList.add('loading');btn.disabled=true;
+  const st=$('envStatus'),iss=$('envIssues');
+  st.textContent='Checking...';iss.style.display='none';
+  try{
+    const r=await fetch(A+'/check-env');const d=await r.json();
+    if(d.status==='OK'){
+      st.innerHTML='<span style="color:var(--g)"><i class="bi bi-check-circle-fill"></i> All checks passed</span>';
+    }else if(d.status==='WARN'){
+      st.innerHTML='<span style="color:var(--y)"><i class="bi bi-exclamation-triangle-fill"></i> Warnings</span>';
+    }else{
+      st.innerHTML='<span style="color:var(--r)"><i class="bi bi-x-circle-fill"></i> Issues Found</span>';
+    }
+    if(d.issues&&d.issues.length){
+      iss.innerHTML=d.issues.map(i=>{
+        const c=i.level==='CRITICAL'?'var(--r)':'var(--y)';
+        return `<div style="padding:4px 0;font-size:.8rem;display:flex;align-items:center;gap:6px">
+          <span style="color:${c};font-weight:700;font-size:.7rem;min-width:60px">${esc(i.level)}</span>
+          <span class="fm" style="color:var(--b);min-width:120px">${esc(i.var)}</span>
+          <span>${esc(i.msg)}</span></div>`;
+      }).join('');
+      iss.style.display='';
+    }
+  }catch(e){st.innerHTML=`<span style="color:var(--r)">Check failed: ${esc(e.message)}</span>`}
+  finally{btn.classList.remove('loading');btn.disabled=false}
+}
+
+// ── Graduation Progress ──
+function loadGraduation(){
+  try{
+    const dd=window._lastDashData;if(!dd)return;
+    const cfg=dd.config||{};const stage=cfg.staging||'BURN_IN';
+    if(stage==='FULL_DEPLOY'){$('gradProgress').style.display='none';return}
+    const port=dd.portfolio||{};
+    const trades=port.total_trades||0;const wr=port.win_rate||0;const pnl=port.total_pnl||0;
+    const minT=stage==='BURN_IN'?30:50;const minWR=55;
+    $('gradProgress').style.display='';
+    $('gradStage').textContent=stage.replace(/_/g,' ');
+    const next=stage==='BURN_IN'?'RAMP UP':'FULL DEPLOY';
+    const items=[
+      {label:'Trades',val:`${trades}/${minT}`,pass:trades>=minT},
+      {label:'Win Rate',val:`${wr.toFixed(1)}%/${minWR}%`,pass:wr>=minWR},
+      {label:'Total P&L',val:pnl>=0?'+₹'+Math.round(pnl).toLocaleString():'-₹'+Math.abs(Math.round(pnl)).toLocaleString(),pass:pnl>0},
+    ];
+    if(stage==='RAMP_UP'){
+      const sh=dd._exec?.shadow||{};
+      const sr=sh.match_rate||0;const sc=sh.total_comparisons||0;
+      items.push({label:'Shadow Match',val:`${sr}% (${sc} runs)`,pass:sr>=95&&sc>=10});
+    }
+    $('gradCriteria').innerHTML=items.map(i=>{
+      const c=i.pass?'var(--g)':'var(--r)';const icon=i.pass?'bi-check-circle-fill':'bi-x-circle';
+      return `<div class="exec-stat"><div class="ev" style="color:${c}"><i class="bi ${icon}" style="font-size:.7rem"></i> ${i.val}</div><div class="el">${i.label}</div></div>`;
+    }).join('');
+    const allPass=items.every(i=>i.pass);
+    $('gradAction').innerHTML=allPass
+      ?`<span style="color:var(--g)"><i class="bi bi-arrow-up-circle"></i> Ready to advance to <strong>${next}</strong>. Run: <code>python -m options.autopilot set_scale ${next.replace(/ /g,'_')}</code></span>`
+      :`<span style="color:var(--text-dim)">${items.filter(i=>!i.pass).length} criteria remaining for ${next}</span>`;
+  }catch(e){$('gradProgress').style.display='none'}
+}
+
 // ── Mode Banner ──
 function updateModeBanner(cfg){
   const b=$('modeBanner'),t=$('modeBannerText');
@@ -1462,7 +1623,7 @@ function tick(){
   // Also refresh decision log periodically during market hours
   if(isMarketHours()&&Date.now()-_lastLogPoll>60000){_lastLogPoll=Date.now();loadLog();loadAlerts();loadExec();loadAccount();loadToday();loadSyslog()}
 }
-document.addEventListener('visibilitychange',()=>{if(document.hidden){stopPoll()}else{load();loadLog();loadAlerts();loadExec();loadAccount();loadToday();loadSyslog();startPoll()}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){stopPoll()}else{load();loadLog();loadAlerts();loadExec();loadAccount();loadToday();loadSyslog();loadGraduation();startPoll()}});
 
 // ── Value change flash ──
 function flashVal(id,newVal){
@@ -1520,12 +1681,13 @@ renderDash=function(d,stale){
   renderPaperVsLive(d);
   renderPositionSync();
   checkNotifications(d);
+  loadGraduation();
 
   const newInt=getInterval();
   if(newInt!==_interval){_interval=newInt;updateLivePill();clearInterval(_timer);_timer=setInterval(tick,_interval)}
 };
 
-load();loadLog();loadAlerts();loadExec();loadAccount();loadToday();loadConfigAudit();loadSyslog();startPoll();
+load();loadLog();loadAlerts();loadExec();loadAccount();loadToday();loadConfigAudit();loadSyslog();loadGraduation();startPoll();
 
 // ── G12+G1: SSE alert stream + title flash fallback ──
 let _titleInterval=null;

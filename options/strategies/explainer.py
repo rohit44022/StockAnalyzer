@@ -120,7 +120,7 @@ def explain_risk(recommendation):
     for reco in recos:
         ml = reco.get('max_loss')
         mp = reco.get('max_profit')
-        lot = reco.get('lot_size', 75)
+        lot = reco.get('lot_size', 65)
         lines.append(f"{reco['strategy_name']}:")
         if ml is not None and ml != float('-inf'):
             lines.append(f"  Max loss/lot: ₹{abs(ml):,.0f} "

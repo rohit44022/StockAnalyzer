@@ -20,12 +20,12 @@ EVENTS = [
     # Union Budget
     {'date': '2026-02-01', 'name': 'Union Budget', 'buffer_days': 3},
     {'date': '2027-02-01', 'name': 'Union Budget', 'buffer_days': 3},
-    # Quarterly expiry (last Thursday of Mar, Jun, Sep, Dec)
-    {'date': '2026-03-26', 'name': 'Quarterly Expiry', 'buffer_days': 1},
-    {'date': '2026-06-25', 'name': 'Quarterly Expiry', 'buffer_days': 1},
-    {'date': '2026-09-24', 'name': 'Quarterly Expiry', 'buffer_days': 1},
-    {'date': '2026-12-31', 'name': 'Quarterly Expiry', 'buffer_days': 1},
-    {'date': '2027-03-25', 'name': 'Quarterly Expiry', 'buffer_days': 1},
+    # Quarterly expiry (last Tuesday of Mar, Jun, Sep, Dec — since Sep 2025)
+    {'date': '2026-03-31', 'name': 'Quarterly Expiry', 'buffer_days': 1},
+    {'date': '2026-06-30', 'name': 'Quarterly Expiry', 'buffer_days': 1},
+    {'date': '2026-09-29', 'name': 'Quarterly Expiry', 'buffer_days': 1},
+    {'date': '2026-12-29', 'name': 'Quarterly Expiry', 'buffer_days': 1},
+    {'date': '2027-03-30', 'name': 'Quarterly Expiry', 'buffer_days': 1},
 ]
 
 _parsed = None

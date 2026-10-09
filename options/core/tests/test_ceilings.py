@@ -129,8 +129,8 @@ class TestFutEq(unittest.TestCase):
     def test_single_short(self):
         futeq = limits.compute_futeq(
             [{'delta': 0.5, 'qty': 1, 'action': 'SELL'}],
-            spot=24000, lot_size=75)
-        self.assertAlmostEqual(futeq, 0.5 * 1 * 75 * 24000)
+            spot=24000, lot_size=65)
+        self.assertAlmostEqual(futeq, 0.5 * 1 * 65 * 24000)
 
     def test_hedged_lower(self):
         """Hedged position FutEq should equal sum of absolute deltas."""
@@ -138,15 +138,15 @@ class TestFutEq(unittest.TestCase):
             {'delta': 0.5, 'qty': 1, 'action': 'SELL'},
             {'delta': -0.5, 'qty': 1, 'action': 'BUY'},
         ]
-        futeq = limits.compute_futeq(legs, spot=24000, lot_size=75)
+        futeq = limits.compute_futeq(legs, spot=24000, lot_size=65)
         # Each leg contributes |delta * qty * lot * spot|
-        expected = 2 * abs(0.5 * 1 * 75 * 24000)
+        expected = 2 * abs(0.5 * 1 * 65 * 24000)
         self.assertAlmostEqual(futeq, expected)
 
     def test_zero_delta(self):
         futeq = limits.compute_futeq(
             [{'delta': 0, 'qty': 1, 'action': 'BUY'}],
-            spot=24000, lot_size=75)
+            spot=24000, lot_size=65)
         self.assertEqual(futeq, 0)
 
 
@@ -461,7 +461,7 @@ class TestDhanOrder(unittest.TestCase):
         result = dhan_order.place_strategy(self._legs(), 'NIFTY', lots=2)
         orders = result['orders']
         self.assertEqual(orders[0]['transactionType'], 'SELL')
-        self.assertEqual(orders[0]['quantity'], 75 * 2)
+        self.assertEqual(orders[0]['quantity'], 65 * 2)
         self.assertEqual(orders[1]['transactionType'], 'BUY')
 
     def test_missing_security_id_blocked(self):

@@ -262,16 +262,19 @@ def _release_lock(fd):
 _IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
 
 def _is_market_open():
-    """NSE equity market hours: Mon-Fri 9:15–15:30 IST, excluding holidays."""
+    """NSE market hours: Mon-Fri 9:15–15:30 IST, or Muhurat session."""
     now = datetime.datetime.now(_IST)
-    if now.weekday() >= 5:
-        return False
     try:
         from .data import event_calendar
+        if event_calendar.is_muhurat_session(now):
+            return True
+        if now.weekday() >= 5:
+            return False
         if event_calendar.is_nse_holiday(now.date()):
             return False
     except Exception:
-        pass
+        if now.weekday() >= 5:
+            return False
     t = now.time()
     return datetime.time(9, 15) <= t < datetime.time(15, 30)
 
@@ -323,6 +326,54 @@ def _get_executor(cfg, db, force=False):
         return None
 
 
+_MAX_RESIDUAL_RETRIES = 3
+
+
+def _get_shadow_executor(cfg, db):
+    """Build a mock LiveExecutor for RAMP_UP shadow validation.
+    Safety/preflight checks run for real; orders are never placed."""
+    from .execution.queue import OrderQueue
+    from .execution.bridge import ExecutionBridge
+    from .execution.safety import SafetyMonitor, PortfolioState
+    from .execution.reconciler import Reconciler
+    from .execution.live import LiveExecutor
+
+    def _noop_executor(action, params):
+        return {'orderId': 'SHADOW_NOOP', 'orderStatus': 'TRADED'}
+
+    safety_config = {
+        'mode': 'FULL',
+        'max_lots_per_trade': cfg.get('max_lots', 2),
+        'max_orders_per_day': cfg.get('max_trades_per_day', 2) * 8,
+        'max_capital_at_risk': cfg.get('max_loss_per_trade', 400) * cfg.get('max_concurrent_trades', 3),
+        'max_concurrent_positions': cfg.get('max_concurrent_trades', 3),
+        'allowed_indices': [s.upper() for s in cfg.get('symbols', ['NIFTY'])],
+        'daily_loss_limit_pct': 2.0,
+        'abort_dd_pct': cfg.get('max_drawdown_pct', 15),
+        'kelly_fraction': 0.25,
+        'rate_limit_per_sec': 5.0, 'rate_limit_burst': 5,
+        'order_timeout_sec': 0.5,
+        'min_dte_entry': 1, 'max_dte_entry': 90,
+        'bid_ask_max_pct': 10.0, 'slippage_reject_pct': 999.0,
+    }
+    cap_state = _capital_state(cfg, db)
+    queue = OrderQueue(safety_config, db, executor=_noop_executor)
+    bridge = ExecutionBridge(queue, safety_config, db, poll_interval=0.01)
+    bridge._wait_fill = lambda oid, to: {'price': 100.0, 'quantity': 65}
+    safety = SafetyMonitor(
+        safety_config, db,
+        portfolio_fetcher=lambda: PortfolioState(
+            total_capital=cap_state.get('current_capital', 500000),
+            deployed_capital=cap_state.get('deployed', 0),
+            open_positions=cap_state.get('open_positions', 0),
+            current_dd_pct=cap_state.get('dd_pct', 0),
+        ))
+    reconciler = Reconciler(db, safety_config,
+                            position_fetcher=lambda: [],
+                            order_fetcher=lambda: [])
+    return LiveExecutor(bridge, safety, reconciler, safety_config, db)
+
+
 def _place_standing_sls(trade_id, legs, symbol, db):
     """Layer 2: place Forever/GTT stop-losses at broker level for SELL legs.
     Survives app crash — Dhan holds these server-side."""
@@ -344,7 +395,7 @@ def _place_standing_sls(trade_id, legs, symbol, db):
                 exchange_segment=SEGMENT.get(symbol.upper(), 'NSE_FNO'),
                 transaction_type='BUY',
                 product_type='NORMAL',
-                quantity=leg.get('qty', leg.get('quantity', 75)),
+                quantity=leg.get('qty', leg.get('quantity', 65)),
                 trigger_price=trigger,
                 tag=f'sl_t{trade_id}',
             )
@@ -628,13 +679,16 @@ def _preflight(cfg, db) -> tuple[bool, str]:
         except Exception:
             pass
 
-    # 2. Market day (IST)
+    # 2. Market day (IST) — Muhurat sessions override weekend/holiday
     from .data import event_calendar
-    today = datetime.datetime.now(_IST).date()
-    if today.weekday() >= 5:
-        return False, f'Weekend ({today.strftime("%A")})'
-    if event_calendar.is_nse_holiday(today):
-        return False, f'NSE holiday ({today.isoformat()})'
+    now_ist = datetime.datetime.now(_IST)
+    today = now_ist.date()
+    muhurat = event_calendar.is_muhurat_session(now_ist)
+    if not muhurat:
+        if today.weekday() >= 5:
+            return False, f'Weekend ({today.strftime("%A")})'
+        if event_calendar.is_nse_holiday(today):
+            return False, f'NSE holiday ({today.isoformat()})'
 
     # 3. Drawdown circuit breaker
     conn = _conn(db)
@@ -704,7 +758,7 @@ def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
     from .core import bsm
 
     legs = json.loads(trade['legs']) if isinstance(trade['legs'], str) else trade['legs']
-    lot_size = trade['lot_size'] or 75
+    lot_size = trade['lot_size'] or 65
     lots = trade['lots'] or 1
 
     # Compute DTE from target_expiry (trades table has no 'dte' column)
@@ -943,8 +997,15 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
         return {'cycle_id': cycle_id, 'action': 'skip', 'reason': 'Autopilot disabled'}
 
     if cycle_type == 'auto':
-        hour = datetime.datetime.now(_IST).hour
-        cycle_type = 'morning' if hour < 14 else 'eod'
+        now_auto = datetime.datetime.now(_IST)
+        try:
+            from .data import event_calendar
+            if event_calendar.is_muhurat_session(now_auto):
+                cycle_type = 'morning'  # entries allowed during Muhurat
+            else:
+                cycle_type = 'morning' if now_auto.hour < 14 else 'eod'
+        except Exception:
+            cycle_type = 'morning' if now_auto.hour < 14 else 'eod'
 
     summary = {
         'cycle_id': cycle_id,
@@ -1043,20 +1104,60 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
     ).fetchall()
     conn.close()
     if residuals and executor:
+        bridge = executor['bridge']
         for r in residuals:
             r = dict(r)
+            tid = r['id']
+            retries = r.get('residual_retries') or 0
             try:
-                ls = _live_exit(executor, r['id'], r, cfg, db)
+                if retries >= _MAX_RESIDUAL_RETRIES:
+                    # Max retries exhausted — force MARKET, then give up
+                    legs = json.loads(r['legs']) if isinstance(r.get('legs'), str) else (r.get('legs') or [])
+                    try:
+                        _cancel_standing_sls(tid, db)
+                    except Exception as sl_e:
+                        log.warning(f'Cancel standing SLs before RESIDUAL MARKET unwind trade #{tid}: {sl_e}')
+                    try:
+                        mkt = bridge.execute_exit(trade_id=tid, legs=legs,
+                                                  symbol=r.get('symbol', 'NIFTY'),
+                                                  order_type='MARKET')
+                        if mkt.success:
+                            conn2 = _conn(db)
+                            conn2.execute("UPDATE trades SET live_status='EXITED', residual_retries=? WHERE id=?",
+                                          (retries + 1, tid))
+                            conn2.commit()
+                            conn2.close()
+                            paper_trade.exit_trade(tid, reason='Autopilot: RESIDUAL MARKET unwind', db=db)
+                            summary['exits'] += 1
+                            log.info(f'RESIDUAL MARKET unwind succeeded trade #{tid} after {retries} retries')
+                            continue
+                    except Exception as mkt_e:
+                        log.error(f'RESIDUAL MARKET unwind failed trade #{tid}: {mkt_e}')
+                    _emit_alert(db, 'EMERGENCY', 'RESIDUAL',
+                                f'Trade #{tid} RESIDUAL unrecoverable after {retries} retries. MANUAL EXIT REQUIRED.',
+                                f'All retry attempts (LIMIT + MARKET) exhausted.',
+                                {'trade_id': tid, 'retries': retries})
+                    summary['errors'].append(f'RESIDUAL #{tid}: max retries exhausted')
+                    continue
+
+                ls = _live_exit(executor, tid, r, cfg, db)
+                conn2 = _conn(db)
+                conn2.execute("UPDATE trades SET residual_retries=? WHERE id=?",
+                              (retries + 1, tid))
+                conn2.commit()
+                conn2.close()
                 if ls == 'EXITED':
-                    paper_trade.exit_trade(r['id'], reason='Autopilot: RESIDUAL unwind succeeded', db=db)
+                    paper_trade.exit_trade(tid, reason='Autopilot: RESIDUAL unwind succeeded', db=db)
                     summary['exits'] += 1
-                    log.info(f'RESIDUAL unwind succeeded for trade {r["id"]}')
+                    log.info(f'RESIDUAL unwind succeeded trade #{tid} on retry {retries + 1}')
                 else:
                     _emit_alert(db, 'CRITICAL', 'RESIDUAL',
-                                f'Trade {r["id"]} RESIDUAL retry failed ({ls}). Manual intervention needed.')
-                    summary['errors'].append(f'RESIDUAL retry {r["id"]}: {ls}')
+                                f'Trade #{tid} RESIDUAL retry {retries + 1}/{_MAX_RESIDUAL_RETRIES} failed ({ls}).',
+                                f'Will retry next cycle. MARKET escalation at retry {_MAX_RESIDUAL_RETRIES}.',
+                                {'trade_id': tid, 'retry': retries + 1})
+                    summary['errors'].append(f'RESIDUAL retry #{tid}: {ls} ({retries + 1}/{_MAX_RESIDUAL_RETRIES})')
             except Exception as e:
-                summary['errors'].append(f'RESIDUAL retry {r["id"]}: {e}')
+                summary['errors'].append(f'RESIDUAL retry #{tid}: {e}')
     elif residuals:
         for r in residuals:
             _emit_alert(db, 'CRITICAL', 'RESIDUAL',
@@ -1078,7 +1179,7 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
             _emit_alert(db, 'WARNING', 'SYSTEM',
                         f'Monitoring gap: {gap_min:.0f}min',
                         f'Exit check was stale for {gap_min:.0f} minutes. Laptop may have slept.')
-    _log_decision(db, 'exit_check', 'system', 'ALL', 'Exit check started')
+    _log_decision(db, cycle_id, cycle_type, 'exit_check', 'Exit check started')
 
     open_trades = conn.execute("SELECT * FROM trades WHERE status='open'").fetchall()
     conn.close()
@@ -1188,6 +1289,20 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
                 result = paper_trade.exit_trade(trade['id'], spot=spot,
                                                 reason=f'Autopilot: {exit_reason}', db=db)
                 pnl = result.get('net_pnl', 0) if isinstance(result, dict) else 0
+
+                # RAMP_UP shadow exit
+                if cfg.get('staging') == 'RAMP_UP' and not executor:
+                    try:
+                        from .execution.shadow import ShadowExecutor
+                        mock_exec = _get_shadow_executor(cfg, db)
+                        shadow_exec = ShadowExecutor(mock_exec, db, dry_run=True)
+                        legs = json.loads(trade['legs']) if isinstance(trade.get('legs'), str) else (trade.get('legs') or [])
+                        shadow_exec.shadow_exit(
+                            trade['id'], legs, symbol=symbol, reason=exit_reason,
+                            paper_result={'status': 'exited', 'pnl': pnl})
+                    except Exception as e:
+                        log.warning(f'Shadow exit skipped: {e}')
+
                 _log_decision(db, cycle_id, cycle_type, 'exit', exit_reason,
                               symbol=symbol, trade_id=trade['id'], strategy=trade.get('strategy'),
                               spot=spot, pnl=pnl)
@@ -1222,6 +1337,10 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
         if daily_pnl < -cfg['max_daily_loss']:
             _log_decision(db, cycle_id, cycle_type, 'skip_entry',
                           f'Daily loss ₹{daily_pnl:.0f} exceeds -₹{cfg["max_daily_loss"]}')
+            summary['skips'] += 1
+        elif now_ist.hour == 15 and now_ist.minute >= 25:
+            _log_decision(db, cycle_id, cycle_type, 'skip_entry',
+                          'Exit-only window (15:25-15:30) — no new entries')
             summary['skips'] += 1
         else:
             for symbol in cfg['symbols']:
@@ -1270,6 +1389,24 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
                             conn.commit()
                         finally:
                             conn.close()
+
+                        # RAMP_UP shadow: dry-run through execution bridge with mock stack
+                        if trade_id and cfg.get('staging') == 'RAMP_UP' and not executor:
+                            try:
+                                from .execution.shadow import ShadowExecutor
+                                mock_exec = _get_shadow_executor(cfg, db)
+                                shadow_exec = ShadowExecutor(mock_exec, db, dry_run=True)
+                                shadow_comp = shadow_exec.shadow_enter(
+                                    rec, trade_id=trade_id,
+                                    paper_result={'status': 'entered', 'trade_id': trade_id})
+                                log.info(f'SHADOW RAMP_UP: trade #{trade_id} match={shadow_comp.match} '
+                                         f'deviations={shadow_comp.deviations}')
+                                _log_decision(db, cycle_id, cycle_type, 'shadow_enter',
+                                              f'match={shadow_comp.match}',
+                                              symbol=symbol, trade_id=trade_id,
+                                              strategy=rec.get('strategy'))
+                            except Exception as e:
+                                log.warning(f'Shadow execution skipped: {e}')
 
                         # v5: live entry after paper entry
                         if trade_id and executor:
@@ -1344,20 +1481,36 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
         # Mark-to-market snapshot for all open trades
         try:
             from . import paper_trade as pt
-            mtm = pt.check_trades(db=db_path)
+            mtm = pt.daily_check(db=db)
             log.info(f'Phase 4: MTM snapshot for {len(mtm)} open trades')
         except Exception as e:
             log.warning(f'Phase 4: MTM snapshot failed: {e}')
 
-        # DB backup — keep 7 days
+        # Post-market reconciliation: DB vs Dhan
         try:
-            import shutil, glob
-            db_path = _db_path(cfg)
-            backup_dir = os.path.join(os.path.dirname(db_path), 'backups')
+            recon = reconcile(db=db)
+            if recon.get('action') != 'skip':
+                log.info(f'Phase 4: Reconciliation — matched={recon.get("matched",0)}, '
+                         f'mismatches={recon.get("mismatches",0)}, phantoms={recon.get("phantoms",0)}')
+                if recon.get('mismatches', 0) > 0 or recon.get('phantoms', 0) > 0:
+                    summary['errors'].append(
+                        f'Reconciliation: {recon.get("mismatches",0)} mismatches, '
+                        f'{recon.get("phantoms",0)} phantoms')
+        except Exception as e:
+            log.warning(f'Phase 4: Reconciliation failed: {e}')
+
+        # DB backup — keep 7 days (WAL-safe via SQLite backup API)
+        try:
+            import glob
+            backup_dir = os.path.join(os.path.dirname(db), 'backups')
             os.makedirs(backup_dir, exist_ok=True)
             today = datetime.date.today().isoformat()
             dest = os.path.join(backup_dir, f'paper_trades_{today}.db')
-            shutil.copy2(db_path, dest)
+            src_conn = sqlite3.connect(db, timeout=10)
+            dst_conn = sqlite3.connect(dest)
+            src_conn.backup(dst_conn)
+            dst_conn.close()
+            src_conn.close()
             log.info(f'Phase 4: DB backed up to {dest}')
             # Prune old backups
             backups = sorted(glob.glob(os.path.join(backup_dir, 'paper_trades_*.db')))
@@ -1392,17 +1545,30 @@ def cron_run_cycle(cycle_type='auto', db=None) -> dict:
 
 
 def reconcile(db=None):
-    """Post-market reconciliation. Compare paper DB vs Dhan positions."""
+    """Post-market reconciliation. Compare paper DB vs Dhan positions.
+    Persists results to reconciliation_log for shadow graduation checks."""
     from . import paper_trade
     from .data import dhan_fetch
     cfg = load_config()
     db = db or paper_trade._db_path()
+    paper_trade.init_db(db)
 
     if cfg.get('live_mode') != 'live':
         return {'action': 'skip', 'reason': 'Paper mode — no reconciliation needed'}
 
     conn = _conn(db)
     conn.row_factory = sqlite3.Row
+    conn.execute('''CREATE TABLE IF NOT EXISTS reconciliation_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,
+        matched INTEGER NOT NULL,
+        mismatches INTEGER NOT NULL,
+        phantoms INTEGER NOT NULL,
+        qty_mismatches INTEGER NOT NULL DEFAULT 0,
+        trades_checked INTEGER NOT NULL,
+        details TEXT
+    )''')
+    conn.commit()
     live_open = conn.execute(
         "SELECT id, symbol, legs, live_status FROM trades "
         "WHERE status='open' AND live_status='FILLED'"
@@ -1414,23 +1580,37 @@ def reconcile(db=None):
 
     matched = 0
     mismatches = []
+    qty_mismatches = []
+    details = []
     for trade in live_open:
         legs = json.loads(trade['legs']) if isinstance(trade['legs'], str) else trade['legs']
-        all_found = True
+        all_ok = True
         for leg in legs:
             sid = str(leg.get('security_id', ''))
-            if sid and sid not in dhan_sids:
-                all_found = False
+            if not sid:
+                continue
+            if sid not in dhan_sids:
+                all_ok = False
+                details.append(f'MISSING: trade #{trade["id"]} sid={sid}')
                 _emit_alert(db, 'CRITICAL', 'RISK', 'Paper/Dhan mismatch',
                             f'Trade #{trade["id"]} {trade["symbol"]}: '
                             f'leg {sid} in paper DB but NOT on Dhan',
                             {'trade_id': trade['id'], 'missing_sid': sid})
                 mismatches.append(trade['id'])
-        if all_found:
+            else:
+                dhan_qty = abs(dhan_sids[sid].get('netQty', dhan_sids[sid].get('quantity', 0)))
+                our_qty = abs(leg.get('qty', leg.get('quantity', 65)))
+                if dhan_qty != our_qty:
+                    all_ok = False
+                    details.append(f'QTY: trade #{trade["id"]} sid={sid} ours={our_qty} dhan={dhan_qty}')
+                    _emit_alert(db, 'WARNING', 'RISK', 'Quantity mismatch',
+                                f'Trade #{trade["id"]} sid={sid}: DB qty={our_qty}, Dhan qty={dhan_qty}',
+                                {'trade_id': trade['id'], 'sid': sid})
+                    qty_mismatches.append(trade['id'])
+        if all_ok:
             matched += 1
             log.info(f'Trade #{trade["id"]} reconciled OK')
 
-    # Check for phantom positions on Dhan not in our DB
     our_sids = set()
     for trade in live_open:
         legs = json.loads(trade['legs']) if isinstance(trade['legs'], str) else trade['legs']
@@ -1445,14 +1625,144 @@ def reconcile(db=None):
         qty = pos.get('netQty', pos.get('quantity', 0))
         if sid and qty != 0 and sid not in our_sids:
             phantoms.append(sid)
+            details.append(f'PHANTOM: sid={sid} qty={qty}')
             _emit_alert(db, 'CRITICAL', 'RISK', 'Phantom position on Dhan',
                         f'securityId={sid} qty={qty} on Dhan but NOT in our DB',
                         {'security_id': sid, 'quantity': qty})
 
     result = {'matched': matched, 'mismatches': len(mismatches),
+              'qty_mismatches': len(qty_mismatches),
               'phantoms': len(phantoms), 'live_trades_checked': len(live_open)}
+
+    conn = _conn(db)
+    conn.execute(
+        '''INSERT INTO reconciliation_log
+           (timestamp, matched, mismatches, phantoms, qty_mismatches, trades_checked, details)
+           VALUES (?,?,?,?,?,?,?)''',
+        (datetime.datetime.now().isoformat(), matched, len(mismatches),
+         len(phantoms), len(qty_mismatches), len(live_open),
+         json.dumps(details)))
+    conn.commit()
+    conn.close()
+
     log.info(f'Reconciliation: {result}')
     return result
+
+
+def tax_report(fy=None, db=None):
+    """Generate F&O tax report for a financial year (April-March).
+    F&O profits are business income (Section 43(5)), not capital gains.
+    fy='2026-27' means April 2026 to March 2027."""
+    from . import paper_trade
+    db = db or paper_trade._db_path()
+
+    if fy is None:
+        today = datetime.date.today()
+        y = today.year if today.month >= 4 else today.year - 1
+        fy = f'{y}-{(y+1) % 100:02d}'
+    fy_start_year = int(fy.split('-')[0])
+    fy_start = f'{fy_start_year}-04-01'
+    fy_end = f'{fy_start_year + 1}-03-31'
+
+    conn = _conn(db)
+    conn.row_factory = sqlite3.Row
+    trades = conn.execute(
+        "SELECT * FROM trades WHERE status='closed' "
+        "AND closed_at >= ? AND closed_at <= ? "
+        "ORDER BY closed_at",
+        (fy_start, fy_end + 'T23:59:59')
+    ).fetchall()
+    conn.close()
+
+    rows = []
+    totals = {'gross_pnl': 0, 'entry_cost': 0, 'exit_cost': 0,
+              'total_cost': 0, 'net_pnl': 0, 'turnover': 0}
+    for t in trades:
+        gross = t['gross_pnl'] or 0
+        entry_cost = t['entry_cost'] or 0
+        exit_cost = t['exit_cost'] or 0
+        total_cost = entry_cost + exit_cost
+        net = t['net_pnl'] or 0
+        lots = t['lots'] or 1
+        lot_size = t['lot_size'] or 65
+        turnover = abs(net)
+        rows.append({
+            'id': t['id'], 'symbol': t['symbol'], 'strategy': t['strategy'],
+            'opened': (t['opened_at'] or '')[:10], 'closed': (t['closed_at'] or '')[:10],
+            'lots': lots, 'lot_size': lot_size,
+            'gross_pnl': round(gross, 2), 'entry_cost': round(entry_cost, 2),
+            'exit_cost': round(exit_cost, 2), 'total_cost': round(total_cost, 2),
+            'net_pnl': round(net, 2), 'turnover': round(turnover, 2),
+        })
+        totals['gross_pnl'] += gross
+        totals['entry_cost'] += entry_cost
+        totals['exit_cost'] += exit_cost
+        totals['total_cost'] += total_cost
+        totals['net_pnl'] += net
+        totals['turnover'] += turnover
+
+    totals = {k: round(v, 2) for k, v in totals.items()}
+    wins = sum(1 for r in rows if r['net_pnl'] > 0)
+    return {
+        'fy': fy, 'period': f'{fy_start} to {fy_end}',
+        'trade_count': len(rows), 'wins': wins, 'losses': len(rows) - wins,
+        'totals': totals, 'trades': rows,
+        'note': 'F&O income is business income under Section 43(5). '
+                'Turnover = abs(profit) + abs(loss) per trade. '
+                'If turnover < ₹2Cr, presumptive taxation (44AD) may apply.',
+    }
+
+
+def check_env():
+    """Validate .env has required credentials and warn about issues."""
+    issues = []
+    required = {
+        'DHAN_CLIENT_ID': 'Dhan client ID',
+        'DHAN_ACCESS_TOKEN': 'Dhan JWT access token',
+    }
+    for var, desc in required.items():
+        val = os.getenv(var, '').strip()
+        if not val:
+            issues.append({'var': var, 'level': 'CRITICAL', 'msg': f'{desc} is missing'})
+            continue
+        if var == 'DHAN_ACCESS_TOKEN':
+            if len(val) < 50:
+                issues.append({'var': var, 'level': 'WARNING', 'msg': 'Token looks too short'})
+            # JWT expiry check
+            try:
+                import base64 as _b64
+                payload = val.split('.')[1]
+                payload += '=' * (4 - len(payload) % 4)
+                claims = json.loads(_b64.urlsafe_b64decode(payload))
+                exp = claims.get('exp', 0)
+                import time as _time
+                remaining_h = max(0, (exp - _time.time()) / 3600)
+                if remaining_h < 1:
+                    issues.append({'var': var, 'level': 'CRITICAL',
+                                   'msg': f'Token expired or expiring in {remaining_h:.1f}h'})
+                elif remaining_h < 4:
+                    issues.append({'var': var, 'level': 'WARNING',
+                                   'msg': f'Token expires in {remaining_h:.1f}h — refresh soon'})
+            except Exception:
+                issues.append({'var': var, 'level': 'WARNING', 'msg': 'Could not parse JWT expiry'})
+
+    # Check .env file permissions
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    if os.path.exists(env_path):
+        import stat
+        mode = os.stat(env_path).st_mode
+        if mode & (stat.S_IRGRP | stat.S_IROTH):
+            issues.append({'var': '.env', 'level': 'WARNING',
+                           'msg': f'.env is readable by group/others (mode {oct(mode)[-3:]}). '
+                                  'Run: chmod 600 .env'})
+    else:
+        issues.append({'var': '.env', 'level': 'WARNING', 'msg': '.env file not found'})
+
+    return {
+        'status': 'FAIL' if any(i['level'] == 'CRITICAL' for i in issues) else
+                  'WARN' if issues else 'OK',
+        'issues': issues,
+    }
 
 
 def check_graduation(db=None):
@@ -1510,6 +1820,23 @@ def check_graduation(db=None):
         min_t = grad_min_trades.get(stage, 30)
         min_wr = grad_min_wr.get(stage, 55)
         if total_trades >= min_t and win_rate >= min_wr and total_pnl > 0:
+            # RAMP_UP→FULL_DEPLOY requires shadow match rate ≥95%
+            if stage == 'RAMP_UP':
+                try:
+                    from .execution.shadow import ShadowExecutor
+                    shadow = ShadowExecutor(None, db, dry_run=True)
+                    s_total, s_matches = shadow._db_match_stats()
+                    s_rate = s_matches / max(1, s_total)
+                    criteria['shadow_match_rate'] = round(s_rate * 100, 1)
+                    criteria['shadow_comparisons'] = s_total
+                    if s_total < 10 or s_rate < 0.95:
+                        criteria['action'] = 'STAY'
+                        criteria['block'] = f'shadow: {s_total} comparisons, {s_rate*100:.0f}% match (need ≥10, ≥95%)'
+                        return criteria
+                except Exception as e:
+                    criteria['action'] = 'STAY'
+                    criteria['block'] = f'shadow gate check failed: {e}'
+                    return criteria
             ns = next_stage[stage]
             _emit_alert(db, 'WARNING', 'SCALE',
                         f'Ready to graduate: {stage} → {ns}',
@@ -2090,7 +2417,7 @@ def _enrich_open_trade(t, db):
             dte = 14
     dte = dte or 14
     t_years = max(1, dte) / 365.0
-    lot_size = t.get('lot_size') or 75
+    lot_size = t.get('lot_size') or 65
     lots = t.get('lots') or 1
 
     # Per-leg detail
@@ -2428,7 +2755,24 @@ if __name__ == '__main__':
     elif args[0] == 'reconcile':
         result = reconcile()
         print(json.dumps(result, indent=2))
-
+    elif args[0] == 'tax_report':
+        fy = args[1] if len(args) > 1 else None
+        result = tax_report(fy=fy)
+        print(f'\nF&O Tax Report — FY {result["fy"]} ({result["period"]})')
+        print(f'Trades: {result["trade_count"]}  Wins: {result["wins"]}  Losses: {result["losses"]}')
+        t = result['totals']
+        print(f'Gross P&L: ₹{t["gross_pnl"]:,.2f}')
+        print(f'Total costs: ₹{t["total_cost"]:,.2f} (entry: ₹{t["entry_cost"]:,.2f} + exit: ₹{t["exit_cost"]:,.2f})')
+        print(f'Net P&L: ₹{t["net_pnl"]:,.2f}')
+        print(f'Turnover: ₹{t["turnover"]:,.2f}')
+        print(f'\n{result["note"]}')
+    elif args[0] == 'check_env':
+        result = check_env()
+        print(f'Environment: {result["status"]}')
+        for issue in result['issues']:
+            print(f'  [{issue["level"]}] {issue["var"]}: {issue["msg"]}')
+        if not result['issues']:
+            print('  All checks passed')
     elif args[0] == 'check_graduation':
         result = check_graduation()
         print(json.dumps(result, indent=2))
@@ -2453,6 +2797,8 @@ if __name__ == '__main__':
         print('  alerts ack <id>    — acknowledge an alert')
         print('  log [N]            — show last N decisions')
         print('  reconcile          — post-market: compare paper DB vs Dhan')
+        print('  tax_report [FY]    — F&O tax report (e.g. 2026-27)')
+        print('  check_env          — validate .env credentials')
         print('  check_graduation   — weekly: evaluate scale stage')
         print('  set_scale <stage>  — manually set BURN_IN|RAMP_UP|FULL_DEPLOY')
         print('  cron               — print crontab setup lines')

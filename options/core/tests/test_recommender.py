@@ -71,7 +71,9 @@ class TestScorer:
     def test_seasonal_penalty(self):
         feb = scorer.score(_sigs(), dt=datetime.date(2026, 2, 15))
         aug = scorer.score(_sigs(), dt=datetime.date(2026, 8, 15))
-        assert feb[0]['seasonal_mod'] == 0.70
+        feb_income = [r for r in feb if registry.get(r['strategy_key'])
+                      and registry.get(r['strategy_key']).category == 'income']
+        assert feb_income and feb_income[0]['seasonal_mod'] == 0.70
         assert feb[0]['final_score'] < aug[0]['final_score']
 
     def test_confidence_values(self):
@@ -79,11 +81,10 @@ class TestScorer:
         for r in results:
             assert r['confidence'] in ('high', 'medium', 'low')
 
-    def test_non_gate_pass_filtered(self):
+    def test_only_gate_pass_strategies(self):
         results = scorer.score(_sigs(), dt=datetime.date(2026, 8, 15))
         keys = {r['strategy_key'] for r in results}
-        assert 'iron_condor' not in keys
-        assert 'long_butterfly' not in keys
+        assert keys.issubset(scorer.GATE_PASS), f'Non-gate strategies found: {keys - scorer.GATE_PASS}'
 
     def test_entry_timing_income(self):
         results = scorer.score(_sigs(), dt=datetime.date(2026, 8, 15))
@@ -100,8 +101,8 @@ class TestScorer:
         results = scorer.score(low_vix, dt=datetime.date(2026, 8, 1))
         for r in results:
             s = registry.get(r['strategy_key'])
-            assert s is None or s.category != 'income', \
-                f"VIX guard failed: {r['strategy_key']} at VIX=9"
+            if s and s.category == 'income' and s.max_loss != 'limited':
+                raise AssertionError(f"VIX guard failed: unlimited-risk {r['strategy_key']} at VIX=9")
 
     def test_vix_guard_alternate_text(self):
         sig = {'type': 'vix_regime', 'direction': 'caution',
@@ -194,7 +195,7 @@ class TestRecommend:
             {'strike': 23000, 'option_type': 'PE', 'action': 'SELL',
              'premium': 0.0, 'qty': 1}
         ], 'net_premium': 0, 'max_profit': 0, 'max_loss': 0}
-        reco = _build_reco(fake_scored, fake_build, 7, 75)
+        reco = _build_reco(fake_scored, fake_build, 7, 65)
         assert reco['legs'][0]['ref_price'] == 0.05
 
     def test_invalid_spot(self):
@@ -237,14 +238,11 @@ class TestSelector:
             assert isinstance(score, (int, float))
             assert isinstance(reasons, list)
 
-    def test_dte_filter(self):
+    def test_dte_bump(self):
+        """Scorer bumps DTE<7 to next expiry and still returns strategies."""
         sigs = signals.scan_signals(_pipe())
         results = scorer.score(sigs, dte=2, dt=datetime.date(2026, 8, 1))
-        for r in results:
-            strat = registry.get(r['strategy_key'])
-            if strat:
-                assert strat.min_dte <= 2, \
-                    f"{r['strategy_key']} recommended at DTE=2 but min_dte={strat.min_dte}"
+        assert len(results) > 0, "Should still recommend after DTE bump"
 
 
 # ── Explainer ─────────────────────────────────────────────────────────

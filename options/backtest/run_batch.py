@@ -72,8 +72,8 @@ def load_cache():
     return spots, daily_iv
 
 
-def _next_thursday(dt):
-    days = (3 - dt.weekday()) % 7
+def _next_tuesday(dt):
+    days = (1 - dt.weekday()) % 7
     return dt + datetime.timedelta(days=days or 7)
 
 
@@ -96,7 +96,7 @@ def make_chain_loader(spots, daily_iv):
         if iv > 1:
             iv = iv / 100.0
 
-        expiry = _next_thursday(dt)
+        expiry = _next_tuesday(dt)
         t = max((expiry - dt).days, 1) / 365
 
         rows = []

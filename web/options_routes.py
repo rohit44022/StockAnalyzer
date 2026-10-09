@@ -32,6 +32,26 @@ log = logging.getLogger(__name__)
 options_bp = Blueprint("options", __name__)
 
 
+@options_bp.before_request
+def _check_api_token():
+    """Protect /api/ endpoints with bearer token auth.
+    Set AUTOPILOT_API_TOKEN in .env. If unset, auth is disabled (local-only).
+    Page routes (no /api/ prefix) are always open — they serve HTML."""
+    if not request.path.startswith('/api/'):
+        return None
+    token = os.getenv('AUTOPILOT_API_TOKEN', '').strip()
+    if not token:
+        return None
+    import hmac
+    auth = request.headers.get('Authorization', '')
+    if auth.startswith('Bearer ') and hmac.compare_digest(auth[7:], token):
+        return None
+    qt = request.args.get('token', '')
+    if qt and hmac.compare_digest(qt, token):
+        return None
+    return jsonify({'error': 'Unauthorized'}), 401
+
+
 def _safe(v, dp=2):
     if v is None:
         return None
@@ -1112,6 +1132,34 @@ def api_autopilot_config_audit():
         entries.reverse()
         limit = request.args.get('limit', 20, type=int)
         return jsonify({'entries': entries[:limit]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@options_bp.route("/api/options/autopilot/tax-report")
+def api_autopilot_tax_report():
+    try:
+        from options.autopilot import tax_report
+        fy = request.args.get('fy', None)
+        return jsonify(tax_report(fy=fy))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@options_bp.route("/api/options/autopilot/check-env")
+def api_autopilot_check_env():
+    try:
+        from options.autopilot import check_env
+        return jsonify(check_env())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@options_bp.route("/api/options/autopilot/reconcile", methods=['POST'])
+def api_autopilot_reconcile():
+    try:
+        from options.autopilot import reconcile
+        return jsonify(reconcile())
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -166,6 +166,8 @@ def init_db(db=None):
         c.execute("ALTER TABLE trades ADD COLUMN live_status TEXT")
     if 'standing_sl_ids' not in cols:
         c.execute("ALTER TABLE trades ADD COLUMN standing_sl_ids TEXT")
+    if 'residual_retries' not in cols:
+        c.execute("ALTER TABLE trades ADD COLUMN residual_retries INTEGER DEFAULT 0")
 
     c.execute('''CREATE TABLE IF NOT EXISTS autopilot_alerts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

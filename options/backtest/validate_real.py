@@ -218,11 +218,11 @@ def make_real_chain_loader(raw_data):
         if not rows:
             continue
 
-        # Add expiry: assume weekly, next Thursday from this date
-        days_to_thu = (3 - d.weekday()) % 7
-        if days_to_thu == 0:
-            days_to_thu = 7
-        expiry = d + datetime.timedelta(days=days_to_thu)
+        # Add expiry: assume weekly, next Tuesday from this date
+        days_to_tue = (1 - d.weekday()) % 7
+        if days_to_tue == 0:
+            days_to_tue = 7
+        expiry = d + datetime.timedelta(days=days_to_tue)
 
         for r in rows:
             r['expiry'] = expiry

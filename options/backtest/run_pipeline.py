@@ -89,8 +89,8 @@ def fetch_atm_iv(hd, months=6):
     return daily_iv
 
 
-def _next_thursday(dt):
-    days = (3 - dt.weekday()) % 7
+def _next_tuesday(dt):
+    days = (1 - dt.weekday()) % 7
     return dt + datetime.timedelta(days=days or 7)
 
 
@@ -114,9 +114,9 @@ def make_chain_loader(spots, daily_iv):
         if iv > 1:
             iv = iv / 100.0
 
-        near_expiry = _next_thursday(dt)
+        near_expiry = _next_tuesday(dt)
         # Generate near + far expiry for calendar/diagonal strategies
-        far_expiry = _next_thursday(near_expiry + datetime.timedelta(days=1))
+        far_expiry = _next_tuesday(near_expiry + datetime.timedelta(days=1))
 
         rows = []
         for expiry in [near_expiry, far_expiry]:

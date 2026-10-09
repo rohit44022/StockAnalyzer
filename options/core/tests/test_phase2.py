@@ -392,13 +392,13 @@ class TestChainStore:
 
 
 class TestEventCalendarExpiry:
-    def test_expiry_week_mon_thu(self):
+    def test_expiry_week_mon_tue(self):
         from options.data.event_calendar import is_expiry_week
-        # Oct 5-8 2026: Mon-Thu → all True
+        # Expiry is Tuesday since Sep 2025; Mon-Tue = expiry week
         assert is_expiry_week(datetime.date(2026, 10, 5)) is True   # Mon
-        assert is_expiry_week(datetime.date(2026, 10, 6)) is True   # Tue
-        assert is_expiry_week(datetime.date(2026, 10, 7)) is True   # Wed
-        assert is_expiry_week(datetime.date(2026, 10, 8)) is True   # Thu
+        assert is_expiry_week(datetime.date(2026, 10, 6)) is True   # Tue (expiry day)
+        assert is_expiry_week(datetime.date(2026, 10, 7)) is False  # Wed (post-expiry)
+        assert is_expiry_week(datetime.date(2026, 10, 8)) is False  # Thu
         assert is_expiry_week(datetime.date(2026, 10, 9)) is False  # Fri
         assert is_expiry_week(datetime.date(2026, 10, 10)) is False # Sat
 

@@ -596,7 +596,7 @@ def _increment_daily_capital(conn, amount):
 
 # Dhan security_id → symbol mapping (index options)
 _SID_MAP = {'13': 'NIFTY', '25': 'BANKNIFTY', '27': 'FINNIFTY'}
-_LOT_MAP = {'NIFTY': 75, 'BANKNIFTY': 30, 'FINNIFTY': 25}
+_LOT_MAP = {'NIFTY': 65, 'BANKNIFTY': 30, 'FINNIFTY': 60, 'MIDCPNIFTY': 120}
 
 
 def _symbol_for_security(security_id) -> Optional[str]:

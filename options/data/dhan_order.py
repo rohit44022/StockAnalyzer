@@ -14,19 +14,13 @@ from . import dhan_fetch
 log = logging.getLogger(__name__)
 
 # Dhan exchange segment for index options
-SEGMENT_MAP = {
-    'NIFTY': 'NSE_FNO',
-    'BANKNIFTY': 'NSE_FNO',
-    'FINNIFTY': 'NSE_FNO',
-}
-
-# Lot sizes
-LOT_SIZES = {'NIFTY': 65, 'BANKNIFTY': 30, 'FINNIFTY': 60, 'MIDCPNIFTY': 120}
+from .ref_data import LOT_SIZES, DHAN_SEGMENTS as SEGMENT_MAP
 
 
 def _build_order(leg, symbol, lots=1, product='NORMAL'):
     """Convert a strategy leg dict to Dhan order payload."""
-    lot_size = LOT_SIZES.get(symbol.upper(), 65)
+    from .ref_data import lot_size as _ls
+    lot_size = _ls(symbol)
     return {
         'transactionType': 'BUY' if leg['action'] == 'BUY' else 'SELL',
         'exchangeSegment': SEGMENT_MAP.get(symbol.upper(), 'NSE_FNO'),

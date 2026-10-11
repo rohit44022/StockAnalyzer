@@ -50,7 +50,7 @@ def adjusted_kelly(raw_kelly, skewness=0.0, kurtosis=3.0):
     return f * adj
 
 
-def position_size(capital, kelly_frac, max_loss_per_lot, lot_size=65,
+def position_size(capital, kelly_frac, max_loss_per_lot, lot_size=None,
                   fractional=DEFAULT_FRACTIONAL):
     """
     Compute number of lots from Kelly fraction.
@@ -104,6 +104,33 @@ def position_size(capital, kelly_frac, max_loss_per_lot, lot_size=65,
         'kelly_used': round(kelly_used, 4),
         'fractional': frac,
         'warnings': warnings,
+    }
+
+
+def upfront_premium_check(legs, lots, lot_size, available_capital):
+    """
+    SEBI Feb 2025: option buyers must pay full premium upfront.
+    Cannot use unrealized P&L from existing positions.
+
+    Returns max lots affordable and whether original request fits.
+    """
+    buy_premium = sum(
+        leg.get('premium', 0) * leg.get('qty', 1)
+        for leg in legs if leg.get('action') == 'BUY'
+    )
+    cost_per_lot = buy_premium * lot_size
+    if cost_per_lot <= 0:
+        return {'fits': True, 'max_lots': lots, 'buy_premium_per_lot': 0}
+
+    total_cost = cost_per_lot * lots
+    fits = total_cost <= available_capital
+    max_affordable = int(available_capital / cost_per_lot) if cost_per_lot > 0 else lots
+
+    return {
+        'fits': fits,
+        'max_lots': min(lots, max(0, max_affordable)),
+        'buy_premium_per_lot': round(cost_per_lot, 2),
+        'total_buy_cost': round(total_cost, 2),
     }
 
 
@@ -235,6 +262,26 @@ def _self_check():
     curve_ok = [100, 105, 110, 108, 107]
     dd = drawdown_check(curve_ok)
     assert dd['action'] == 'none'
+
+    # Upfront premium check (SEBI Feb 2025)
+    buy_legs = [
+        {'strike': 23800, 'option_type': 'PE', 'action': 'BUY', 'premium': 30, 'qty': 1},
+        {'strike': 24200, 'option_type': 'CE', 'action': 'BUY', 'premium': 25, 'qty': 1},
+        {'strike': 23900, 'option_type': 'PE', 'action': 'SELL', 'premium': 50, 'qty': 1},
+        {'strike': 24100, 'option_type': 'CE', 'action': 'SELL', 'premium': 50, 'qty': 1},
+    ]
+    uc = upfront_premium_check(buy_legs, 2, 65, 50000)
+    assert uc['fits'], "₹50k should cover 2 lots of ₹55 buy premium"
+    assert uc['buy_premium_per_lot'] == 55 * 65
+
+    uc2 = upfront_premium_check(buy_legs, 100, 65, 50000)
+    assert not uc2['fits'], "₹50k can't cover 100 lots"
+    assert uc2['max_lots'] < 100
+
+    # All-sell legs → no buy premium
+    sell_only = [l for l in buy_legs if l['action'] == 'SELL']
+    uc3 = upfront_premium_check(sell_only, 5, 65, 1000)
+    assert uc3['fits']
 
     print("sizing.py: all checks passed")
 

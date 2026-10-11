@@ -17,15 +17,11 @@ _SCAN_RANGES = {
     'DEFAULT':   {'up_pct': 0.10, 'down_pct': 0.10, 'vol_up': 0.25, 'vol_dn': 0.25},
 }
 
-# ELM rates
-ELM_INDEX = 0.02   # 2% for index options
-ELM_STOCK = 0.035  # 3.5% for stock options
-
-# Expiry-day margin ramp (SEBI 2025)
-_EXPIRY_RAMP = {4: 0.10, 3: 0.25, 2: 0.45, 1: 0.70, 0: 1.00}
+from ..data.ref_data import (ELM_INDEX, ELM_STOCK, EXPIRY_ELM_EXTRA,
+                             EXPIRY_RAMP as _EXPIRY_RAMP)
 
 
-def estimate_margin(legs, spot, lot_size=65, underlying='NIFTY',
+def estimate_margin(legs, spot, lot_size=None, underlying='NIFTY',
                     dte=None, r=0.07):
     """
     Estimate initial margin for a multi-leg position.
@@ -45,6 +41,10 @@ def estimate_margin(legs, spot, lot_size=65, underlying='NIFTY',
     -------
     dict: span_margin, elm, total_margin, margin_benefit, expiry_surcharge
     """
+    if lot_size is None:
+        from ..data.ref_data import lot_size as _ls
+        lot_size = _ls(underlying)
+
     scan = _SCAN_RANGES.get(underlying, _SCAN_RANGES['DEFAULT'])
 
     # SPAN: worst-case portfolio loss across 16 scenarios
@@ -87,7 +87,8 @@ def estimate_margin(legs, spot, lot_size=65, underlying='NIFTY',
 
     # ELM: percentage of notional
     notional = spot * lot_size
-    is_index = underlying.upper() in ('NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCAPNIFTY')
+    from ..data.ref_data import is_index as _is_index
+    is_index = _is_index(underlying)
     elm_rate = ELM_INDEX if is_index else ELM_STOCK
 
     # NSCCL: ELM on net shorts; hedged spreads get 50% reduction per covered lot
@@ -96,6 +97,12 @@ def estimate_margin(legs, spot, lot_size=65, underlying='NIFTY',
     net_exposed = max(0, net_short_qty - net_long_qty)
     hedged_qty = min(net_short_qty, net_long_qty)
     elm = notional * elm_rate * (net_exposed + hedged_qty * 0.5)
+
+    # SEBI Nov 2024: extra 2% ELM on short index options on expiry day
+    expiry_elm_extra = 0.0
+    if dte is not None and dte == 0 and is_index and net_short_qty > 0:
+        expiry_elm_extra = notional * EXPIRY_ELM_EXTRA * net_short_qty
+        elm += expiry_elm_extra
 
     # Expiry-day surcharge (SEBI 2025)
     expiry_surcharge = 0.0
@@ -108,9 +115,16 @@ def estimate_margin(legs, spot, lot_size=65, underlying='NIFTY',
     # Margin benefit: how much less than naked margin
     naked_margin = _naked_margin(legs, spot, lot_size, r, scan, elm_rate)
 
+    # SEBI Feb 2025: calendar spread margin benefit removed on expiry day
+    if dte is not None and dte == 0:
+        expiry_years = {round(leg.get('expiry_years', 0), 6) for leg in legs}
+        if len(expiry_years) > 1:
+            total = naked_margin + expiry_surcharge + expiry_elm_extra
+
     return {
         'span_margin': round(span, 2),
         'elm': round(elm, 2),
+        'expiry_elm_extra': round(expiry_elm_extra, 2),
         'expiry_surcharge': round(expiry_surcharge, 2),
         'total_margin': round(total, 2),
         'naked_margin': round(naked_margin, 2),
@@ -168,7 +182,7 @@ def margin_utilization(total_margin, available_capital):
     return {'utilization_pct': round(util, 2), 'status': status}
 
 
-def broker_margin(legs, spot, lot_size=65, underlying='NIFTY', dte=None, r=0.07):
+def broker_margin(legs, spot, lot_size=None, underlying='NIFTY', dte=None, r=0.07):
     """
     Try Dhan API margin first; fall back to SPAN estimator.
 
@@ -222,6 +236,22 @@ def _self_check():
     me = estimate_margin(legs, 24000, lot_size=65, dte=1)
     assert me['expiry_surcharge'] > 0
     assert me['total_margin'] > m['total_margin']
+
+    # Expiry-day extra ELM (SEBI Nov 2024): dte=0 adds 2% extra on shorts
+    me0 = estimate_margin(naked, 24000, lot_size=65, underlying='NIFTY', dte=0)
+    assert me0['expiry_elm_extra'] > 0, "Expiry day should add extra ELM"
+
+    # Calendar spread: margin benefit removed on expiry day
+    cal_legs = [
+        {'strike': 24000, 'option_type': 'CE', 'action': 'SELL',
+         'premium': 300, 'iv': 0.15, 'expiry_years': 0.001, 'qty': 1},
+        {'strike': 24000, 'option_type': 'CE', 'action': 'BUY',
+         'premium': 350, 'iv': 0.15, 'expiry_years': 14 / 365, 'qty': 1},
+    ]
+    mc_normal = estimate_margin(cal_legs, 24000, lot_size=65, dte=7)
+    mc_expiry = estimate_margin(cal_legs, 24000, lot_size=65, dte=0)
+    assert mc_expiry['total_margin'] >= mc_normal['total_margin'], \
+        "Calendar spread loses benefit on expiry day"
 
     # Margin utilization
     mu = margin_utilization(100_000, 500_000)

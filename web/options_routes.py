@@ -16,6 +16,7 @@ API:
   GET  /api/options/oi/<sym>     — OI analysis (PCR, max pain, S/R)
   GET  /api/options/payoff/<key> — strategy payoff diagram data
   GET  /api/options/vol/<sym>    — volatility surface + term structure
+  GET  /api/options/positions/live— live P&L + Greeks for open positions
   GET  /api/options/reports      — backtest report list
   GET  /api/options/report/<name>— single backtest report JSON
 """
@@ -601,6 +602,26 @@ def api_paper_check():
         return jsonify(_json_clean(result))
     except Exception as e:
         log.exception("paper check API error")
+        return jsonify({'error': str(e)}), 500
+
+
+@options_bp.route("/api/options/positions/live")
+def api_positions_live():
+    """Live P&L + Greeks for all open positions. Read-only, no DB writes."""
+    try:
+        from options import paper_trade
+        spot = None
+        if request.args.get('spot'):
+            spot = float(request.args['spot'])
+        else:
+            try:
+                spot = _live_spot(request.args.get('symbol', 'NIFTY'))
+            except Exception:
+                pass
+        result = paper_trade.live_positions(spot=spot)
+        return jsonify(_json_clean(result))
+    except Exception as e:
+        log.exception("live positions API error")
         return jsonify({'error': str(e)}), 500
 
 

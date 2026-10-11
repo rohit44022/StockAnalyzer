@@ -16,14 +16,9 @@ auto-exercised by NSE. Must exit 1-2 days before expiry to avoid
 unintended delivery.
 """
 
-# Margin ramp percentages
-DELIVERY_RAMP = {4: 0.10, 3: 0.25, 2: 0.45, 1: 0.70, 0: 1.00}
+from ..data.ref_data import EXPIRY_RAMP as DELIVERY_RAMP, CTM_OTM_THRESHOLD
 
-# CTM: within 25% of the strike interval from ATM
-CTM_OTM_THRESHOLD = 0.25
-
-# Index underlyings — cash settled, no physical settlement
-CASH_SETTLED = {'NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCAPNIFTY', 'SENSEX'}
+from ..data.ref_data import CASH_SETTLED
 
 
 def applies(underlying):

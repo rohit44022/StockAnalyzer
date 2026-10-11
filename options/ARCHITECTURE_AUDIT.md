@@ -277,24 +277,24 @@ Architecture mentions "~₹50/lakh." Post Oct 2024, NSE reduced exchange charges
 6. ✗ India VIX average: **~14%** (not 15-20%)
 
 ### Must Add Modules (Production fails without)
-7. ✗ Physical settlement module (margin escalation, CTM, delivery)
-8. ✗ MWPL / ban period tracking
-9. ✗ Expiry day risk (extra ELM, no calendar margin, VWAP settlement)
-10. ✗ Upfront premium collection rule
+7. ✓ Physical settlement module (risk/physical_settlement.py, wired into autopilot)
+8. ✓ MWPL / ban period tracking (risk/limits.py, wired into paper_trade.recommend)
+9. ✓ Expiry day risk (extra 2% ELM on expiry day, calendar margin removed — margin.py)
+10. ✓ Upfront premium collection rule (sizing.upfront_premium_check, wired into paper_trade)
 
 ### Should Add (Important for real trading)
 11. ○ Event calendar (RBI, earnings, budget, elections)
-12. ○ Rollover management
+12. ✓ Rollover management (strategies/rollover.py — cost calculator, timing, OI rollover %)
 13. ○ Liquidity filter
-14. ○ FII/DII positioning data
+14. ✓ FII/DII positioning data (data/fii_dii.py — sentiment, option bias, NSE parser)
 15. ○ Position limits tracking
 16. ○ Broker auto-square-off awareness
-17. ○ Dividend-adjusted pricing for stocks
+17. ✓ Dividend-adjusted pricing for stocks (core/dividends.py — forward price, BSM adjustment)
 
 ### Validate (Grey areas)
 18. ? Remove binomial.py or keep as analytical tool
-19. ? GARCH validation on Nifty data
-20. ? Net edge after Indian costs — is it still positive?
+19. ✓ GARCH validation on Nifty data (core/garch_validation.py — fit diagnostics, forecaster comparison)
+20. ✓ Net edge after Indian costs (cost_model.net_edge_check — breakeven edge, annual projection)
 21. ? Settlement VWAP in backtest engine
 
 ---

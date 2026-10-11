@@ -274,5 +274,118 @@ def _self_check():
     print("cost_model.py: all checks passed")
 
 
+# ---------------------------------------------------------------------------
+# Net edge after Indian costs (ARCHITECTURE_AUDIT #21)
+# ---------------------------------------------------------------------------
+
+def net_edge_check(gross_edge_pct, avg_premium, lot_size=None, n_legs=4,
+                   trades_per_month=4, capital=500_000):
+    """
+    Is the variance premium still positive after all Indian costs?
+
+    Parameters
+    ----------
+    gross_edge_pct : float — expected gross edge per trade as % of premium
+        (e.g. 0.025 = 2.5 vol pts → ~2.5% of premium for ATM straddle)
+    avg_premium : float — average per-unit premium traded (₹ per unit per leg)
+    lot_size : int — contract lot size
+    n_legs : int — legs per strategy (4 for iron condor, 2 for straddle)
+    trades_per_month : int — expected frequency
+    capital : float — trading capital
+
+    Returns
+    -------
+    dict:
+        gross_edge_per_trade — ₹ gross edge
+        total_cost_per_trade — ₹ all-in round-trip cost
+        net_edge_per_trade   — ₹ net after costs
+        cost_as_pct_of_edge  — what % of gross edge goes to costs
+        edge_positive        — bool: is there still edge?
+        annual_net           — projected annual net edge (₹)
+        annual_net_pct       — as % of capital
+        breakeven_edge_pct   — minimum gross edge to break even
+    """
+    notional_per_leg = avg_premium * lot_size
+    gross_edge = gross_edge_pct * notional_per_leg * n_legs
+
+    # Round-trip costs: each leg enters and exits
+    total_cost = 0.0
+    for _ in range(n_legs):
+        # Entry: half the legs are sells, half buys (typical spread)
+        entry = trade_cost(avg_premium, lot_size, 'SELL')
+        exit_ = trade_cost(avg_premium, lot_size, 'BUY')
+        total_cost += entry['total'] + exit_['total']
+
+    net_edge = gross_edge - total_cost
+    cost_pct = total_cost / gross_edge * 100 if gross_edge > 0 else float('inf')
+
+    annual_trades = trades_per_month * 12
+    annual_net = net_edge * annual_trades
+    annual_pct = annual_net / capital * 100 if capital > 0 else 0
+
+    # Breakeven: what gross_edge_pct makes net_edge = 0
+    breakeven = total_cost / (notional_per_leg * n_legs) if notional_per_leg * n_legs > 0 else 0
+
+    return {
+        'gross_edge_per_trade': round(gross_edge, 2),
+        'total_cost_per_trade': round(total_cost, 2),
+        'net_edge_per_trade': round(net_edge, 2),
+        'cost_as_pct_of_edge': round(cost_pct, 1),
+        'edge_positive': net_edge > 0,
+        'annual_net': round(annual_net, 2),
+        'annual_net_pct': round(annual_pct, 2),
+        'breakeven_edge_pct': round(breakeven, 4),
+        'trades_per_year': annual_trades,
+    }
+
+
+def _self_check():
+    # Single-leg SELL cost
+    # ARCHITECTURE.md: ATM ₹200, lot_size=65, SELL
+    c = trade_cost(200, 65, 'SELL')
+    # STT: ₹13,000 × 0.15% = ₹19.50
+    assert abs(c['stt'] - 19.50) < 0.01, f"STT: expected 19.50, got {c['stt']}"
+    # Brokerage: min(₹20, ₹13,000 × 0.03%) = min(₹20, ₹3.9) = ₹3.9
+    assert abs(c['brokerage'] - min(20, 13000*0.0003)) < 0.01, f"Brokerage: expected {min(20, 3.90)}, got {c['brokerage']}"
+    # Exchange: ₹13,000 × 0.035% = ₹4.55
+    assert abs(c['exchange'] - 4.55) < 0.01, f"Exchange: expected 4.55, got {c['exchange']}"
+    # GST: (3.90 + 4.55) × 18% = ₹1.521
+    assert abs(c['gst'] - round((3.90 + 4.55) * 0.18, 2)) < 0.02, f"GST: expected {round((3.90 + 4.55) * 0.18, 2)}, got {c['gst']}"
+
+    # Round-trip (4 legs)
+    legs = [
+        {'premium': 50, 'action': 'BUY'},
+        {'premium': 100, 'action': 'SELL'},
+        {'premium': 100, 'action': 'SELL'},
+        {'premium': 50, 'action': 'BUY'},
+    ]
+    rt = round_trip_cost(legs, lot_size=65)
+    assert rt['total'] > 0, "Round-trip cost must be positive"
+    assert rt['per_lot'] > 0
+    # 4 legs × 2 sides = 8 trade_cost calls
+    # STT only on sells: 2 × 100 × 65 × 0.15% = ₹19.50 each entry
+    # Plus exit: 2 buy-to-close legs now become sells → STT again
+
+    # cost_breakdown returns a list
+    bd = cost_breakdown(200, 65, 'SELL')
+    assert len(bd) == 7  # 6 line items + total
+    assert bd[-1]['label'] == 'TOTAL'
+    assert bd[-1]['amount'] > 0
+
+    # Net edge check (ARCHITECTURE_AUDIT #21)
+    # India VP ≈ 2.5 pts → ~2.5% gross edge on ATM premium
+    ne = net_edge_check(0.025, 200, lot_size=65, n_legs=4, trades_per_month=4, capital=500_000)
+    assert ne['total_cost_per_trade'] > 0
+    assert ne['breakeven_edge_pct'] > 0
+    assert ne['breakeven_edge_pct'] < 0.025, \
+        f"Breakeven {ne['breakeven_edge_pct']:.4f} should be below gross 0.025"
+
+    # Zero edge → negative net
+    ne0 = net_edge_check(0.001, 200, lot_size=65, n_legs=4)
+    assert not ne0['edge_positive'], "Tiny edge should be eaten by costs"
+
+    print("cost_model.py: all checks passed")
+
+
 if __name__ == '__main__':
     _self_check()

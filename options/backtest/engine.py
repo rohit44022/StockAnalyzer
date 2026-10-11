@@ -194,7 +194,7 @@ def _defaults(config):
 
 # ── chain enrichment ────────────────────────────────────────────────────
 
-def _enrich_chain(df_raw, spot, dt, r, iv_mod, lot_size=65):
+def _enrich_chain(df_raw, spot, dt, r, iv_mod, lot_size=None):
     df = df_raw.copy()
 
     price_col = 'settle' if 'settle' in df.columns else 'close'

@@ -86,8 +86,7 @@ def compute_futeq(legs, spot, lot_size):
     for leg in legs:
         delta = leg.get('delta', 0)
         qty = leg.get('qty', 1)
-        sign = -1 if leg.get('action') == 'SELL' else 1
-        total += abs(sign * delta * qty * lot_size * spot)
+        total += abs(delta * qty * lot_size * spot)
     return total
 
 

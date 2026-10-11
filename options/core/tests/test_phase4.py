@@ -266,8 +266,9 @@ def test_spread_margin_benefit():
 
 def test_elm_index_vs_stock():
     legs = _straddle_legs()
-    m_idx = margin.estimate_margin(legs, 24000, underlying='NIFTY')
-    m_stk = margin.estimate_margin(legs, 24000, underlying='RELIANCE')
+    # Same lot_size for apples-to-apples ELM rate comparison
+    m_idx = margin.estimate_margin(legs, 24000, lot_size=65, underlying='NIFTY')
+    m_stk = margin.estimate_margin(legs, 24000, lot_size=65, underlying='RELIANCE')
     assert m_stk['elm'] > m_idx['elm'], "Stock ELM (3.5%) > index ELM (2%)"
 
 

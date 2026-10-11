@@ -159,6 +159,10 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
 .trade-expand.open td:first-child .bi{transform:rotate(90deg)}
 .trade-detail{display:none;background:var(--surface);border-bottom:1px solid var(--card-border)}
 .trade-detail.show{display:table-row}
+.adj-alert{display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:6px;font-size:.78rem;line-height:1.4}
+.adj-alert.urgent{background:rgba(240,101,72,.1);border-left:3px solid var(--r)}
+.adj-alert.soon{background:rgba(247,184,75,.08);border-left:3px solid var(--y)}
+.adj-alert.ok{background:rgba(10,179,156,.06);border-left:3px solid var(--g)}
 .expand-hint{font-size:.75rem;color:var(--muted);font-style:italic;padding:6px 8px}
 .leg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:14px 18px}
 .leg-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:12px 14px}
@@ -571,7 +575,7 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
       <th>Symbol</th>
       <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Strategy<span class="tip-text">The option strategy type (e.g., bull put spread, long strangle). Determines leg structure, profit/loss profile, and exit rules.</span></span></th>
       <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Days<span class="tip-text">Calendar days since trade was opened. Longer holding periods increase theta decay exposure.</span></span></th>
-      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Entry Spot<span class="tip-text">NIFTY spot price when the trade was entered. Compare with current spot to understand the underlying's movement since entry.</span></span></th>
+      <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Spot<span class="tip-text">Current spot price with change from entry. Green broadcast icon = live from Dhan.</span></span></th>
       <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">DTE<span class="tip-text">Days To Expiry — how many days until the option contract expires. Low DTE = high theta decay + increased gamma risk. Autopilot auto-exits when DTE hits the configured threshold.</span></span></th>
       <th><span class="tip" tabindex="0" onclick="this.classList.toggle('active')">Unrealized P/L<span class="tip-text">Paper profit/loss based on BSM repricing with current spot and IV. Green = profitable, Red = losing. Not locked in until the trade is closed.</span></span></th>
       <th><span class="tip tip-right" tabindex="0" onclick="this.classList.toggle('active')">Risk Position<span class="tip-text">Visual meter showing where the trade sits between max loss (left, red) and max profit (right, green). Needle position = current P/L relative to the strategy's defined risk/reward. BE = breakeven level(s).</span></span></th>
@@ -975,12 +979,18 @@ function rOpen(ts){
     const g=t.greeks||{};const src=t.source||'manual';
     const rp=t.risk_position||50;const be=t.breakevens||[];
 
+    const cSpot=t.last_check_spot||t.entry_spot||0;const eSpot=t.entry_spot||0;
+    const spotDelta=eSpot?cSpot-eSpot:0;const spotPct=eSpot?(spotDelta/eSpot*100):0;
+    const isLive=t.spot_source==='live';
+
     html+=`<tr class="trade-expand" onclick="togTrade(${t.id})">
       <td><i class="bi bi-chevron-right" style="font-size:.78rem;color:var(--muted)"></i></td>
       <td class="fm">${t.id}</td><td><strong>${esc(t.symbol)}</strong></td>
       <td style="text-transform:capitalize">${esc((t.strategy||'').replace(/_/g,' '))}</td>
       <td class="fm">${t.days_held}d</td>
-      <td class="fm">${t.entry_spot?.toFixed(0)||'--'}</td>
+      <td class="fm">${cSpot?cSpot.toFixed(0):'--'} <span style="font-size:.7rem;color:${spotDelta>=0?'var(--g)':'var(--r)'}">
+        ${spotDelta>=0?'+':''}${spotDelta.toFixed(0)} (${spotPct>=0?'+':''}${spotPct.toFixed(1)}%)</span>
+        ${isLive?'<i class="bi bi-broadcast" style="font-size:.65rem;color:var(--g)" title="Live"></i>':''}</td>
       <td class="fm">${dte}</td>
       <td class="fm ${pcl(pnl)}"><strong>${ps(pnl)}</strong></td>
       <td style="min-width:150px">
@@ -1015,9 +1025,30 @@ function rOpen(ts){
       <div style="padding:2px 18px 12px;font-size:.78rem;color:var(--text-dim)">
         <strong>Entry Reason:</strong> ${esc(t.entry_reason||'--')} · <strong>Legs:</strong> ${esc(t.legs_summary||'--')}
       </div>
+      ${_tradeRiskAlerts(t)}
     </td></tr>`;
   });
   tb.innerHTML=html}
+
+function _tradeRiskAlerts(t){
+  let h='';const dte=t.dte??99;const sym=t.symbol||'';
+  const mw=t.mwpl_status;
+  if(mw&&mw.status==='caution')
+    h+=`<div class="adj-alert soon"><i class="bi bi-exclamation-triangle-fill"></i><div><strong>MWPL Caution</strong>: ${sym} OI at ${mw.utilization_pct?.toFixed(1)||'?'}% — approaching ban threshold (95%).</div></div>`;
+  if(mw&&mw.status==='ban')
+    h+=`<div class="adj-alert urgent"><i class="bi bi-ban"></i><div><strong>MWPL Ban</strong>: ${sym} is in ban period — no new positions, only squaring off allowed.</div></div>`;
+  const stl=t.settlement;
+  if(stl&&stl.delivery_margin_pct>0)
+    h+=`<div class="adj-alert ${stl.urgency<=2?'urgent':'soon'}"><i class="bi bi-box-seam"></i><div><strong>Physical Delivery</strong>: ${sym} requires ₹${(stl.delivery_margin||0).toLocaleString('en-IN')} delivery margin (${(stl.delivery_margin_pct*100).toFixed(0)}% of contract). DTE=${dte}.</div></div>`;
+  if(stl&&stl.ctm_warnings?.length)
+    h+=`<div class="adj-alert urgent"><i class="bi bi-crosshair"></i><div><strong>CTM Risk</strong>: ${stl.ctm_warnings.map(c=>c.warning||c).join('; ')}</div></div>`;
+  if(dte<=5&&dte>=0){
+    const urgCls=dte<=2?'urgent':'soon';
+    const msg=dte<=2?'Roll or close immediately — expiry margin spike + illiquidity':'Theta accelerating — optimal window to roll to next month';
+    h+=`<div class="adj-alert ${urgCls}"><i class="bi bi-arrow-repeat"></i><div><strong>Roll Alert (DTE=${dte})</strong>: ${msg}.</div></div>`;
+  }
+  return h?`<div style="padding:4px 18px 10px">${h}</div>`:'';
+}
 
 function togTrade(id){const row=document.querySelector(`tr[onclick="togTrade(${id})"]`);const det=$('td'+id);if(!det)return;const isOpen=det.classList.contains('show');det.classList.toggle('show');if(row)row.classList.toggle('open',!isOpen);const hint=document.querySelector('.expand-hint-row');if(hint)hint.style.display='none'}
 

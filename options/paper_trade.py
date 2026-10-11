@@ -527,7 +527,7 @@ def lifecycle_status(strategy_key=None, db=None):
     return results[0] if strategy_key else results
 
 
-def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None):
+def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None, mwpl_limit=0):
     """Full pipeline → recommend.generate() → risk checks → store recommendation."""
     from .data import dhan_fetch, pipeline, chain as chain_mod
     from .strategies import recommend as recommend_mod
@@ -557,6 +557,19 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None):
         else:
             return {'status': 'error', 'reason': 'Empty chain or invalid spot from Dhan'}
     log.info(f'[{symbol}] {len(chain_df)} rows, spot={spot:.2f}')
+
+    # 1b. MWPL check (blocks if symbol is in ban period)
+    from .risk import limits as limits_mod
+    mwpl_status = None
+    if mwpl_limit > 0 and not chain_df.empty and 'oi' in chain_df.columns:
+        total_oi = int(chain_df['oi'].sum())
+        if total_oi > 0:
+            mwpl_status = limits_mod.mwpl_check(total_oi, mwpl_limit)
+            if not mwpl_status['can_open_new']:
+                return {'status': 'blocked',
+                        'reason': f'MWPL ban: {symbol} OI at {mwpl_status["utilization_pct"]:.1f}% — no new positions'}
+            if mwpl_status['status'] == 'caution':
+                log.warning(f'[{symbol}] MWPL caution: {mwpl_status["utilization_pct"]:.1f}% utilization')
 
     # 2. VIX
     vix_value = None
@@ -615,7 +628,7 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None):
     candidates = result['recommendations'][:3]
 
     # Try top-3: if #1 fails entry gate, try #2, #3
-    reco = gate = lots = max_loss_per_lot = None
+    reco = gate = lots = max_loss_per_lot = upfront = None
     for candidate in candidates:
         _key = candidate['strategy_key']
         _legs = candidate['raw_legs']
@@ -654,16 +667,30 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None):
         _vp_scale = {'strong': 1.0, 'moderate': 0.75, 'weak': 0.5}.get(_vp_conf, 0.75)
         _lots = max(1, int(_lots * _vp_scale))
 
+        # SEBI Feb 2025: upfront premium — buyers must fund buy legs from realized capital
+        _up = sizing.upfront_premium_check(_legs, _lots, lot_size, capital)
+        if not _up['fits']:
+            if _up['max_lots'] <= 0:
+                log.info(f'[{symbol}] Candidate {_key} blocked: buy premium '
+                         f'₹{_up["buy_premium_per_lot"]:.0f}/lot exceeds capital ₹{capital:.0f}')
+                continue
+            _lots = _up['max_lots']
+            log.info(f'[{symbol}] Upfront premium cap: reduced to {_lots} lots '
+                     f'(buy cost ₹{_up["buy_premium_per_lot"]:.0f}/lot, capital ₹{capital:.0f})')
+
         # Entry gate (Sinclair Ch.8)
         _daily_theta = abs(candidate.get('daily_theta', 0)) * lot_size
         _gate = scenarios.entry_gate(_legs, spot, daily_theta=max(_daily_theta, 0.01),
                                      lot_size=lot_size, dte=_dte)
 
-        reco, gate, lots, max_loss_per_lot = candidate, _gate, _lots, _max_loss_per_lot
+        reco, gate, lots, max_loss_per_lot, upfront = candidate, _gate, _lots, _max_loss_per_lot, _up
         if _gate.get('passes', False):
             log.info(f'[{symbol}] Candidate {_key} passes entry gate')
             break
         log.info(f'[{symbol}] Candidate {_key} failed gate (ratio={_gate.get("ratio",0):.1f}), trying next')
+
+    if reco is None:
+        return {'status': 'no_trade', 'reason': 'All candidates blocked by upfront premium check'}
 
     top_key = reco['strategy_key']
     legs = reco['raw_legs']
@@ -712,7 +739,8 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None):
             'take_profit': (reco.get('max_profit') or 0) * lot_size * 0.5,
         },
     }
-    audit_result = audit_mod.audit_trade(trade_for_audit, capital, capital)
+    audit_result = audit_mod.audit_trade(trade_for_audit, capital, capital,
+                                          mwpl_status=mwpl_status['status'] if mwpl_status else 'ok')
 
     # 12. Assemble and store
     rec = {
@@ -738,6 +766,8 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None):
         'regime': reco.get('regime'),
         'vp_confidence': reco.get('vp_confidence'),
         'build_warnings': reco.get('build_warnings', []),
+        'mwpl_status': mwpl_status,
+        'upfront_premium_cap': upfront.get('buy_premium_per_lot') if upfront and not upfront.get('fits') else None,
     }
 
     conn = _connect(db)
@@ -1103,6 +1133,94 @@ def journal(symbol=None, db=None):
     print('=' * 90 + '\n')
 
 
+def live_positions(spot=None, db=None):
+    """Read-only live P&L + Greeks for all open trades. No DB writes."""
+    from .core import bsm
+    from .data import event_calendar
+
+    db = db or _db_path()
+    init_db(db)
+    conn = _connect(db)
+    conn.row_factory = sqlite3.Row
+    try:
+        trades = conn.execute("SELECT * FROM trades WHERE status='open'").fetchall()
+        if not trades:
+            return {'positions': [], 'spot': spot, 'totals': {'delta': 0, 'gamma': 0, 'theta': 0, 'vega': 0}}
+
+        if spot is None:
+            try:
+                from .data import dhan_fetch
+                spot = dhan_fetch.fetch_spot(trades[0]['symbol'])
+            except Exception:
+                spot = trades[0]['entry_spot']
+
+        today = datetime.date.today()
+        positions = []
+        port_greeks = {'delta': 0.0, 'gamma': 0.0, 'theta': 0.0, 'vega': 0.0}
+
+        for trade in trades:
+            legs = json.loads(trade['legs'])
+            lot_size = trade['lot_size']
+            lots = trade['lots']
+            symbol = trade['symbol']
+
+            if trade['target_expiry']:
+                exp = datetime.date.fromisoformat(trade['target_expiry'])
+            else:
+                exp = event_calendar.next_expiry(symbol)
+            dte = max(0, (exp - today).days)
+            t = max(dte / 365, 1 / 365)
+
+            pnl_per_unit = _reprice_pnl(legs, spot, dte)
+            pnl_per_lot = pnl_per_unit * lot_size
+            total_pnl = round(pnl_per_lot * lots, 2)
+
+            tg = {'delta': 0.0, 'gamma': 0.0, 'theta': 0.0, 'vega': 0.0}
+            leg_details = []
+            for leg in legs:
+                iv = max(leg.get('iv', 0.15), 0.01)
+                current_price = bsm.bsm_price(spot, leg['strike'], t, 0.07, iv, leg['option_type'])
+                g = bsm.bsm_greeks(spot, leg['strike'], t, 0.07, iv, leg['option_type'])
+                qty = leg.get('qty', 1)
+                sign = -1 if leg.get('action') == 'SELL' else 1
+                mult = sign * qty * lot_size * lots
+                for k in tg:
+                    tg[k] += g[k] * mult
+
+                leg_details.append({
+                    'strike': leg['strike'], 'option_type': leg['option_type'],
+                    'action': leg.get('action'), 'qty': qty,
+                    'entry_premium': round(leg.get('premium', 0), 2),
+                    'current_premium': round(current_price, 2),
+                    'iv': round(iv * 100, 1),
+                })
+
+            for k in port_greeks:
+                port_greeks[k] += tg[k]
+
+            positions.append({
+                'trade_id': trade['id'], 'symbol': symbol,
+                'strategy': trade['strategy'],
+                'entry_spot': trade['entry_spot'], 'current_spot': spot,
+                'dte': dte, 'expiry': exp.isoformat(),
+                'lots': lots, 'lot_size': lot_size,
+                'pnl_per_lot': round(pnl_per_lot, 2),
+                'total_pnl': total_pnl,
+                'delta': round(tg['delta'], 4),
+                'gamma': round(tg['gamma'], 4),
+                'theta': round(tg['theta'], 4),
+                'vega': round(tg['vega'], 4),
+                'legs': leg_details,
+            })
+
+        return {
+            'positions': positions, 'spot': round(spot, 2),
+            'totals': {k: round(v, 4) for k, v in port_greeks.items()},
+        }
+    finally:
+        conn.close()
+
+
 def _reprice_pnl(legs, spot, dte, chain_df=None):
     """Per-unit P/L at given spot/DTE. Uses LTP when DTE<3 and chain available."""
     use_ltp = dte < 3 and chain_df is not None and not chain_df.empty
@@ -1305,9 +1423,10 @@ def _self_check():
     from .core import cost_model, bsm
     from .data import event_calendar
 
+    from .data.ref_data import lot_size as _ref_ls
     spot = 24000
     symbol = 'NIFTY'
-    lot_size = 65
+    lot_size = _ref_ls(symbol)
     capital = 500_000
 
     chain_df = chain_mod.synthetic_chain(spot, strike_range=0.10,

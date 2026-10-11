@@ -101,6 +101,8 @@ intraday/5min_store/
 _real_chain_cache.json
 _data_cache.json
 .dhan_token.json
+nse_holidays.json
+lot_sizes.json
 
 # ── Books / copyrighted material ──
 *.pdf

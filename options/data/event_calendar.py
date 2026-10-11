@@ -47,26 +47,102 @@ _BUDGET = [
     datetime.date(2027, 2, 1),
 ]
 
-# NSE holidays 2026 (approximate — verify with NSE circular each year)
-_NSE_HOLIDAYS_2026 = [
-    datetime.date(2026, 1, 26),  # Republic Day
-    datetime.date(2026, 3, 10),  # Holi
-    datetime.date(2026, 3, 30),  # Id-Ul-Fitr
-    datetime.date(2026, 4, 2),   # Ram Navami
-    datetime.date(2026, 4, 3),   # Good Friday
-    datetime.date(2026, 4, 14),  # Dr. Ambedkar Jayanti
-    datetime.date(2026, 5, 1),   # Maharashtra Day
-    datetime.date(2026, 6, 5),   # Id-Ul-Adha (Bakri Id)
-    datetime.date(2026, 7, 6),   # Muharram
-    datetime.date(2026, 8, 15),  # Independence Day
-    datetime.date(2026, 9, 4),   # Milad-Un-Nabi
-    datetime.date(2026, 10, 2),  # Mahatma Gandhi Jayanti
-    datetime.date(2026, 10, 21), # Dussehra
-    datetime.date(2026, 11, 10), # Diwali (Laxmi Pujan)
-    datetime.date(2026, 11, 11), # Diwali (Balipratipada)
-    datetime.date(2026, 11, 27), # Guru Nanak Jayanti
-    datetime.date(2026, 12, 25), # Christmas
-]
+# ---------------------------------------------------------------------------
+# NSE holiday fetching — cached to JSON, hardcoded 2026 fallback only
+# ---------------------------------------------------------------------------
+import os as _os
+import json as _json
+import logging as _logging
+
+_log = _logging.getLogger(__name__)
+
+_HOLIDAY_CACHE = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                               'nse_holidays.json')
+
+# Last-resort fallback (from NSE API Oct 2026). Used only when fetch fails
+# AND no cache file exists. Never needs manual update — fetch_nse_holidays()
+# replaces it with live data.
+_FALLBACK_2026 = {
+    datetime.date(2026, 1, 15), datetime.date(2026, 1, 26),
+    datetime.date(2026, 2, 15), datetime.date(2026, 3, 3),
+    datetime.date(2026, 3, 21), datetime.date(2026, 3, 26),
+    datetime.date(2026, 3, 31), datetime.date(2026, 4, 3),
+    datetime.date(2026, 4, 14), datetime.date(2026, 5, 1),
+    datetime.date(2026, 5, 28), datetime.date(2026, 6, 26),
+    datetime.date(2026, 8, 15), datetime.date(2026, 9, 14),
+    datetime.date(2026, 10, 2), datetime.date(2026, 10, 20),
+    datetime.date(2026, 11, 8), datetime.date(2026, 11, 10),
+    datetime.date(2026, 11, 24), datetime.date(2026, 12, 25),
+}
+
+_holidays_cache = None  # in-memory cache: set of datetime.date
+
+
+def _parse_nse_date(s):
+    """Parse '15-Jan-2026' → datetime.date."""
+    from datetime import datetime as _dt
+    return _dt.strptime(s, '%d-%b-%Y').date()
+
+
+def fetch_nse_holidays(force=False):
+    """Fetch F&O holidays from NSE, save to nse_holidays.json. Returns set."""
+    if not force:
+        cached = _load_holiday_cache()
+        if cached:
+            return cached
+    try:
+        import requests
+        s = requests.Session()
+        s.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            'Accept': 'application/json',
+        })
+        s.get('https://www.nseindia.com', timeout=10)
+        r = s.get('https://www.nseindia.com/api/holiday-master?type=trading',
+                  timeout=10)
+        r.raise_for_status()
+        fo = r.json().get('FO', [])
+        dates = set()
+        raw = []
+        for h in fo:
+            d = _parse_nse_date(h['tradingDate'])
+            dates.add(d)
+            raw.append({'date': d.isoformat(), 'name': h.get('description', '')})
+        _save_holiday_cache(raw)
+        _log.info(f'Fetched {len(dates)} F&O holidays from NSE')
+        return dates
+    except Exception as e:
+        _log.warning(f'NSE holiday fetch failed: {e}')
+        return _load_holiday_cache() or set()
+
+
+def _load_holiday_cache():
+    try:
+        with open(_HOLIDAY_CACHE) as f:
+            return {datetime.date.fromisoformat(h['date']) for h in _json.load(f)}
+    except (FileNotFoundError, _json.JSONDecodeError, KeyError):
+        return None
+
+
+def _save_holiday_cache(raw):
+    try:
+        with open(_HOLIDAY_CACHE, 'w') as f:
+            _json.dump(raw, f, indent=2)
+    except OSError as e:
+        _log.warning(f'Could not write holiday cache: {e}')
+
+
+def _get_holidays():
+    """Holidays for is_nse_holiday(). Memory → JSON cache → fallback."""
+    global _holidays_cache
+    if _holidays_cache is not None:
+        return _holidays_cache
+    cached = _load_holiday_cache()
+    if cached:
+        _holidays_cache = cached
+        return cached
+    _holidays_cache = _FALLBACK_2026.copy()
+    return _holidays_cache
 
 
 def _all_events():
@@ -129,8 +205,8 @@ def is_expiry_week(as_of=None):
 
 
 def is_nse_holiday(date):
-    """Check if a date is an NSE holiday (2026 only; extend as needed)."""
-    return date in _NSE_HOLIDAYS_2026
+    """Check if a date is an NSE F&O holiday."""
+    return date in _get_holidays()
 
 
 def next_expiry(index='NIFTY', as_of=None, monthly=False):
@@ -269,10 +345,10 @@ def _self_check():
     rbi_dates = [e for e in events if e.type == 'RBI']
     assert len(rbi_dates) >= 1, "Should find Oct 8 RBI meeting"
 
-    days, evt = days_to_next_event('RBI', as_of=oct1)
+    days, _ = days_to_next_event('RBI', as_of=oct1)
     assert days == 7, f"Oct 8 is 7 days from Oct 1, got {days}"
 
-    assert is_expiry_week(datetime.date(2026, 10, 5))  # Monday — expiry week (Tue expiry)
+    assert is_expiry_week(datetime.date(2026, 10, 5))
 
     exp = next_expiry('NIFTY', as_of=datetime.date(2026, 10, 5))
     assert exp.weekday() == 1 or not is_nse_holiday(exp), "Expiry should be Tuesday or shifted"
@@ -290,6 +366,13 @@ def _self_check():
     date_only = is_muhurat_session(datetime.date(2026, 11, 10))
     assert date_only is not None, "Date-only check should find Muhurat day"
     assert is_muhurat_session(datetime.date(2026, 10, 5)) is None
+
+    # Dynamic holiday cache
+    holidays = _get_holidays()
+    assert len(holidays) >= 15, f"Should have 15+ holidays, got {len(holidays)}"
+    assert is_nse_holiday(datetime.date(2026, 1, 26)), "Republic Day 2026"
+    assert is_nse_holiday(datetime.date(2026, 10, 2)), "Gandhi Jayanti 2026"
+    assert not is_nse_holiday(datetime.date(2026, 10, 5)), "Random Monday not holiday"
 
     print("event_calendar.py: all checks passed")
 

@@ -157,7 +157,7 @@ def _general_rules(position, days_held):
     return recs
 
 
-def suggest_roll(position, chain_df, spot, r=0.07, lot_size=65):
+def suggest_roll(position, chain_df, spot, r=0.07, lot_size=None):
     """Suggest roll: close current, open same strategy on next expiry."""
     from . import builder
     key = position.get('strategy')

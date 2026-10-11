@@ -11,7 +11,7 @@ from ..core import bsm, cost_model, payoff
 
 
 def build(strategy_key, chain_df, spot, r=0.07,
-          lot_size=65, expiry_years=None, config=None):
+          lot_size=None, expiry_years=None, config=None):
     """
     Build a concrete position from a strategy template.
 
@@ -30,6 +30,10 @@ def build(strategy_key, chain_df, spot, r=0.07,
     dict with strategy, legs, net_premium, max_profit, max_loss, breakevens,
     cost_estimate, warnings.  None if can't build.
     """
+    if lot_size is None:
+        from ..data.ref_data import LOT_SIZES
+        lot_size = LOT_SIZES.get('NIFTY', 65)
+
     strat = registry.get(strategy_key)
     if strat is None:
         return None

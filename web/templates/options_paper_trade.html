@@ -655,6 +655,20 @@ async function renderRecommendation(data){
   const whatIf = whatIfHtml(legs, spot);
   const why = whyHtml(data, si);
 
+  // P4/P5 risk warnings
+  let riskAlerts = '';
+  const bw = data.build_warnings || [];
+  const mw = data.mwpl_status;
+  if(mw && mw.status === 'caution'){
+    riskAlerts += `<div class="adj-alert soon"><i class="bi bi-exclamation-triangle-fill"></i><div><strong>MWPL Caution</strong>: OI at ${mw.utilization_pct?.toFixed(1)||'?'}% of market-wide position limit. Ban risk if OI crosses 95%.</div></div>`;
+  }
+  if(data.upfront_premium_cap){
+    riskAlerts += `<div class="adj-alert soon"><i class="bi bi-cash-coin"></i><div><strong>Upfront Premium</strong>: Lots reduced to ${data.lots||'?'} — buy-leg premium ₹${data.upfront_premium_cap.toFixed(0)}/lot exceeds capital for full sizing.</div></div>`;
+  }
+  bw.forEach(w => {
+    riskAlerts += `<div class="adj-alert ok"><i class="bi bi-info-circle"></i><div>${typeof w==='string'?w:w.message||JSON.stringify(w)}</div></div>`;
+  });
+
   document.getElementById('recSection').innerHTML = `
   <div class="rec-card top-pick">
     <span class="rec-badge">✓ Recommended</span>
@@ -663,6 +677,7 @@ async function renderRecommendation(data){
     <div class="strat-desc">${esc(si.description || '')}</div>
 
     ${why}
+    ${riskAlerts}
 
     <div class="metric-grid">
       <div class="metric-box">
@@ -755,7 +770,7 @@ async function confirmEnter(){
     const data = await resp.json();
     if(data.error){ toast('Error: '+data.error,'error'); return; }
     closeModal('enterModal');
-    loadOpenTrades();
+    loadOpenTrades().then(refreshLiveData);
     toast('Paper trade entered successfully!','success');
   } catch(e){ toast('Failed: '+e.message,'error'); }
   finally { btn.innerHTML='<i class="bi bi-play-fill me-1"></i>Enter Trade'; btn.disabled=false; }
@@ -791,7 +806,7 @@ async function confirmExit(){
     const data = await resp.json();
     if(data.error){ toast('Error: '+data.error,'error'); return; }
     closeModal('exitModal');
-    loadOpenTrades();
+    loadOpenTrades().then(refreshLiveData);
     loadHistory();
     toast('Trade closed','success');
   } catch(e){ toast('Failed: '+e.message,'error'); }
@@ -810,7 +825,7 @@ async function dailyCheck(){
     const data = await resp.json();
     if(data.error){ toast('Error: '+data.error,'error'); return; }
     if(Array.isArray(data) && data.length){
-      loadOpenTrades();
+      loadOpenTrades().then(refreshLiveData);
       toast(`Health check: ${data.length} trade(s) reviewed`,'success');
     } else {
       toast('No open trades to check','info');
@@ -874,8 +889,8 @@ async function loadOpenTrades(){
     let html = '';
     trades.forEach(t => {
       const pnl = t.net_pnl || 0;
-      const maxP = t.max_profit || 1;
-      const maxL = Math.abs(t.max_loss || 1);
+      const maxP = t.max_profit_per_lot || t.max_profit || 1;
+      const maxL = Math.abs(t.max_loss_per_lot || t.max_loss || 1);
       const pnlPct = maxP > 0 ? (pnl / maxP * 100) : 0;
       const barPos = Math.max(5,Math.min(95, 50 + (pnl / (maxL+maxP)) * 50));
       const legs = t.legs || [];
@@ -898,7 +913,7 @@ async function loadOpenTrades(){
       let legsStr = legs.map(l => `${l.action} ${l.qty||1}× ${l.strike} ${l.option_type}`).join(' / ');
 
       html += `
-      <div class="trade-card">
+      <div class="trade-card" data-trade-id="${t.id}" data-max-loss="${maxL}" data-max-profit="${maxP}">
         <div class="trade-header">
           <div>
             <div class="trade-strat">${esc(t.strategy || 'Strategy')} <span style="font-size:.75rem;color:var(--text-dim)">#${t.id}</span></div>
@@ -959,6 +974,109 @@ async function loadOpenTrades(){
   } catch(e){
     document.getElementById('tradesSection').innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-triangle"></i>${e.message}</div>`;
   }
+}
+
+/* ═══ LIVE POSITION REFRESH ═══ */
+let _liveTimer = null;
+async function refreshLiveData(){
+  try {
+    const resp = await fetch('/api/options/positions/live');
+    const data = await resp.json();
+    if(data.error || !data.positions) return;
+    const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    data.positions.forEach(p => {
+      const card = document.querySelector(`.trade-card[data-trade-id="${p.trade_id}"]`);
+      if(!card) return;
+      const boxes = card.querySelectorAll('.metric-val');
+      if(boxes.length >= 1){
+        boxes[0].className = 'metric-val ' + pnlClass(p.total_pnl);
+        boxes[0].textContent = pnlFmt(p.total_pnl);
+      }
+      if(boxes.length >= 2){
+        const maxP = parseFloat(card.dataset.maxProfit) || 1;
+        const pnlPct = maxP > 0 ? (p.total_pnl / maxP * 100) : 0;
+        boxes[1].className = 'metric-val ' + (pnlPct>=0?'up':'down');
+        boxes[1].textContent = pnlPct.toFixed(0) + '%';
+      }
+      // Update P&L bar marker
+      const pnlMarker = card.querySelector('.pnl-marker');
+      if(pnlMarker){
+        const maxL2 = parseFloat(card.dataset.maxLoss) || 1;
+        const maxP2 = parseFloat(card.dataset.maxProfit) || 1;
+        const barPos = Math.max(5,Math.min(95, 50 + (p.total_pnl / (maxL2+maxP2)) * 50));
+        pnlMarker.style.left = barPos + '%';
+      }
+      // Update greeks section
+      const greeksRow = card.querySelector('.greeks-row');
+      if(greeksRow){
+        const lotSize = p.lot_size||75, lots = p.lots||1;
+        let cards = [];
+        if(p.delta!=null){
+          const dSign = p.delta>=0?'gains':'loses';
+          cards.push(`<div class="greek-card"><span class="greek-sym" style="color:var(--b)">Δ</span><div class="greek-explain"><strong>Delta ${p.delta.toFixed(2)}</strong><br>₹100 move → ${dSign} ~₹${fmt(Math.abs(p.delta*100))}</div></div>`);
+        }
+        if(p.theta!=null){
+          const td = Math.abs(p.theta);
+          cards.push(`<div class="greek-card"><span class="greek-sym" style="color:var(--r)">Θ</span><div class="greek-explain"><strong>Theta ₹${fmt(td)}/day</strong><br>${p.theta<0?'Losing':'Gaining'} ~₹${fmt(td)}/day from decay</div></div>`);
+        }
+        if(p.vega!=null){
+          const vi = Math.abs(p.vega);
+          cards.push(`<div class="greek-card"><span class="greek-sym" style="color:var(--p)">ν</span><div class="greek-explain"><strong>Vega ₹${fmt(vi)}/1%IV</strong><br>+1% IV → ${p.vega>=0?'gains':'loses'} ~₹${fmt(vi)}</div></div>`);
+        }
+        if(cards.length) greeksRow.innerHTML = cards.join('');
+      }
+      // Update theta bar
+      const thetaBar = card.querySelector('.theta-bar');
+      if(thetaBar && p.theta!=null){
+        const dailyDecay = Math.abs(p.theta);
+        const maxPT = parseFloat(card.dataset.maxProfit) || 1;
+        const pct = Math.min(100, (dailyDecay / maxPT) * 100 * 10);
+        const fill = thetaBar.querySelector('.theta-fill');
+        if(fill) fill.style.width = pct + '%';
+        const valSpan = thetaBar.querySelectorAll('span');
+        for(const s of valSpan){ if(s.textContent.includes('₹')){ s.textContent = `-₹${fmt(dailyDecay)}/day`; break; } }
+      }
+      // Update DTE and spot in header
+      const headerDivs = card.querySelectorAll('.trade-header > div:first-child > div');
+      if(headerDivs.length >= 2 && p.current_spot){
+        const hdr = headerDivs[1];
+        const orig = hdr.textContent;
+        const arrow = orig.indexOf('→');
+        if(arrow > 0) hdr.innerHTML = orig.substring(0, arrow) + `→ Now ₹${fmt(p.current_spot)} · ${p.dte}d to expiry <span style="font-size:.65rem;opacity:.6">⟳${now}</span>`;
+      }
+      // Update leg premiums if detail exists
+      if(headerDivs.length >= 3 && p.legs){
+        headerDivs[2].innerHTML = p.legs.map(l =>
+          `${l.action} ${l.qty||1}× ${l.strike} ${l.option_type} <span style="color:var(--text-dim)">₹${l.entry_premium}→₹${l.current_premium}</span>`
+        ).join(' | ');
+      }
+    });
+    // Portfolio totals banner
+    if(data.totals && data.positions.length){
+      let banner = document.getElementById('liveTotalsBanner');
+      if(!banner){
+        banner = document.createElement('div');
+        banner.id = 'liveTotalsBanner';
+        banner.style.cssText = 'padding:10px 16px;border-radius:10px;font-size:.8rem;display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px;background:rgba(124,138,239,.08);border:1px solid rgba(124,138,239,.15)';
+        const sec = document.getElementById('tradesSection');
+        sec.parentNode.insertBefore(banner, sec);
+      }
+      const totalPnl = data.positions.reduce((s,p) => s+p.total_pnl, 0);
+      const t = data.totals;
+      banner.innerHTML = `<strong style="color:var(--b)">Portfolio Live</strong>
+        <span class="${pnlClass(totalPnl)}" style="font-weight:700">${pnlFmt(totalPnl)}</span>
+        <span>Spot ₹${fmt(data.spot)}</span>
+        <span>Δ ${t.delta.toFixed(2)}</span>
+        <span style="color:var(--r)">Θ ₹${fmt(Math.abs(t.theta))}/d</span>
+        <span>ν ₹${fmt(Math.abs(t.vega))}/1%</span>
+        <span style="font-size:.65rem;opacity:.5">⟳${now}</span>`;
+    }
+  } catch(e){ /* silent — live data is best-effort */ }
+}
+function startLiveRefresh(){
+  refreshLiveData();
+  if(_liveTimer) clearInterval(_liveTimer);
+  _liveTimer = setInterval(refreshLiveData, 30000);
 }
 
 /* ═══ LOAD LIFECYCLE ═══ */
@@ -1180,13 +1298,14 @@ function updateTimestamp(){
 }
 async function autoRefresh(){
   await Promise.all([loadOpenTrades(), loadMarketContext()]);
+  refreshLiveData();
   updateTimestamp();
 }
 
 /* ═══ INIT ═══ */
 checkTokenStatus();
 loadMarketContext();
-loadOpenTrades();
+loadOpenTrades().then(() => startLiveRefresh());
 loadLifecycle();
 loadHistory();
 initTips();

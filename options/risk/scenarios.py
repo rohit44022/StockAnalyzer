@@ -27,7 +27,7 @@ STRESS_PRESETS = {
 }
 
 
-def scenario_table(legs, spot, r=0.07, lot_size=65,
+def scenario_table(legs, spot, r=0.07, lot_size=None,
                    spot_changes=None, iv_changes=None, days_list=None):
     """
     Build 3D P/L grid across spot, IV, and time scenarios.
@@ -80,7 +80,7 @@ def scenario_table(legs, spot, r=0.07, lot_size=65,
     }
 
 
-def stress_test(legs, spot, stress_type='2020_covid', r=0.07, lot_size=65):
+def stress_test(legs, spot, stress_type='2020_covid', r=0.07, lot_size=None):
     """
     Named stress scenario P/L.
 
@@ -123,7 +123,7 @@ def stress_test(legs, spot, stress_type='2020_covid', r=0.07, lot_size=65):
     }
 
 
-def entry_gate(legs, spot, daily_theta, r=0.07, lot_size=65, dte=None):
+def entry_gate(legs, spot, daily_theta, r=0.07, lot_size=None, dte=None):
     """
     Sinclair Ch.8: if worst-case loss > 2× expected theta income, don't enter.
 

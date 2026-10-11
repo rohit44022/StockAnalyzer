@@ -94,7 +94,7 @@ DEFAULT_CONFIG = {
 }
 
 _CONFIG_BOUNDS = {
-    'capital':              (100_000, 10_000_000),
+    'capital':              (10_000, 10_000_000),
     'min_score':            (1.0, 10.0),
     'max_concurrent_trades':(1, 5),
     'capital_reserve_pct':  (10, 80),
@@ -758,7 +758,8 @@ def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
     from .core import bsm
 
     legs = json.loads(trade['legs']) if isinstance(trade['legs'], str) else trade['legs']
-    lot_size = trade['lot_size'] or 65
+    from .data.ref_data import lot_size as _ref_ls
+    lot_size = trade['lot_size'] or _ref_ls(trade.get('symbol', 'NIFTY'))
     lots = trade['lots'] or 1
 
     # Compute DTE from target_expiry (trades table has no 'dte' column)
@@ -857,7 +858,19 @@ def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
         if abs(change_pct) >= 0.10:
             return True, f'Circuit breaker zone: spot moved {change_pct*100:+.1f}% from entry — forced close'
 
-    # 7. Regime-change: strategy no longer fits current regime
+    # 7. Physical settlement: margin escalation + CTM warning (stock F&O only)
+    sym = trade.get('symbol', '')
+    try:
+        from .risk import physical_settlement as ps
+        if ps.applies(sym):
+            lot_size = trade.get('lot_size') or _ref_ls(sym or 'NIFTY')
+            sc = ps.settlement_check(legs, spot, lot_size, dte, sym)
+            if sc.get('urgency', 3) <= 1:
+                return True, f'Settlement risk: {sc.get("reason", "delivery margin escalation")}'
+    except Exception as e:
+        log.debug(f'Settlement check skipped: {e}')
+
+    # 8. Regime-change: strategy no longer fits current regime
     try:
         from .strategies import regime as regime_mod, signals as sig_mod, scorer as scorer_mod
         from .data import pipeline as pipe_mod
@@ -973,6 +986,15 @@ def _should_enter(rec, cfg, cap_state, db) -> tuple[bool, str]:
             conn.close()
         if inc and inc[0] == 'ABORTED':
             return False, f'Strategy {strategy} is ABORTED'
+
+    # Physical settlement guard: block stock F&O (we don't handle delivery)
+    symbol = rec.get('symbol', '')
+    try:
+        from .risk import physical_settlement as ps
+        if ps.applies(symbol):
+            return False, f'Stock F&O blocked: {symbol} requires physical delivery (not supported)'
+    except ImportError:
+        pass
 
     return True, f'Score {score:.1f} ≥ {cfg["min_score"]}, all gates passed'
 
@@ -1653,6 +1675,7 @@ def tax_report(fy=None, db=None):
     """Generate F&O tax report for a financial year (April-March).
     F&O profits are business income (Section 43(5)), not capital gains.
     fy='2026-27' means April 2026 to March 2027."""
+    from .data.ref_data import lot_size as _ref_ls
     from . import paper_trade
     db = db or paper_trade._db_path()
 
@@ -1684,7 +1707,7 @@ def tax_report(fy=None, db=None):
         total_cost = entry_cost + exit_cost
         net = t['net_pnl'] or 0
         lots = t['lots'] or 1
-        lot_size = t['lot_size'] or 65
+        lot_size = t['lot_size'] or _ref_ls(t.get('symbol', 'NIFTY'))
         turnover = abs(net)
         rows.append({
             'id': t['id'], 'symbol': t['symbol'], 'strategy': t['strategy'],
@@ -2011,6 +2034,7 @@ def dashboard_data(db=None):
 
     # ── Enrich open trades (unrealized P/L from latest daily_check) ──
     today = datetime.datetime.now(_IST).date()
+    _live_spots = {}
     for t in list(open_trades):
         # Latest daily check
         chk = conn.execute(
@@ -2049,6 +2073,19 @@ def dashboard_data(db=None):
 
         t['legs_summary'] = _legs_summary(t['legs_parsed'])
 
+        # Fetch live spot for enrichment (replaces stale daily_check spot)
+        if t['id'] not in _live_spots:
+            try:
+                _live_spots[t.get('symbol', 'NIFTY')] = dhan_fetch.fetch_spot(t.get('symbol', 'NIFTY'))
+            except Exception:
+                pass
+        live = _live_spots.get(t.get('symbol', 'NIFTY'))
+        if live:
+            t['last_check_spot'] = live
+            t['spot_source'] = 'live'
+        else:
+            t['spot_source'] = 'cached'
+
         # Full per-leg repricing, greeks, breakevens, scenarios
         try:
             _enrich_open_trade(t, db)
@@ -2058,6 +2095,20 @@ def dashboard_data(db=None):
             t['greeks'] = {'delta': 0, 'gamma': 0, 'theta_daily': 0, 'vega': 0}
             t['breakevens'] = []
             t['scenarios'] = {}
+
+        # Physical settlement risk for stock F&O
+        try:
+            from .risk import physical_settlement as ps
+            sym = t.get('symbol', 'NIFTY')
+            if ps.applies(sym):
+                _dte = t.get('current_dte') or 99
+                _spot = t.get('last_check_spot') or t.get('entry_spot') or 0
+                from .data.ref_data import lot_size as _ref_ls2
+                _lot = t.get('lot_size') or _ref_ls2(sym)
+                sc = ps.settlement_check(t['legs_parsed'], _spot, _lot, _dte, sym)
+                t['settlement'] = sc
+        except Exception:
+            pass
 
     # ── Portfolio-level greeks ──
     portfolio_greeks = {'delta': 0, 'gamma': 0, 'theta_daily': 0, 'vega': 0}
@@ -2417,7 +2468,8 @@ def _enrich_open_trade(t, db):
             dte = 14
     dte = dte or 14
     t_years = max(1, dte) / 365.0
-    lot_size = t.get('lot_size') or 65
+    from .data.ref_data import lot_size as _ref_ls3
+    lot_size = t.get('lot_size') or _ref_ls3(t.get('symbol', 'NIFTY'))
     lots = t.get('lots') or 1
 
     # Per-leg detail
@@ -2520,6 +2572,16 @@ def _enrich_open_trade(t, db):
             sc_pnl += s_sign * (p - l.get('premium', 0))
         scenarios[f'{pct_move:+d}%'] = round(sc_pnl * lot_size * lots)
     t['scenarios'] = scenarios
+
+    # Settlement risk (stock F&O only — index options are cash-settled)
+    sym = t.get('symbol', '')
+    try:
+        from .risk import physical_settlement as ps
+        if ps.applies(sym):
+            sc = ps.settlement_check(legs, spot, lot_size, dte, sym)
+            t['settlement'] = sc
+    except Exception:
+        pass
 
 
 # ── Self-check ──────────────────────────────────────────────────

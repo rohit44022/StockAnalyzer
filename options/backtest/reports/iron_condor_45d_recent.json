@@ -1,0 +1,180 @@
+{
+  "generated": "2026-10-12T01:28:56.530703",
+  "strategy": "iron_condor",
+  "symbol": "NIFTY",
+  "period": {
+    "start": "2026-08-06",
+    "end": "2026-10-09",
+    "trading_days": 45
+  },
+  "config": {
+    "strategy_key": "iron_condor",
+    "symbol": "NIFTY",
+    "lot_size": 75,
+    "initial_capital": 38000,
+    "max_lots": 1,
+    "max_concurrent": 1,
+    "r": 0.07,
+    "entry_dte_range": [
+      3,
+      7
+    ],
+    "vp_threshold": 0.02,
+    "slippage_mult": 1.0,
+    "rv_window": 21,
+    "profit_target_pct": 0.5,
+    "stop_loss_pct": 1.0,
+    "exit_dte": 1,
+    "signal_mode": "vp",
+    "max_margin_usage": 0.6,
+    "start_date": "2026-08-06",
+    "end_date": "2026-10-09",
+    "_peak_equity": 39855.45
+  },
+  "summary": {
+    "total_trades": 7,
+    "net_pnl": -5471.66,
+    "gross_pnl": -5109.19,
+    "total_costs": 362.47,
+    "cost_pct_of_gross": -7.1,
+    "win_rate_pct": 28.6,
+    "profit_factor": 0.43,
+    "avg_trade": {
+      "avg_win": 2064.4,
+      "avg_loss": -1920.09,
+      "avg_all": -781.67,
+      "n_wins": 2,
+      "n_losses": 5
+    }
+  },
+  "risk_metrics": {
+    "sharpe": -1.8063,
+    "sortino": -2.1541,
+    "gsr": -1.8485,
+    "calmar": -2.21,
+    "return_dd_ratio": 0.0,
+    "max_drawdown": {
+      "amount": 10495.84,
+      "pct": 25.93,
+      "peak_idx": 17,
+      "trough_idx": 40,
+      "duration": 23
+    },
+    "tharp_expectancy": -0.41
+  },
+  "davey_gates": {
+    "return_dd_ratio": {
+      "value": 0.0,
+      "threshold": ">2.0",
+      "pass": false
+    },
+    "profit_factor": {
+      "value": 0.43,
+      "threshold": ">1.0",
+      "pass": "False"
+    },
+    "max_dd_pct": {
+      "value": 25.93,
+      "threshold": "<40%",
+      "pass": "True"
+    },
+    "min_trades": {
+      "value": 7,
+      "threshold": "\u226530",
+      "pass": false
+    },
+    "t_test_significance": {
+      "value": 0.7827,
+      "threshold": "<0.05",
+      "pass": false
+    }
+  },
+  "cost_analysis": {
+    "total": 362.47,
+    "per_trade_avg": 51.78,
+    "pct_of_gross": 2.7
+  },
+  "trades": [
+    {
+      "id": 1,
+      "entry": "2026-08-21",
+      "exit": "2026-08-24",
+      "days": 3,
+      "gross": 1872.72,
+      "costs": 17.27,
+      "net": 1855.45,
+      "reason": "dte_1"
+    },
+    {
+      "id": 2,
+      "entry": "2026-08-25",
+      "exit": "2026-08-31",
+      "days": 6,
+      "gross": -182.74,
+      "costs": 39.55,
+      "net": -222.29,
+      "reason": "dte_1"
+    },
+    {
+      "id": 3,
+      "entry": "2026-09-01",
+      "exit": "2026-09-07",
+      "days": 6,
+      "gross": -591.16,
+      "costs": 43.2,
+      "net": -634.36,
+      "reason": "dte_1"
+    },
+    {
+      "id": 4,
+      "entry": "2026-09-08",
+      "exit": "2026-09-15",
+      "days": 7,
+      "gross": -3778.5,
+      "costs": 84.11,
+      "net": -3862.61,
+      "reason": "expiry"
+    },
+    {
+      "id": 5,
+      "entry": "2026-09-15",
+      "exit": "2026-09-21",
+      "days": 6,
+      "gross": -806.64,
+      "costs": 54.75,
+      "net": -861.39,
+      "reason": "dte_1"
+    },
+    {
+      "id": 6,
+      "entry": "2026-09-22",
+      "exit": "2026-09-28",
+      "days": 6,
+      "gross": -3930.64,
+      "costs": 89.16,
+      "net": -4019.8,
+      "reason": "dte_1"
+    },
+    {
+      "id": 7,
+      "entry": "2026-09-30",
+      "exit": "2026-10-05",
+      "days": 5,
+      "gross": 2307.77,
+      "costs": 34.43,
+      "net": 2273.34,
+      "reason": "dte_1"
+    }
+  ],
+  "warnings": [
+    "2026-08-10: entry skipped (illiquid/build failed)",
+    "2026-08-24: entry skipped (illiquid/build failed)",
+    "2026-08-31: entry skipped (illiquid/build failed)",
+    "2026-09-07: entry skipped (illiquid/build failed)",
+    "2026-09-21: entry skipped (illiquid/build failed)",
+    "2026-09-28: sell suppressed (Quarterly Expiry)",
+    "2026-09-29: sell suppressed (Quarterly Expiry)",
+    "2026-10-05: entry skipped (illiquid/build failed)",
+    "2026-10-06: sell suppressed (RBI MPC)"
+  ]
+}

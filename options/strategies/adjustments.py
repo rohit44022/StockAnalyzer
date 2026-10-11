@@ -9,8 +9,11 @@ GA5 fix: Cohen's long-option exit rule hardened.
 from ..core import bsm
 
 
+_ATR_NOISE_MULT = 1.5  # S10: moves < 1.5× ATR are noise
+
+
 def check(position, spot, days_held=0, entry_spot=None, dte=None, r=0.07,
-          live_iv=None):
+          live_iv=None, atr_14=None):
     """
     Check if a position needs adjustment.
 
@@ -23,6 +26,7 @@ def check(position, spot, days_held=0, entry_spot=None, dte=None, r=0.07,
     dte : int — days to expiry
     r : float — risk-free rate
     live_iv : dict or None — {(strike, option_type): iv} from current chain
+    atr_14 : float or None — 14-day ATR for noise filter (S10)
 
     Returns
     -------
@@ -37,6 +41,13 @@ def check(position, spot, days_held=0, entry_spot=None, dte=None, r=0.07,
     recs.extend(_pnl_rules(position, spot, entry_spot, dte_years, r, live_iv))
 
     recs.extend(_general_rules(position, days_held))
+
+    # T10: barrier proximity — warn when spot nears a short strike
+    recs.extend(_barrier_rules(position, spot))
+
+    # S10: ATR noise filter — downgrade non-emergency recs if move < 1.5× ATR
+    if atr_14 and entry_spot and entry_spot > 0:
+        recs = _atr_filter(recs, spot, entry_spot, atr_14)
 
     recs.sort(key=lambda r: r['urgency'])
     return recs
@@ -149,12 +160,107 @@ def _pnl_rules(position, spot, entry_spot, dte_years=None, r=0.07, live_iv=None)
     return recs
 
 
+def _barrier_rules(position, spot):
+    """T10: Taleb — warn when spot approaches short strikes (gamma acceleration zone)."""
+    recs = []
+    if spot <= 0:
+        return recs
+    for leg in position.get('legs', []):
+        if leg.get('action') != 'SELL':
+            continue
+        strike = leg.get('strike')
+        if not strike:
+            continue
+        dist = abs(strike - spot) / spot
+        otype = leg.get('option_type', '')
+        if dist < 0.005:
+            recs.append({'action': 'close', 'urgency': 1,
+                         'reason': f'Barrier breach: spot {dist:.1%} from short {otype} {strike}'})
+        elif dist < 0.015:
+            recs.append({'action': 'adjust', 'urgency': 2,
+                         'reason': f'Barrier approach: spot {dist:.1%} from short {otype} {strike}'})
+    return recs
+
+
 def _general_rules(position, days_held):
     recs = []
     if days_held > 30:
         recs.append({'action': 'review', 'urgency': 3,
                      'reason': f'Held {days_held} days — review if thesis still valid'})
     return recs
+
+
+def _atr_filter(recs, spot, entry_spot, atr_14):
+    """S10: Sebastian — downgrade non-emergency adjustments if move < 1.5× ATR (noise)."""
+    move = abs(spot - entry_spot)
+    if move >= _ATR_NOISE_MULT * atr_14:
+        return recs
+    filtered = []
+    for r in recs:
+        if r.get('urgency', 3) <= 1:
+            filtered.append(r)
+        else:
+            r = r.copy()
+            r['urgency'] = 3
+            r['reason'] += f' [ATR: move {move:.0f} < {_ATR_NOISE_MULT}×ATR {atr_14:.0f}]'
+            filtered.append(r)
+    return filtered
+
+
+def should_defer(rec, signal_days=0):
+    """S6: Sebastian Ch.12 — require 2 of 3 consecutive signal days before non-emergency adjustment.
+    Caller tracks signal_days in trade metadata."""
+    if rec.get('urgency', 3) <= 1:
+        return False
+    return signal_days < 2
+
+
+def liquidity_alert(legs, chain_df=None):
+    """T6: warn if bid-ask spread is abnormally wide on short legs."""
+    if chain_df is None or chain_df.empty:
+        return []
+    recs = []
+    for leg in legs:
+        if leg.get('action') != 'SELL':
+            continue
+        strike = leg.get('strike')
+        otype = leg.get('option_type')
+        match = chain_df[
+            (chain_df['strike'] == strike) & (chain_df['option_type'] == otype)
+        ]
+        if match.empty:
+            continue
+        row = match.iloc[0]
+        bid = row.get('bid', 0) if 'bid' in row.index else 0
+        ask = row.get('ask', 0) if 'ask' in row.index else 0
+        if bid > 0 and ask > 0:
+            spread_pct = (ask - bid) / ((bid + ask) / 2)
+            if spread_pct > 0.10:
+                recs.append({
+                    'action': 'review', 'urgency': 2,
+                    'reason': f'Liquidity hole: {otype} {strike} spread {spread_pct:.1%} — exit costly'
+                })
+    return recs
+
+
+def adjustment_gate(adjustment_count, max_adjustments=3):
+    """S8: Sebastian Ch.12 — hard cap on adjustments per trade.
+    Returns (allowed, warning_or_None)."""
+    if adjustment_count >= max_adjustments:
+        return False, f'Over-adjustment: {adjustment_count} adjustments ≥ {max_adjustments} — close instead'
+    if adjustment_count >= max_adjustments - 1:
+        return True, f'{adjustment_count} adjustments — next triggers forced exit'
+    return True, None
+
+
+def adjustment_priority(strategy, breach_side):
+    """S11: Sebastian Ch.9 — cascade order for iron condor adjustments.
+    Returns ordered list; caller tries each until one is feasible."""
+    if 'iron' not in strategy and 'condor' not in strategy:
+        return ['close']
+    if breach_side == 'upside':
+        return ['kite_spread', 'ratio_spread', 'call_spread', 'add_margin', 'close']
+    return ['ratio_put', 'put_spread', 'add_margin', 'close']
 
 
 def suggest_roll(position, chain_df, spot, r=0.07, lot_size=None):
@@ -212,6 +318,39 @@ def _self_check():
     recs = check(straddle, spot=24000, entry_spot=24000, dte=3)
     pnl = _reprice_pnl(legs, 24000, 3 / 365)
     assert pnl > 0, f"Theta should help: pnl={pnl:.2f}"
+
+    # S10: ATR noise filter — small move should downgrade urgency
+    pos2 = {'strategy': 'iron_condor', 'net_premium': 5.0, 'legs': []}
+    recs = check(pos2, spot=24100, entry_spot=24000, dte=10, atr_14=200)
+    assert all(r['urgency'] >= 3 or r['urgency'] <= 1 for r in recs if 'ATR' in r.get('reason', ''))
+
+    # S6: should_defer
+    assert not should_defer({'urgency': 1}, signal_days=0)
+    assert should_defer({'urgency': 2}, signal_days=1)
+    assert not should_defer({'urgency': 2}, signal_days=2)
+
+    # S8: adjustment gate
+    ok, _ = adjustment_gate(0)
+    assert ok
+    ok, _ = adjustment_gate(2)
+    assert ok  # allowed but warned
+    ok, reason = adjustment_gate(3)
+    assert not ok and 'close' in reason
+
+    # S11: adjustment priority
+    pri = adjustment_priority('iron_condor', 'upside')
+    assert pri[0] == 'kite_spread' and pri[-1] == 'close'
+    pri = adjustment_priority('iron_condor', 'downside')
+    assert pri[0] == 'ratio_put'
+
+    # T10: barrier proximity
+    pos3 = {'strategy': 'iron_condor', 'legs': [
+        {'strike': 24100, 'option_type': 'CE', 'action': 'SELL'},
+    ]}
+    recs = _barrier_rules(pos3, 24090)
+    assert any(r['urgency'] == 1 for r in recs), "Should urgency=1 within 0.5%"
+    recs = _barrier_rules(pos3, 23700)
+    assert not recs, "No barrier warning when far away"
 
     print("adjustments.py: all checks passed")
 

@@ -999,8 +999,8 @@ function rOpen(ts){
       </td>
       <td class="fm" style="color:${(g.theta_daily||0)<0?'var(--r)':'var(--g)'}">${F(g.theta_daily)}</td>
       <td class="fm">${g.delta?.toFixed(1)||'0'}</td>
-      <td><span class="ls ${t.live_status||'paper'}">${t.live_status||'PAPER'}</span></td>
-      <td><span class="src ${src}">${src}</span></td>
+      <td><span class="ls ${t.live_status||'paper'}">${t.live_status||'PAPER'}</span>${(t.adj_signal_streak||0)>=1?`<span class="src" style="margin-left:4px;background:${(t.adj_signal_streak||0)>=2?'var(--r)':'var(--y)'};color:#000;font-size:.65rem" title="S6: ${t.adj_signal_streak}-day signal streak">S6:${t.adj_signal_streak}d</span>`:''}</td>
+      <td><span class="src ${src}">${src}</span>${(t.adjustment_count||0)>=1?`<span class="src" style="margin-left:4px;background:${(t.adjustment_count||0)>=3?'var(--r)':'var(--y)'};color:#000;font-size:.65rem" title="S8: ${t.adjustment_count}/3 adjustments">S8:${t.adjustment_count}/3</span>`:''}</td>
     </tr>`;
     if(idx===0)html+=`<tr class="expand-hint-row"><td colspan="13" class="expand-hint"><i class="bi bi-hand-index"></i> Click any row above to see per-leg greeks, breakevens, and what-if scenarios</td></tr>`;
 
@@ -1021,6 +1021,7 @@ function rOpen(ts){
           ${Object.entries(scen).map(([k,v])=>`<div class="leg-row"><span class="leg-label">NIFTY ${k}</span><span class="fm ${pcl(v)}">${ps(v)}</span></div>`).join('')}
           <div style="margin-top:8px;font-size:.75rem;color:var(--muted)">Estimated P/L if NIFTY moves by this %. IV held constant. Helps gauge downside risk vs upside potential.</div>
         </div>
+        ${_talebRiskCard(t)}
       </div>
       <div style="padding:2px 18px 12px;font-size:.78rem;color:var(--text-dim)">
         <strong>Entry Reason:</strong> ${esc(t.entry_reason||'--')} · <strong>Legs:</strong> ${esc(t.legs_summary||'--')}
@@ -1029,6 +1030,38 @@ function rOpen(ts){
     </td></tr>`;
   });
   tb.innerHTML=html}
+
+function _talebRiskCard(t){
+  const tr=t.taleb_risk;if(!tr||!Object.keys(tr).length)return '';
+  const ar=tr.asymmetry||{};const pm=tr.path_metrics||{};
+  const dteFactor=tr.dte_decay_factor??1;
+  const dteClr=dteFactor>=0.75?'var(--g)':dteFactor>=0.5?'var(--y)':'var(--r)';
+  const ftWarn=tr.fat_tail_warning;
+  const ftRatio=(tr.fat_tail_ratio||1).toFixed(1);
+  let rows='';
+  // T4
+  if(ar.ratio)rows+=`<div class="leg-row"><span class="leg-label">↓/↑ Asymmetry</span><span class="fm" style="color:${ar.ratio>2?'var(--r)':'var(--text)'}">${ar.ratio.toFixed(1)}× ${ar.warning?'⚠':'✓'}</span></div>`;
+  rows+=`<div class="leg-row"><span class="leg-label">↓ ${((ar.move_pct||0.05)*100).toFixed(0)}% P/L</span><span class="fm ${pcl(ar.down_pnl)}">${ps(ar.down_pnl||0)}</span></div>`;
+  rows+=`<div class="leg-row"><span class="leg-label">↑ ${((ar.move_pct||0.05)*100).toFixed(0)}% P/L</span><span class="fm ${pcl(ar.up_pnl)}">${ps(ar.up_pnl||0)}</span></div>`;
+  // T7
+  rows+=`<div class="leg-row"><span class="leg-label">DTE Sizing</span><span class="fm" style="color:${dteClr}">${(dteFactor*100).toFixed(0)}%</span></div>`;
+  // T9
+  rows+=`<div class="leg-row"><span class="leg-label">Fat-Tail / BSM</span><span class="fm" style="color:${ftWarn?'var(--r)':'var(--text)'}">${ftRatio}× ${ftWarn?'⚠':''}</span></div>`;
+  rows+=`<div class="leg-row"><span class="leg-label">Fat-Tail Worst</span><span class="fm pn">${F(tr.fat_tail_worst||0)}</span></div>`;
+  // T11
+  if(tr.hedging_error)rows+=`<div class="leg-row"><span class="leg-label">Hedge Error/day</span><span class="fm">₹${(tr.hedging_error||0).toFixed(0)}</span></div>`;
+  // T8
+  if(pm.mae!==undefined){
+    rows+=`<div class="leg-row"><span class="leg-label">MAE</span><span class="fm pn">${pm.mae.toFixed(1)}%</span></div>`;
+    rows+=`<div class="leg-row"><span class="leg-label">MFE</span><span class="fm pp">${pm.mfe.toFixed(1)}%</span></div>`;
+    rows+=`<div class="leg-row"><span class="leg-label">Path Roughness</span><span class="fm">${pm.roughness.toFixed(1)}×</span></div>`;
+  }
+  return `<div class="leg-card" style="border-color:${ftWarn?'var(--r)':'var(--y)'}">
+    <div class="leg-head"><span style="font-weight:700;font-size:.85rem;color:var(--y)"><i class="bi bi-shield-exclamation"></i> Taleb Risk</span></div>
+    ${rows}
+    <div style="margin-top:8px;font-size:.75rem;color:var(--muted)">T4: asymmetry · T7: DTE decay · T8: path · T9: fat-tail · T11: hedge error</div>
+  </div>`;
+}
 
 function _tradeRiskAlerts(t){
   let h='';const dte=t.dte??99;const sym=t.symbol||'';
@@ -1046,6 +1079,26 @@ function _tradeRiskAlerts(t){
     const urgCls=dte<=2?'urgent':'soon';
     const msg=dte<=2?'Roll or close immediately — expiry margin spike + illiquidity':'Theta accelerating — optimal window to roll to next month';
     h+=`<div class="adj-alert ${urgCls}"><i class="bi bi-arrow-repeat"></i><div><strong>Roll Alert (DTE=${dte})</strong>: ${msg}.</div></div>`;
+  }
+  // S8: over-adjustment gate
+  const adjC=t.adjustment_count||0;
+  if(adjC>=3)
+    h+=`<div class="adj-alert urgent"><i class="bi bi-exclamation-octagon"></i><div><strong>S8 Over-Adjustment</strong>: ${adjC} adjustments — forced close on next signal.</div></div>`;
+  else if(adjC>=2)
+    h+=`<div class="adj-alert soon"><i class="bi bi-exclamation-octagon"></i><div><strong>S8 Adjustment Count</strong>: ${adjC}/3 — one more triggers forced close.</div></div>`;
+  // S6: signal streak
+  const streak=t.adj_signal_streak||0;
+  if(streak>=2)
+    h+=`<div class="adj-alert urgent"><i class="bi bi-activity"></i><div><strong>S6 Signal Confirmed</strong>: ${streak}-day streak — exit fires on next urgency-2 signal.</div></div>`;
+  else if(streak>=1)
+    h+=`<div class="adj-alert soon"><i class="bi bi-activity"></i><div><strong>S6 Signal Building</strong>: ${streak}-day streak — deferred, need 2 of 3 consecutive days.</div></div>`;
+  // S10: ATR context
+  const atr=t.atr_14;
+  if(atr>0){
+    const eSpot=t.entry_spot||0;const cSpot=t.last_check_spot||eSpot;
+    const move=Math.abs(cSpot-eSpot);const threshold=atr*1.5;
+    if(move>0&&move<threshold)
+      h+=`<div class="adj-alert" style="border-color:var(--muted);opacity:.7"><i class="bi bi-soundwave"></i><div><strong>S10 ATR Filter</strong>: Move ₹${move.toFixed(0)} < 1.5×ATR ₹${threshold.toFixed(0)} — noise, adjustment signals suppressed.</div></div>`;
   }
   return h?`<div style="padding:4px 18px 10px">${h}</div>`:'';
 }

@@ -14,10 +14,14 @@ import math
 
 # Which strategies are allowed in each regime cell.
 # Hard gate: scorer and backtest engine both use this.
+#
+# Cohen Ch.7: match strategy outlook to market direction.
+# Taleb: trending/momentum bad for iron condors — gamma losses compound.
+# Sinclair Ch.4: VP edge is regime-dependent — neutral income needs rangebound.
 REGIME_STRATEGIES = {
-    'trending_up':   {'bull_put_spread', 'bull_call_spread', 'iron_condor', 'long_call',
+    'trending_up':   {'bull_put_spread', 'bull_call_spread', 'long_call',
                       'long_straddle', 'long_strangle'},
-    'trending_down': {'bear_call_spread', 'bear_put_spread', 'iron_condor', 'long_put',
+    'trending_down': {'bear_call_spread', 'bear_put_spread', 'long_put',
                       'long_straddle', 'long_strangle', 'ratio_put_backspread'},
     'rangebound':    {'iron_condor', 'iron_butterfly', 'short_straddle', 'short_strangle',
                       'jade_lizard', 'long_butterfly',
@@ -148,5 +152,12 @@ if __name__ == '__main__':
     ibf = registry.get('iron_butterfly')
     assert strategy_fits_regime(ibf, r3)  # rangebound
     assert not strategy_fits_regime(ibf, r)  # trending_up
+
+    # iron_condor must be blocked from trending regimes (Taleb, Cohen Ch.7)
+    ic = registry.get('iron_condor')
+    assert not strategy_fits_regime(ic, r), "IC must not enter trending_up"
+    assert not strategy_fits_regime(ic, r2), "IC must not enter trending_down"
+    assert strategy_fits_regime(ic, r3), "IC should be allowed in rangebound"
+    assert strategy_fits_regime(ic, r4), "IC should be allowed in high_vol"
 
     print("regime.py: self-check passed")

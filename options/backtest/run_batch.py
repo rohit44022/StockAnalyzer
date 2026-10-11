@@ -162,24 +162,25 @@ def run_one(strategy, loader, spots):
 
 
 def print_summary(strategy, r):
-    m = r.get('metrics', {})
+    s = r.get('summary', {})
+    rm = r.get('risk_metrics', {})
     gates = r.get('davey_gates', {})
     mc = r.get('monte_carlo', {})
     all_pass = all(g.get('pass') for g in gates.values()) if gates else False
 
-    net = m.get('net_pnl', 0)
-    trades = m.get('total_trades', 0)
-    wr = m.get('win_rate', 0)
-    pf = m.get('profit_factor', 0)
-    dd = m.get('max_drawdown_pct', 0)
-    sr = m.get('sharpe_ratio', 0)
-    gsr_val = m.get('gsr', 0)
-    ret_dd = m.get('return_dd_ratio', 0)
+    net = s.get('net_pnl', 0)
+    trades = s.get('total_trades', 0)
+    wr = s.get('win_rate_pct', 0)
+    pf = s.get('profit_factor', 0)
+    dd = rm.get('max_drawdown', {}).get('pct', 0)
+    sr = rm.get('sharpe', 0)
+    gsr_val = rm.get('gsr', 0)
+    ret_dd = rm.get('return_dd_ratio', 0)
     ruin = mc.get('risk_of_ruin_pct', '-')
 
     status = 'PASS' if all_pass else 'FAIL'
     print(f"  {strategy:<22s} | {trades:3d} trades | net ₹{net:>8,.0f} | "
-          f"WR {wr:4.0%} | PF {pf:4.2f} | DD {dd:5.1f}% | "
+          f"WR {wr:4.1f}% | PF {pf:4.2f} | DD {dd:5.1f}% | "
           f"SR {sr:5.2f} | GSR {gsr_val:5.2f} | ret/DD {ret_dd:4.1f} | "
           f"ruin {ruin}% | {status}")
     return all_pass

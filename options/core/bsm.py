@@ -194,6 +194,16 @@ def put_call_parity(S, K, t, r, q=0.0, call_price=None, put_price=None):
         raise ValueError("provide at least one of call_price or put_price")
 
 
+# T11: Taleb — discrete hedging error bounds
+# BSM assumes continuous hedging; real hedging is discrete.
+# Tracking error per rebalance ≈ 0.5 × Γ × S² × σ² × Δt
+def hedging_error_bound(gamma, spot, rebalance_days=1, annual_vol=0.15):
+    """T11: Expected hedging error from discrete rebalancing.
+    Returns ₹ error per rebalance interval per unit."""
+    dt = rebalance_days / 365.0
+    return round(0.5 * abs(gamma) * spot ** 2 * annual_vol ** 2 * dt, 2)
+
+
 # ---------------------------------------------------------------------------
 # self-check
 # ---------------------------------------------------------------------------
@@ -222,6 +232,11 @@ def _self_check():
     assert bsm_price(110, 100, 0, 0.05, 0.20, 'CE') == 10.0
     assert bsm_price(90, 100, 0, 0.05, 0.20, 'PE') == 10.0
     assert bsm_price(90, 100, 0, 0.05, 0.20, 'CE') == 0.0
+
+    # T11: discrete hedging error
+    he = hedging_error_bound(0.001, 24000, rebalance_days=1, annual_vol=0.15)
+    assert he > 0, "Hedging error must be positive for nonzero gamma"
+    assert hedging_error_bound(0, 24000) == 0, "Zero gamma → zero error"
 
     print("bsm.py: all checks passed")
 

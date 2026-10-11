@@ -100,8 +100,17 @@ def parametric_var(portfolio_delta, portfolio_vega, spot, daily_vol,
                          + 2 * r * delta_var * vega_var)
     var_amount = combined * z * math.sqrt(holding_days)
 
+    # T5: CVaR/ES — expected loss beyond VaR (Taleb: VaR is the floor, not the ceiling)
+    phi_z = math.exp(-z ** 2 / 2) / math.sqrt(2 * math.pi)
+    cvar_factor = phi_z / (1 - confidence)
+    cvar_amount = combined * cvar_factor * math.sqrt(holding_days)
+    cvar_ratio = round(cvar_amount / var_amount, 2) if var_amount > 0 else 0
+
     return {
         'var_amount': round(var_amount, 2),
+        'cvar_amount': round(cvar_amount, 2),
+        'cvar_var_ratio': cvar_ratio,
+        'tail_warning': 'Taleb: real CVaR can be 3-5× parametric in fat-tailed markets',
         'delta_component': round(delta_var * z * math.sqrt(holding_days), 2),
         'vega_component': round(vega_var * z * math.sqrt(holding_days), 2),
         'rho': r,
@@ -180,6 +189,8 @@ def _self_check():
         portfolio_vega=agg['net_greeks']['vega'],
         spot=24000, daily_vol=0.012)
     assert var['var_amount'] > 0
+    assert var['cvar_amount'] >= var['var_amount'], "CVaR must be ≥ VaR"
+    assert var['cvar_var_ratio'] > 1.0, f"Normal CVaR/VaR should be ~1.25, got {var['cvar_var_ratio']}"
 
     conc = concentration_check(agg['breakdown'], agg['total_exposure'])
     assert len(conc['by_underlying']) == 2

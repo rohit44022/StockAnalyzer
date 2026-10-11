@@ -118,6 +118,17 @@ def build(strategy_key, chain_df, spot, r=0.07,
         for _ in range(spec.qty):
             legs.append(leg.copy())
 
+    # S4: Sebastian Ch.11 — % OTM cross-check (iron condors only — ATM strategies exempt)
+    if strategy_key == 'iron_condor':
+        min_otm = cfg.get('min_otm_pct', MIN_SHORT_OTM_PCT)
+        for leg in legs:
+            if leg['action'] == 'SELL':
+                otm_pct = abs(leg['strike'] - spot) / spot if spot > 0 else 0
+                if otm_pct < min_otm:
+                    warnings.append(
+                        f'{leg["option_type"]} short at {leg["strike"]} is {otm_pct:.1%} OTM '
+                        f'— Sebastian: ≥{min_otm:.1%} required')
+
     net_premium = sum(
         l['premium'] * (1 if l['action'] == 'SELL' else -1)
         for l in legs
@@ -137,7 +148,10 @@ def build(strategy_key, chain_df, spot, r=0.07,
     max_loss = summary['max_loss']
 
     # GA4: Cohen — equal wing widths for butterflies/condors
-    warnings.extend(_validate_wings(strategy_key, legs))
+    # S7: Sebastian — wing credit floor
+    wing_warnings = _validate_wings(strategy_key, legs)
+    warnings.extend(wing_warnings)
+    wing_rejected = any('not worth the risk' in w for w in wing_warnings)
 
     # GA1: flag when registry says 'limited' but actual risk is extreme
     if strat.max_loss == 'limited' and max_profit and max_profit > 0:
@@ -170,6 +184,7 @@ def build(strategy_key, chain_df, spot, r=0.07,
         'net_premium_after_cost': round(
             net_premium * lot_size - cost_est.get('total', 0), 2),
         'warnings': warnings,
+        'wing_rejected': wing_rejected,
     }
 
 
@@ -262,8 +277,14 @@ def resolve_strike_for_moneyness(moneyness, spot, interval, option_type):
     return spot + offset * interval
 
 
+# S4: Sebastian Ch.11 — short strikes must be ≥ this % OTM from spot
+# ponytail: 8.5% is SPX-calibrated; NIFTY weeklies use 0.5% default, tune via config
+MIN_SHORT_OTM_PCT = 0.005
+
+WING_CREDIT_FLOOR = 5.0  # S7: Sebastian — minimum ₹5 per wing collected
+
 def _validate_wings(strat_key, legs):
-    """Cohen: equal strike spacing for butterflies/condors."""
+    """Cohen: equal strike spacing for butterflies/condors. Sebastian: wing credit floor."""
     warnings = []
     if strat_key in ('iron_condor', 'iron_butterfly'):
         pe = sorted([l for l in legs if l['option_type'] == 'PE'],
@@ -277,6 +298,17 @@ def _validate_wings(strat_key, legs):
                 warnings.append(
                     f'Unequal wings: put={put_w}, call={call_w} — '
                     f'Cohen: need equal spacing')
+            # S7: wing credit floor — each spread must collect ≥ WING_CREDIT_FLOOR
+            put_credit = pe[1].get('premium', 0) - pe[0].get('premium', 0)
+            call_credit = ce[0].get('premium', 0) - ce[1].get('premium', 0)
+            if put_credit < WING_CREDIT_FLOOR:
+                warnings.append(
+                    f'Put wing credit ₹{put_credit:.1f} < ₹{WING_CREDIT_FLOOR:.0f} floor — '
+                    f'Sebastian: not worth the risk')
+            if call_credit < WING_CREDIT_FLOOR:
+                warnings.append(
+                    f'Call wing credit ₹{call_credit:.1f} < ₹{WING_CREDIT_FLOOR:.0f} floor — '
+                    f'Sebastian: not worth the risk')
     elif strat_key == 'long_butterfly':
         sells = [l for l in legs if l['action'] == 'SELL']
         buy_strikes = sorted(set(l['strike'] for l in legs if l['action'] == 'BUY'))

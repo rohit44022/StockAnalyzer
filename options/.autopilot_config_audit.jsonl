@@ -32,3 +32,11 @@
 {"ts": "2026-10-09T21:29:06", "changes": {"enabled": {"from": false, "to": true}, "capital": {"from": 100000, "to": 500000}, "min_score": {"from": 10.0, "to": 7.0}, "max_concurrent_trades": {"from": 5, "to": 3}}}
 {"ts": "2026-10-09T21:29:06", "changes": {"max_concurrent_trades": {"from": 3, "to": 1}}}
 {"ts": "2026-10-09T21:29:06", "changes": {"enabled": {"from": true, "to": false}, "max_concurrent_trades": {"from": 1, "to": 3}}}
+{"ts": "2026-10-11T11:03:54", "changes": {"capital": {"from": 500000, "to": 38000}}}
+{"ts": "2026-10-12T02:08:26", "changes": {"capital": {"from": 38000, "to": 500000}}}
+{"ts": "2026-10-12T02:08:26", "changes": {"capital": {"from": 500000, "to": 10000}, "min_score": {"from": 7.0, "to": 10.0}, "max_concurrent_trades": {"from": 3, "to": 5}}}
+{"ts": "2026-10-12T02:09:19", "changes": {"capital": {"from": 10000, "to": 500000}, "min_score": {"from": 10.0, "to": 7.0}, "max_concurrent_trades": {"from": 5, "to": 3}}}
+{"ts": "2026-10-12T02:09:19", "changes": {"capital": {"from": 500000, "to": 10000}, "min_score": {"from": 7.0, "to": 10.0}, "max_concurrent_trades": {"from": 3, "to": 5}}}
+{"ts": "2026-10-12T02:09:19", "changes": {"enabled": {"from": false, "to": true}, "capital": {"from": 10000, "to": 500000}, "min_score": {"from": 10.0, "to": 7.0}, "max_concurrent_trades": {"from": 5, "to": 3}}}
+{"ts": "2026-10-12T02:09:19", "changes": {"max_concurrent_trades": {"from": 3, "to": 1}}}
+{"ts": "2026-10-12T02:09:19", "changes": {"enabled": {"from": true, "to": false}, "max_concurrent_trades": {"from": 1, "to": 3}}}

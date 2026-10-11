@@ -52,9 +52,10 @@ def run(config, chain_loader, spot_series):
     spot_list = [spot_series[d] for d in dates_sorted]
     date_idx = {d: i for i, d in enumerate(dates_sorted)}
 
-    for dt in trading_dates:
-        chain_raw = chain_loader(dt)
-        spot = spot_series[dt]
+    for dt_key in trading_dates:
+        dt = _to_date(dt_key)
+        chain_raw = chain_loader(dt_key)
+        spot = spot_series[dt_key]
 
         if chain_raw is None or (isinstance(chain_raw, pd.DataFrame) and chain_raw.empty):
             equity_dates.append(dt)
@@ -93,6 +94,19 @@ def run(config, chain_loader, spot_series):
                 if rv is not None and not math.isnan(rv) and atm_iv_val is not None:
                     vp_val = atm_iv_val - rv
                     enter = vp_val >= cfg['vp_threshold']
+                # Taleb: trending/momentum bad for iron condors — gamma losses compound.
+                # Sinclair Ch.4: VP edge is regime-dependent.
+                # Use tighter ±1% RoC gate for income strategies (regime uses ±2%).
+                if enter:
+                    strat_check = registry.get(cfg['strategy_key'])
+                    if strat_check and strat_check.outlook == 'neutral' and strat_check.category == 'income':
+                        reg = regime.detect_regime(spot_list, idx, dt, atm_iv_val, rv, w,
+                                                   prev_regime=prev_regime)
+                        prev_regime = reg.get('regime')
+                        roc_gate = cfg.get('income_roc_gate', 0.01)
+                        if abs(reg['roc']) >= roc_gate:
+                            enter = False
+                            warn.append(f"{dt}: {cfg['strategy_key']} blocked — RoC={reg['roc']:+.2%} (gate=±{roc_gate:.0%})")
 
             elif cfg['signal_mode'] == 'regime':
                 reg = regime.detect_regime(spot_list, idx, dt, atm_iv_val, rv, w,
@@ -196,13 +210,14 @@ def _defaults(config):
 
 def _enrich_chain(df_raw, spot, dt, r, iv_mod, lot_size=None):
     df = df_raw.copy()
+    dt_date = _to_date(dt)
 
     price_col = 'settle' if 'settle' in df.columns else 'close'
     df['ltp'] = df[price_col].clip(lower=0.05)
 
     if 'expiry' in df.columns and 'expiry_years' not in df.columns:
         df['expiry_years'] = df['expiry'].apply(
-            lambda e: max((_to_date(e) - dt).days, 1) / 365
+            lambda e: max((_to_date(e) - dt_date).days, 1) / 365
         )
 
     if 'iv' not in df.columns:
@@ -241,6 +256,10 @@ def _enrich_chain(df_raw, spot, dt, r, iv_mod, lot_size=None):
 def _to_date(val):
     if isinstance(val, datetime.datetime):
         return val.date()
+    if isinstance(val, datetime.date):
+        return val
+    if isinstance(val, str):
+        return datetime.date.fromisoformat(val[:10])
     return val
 
 
@@ -306,6 +325,9 @@ def _open(cfg, chain, spot, dt, vp_val, builder, cost_model, equity=None):
     exp_chain = chain[chain['expiry'].apply(_to_date) == target].copy()
     if exp_chain.empty:
         return None
+
+    if 'expiry_years' not in exp_chain.columns:
+        exp_chain['expiry_years'] = (target - dt).days / 365.0
 
     if 'volume' in exp_chain.columns:
         near = exp_chain[(exp_chain['strike'] - spot).abs() < spot * 0.05]

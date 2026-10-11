@@ -168,6 +168,10 @@ def init_db(db=None):
         c.execute("ALTER TABLE trades ADD COLUMN standing_sl_ids TEXT")
     if 'residual_retries' not in cols:
         c.execute("ALTER TABLE trades ADD COLUMN residual_retries INTEGER DEFAULT 0")
+    if 'adj_signal_streak' not in cols:
+        c.execute("ALTER TABLE trades ADD COLUMN adj_signal_streak INTEGER DEFAULT 0")
+    if 'adjustment_count' not in cols:
+        c.execute("ALTER TABLE trades ADD COLUMN adjustment_count INTEGER DEFAULT 0")
 
     c.execute('''CREATE TABLE IF NOT EXISTS autopilot_alerts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

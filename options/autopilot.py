@@ -91,6 +91,12 @@ DEFAULT_CONFIG = {
     'intraday_enabled': False,
     'intraday_scan_times': ['09:45', '10:30', '11:30', '13:00', '14:00'],
     'intraday_hard_exit_time': '15:10',
+    # Sebastian/Taleb Phase A
+    'max_trade_risk_pct': 2.0,       # S1: Sebastian Ch.3 — max 2% AUM per trade
+    'max_portfolio_heat_pct': 6.0,   # S2: Sebastian Ch.3 — max 6% aggregate open risk
+    'card_game_exit_threshold': 3.0, # S5: Card Game Value — exit when short leg ≤ ₹3
+    'vix_halt_above': 30,            # T12: Taleb Ch.15 — BSM breaks down above ~30% vol
+    'gap_stop_multiplier': 1.5,      # T2: Taleb Ch.4 — widen stop when gap risk is high
 }
 
 _CONFIG_BOUNDS = {
@@ -106,6 +112,11 @@ _CONFIG_BOUNDS = {
     'max_drawdown_pct':     (5, 50),
     'max_trades_per_day':   (1, 5),
     'max_consecutive_losses':(2, 20),
+    'max_trade_risk_pct':    (0.5, 5.0),
+    'max_portfolio_heat_pct':(2.0, 15.0),
+    'card_game_exit_threshold':(1.0, 10.0),
+    'vix_halt_above':        (20, 50),
+    'gap_stop_multiplier':   (1.0, 3.0),
 }
 
 
@@ -257,6 +268,56 @@ def _release_lock(fd):
             pass
 
 
+# ── Per-cycle caches (cleared at cycle start) ────────────────
+
+_atr_cache = {}    # symbol → float (14-day ATR)
+_chain_cache = {}  # symbol → DataFrame
+
+
+def _compute_atr(symbol):
+    """14-day ATR from price CSV. Cached per cycle."""
+    if symbol in _atr_cache:
+        return _atr_cache[symbol]
+    try:
+        import pandas as pd
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for fname in [f'{symbol}.csv', f'{symbol}.NS.csv']:
+            csv_path = os.path.join(base, 'stock_csv', fname)
+            if os.path.exists(csv_path):
+                df = pd.read_csv(csv_path)
+                if len(df) < 15:
+                    continue
+                df = df.tail(15)
+                high = pd.to_numeric(df['High'], errors='coerce')
+                low = pd.to_numeric(df['Low'], errors='coerce')
+                close = pd.to_numeric(df['Close'], errors='coerce')
+                prev_close = close.shift(1)
+                tr = pd.concat([high - low, (high - prev_close).abs(),
+                                (low - prev_close).abs()], axis=1).max(axis=1)
+                atr = float(tr.iloc[1:].mean())
+                _atr_cache[symbol] = atr
+                return atr
+    except Exception as e:
+        log.debug(f'ATR computation failed for {symbol}: {e}')
+    _atr_cache[symbol] = None
+    return None
+
+
+def _fetch_chain_cached(symbol):
+    """Fetch option chain once per cycle for liquidity checks."""
+    if symbol in _chain_cache:
+        return _chain_cache[symbol]
+    try:
+        from .data import dhan_fetch
+        df, _ = dhan_fetch.fetch_multi_expiry_chain(symbol, n_expiries=1)
+        _chain_cache[symbol] = df
+        return df
+    except Exception as e:
+        log.debug(f'Chain fetch for liquidity check failed: {e}')
+    _chain_cache[symbol] = None
+    return None
+
+
 # ── Live Execution Bridge (v5) ────────────────────────────────
 
 _IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
@@ -315,7 +376,7 @@ def _get_executor(cfg, db, force=False):
         try:
             from .data.dhan_fetch import _get_client
             dhan = _get_client()
-            broker_result = safety.setup_broker_safety(dhan)
+            broker_result = safety.setup_dhan_safety(dhan)
             log.info(f'Broker-side safety: {broker_result.get("pnl_exit", {}).get("status", "unknown")}')
         except Exception as e:
             log.warning(f'Broker-side safety setup skipped: {e}')
@@ -359,7 +420,8 @@ def _get_shadow_executor(cfg, db):
     cap_state = _capital_state(cfg, db)
     queue = OrderQueue(safety_config, db, executor=_noop_executor)
     bridge = ExecutionBridge(queue, safety_config, db, poll_interval=0.01)
-    bridge._wait_fill = lambda oid, to: {'price': 100.0, 'quantity': 65}
+    lot = cfg.get('lot_size', 75)
+    bridge._wait_fill = lambda oid, to: {'price': 100.0, 'quantity': lot}
     safety = SafetyMonitor(
         safety_config, db,
         portfolio_fetcher=lambda: PortfolioState(
@@ -395,7 +457,7 @@ def _place_standing_sls(trade_id, legs, symbol, db):
                 exchange_segment=SEGMENT.get(symbol.upper(), 'NSE_FNO'),
                 transaction_type='BUY',
                 product_type='NORMAL',
-                quantity=leg.get('qty', leg.get('quantity', 65)),
+                quantity=leg.get('qty', leg.get('quantity', 75)),
                 trigger_price=trigger,
                 tag=f'sl_t{trade_id}',
             )
@@ -749,6 +811,28 @@ def _capital_state(cfg, db) -> dict:
     }
 
 
+# ── Adjustment tracking helpers ────────────────────────────────
+
+def _increment_adj_count(trade_id, db):
+    """S8: bump adjustment_count when an adjustment-driven exit fires."""
+    conn = _conn(db)
+    conn.execute("UPDATE trades SET adjustment_count = COALESCE(adjustment_count,0)+1 WHERE id=?",
+                 (trade_id,))
+    conn.commit()
+    conn.close()
+
+
+def _update_adj_streak(trade_id, has_signal, current_streak, db):
+    """S6: track consecutive days with urgency<=2 signal."""
+    new_streak = (current_streak + 1) if has_signal else 0
+    if new_streak != current_streak:
+        conn = _conn(db)
+        conn.execute("UPDATE trades SET adj_signal_streak=? WHERE id=?",
+                     (new_streak, trade_id))
+        conn.commit()
+        conn.close()
+
+
 # ── Exit Logic ──────────────────────────────────────────────────
 
 def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
@@ -793,9 +877,45 @@ def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
         pct = total_pnl / max_profit * 100
         return True, f'Profit target: P/L ₹{total_pnl:.0f} = {pct:.0f}% of max profit (target {cfg["profit_target_pct"]}%)'
 
-    # 2. Stop loss
-    if max_loss > 0 and total_pnl <= -(max_loss * cfg['stop_loss_multiplier']):
-        return True, f'Stop loss: P/L ₹{total_pnl:.0f} exceeds -{cfg["stop_loss_multiplier"]}× max loss ₹{max_loss:.0f}'
+    # 1b. Card Game Value exit (S5: short legs decayed to near-zero, not worth the gamma risk)
+    cgv_threshold = cfg.get('card_game_exit_threshold', 3.0)
+    short_legs_decayed = True
+    has_short_legs = False
+    for l in legs:
+        if l.get('action') == 'SELL':
+            has_short_legs = True
+            iv = max(l.get('iv', 0.15), 0.01)
+            try:
+                cur_p = bsm.bsm_price(spot, l['strike'], t_years, 0.07, iv, l['option_type'])
+            except Exception:
+                cur_p = cgv_threshold + 1
+            if cur_p > cgv_threshold:
+                short_legs_decayed = False
+                break
+    if has_short_legs and short_legs_decayed and total_pnl > 0:
+        return True, f'Card Game Value: all short legs ≤ ₹{cgv_threshold:.0f} — not worth gamma risk'
+
+    # 2. Stop loss (T2: gap-widened when VIX high or event near)
+    stop_mult = cfg['stop_loss_multiplier']
+    try:
+        from .data import india_vix
+        current_vix = india_vix.latest_vix()
+    except Exception:
+        current_vix = None
+    gap_risk = False
+    if current_vix and current_vix >= 25:
+        gap_risk = True
+    try:
+        d2next, _ = event_calendar.days_to_next_event()
+        if d2next is not None and d2next <= 1:
+            gap_risk = True
+    except Exception:
+        pass
+    if gap_risk:
+        stop_mult *= cfg.get('gap_stop_multiplier', 1.5)
+    if max_loss > 0 and total_pnl <= -(max_loss * stop_mult):
+        gap_note = f' (gap-widened ×{cfg.get("gap_stop_multiplier", 1.5)})' if gap_risk else ''
+        return True, f'Stop loss{gap_note}: P/L ₹{total_pnl:.0f} exceeds -{stop_mult:.1f}× max loss ₹{max_loss:.0f}'
 
     # 3. DTE exit — reuse dte_days computed above for BSM
     dte = dte_days if target_exp else None
@@ -823,7 +943,7 @@ def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
         except Exception:
             pass
 
-    # 5. Adjustment engine urgency=1
+    # 5. Adjustment engine with S10/S6/S8/T6 wiring
     opened = trade.get('opened_at', '')
     entry_date = opened[:10] if opened else datetime.date.today().isoformat()
     days_held = max(0, (datetime.date.today() - datetime.date.fromisoformat(entry_date)).days)
@@ -831,25 +951,57 @@ def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
 
     position = {
         'legs': legs,
+        'strategy': trade.get('strategy', ''),
         'net_premium': sum(
             (l.get('premium', 0) if l.get('action') == 'SELL' else -l.get('premium', 0))
             for l in legs
         ),
     }
 
+    # S10: compute ATR and pass to adjustments.check() — filters noise moves
+    sym = trade.get('symbol', 'NIFTY')
+    atr_14 = _compute_atr(sym)
+
     try:
         adj = adjustments.check(position, spot, days_held=days_held,
-                                entry_spot=entry_spot, dte=dte)
+                                entry_spot=entry_spot, dte=dte, atr_14=atr_14)
     except Exception as e:
         log.warning(f'Adjustment check failed for trade {trade["id"]}: {e}')
         adj = []
 
+    # T6: liquidity hole detection — append alerts for short legs with wide spreads
+    try:
+        chain_df = _fetch_chain_cached(sym)
+        liq_alerts = adjustments.liquidity_alert(legs, chain_df)
+        adj.extend(liq_alerts)
+    except Exception as e:
+        log.debug(f'Liquidity check skipped for trade {trade["id"]}: {e}')
+
+    # S8: over-adjustment gate — force close if trade has been adjusted too many times
+    adj_count = trade.get('adjustment_count') or 0
+    gate_ok, gate_msg = adjustments.adjustment_gate(adj_count)
+    if not gate_ok:
+        return True, f'S8 forced close: {gate_msg}'
+
+    # Process adjustment recs with S6 deferral logic
+    adj_signal_streak = trade.get('adj_signal_streak') or 0
+    has_actionable_signal = False
+
     for a in adj:
         urg = a.get('urgency', 3)
-        if urg <= 2 and a.get('action') in ('close', 'stop_loss'):
-            return True, f'Adjustment urgency={urg}: {a["action"]} — {a.get("reason", "")}'
-        if urg <= 2 and a.get('action') == 'take_profit':
-            return True, f'Adjustment urgency={urg}: take_profit — {a.get("reason", "")}'
+        if urg > 2:
+            continue
+        if urg <= 1:
+            # Urgency=1 always fires — emergency, no deferral (not counted as adjustment for S8)
+            return True, f'Adjustment urgency={urg}: {a.get("action", "close")} — {a.get("reason", "")}'
+        # Urgency=2: apply S6 3-day defer
+        has_actionable_signal = True
+        if not adjustments.should_defer(a, adj_signal_streak):
+            _increment_adj_count(trade['id'], db)
+            return True, f'Adjustment urgency={urg} (confirmed {adj_signal_streak+1} days): {a.get("action", "close")} — {a.get("reason", "")}'
+
+    # Update streak: increment if signal fired this cycle, reset if not
+    _update_adj_streak(trade['id'], has_actionable_signal, adj_signal_streak, db)
 
     # 6. Circuit breaker: NSE halts at 10%/15%/20% drop
     entry_spot = trade.get('entry_spot', spot)
@@ -870,7 +1022,13 @@ def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
     except Exception as e:
         log.debug(f'Settlement check skipped: {e}')
 
-    # 8. Regime-change: strategy no longer fits current regime
+    # 8. S9: Friday pre-close — calendar spreads lose front-month theta over weekend
+    strategy = trade.get('strategy', '')
+    if 'calendar' in strategy and datetime.date.today().weekday() == 4:
+        if max_profit > 0 and total_pnl >= max_profit * 0.5:
+            return True, f'Friday pre-close: calendar at {total_pnl/max_profit*100:.0f}% profit — avoid weekend theta imbalance'
+
+    # 9. Regime-change: strategy no longer fits current regime
     try:
         from .strategies import regime as regime_mod, signals as sig_mod, scorer as scorer_mod
         from .data import pipeline as pipe_mod
@@ -996,6 +1154,52 @@ def _should_enter(rec, cfg, cap_state, db) -> tuple[bool, str]:
     except ImportError:
         pass
 
+    # S7: Sebastian wing credit floor (propagated via build_warnings)
+    build_warns = rec.get('build_warnings') or rec.get('warnings') or []
+    if any('not worth the risk' in w for w in build_warns):
+        return False, 'Sebastian wing credit floor: wing collects < ₹5 — not worth the risk'
+
+    # S4: Sebastian % OTM cross-check (propagated via build_warnings)
+    if any('OTM' in w and 'required' in w for w in build_warns):
+        return False, 'Sebastian OTM floor: short strike too close to spot'
+
+    # S3: Sebastian 5-phase skew — block iron condors in crisis/post-crisis phases
+    strategy = rec.get('strategy', rec.get('strategy_key', ''))
+    if 'iron' in strategy or 'condor' in strategy:
+        signals = rec.get('signals', [])
+        for sig in signals:
+            if sig.get('type') == 'skew_phase' and not sig.get('iron_condor_ok', True):
+                return False, f'Skew phase {sig.get("phase")}: iron condors blocked — {sig.get("detail", "")}'
+
+    # S1: Sebastian 2% per-trade AUM cap
+    max_loss = (rec.get('max_loss_per_lot') or 0) * (rec.get('lots') or 1)
+    trade_risk_cap = cap_state['current_capital'] * cfg.get('max_trade_risk_pct', 2.0) / 100
+    if max_loss > trade_risk_cap:
+        return False, (f'Sebastian 2% rule: trade max_loss ₹{max_loss:.0f} > '
+                       f'{cfg.get("max_trade_risk_pct", 2.0)}% AUM cap ₹{trade_risk_cap:.0f}')
+
+    # S2: Sebastian 6% portfolio heat
+    open_risk = sum(
+        (t.get('max_loss_per_lot') or 0) * (t.get('lots') or 1)
+        for t in cap_state['open_trades']
+    )
+    heat_cap = cap_state['current_capital'] * cfg.get('max_portfolio_heat_pct', 6.0) / 100
+    if open_risk + max_loss > heat_cap:
+        return False, (f'Sebastian 6% heat: open risk ₹{open_risk:.0f} + new ₹{max_loss:.0f} = '
+                       f'₹{open_risk + max_loss:.0f} > {cfg.get("max_portfolio_heat_pct", 6.0)}% cap ₹{heat_cap:.0f}')
+
+    # T12: Taleb VIX halt — BSM breaks down above ~30% vol
+    vix_halt = cfg.get('vix_halt_above', 30)
+    rec_vix = rec.get('vix') or rec.get('india_vix')
+    if not rec_vix:
+        try:
+            from .data import india_vix
+            rec_vix = india_vix.latest_vix()
+        except Exception:
+            pass
+    if rec_vix and rec_vix >= vix_halt:
+        return False, f'Taleb VIX halt: VIX {rec_vix:.1f} ≥ {vix_halt} — BSM unreliable, no new entries'
+
     return True, f'Score {score:.1f} ≥ {cfg["min_score"]}, all gates passed'
 
 
@@ -1014,6 +1218,10 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
     paper_trade.init_db(db)
     cfg = load_config()
     cycle_id = uuid.uuid4().hex[:12]
+
+    # Clear per-cycle caches
+    _atr_cache.clear()
+    _chain_cache.clear()
 
     if not cfg.get('enabled'):
         return {'cycle_id': cycle_id, 'action': 'skip', 'reason': 'Autopilot disabled'}
@@ -1088,6 +1296,12 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
     executor = _get_executor(cfg, db)
     if executor:
         log.info(f'Cycle {cycle_id}: live executor ready — real orders will be placed on Dhan')
+    elif cfg.get('live_mode') == 'live' and _is_market_open():
+        log.error(f'Cycle {cycle_id}: live_mode=live but executor init FAILED — aborting cycle')
+        _emit_alert(db, 'CRITICAL', 'SYSTEM',
+                    'Live executor failed — cycle aborted, NOT falling back to paper',
+                    f'cycle={cycle_id}')
+        return
     else:
         log.info(f'Cycle {cycle_id}: paper mode — no real orders')
 
@@ -1261,7 +1475,8 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
             try:
                 from .data import event_calendar
                 tomorrow = (now_ist.date() + datetime.timedelta(days=1))
-                if event_calendar.event_near(tomorrow) is not None:
+                d2e, _ = event_calendar.days_to_next_event(as_of=tomorrow)
+                if d2e is not None and d2e <= 1:
                     from .strategies import registry
                     strat = registry.get(trade.get('strategy', ''))
                     if strat and strat.category == 'income':
@@ -1393,6 +1608,23 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
                 if should:
                     try:
                         rec_id = rec['recommendation_id']
+                        # T7: enforce DTE sizing decay — cap lots before entry
+                        dte = rec.get('dte') or rec.get('expiry_days')
+                        if dte is not None:
+                            from .risk.sizing import dte_size_factor
+                            factor = dte_size_factor(dte)
+                            orig_lots = rec.get('lots', 1)
+                            capped = max(1, int(orig_lots * factor))
+                            if capped < orig_lots:
+                                conn_dte = _conn(db)
+                                try:
+                                    conn_dte.execute(
+                                        "UPDATE recommendations SET lots=? WHERE id=?",
+                                        (capped, rec_id))
+                                    conn_dte.commit()
+                                finally:
+                                    conn_dte.close()
+                                log.info(f'T7: DTE={dte} factor={factor} lots {orig_lots}→{capped}')
                         log.info(f'Phase 3: ENTERING {symbol} rec_id={rec_id} '
                                  f'{"LIVE" if executor else "PAPER"} mode')
                         result = paper_trade.enter(rec_id, db=db)
@@ -1621,7 +1853,7 @@ def reconcile(db=None):
                 mismatches.append(trade['id'])
             else:
                 dhan_qty = abs(dhan_sids[sid].get('netQty', dhan_sids[sid].get('quantity', 0)))
-                our_qty = abs(leg.get('qty', leg.get('quantity', 65)))
+                our_qty = abs(leg.get('qty', leg.get('quantity', 75)))
                 if dhan_qty != our_qty:
                     all_ok = False
                     details.append(f'QTY: trade #{trade["id"]} sid={sid} ours={our_qty} dhan={dhan_qty}')
@@ -2096,6 +2328,11 @@ def dashboard_data(db=None):
             t['breakevens'] = []
             t['scenarios'] = {}
 
+        # S6/S8/S10 adjustment tracking
+        t['adj_signal_streak'] = t.get('adj_signal_streak') or 0
+        t['adjustment_count'] = t.get('adjustment_count') or 0
+        t['atr_14'] = _compute_atr(t.get('symbol', 'NIFTY'))
+
         # Physical settlement risk for stock F&O
         try:
             from .risk import physical_settlement as ps
@@ -2354,6 +2591,20 @@ def dashboard_data(db=None):
         if urg <= 1:
             issues.append('urgency-1 adjustment needed')
 
+        # S8: approaching adjustment limit
+        adj_c = t.get('adjustment_count') or 0
+        if adj_c >= 3:
+            issues.append(f'S8: {adj_c} adjustments — forced close pending')
+        elif adj_c >= 2:
+            issues.append(f'S8: {adj_c}/3 adjustments — next triggers close')
+
+        # S6: signal streak building
+        streak = t.get('adj_signal_streak') or 0
+        if streak >= 2:
+            issues.append(f'S6: {streak}-day signal streak — exit on next signal')
+        elif streak >= 1:
+            issues.append(f'S6: {streak}-day signal streak building')
+
         if issues:
             level = 'error' if any('imminent' in i or 'max loss' in i or 'urgency' in i for i in issues) else 'warn'
             attention.append({'level': level, 'icon': 'exclamation-triangle',
@@ -2573,6 +2824,50 @@ def _enrich_open_trade(t, db):
         scenarios[f'{pct_move:+d}%'] = round(sc_pnl * lot_size * lots)
     t['scenarios'] = scenarios
 
+    # T4/T7/T8/T9/T11: Taleb risk panel
+    try:
+        from .risk import scenarios as scen_mod, sizing as sizing_mod
+
+        taleb = {}
+
+        # T4: up/down asymmetry
+        ar = scen_mod.asymmetry_ratio(legs, spot, lot_size=lot_size)
+        taleb['asymmetry'] = ar
+
+        # T7: DTE sizing decay
+        taleb['dte_decay_factor'] = sizing_mod.dte_size_factor(dte)
+
+        # T9: fat-tail worst case
+        ft = scen_mod.scenario_table_fat_tail(legs, spot, lot_size=lot_size)
+        taleb['fat_tail_worst'] = ft.get('fat_tail_worst', {}).get('pnl_per_lot', 0)
+        taleb['fat_tail_ratio'] = ft.get('fat_tail_ratio', 1.0)
+        bsm_worst = ft.get('worst_case', {}).get('pnl_per_lot', 0)
+        taleb['bsm_worst'] = bsm_worst
+        taleb['fat_tail_warning'] = taleb['fat_tail_ratio'] > 2.0
+
+        # T8: path-dependent tracking (from daily_checks spot history)
+        try:
+            conn2 = _conn(db)
+            spot_rows = conn2.execute(
+                'SELECT spot FROM daily_checks WHERE trade_id=? ORDER BY id', (t['id'],)
+            ).fetchall()
+            conn2.close()
+            if spot_rows:
+                spot_path = [t.get('entry_spot', spot)] + [r[0] for r in spot_rows]
+                taleb['path_metrics'] = scen_mod.path_metrics(spot_path)
+        except Exception:
+            pass
+
+        # T11: discrete hedging error
+        port_gamma = t.get('greeks', {}).get('gamma', 0)
+        he = bsm.hedging_error_bound(port_gamma, spot, annual_vol=0.15)
+        taleb['hedging_error'] = round(he * lot_size * lots, 2)
+
+        t['taleb_risk'] = taleb
+    except Exception as e:
+        log.warning(f'Taleb risk calc failed: {e}')
+        t['taleb_risk'] = {}
+
     # Settlement risk (stock F&O only — index options are cash-settled)
     sym = t.get('symbol', '')
     try:
@@ -2608,7 +2903,7 @@ def _self_check():
     # 2. Config bounds validation
     bad = {'capital': -100, 'min_score': 999, 'max_concurrent_trades': 100}
     validated = save_config(bad)
-    assert validated['capital'] == 100_000  # clamped to min
+    assert validated['capital'] == 10_000  # clamped to min (_CONFIG_BOUNDS)
     assert validated['min_score'] == 10.0   # clamped to max
     assert validated['max_concurrent_trades'] == 5  # clamped to max
 

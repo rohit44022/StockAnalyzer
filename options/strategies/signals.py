@@ -38,6 +38,9 @@ def scan_signals(pipeline_result):
     skew = pipeline_result.get('skew')
     if skew:
         signals.append(_skew_signal(skew))
+        phase_sig = _skew_phase_signal(skew, pipeline_result.get('vix'))
+        if phase_sig:
+            signals.append(phase_sig)
 
     oi_regime = pipeline_result.get('oi_regime')
     if oi_regime:
@@ -213,6 +216,50 @@ def _trend_signal(trend):
             'roc': roc}
 
 
+def _skew_phase_signal(skew_by_exp, vix_data):
+    """S3: Sebastian Ch.11 — 5-phase IV skew cycle for strategy gating.
+    Phases 1-2, 5: iron condors OK. Phases 3-4: spreads/hedges only."""
+    if not skew_by_exp:
+        return None
+
+    nearest_key = min(skew_by_exp.keys(),
+                      key=lambda k: int(k) if str(k).isdigit() else 999)
+    sm = skew_by_exp[nearest_key]
+    atm_iv = sm.get('atm_iv')
+    skew_25d = sm.get('skew_25d', 0)
+
+    if not atm_iv or (isinstance(atm_iv, float) and atm_iv != atm_iv):
+        return None
+
+    if atm_iv >= 0.30:
+        phase = 4 if skew_25d < 0.04 else 3
+    elif atm_iv <= 0.10:
+        phase = 5
+    elif skew_25d >= 0.05:
+        phase = 2
+    else:
+        phase = 1
+
+    _names = {
+        1: 'Normal — flat skew, vol selling OK',
+        2: 'Mild skew — OTM puts bid, widen wings',
+        3: 'Crisis — steep skew, spreads/hedges only',
+        4: 'Post-crisis — normalizing, directional plays',
+        5: 'Crushed — ultra-low vol, thin premium',
+    }
+    ic_ok = phase in (1, 2, 5)
+    strength = {1: 0.5, 2: 0.6, 3: 0.8, 4: 0.7, 5: 0.3}[phase]
+
+    return {
+        'type': 'skew_phase',
+        'phase': phase,
+        'direction': 'sell_premium' if ic_ok else 'caution',
+        'strength': strength,
+        'iron_condor_ok': ic_ok,
+        'detail': f'Phase {phase}: {_names[phase]} (ATM IV={atm_iv:.1%}, skew={skew_25d:.1%})',
+    }
+
+
 def _term_structure_signal(inverted):
     if inverted:
         return {'type': 'term_structure', 'direction': 'caution',
@@ -256,6 +303,18 @@ def _self_check():
     crisis = {'vix': {'value': 40, 'regime': {}}}
     sigs = scan_signals(crisis)
     assert sigs[0]['direction'] == 'caution'
+
+    # S3: 5-phase skew
+    phase_sig = _skew_phase_signal({7: {'skew_25d': 0.03, 'atm_iv': 0.15}}, None)
+    assert phase_sig['phase'] == 1 and phase_sig['iron_condor_ok']
+    phase_sig = _skew_phase_signal({7: {'skew_25d': 0.07, 'atm_iv': 0.18}}, None)
+    assert phase_sig['phase'] == 2 and phase_sig['iron_condor_ok']
+    phase_sig = _skew_phase_signal({7: {'skew_25d': 0.10, 'atm_iv': 0.35}}, None)
+    assert phase_sig['phase'] == 3 and not phase_sig['iron_condor_ok']
+    phase_sig = _skew_phase_signal({7: {'skew_25d': 0.02, 'atm_iv': 0.32}}, None)
+    assert phase_sig['phase'] == 4 and not phase_sig['iron_condor_ok']
+    phase_sig = _skew_phase_signal({7: {'skew_25d': 0.02, 'atm_iv': 0.08}}, None)
+    assert phase_sig['phase'] == 5 and phase_sig['iron_condor_ok']
 
     print("signals.py: all checks passed")
 

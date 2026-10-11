@@ -104,9 +104,63 @@ Original EPUBs: `options/options_books/*.epub`
   - Aug 24 2015 crash case study: OTM call premiums rose 50-80% on a -5.92% day (Vega > Delta)
 - Module 6 (Option Strategies) still blocked — skeleton only in `07_zerodha_varsity_option_strategies.md`
 
+### 2026-10-11 — Session 8
+
+- Completed Book 7: Sebastian & Chen — The Option Trader's Hedge Fund (all ~2,600 lines, 15 chapters + appendices)
+- Source: EPUB extracted to `scratchpad/sebastian_hedge_fund.txt`
+- Notes: `sebastian_hedge_fund_notes.md` — ~370 lines covering all 3 parts:
+  - Part I (Ch 1-7): TOMIC business framework — insurance model, trade selection, risk management (2%/6% rules), market assessment, discipline/mindset, infrastructure, performance monitoring
+  - Part II (Ch 8-10): Strategies — 3D volatility thinking, iron condor/butterfly/calendar/ratio/straddle with entry/exit rules, TOMIC 1.0 portfolio spec ($100K, 10 underlyings, 1%/month target)
+  - Part III (Ch 11-15): Floor lessons — 5 phases of volatility skew, Card Game Value (exit credit spreads at .10-.25), weekend theta (decayed by Friday), over-adjustment disease (3-day forward test), PFOF, assignment via put-call parity, gamma scalping (pay-the-decay formula X=√(2.8×θ/γ)), portfolio weighting by underlying price
+- Key actionable rules extracted for system integration (8 rules in notes)
+- Cross-references to Natenberg, Sinclair, Cohen, Davey where concepts overlap
+
+### 2026-10-11 — Session 8 (continued)
+
+- Completed Book 9: Taleb — Dynamic Hedging: Managing Vanilla and Exotic Options (840K chars, 23 chapters + 7 modules)
+- Source: EPUB extracted to `scratchpad/taleb_dynamic_hedging.txt` (21,703 lines, 278 XHTML files)
+- Notes: `09_taleb_dynamic_hedging.md` — comprehensive notes covering all 4 parts:
+  - Part I (Ch 1-6): Market microstructure — liquidity holes, stop-loss failures (Ch.4★★★), ArcSine law, portfolio insurance lesson, barrier-triggered cascades
+  - Part II (Ch 7-16): Greeks in depth — discrete delta ≠ BSM delta, up/down-gamma asymmetry, shadow gamma★★★ (BSM gamma × 1.3-1.5 for put side), vega term structure (√T scaling), theta-gamma identity, the bleed★★ (silent gamma evolution), DdeltaDvol instability, lock delta stress test, sticky-strike vs floating-smile regimes, vega vs gamma distinction, path dependence of vanilla P/L
+  - Part III (Ch 17-23): Exotic options — binary gamma infinity at barrier, knock-out cascade dynamics, ArcSine law on track records (3 months statistically meaningless)
+  - Part IV (Modules A-G): Brownian motion (can't out-trade gamma), VaR★★ (5 fatal flaws for short premium: says nothing beyond threshold, assumes normal, non-additive, backward-looking, compounds badly)
+  - Synthesis section: mapped every concept to NIFTY iron condor autopilot with specific parameter analysis (max_daily_loss=gap risk, abort_dd_pct=ArcSine, vix_halt_above=regime change)
+  - Identified 4 RMS gaps from Taleb's framework: no gap risk model, no shadow gamma correction, no vega convexity, no path-dependence accounting
+  - Key formulas: shadow gamma estimate, VaR kurtosis correction, vega scaling, gamma-theta identity
+  - Glossary of 9 Taleb-specific terms with definitions
+- Cross-references to Sinclair (variance premium, Kelly), Natenberg (BSM, Greeks), Sebastian (TOMIC), Davey (incubation)
+
+### 2026-10-11 — Session 9
+
+- **Self-challenge/verification** of Books 7 (Sebastian) and 9 (Taleb) notes against full source text
+  - Re-extracted both EPUBs (Sebastian 330K chars, Taleb 822K chars)
+  - Sebastian: verified all 15 chapters — added 18 lines (cone of feasibility, Third-Third-Third adjustment rule, 1σ wing formula, skew tracking method, 3-day rule specifics, half-σ/weekend theta clarification). 450→468 lines. **ALL COMPLETE**
+  - Taleb: verified all 23 chapters + 7 modules — added ~253 lines (Ch.17 binary pricing, Ch.18 one-touch decomposition, Ch.19 reflection principle + KO formula, Ch.20 reverse barriers + CAPs + SYD-USD case, Ch.21 compound/chooser, Ch.22 rainbow/Cholesky/correlation triangle, Ch.23 ladder as KI strip + Asian 1.73:1 hedge). 578→831 lines. Parts I-II **COMPLETE**, Part III+IV expanded from minimal → substantial
+  - Verification reports at scratchpad (not committed)
+
+- **Delta Architecture: Sebastian + Taleb → Autopilot Integration**
+  - Full gap analysis: 11 Sebastian gaps (S1-S11) + 12 Taleb gaps (T1-T12) mapped against existing modules
+  - Integration plan: 15 specific changes across 3 phases:
+    - Phase A (CRITICAL, 8 items): 2%/6% AUM caps, Card Game Value exit, wing credit floor, shadow gamma 1.3-1.5×, gap-widened stops, DdeltaDvol joint scenarios, VIX>30 hard halt
+    - Phase B (IMPORTANT, 6 items): 5-phase skew model, % OTM cross-check, 3-day forward test, ATR noise filter, CVaR tail warning, liquidity alert
+    - Phase C (NICE-TO-HAVE, 7 items): defer until stable
+  - **10-round red/blue team brainstorm** — attack/defend cycles:
+    1. Gap-down massacre → sizing IS the defense (2%/6%)
+    2. Slow bleed → DTE exit + Card Game Value catch it
+    3. IV trap → % OTM + skew phase gate
+    4. Over-adjustment death → 3-day rule + cost-vs-profit check
+    5. VaR lie → VaR is reporting only, never sizing
+    6. Liquidity mirage → spread alert + limit orders
+    7. Correlated blow-up → single-underlying makes moot, add ρ check if multi-underlying added
+    8. ArcSine delusion → ≥30 trade minimum + t-test already handle
+    9. Model wrong-side → shadow gamma fixes risk, not pricing (market embeds fat tails)
+    10. Weekend theta trap → calendar-specific Friday exit at 50% profit
+  - Key architectural decision: **VaR is reporting, not sizing** — size by 2% per-trade + 6% aggregate + stress-test worst-case
+  - Output: `DELTA_ARCHITECTURE_SEBASTIAN_TALEB.md` (269 lines)
+
 ## Notes Directory Map
 
-Total: **6,027 lines / ~285 KB** of distilled notes from ~59K lines / ~3.4 MB of source text.
+Total: **~8,400 lines / ~410 KB** of distilled notes from ~84K lines / ~4.4 MB of source text.
 
 | File | Book | Lines | Focus |
 |------|------|-------|-------|
@@ -123,6 +177,9 @@ Total: **6,027 lines / ~285 KB** of distilled notes from ~59K lines / ~3.4 MB of
 | `05_davey_algo_systems.md` | Davey | 475 | System dev factory, walk-forward, Monte Carlo, going live |
 | `06_zerodha_varsity_option_theory.md` | Varsity Module 5 | 403 | NSE mechanics, strike selection table, vol-based SL, India VIX |
 | `07_zerodha_varsity_option_strategies.md` | Varsity Module 6 | 36 | INCOMPLETE — Cloudflare blocked; skeleton only |
+| `08_sebastian_option_hedge_fund.md` | Sebastian & Chen | 468 | TOMIC framework, 5 skew phases, cone of feasibility, Card Game Value |
+| `09_taleb_dynamic_hedging.md` | Taleb | 831 | Shadow gamma, bleed, VaR flaws, exotics, barrier pricing, kill chain |
+| `DELTA_ARCHITECTURE_SEBASTIAN_TALEB.md` | Integration | 269 | Gap analysis (22 items), 15 changes, 10-round R/B brainstorm |
 | `KNOWN_CEILINGS.md` | All modules | — | 11 open ceilings (C1-C11), 21 closed (X1-X21), fix priorities |
 
 ### 2026-10-06 — Session 2 (architecture)

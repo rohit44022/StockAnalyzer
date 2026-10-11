@@ -16,6 +16,19 @@ PORTFOLIO_STOP_DD = 0.15      # -15% drawdown → cut all by 50%
 DEFAULT_FRACTIONAL = 0.25     # quarter-Kelly default
 
 
+# T7: Taleb — DTE sizing decay (gamma triples as expiry approaches)
+def dte_size_factor(dte):
+    """T7: Scale position size down as DTE shrinks.
+    Returns multiplier 0.25–1.0 to apply to lot count."""
+    if dte is None or dte > 15:
+        return 1.0
+    if dte > 10:
+        return 0.75
+    if dte > 5:
+        return 0.50
+    return 0.25
+
+
 def kelly_fraction(win_prob, win_loss_ratio):
     """
     Classic Kelly: f* = (p×b - q) / b
@@ -282,6 +295,13 @@ def _self_check():
     sell_only = [l for l in buy_legs if l['action'] == 'SELL']
     uc3 = upfront_premium_check(sell_only, 5, 65, 1000)
     assert uc3['fits']
+
+    # T7: DTE sizing decay
+    assert dte_size_factor(20) == 1.0
+    assert dte_size_factor(12) == 0.75
+    assert dte_size_factor(7) == 0.50
+    assert dte_size_factor(3) == 0.25
+    assert dte_size_factor(None) == 1.0
 
     print("sizing.py: all checks passed")
 

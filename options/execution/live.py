@@ -12,6 +12,9 @@ import sqlite3
 import logging
 import datetime
 
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
+
 from .queue import OrderQueue
 from .bridge import ExecutionBridge
 from .safety import SafetyMonitor, SafetyAction, PortfolioState
@@ -50,7 +53,7 @@ class LiveExecutor:
             entry = {
                 'trade_id': trade_id, 'recommendation': recommendation,
                 'status': 'pending_approval',
-                'queued_at': datetime.datetime.now().isoformat(),
+                'queued_at': _now_ist().isoformat(),
             }
             self._approval_queue.append(entry)
             log.info(f'Entry queued for approval: {strategy} {symbol}')
@@ -63,7 +66,7 @@ class LiveExecutor:
                     'trade_id': trade_id, 'recommendation': recommendation,
                     'status': 'pending_approval',
                     'reason': f'capital {capital_required} > auto_limit {auto_limit}',
-                    'queued_at': datetime.datetime.now().isoformat(),
+                    'queued_at': _now_ist().isoformat(),
                 }
                 self._approval_queue.append(entry)
                 return {'status': 'pending_approval', 'reason': entry['reason']}
@@ -159,11 +162,13 @@ class LiveExecutor:
     def _count_open_positions(self) -> int:
         try:
             conn = sqlite3.connect(self._db_path, timeout=10)
-            count = conn.execute(
-                "SELECT COUNT(*) FROM trades WHERE status='open'"
-            ).fetchone()[0]
-            conn.close()
-            return count
+            try:
+                count = conn.execute(
+                    "SELECT COUNT(*) FROM trades WHERE status='open'"
+                ).fetchone()[0]
+                return count
+            finally:
+                conn.close()
         except Exception:
             # fail-closed: assume max positions to block new entries
             return self._config.get('max_concurrent_positions', 4)
@@ -171,9 +176,11 @@ class LiveExecutor:
     def _next_trade_id(self) -> int:
         try:
             conn = sqlite3.connect(self._db_path, timeout=10)
-            row = conn.execute('SELECT MAX(id) FROM trades').fetchone()
-            conn.close()
-            return (row[0] or 0) + 1
+            try:
+                row = conn.execute('SELECT MAX(id) FROM trades').fetchone()
+                return (row[0] or 0) + 1
+            finally:
+                conn.close()
         except Exception:
             return 1
 
@@ -188,13 +195,15 @@ def selfcheck():
         os.remove(db)
 
     conn = sqlite3.connect(db, timeout=10)
-    _init_queue_db(conn)
-    _init_bridge_db(conn)
-    conn.execute('''CREATE TABLE IF NOT EXISTS trades (
-        id INTEGER PRIMARY KEY, status TEXT DEFAULT 'open'
-    )''')
-    conn.commit()
-    conn.close()
+    try:
+        _init_queue_db(conn)
+        _init_bridge_db(conn)
+        conn.execute('''CREATE TABLE IF NOT EXISTS trades (
+            id INTEGER PRIMARY KEY, status TEXT DEFAULT 'open'
+        )''')
+        conn.commit()
+    finally:
+        conn.close()
 
     order_counter = [0]
     def mock_executor(action, params):

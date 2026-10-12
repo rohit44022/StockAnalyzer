@@ -14,6 +14,9 @@ import datetime
 from dataclasses import dataclass, field
 from typing import Optional
 
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
+
 log = logging.getLogger(__name__)
 
 
@@ -42,19 +45,21 @@ class ShadowExecutor:
         self._active = True
 
         conn = sqlite3.connect(db_path, timeout=10)
-        conn.execute('''CREATE TABLE IF NOT EXISTS shadow_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            trade_id INTEGER,
-            paper_action TEXT,
-            live_action TEXT,
-            match INTEGER,
-            deviations TEXT,
-            paper_result TEXT,
-            live_result TEXT
-        )''')
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute('''CREATE TABLE IF NOT EXISTS shadow_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                trade_id INTEGER,
+                paper_action TEXT,
+                live_action TEXT,
+                match INTEGER,
+                deviations TEXT,
+                paper_result TEXT,
+                live_result TEXT
+            )''')
+            conn.commit()
+        finally:
+            conn.close()
 
     def shadow_enter(self, recommendation: dict, trade_id: int = None,
                      paper_result: dict = None) -> ShadowComparison:
@@ -66,7 +71,7 @@ class ShadowExecutor:
         comp = ShadowComparison(
             trade_id=trade_id or 0,
             paper_action='ENTER',
-            timestamp=datetime.datetime.now().isoformat(),
+            timestamp=_now_ist().isoformat(),
         )
 
         if paper_result:
@@ -103,7 +108,7 @@ class ShadowExecutor:
         comp = ShadowComparison(
             trade_id=trade_id,
             paper_action='EXIT',
-            timestamp=datetime.datetime.now().isoformat(),
+            timestamp=_now_ist().isoformat(),
         )
 
         if paper_result:
@@ -136,19 +141,21 @@ class ShadowExecutor:
               f'match={comp.match} deviations={comp.deviations}')
 
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.execute(
-            '''INSERT INTO shadow_log
-               (timestamp, trade_id, paper_action, live_action, match,
-                deviations, paper_result, live_result)
-               VALUES (?,?,?,?,?,?,?,?)''',
-            (comp.timestamp, comp.trade_id, comp.paper_action,
-             comp.live_action, 1 if comp.match else 0,
-             json.dumps(comp.deviations),
-             json.dumps(comp.paper_result, default=str),
-             json.dumps(comp.live_result, default=str))
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute(
+                '''INSERT INTO shadow_log
+                   (timestamp, trade_id, paper_action, live_action, match,
+                    deviations, paper_result, live_result)
+                   VALUES (?,?,?,?,?,?,?,?)''',
+                (comp.timestamp, comp.trade_id, comp.paper_action,
+                 comp.live_action, 1 if comp.match else 0,
+                 json.dumps(comp.deviations),
+                 json.dumps(comp.paper_result, default=str),
+                 json.dumps(comp.live_result, default=str))
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
     @property
     def days_elapsed(self) -> int:
@@ -193,28 +200,28 @@ class ShadowExecutor:
     def _graduation_checks(self) -> dict:
         conn = sqlite3.connect(self._db_path, timeout=10)
         conn.row_factory = sqlite3.Row
-
-        phantom_count = 0
-        recon_mismatches = 0
         try:
-            logs = conn.execute(
-                'SELECT phantoms, mismatches FROM reconciliation_log ORDER BY id DESC LIMIT 10'
-            ).fetchall()
-            phantom_count = sum(r['phantoms'] for r in logs)
-            recon_mismatches = sum(r['mismatches'] for r in logs)
-        except Exception:
-            pass
+            phantom_count = 0
+            recon_mismatches = 0
+            try:
+                logs = conn.execute(
+                    'SELECT phantoms, mismatches FROM reconciliation_log ORDER BY id DESC LIMIT 10'
+                ).fetchall()
+                phantom_count = sum(r['phantoms'] for r in logs)
+                recon_mismatches = sum(r['mismatches'] for r in logs)
+            except Exception:
+                pass
 
-        preflight_failures = 0
-        try:
-            rows = conn.execute(
-                "SELECT COUNT(*) FROM order_events WHERE event_type='REJECTED_GUARD'"
-            ).fetchone()
-            preflight_failures = rows[0] if rows else 0
-        except Exception:
-            pass
-
-        conn.close()
+            preflight_failures = 0
+            try:
+                rows = conn.execute(
+                    "SELECT COUNT(*) FROM order_events WHERE event_type='REJECTED_GUARD'"
+                ).fetchone()
+                preflight_failures = rows[0] if rows else 0
+            except Exception:
+                pass
+        finally:
+            conn.close()
 
         return {
             'duration': self.shadow_complete,
@@ -228,10 +235,12 @@ class ShadowExecutor:
     def get_log(self, limit: int = 50) -> list:
         conn = sqlite3.connect(self._db_path, timeout=10)
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            'SELECT * FROM shadow_log ORDER BY id DESC LIMIT ?', (limit,)
-        ).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute(
+                'SELECT * FROM shadow_log ORDER BY id DESC LIMIT ?', (limit,)
+            ).fetchall()
+        finally:
+            conn.close()
         return [dict(r) for r in rows]
 
 
@@ -248,13 +257,15 @@ def selfcheck():
         os.remove(db)
 
     conn = sqlite3.connect(db, timeout=10)
-    _init_queue_db(conn)
-    _init_bridge_db(conn)
-    conn.execute('''CREATE TABLE IF NOT EXISTS trades (
-        id INTEGER PRIMARY KEY, status TEXT DEFAULT 'open'
-    )''')
-    conn.commit()
-    conn.close()
+    try:
+        _init_queue_db(conn)
+        _init_bridge_db(conn)
+        conn.execute('''CREATE TABLE IF NOT EXISTS trades (
+            id INTEGER PRIMARY KEY, status TEXT DEFAULT 'open'
+        )''')
+        conn.commit()
+    finally:
+        conn.close()
 
     order_counter = [0]
     def mock_executor(action, params):

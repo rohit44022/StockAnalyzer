@@ -18,6 +18,9 @@ from dataclasses import dataclass, field, asdict
 from enum import IntEnum
 from typing import Optional, Callable
 
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
+
 log = logging.getLogger(__name__)
 
 
@@ -54,7 +57,7 @@ class OrderRequest:
     max_attempts: int = 3
     timeout_sec: float = 5.0
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:16])
-    created_at: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    created_at: str = field(default_factory=lambda: _now_ist().isoformat())
     attempts: int = 0
 
 
@@ -165,8 +168,10 @@ class OrderQueue:
         self._consecutive_429 = 0
 
         conn = sqlite3.connect(db_path, timeout=10)
-        _init_queue_db(conn)
-        conn.close()
+        try:
+            _init_queue_db(conn)
+        finally:
+            conn.close()
 
     def submit(self, request: OrderRequest) -> str:
         conn = sqlite3.connect(self._db_path, timeout=10)
@@ -194,44 +199,44 @@ class OrderQueue:
             return None
 
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            '''SELECT * FROM order_queue
-               WHERE status = ?
-               ORDER BY priority ASC, created_at ASC
-               LIMIT 1''',
-            (QueueStatus.PENDING,)
-        ).fetchone()
+        try:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                '''SELECT * FROM order_queue
+                   WHERE status = ?
+                   ORDER BY priority ASC, created_at ASC
+                   LIMIT 1''',
+                (QueueStatus.PENDING,)
+            ).fetchone()
 
-        if not row:
-            conn.close()
-            return None
+            if not row:
+                return None
 
-        queue_id = row['id']
-        dhan_params = json.loads(row['dhan_params'])
-        action = row['action']
-        attempts = row['attempts']
-        max_attempts = row['max_attempts']
+            queue_id = row['id']
+            dhan_params = json.loads(row['dhan_params'])
+            action = row['action']
+            attempts = row['attempts']
+            max_attempts = row['max_attempts']
 
-        guard_error = self._check_guards(dhan_params, conn)
-        if guard_error:
+            guard_error = self._check_guards(dhan_params, conn)
+            if guard_error:
+                conn.execute(
+                    'UPDATE order_queue SET status=?, error=?, completed_at=? WHERE id=?',
+                    (QueueStatus.REJECTED_GUARD, guard_error,
+                     _now_ist().isoformat(), queue_id)
+                )
+                _log_event(conn, queue_id, 'REJECTED_GUARD', error=guard_error)
+                conn.commit()
+                return OrderResult(queue_id=queue_id, success=False, error=guard_error)
+
             conn.execute(
-                'UPDATE order_queue SET status=?, error=?, completed_at=? WHERE id=?',
-                (QueueStatus.REJECTED_GUARD, guard_error,
-                 datetime.datetime.now().isoformat(), queue_id)
+                'UPDATE order_queue SET status=?, attempts=?, sent_at=? WHERE id=?',
+                (QueueStatus.PROCESSING, attempts + 1,
+                 _now_ist().isoformat(), queue_id)
             )
-            _log_event(conn, queue_id, 'REJECTED_GUARD', error=guard_error)
             conn.commit()
+        finally:
             conn.close()
-            return OrderResult(queue_id=queue_id, success=False, error=guard_error)
-
-        conn.execute(
-            'UPDATE order_queue SET status=?, attempts=?, sent_at=? WHERE id=?',
-            (QueueStatus.PROCESSING, attempts + 1,
-             datetime.datetime.now().isoformat(), queue_id)
-        )
-        conn.commit()
-        conn.close()
 
         if not self._bucket.acquire(timeout=2.0):
             conn = sqlite3.connect(self._db_path, timeout=10)
@@ -276,7 +281,7 @@ class OrderQueue:
                        WHERE id=?''',
                     (QueueStatus.SENT, result.dhan_order_id,
                      json.dumps(result.raw_response) if result.raw_response else None,
-                     datetime.datetime.now().isoformat(), queue_id)
+                     _now_ist().isoformat(), queue_id)
                 )
                 _log_event(conn, queue_id, 'SENT',
                            dhan_order_id=result.dhan_order_id,
@@ -315,14 +320,16 @@ class OrderQueue:
         was_paused = self._paused
         self._paused = False
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            '''SELECT id FROM order_queue
-               WHERE status=? AND priority=?
-               ORDER BY created_at ASC''',
-            (QueueStatus.PENDING, Priority.EMERGENCY)
-        ).fetchall()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                '''SELECT id FROM order_queue
+                   WHERE status=? AND priority=?
+                   ORDER BY created_at ASC''',
+                (QueueStatus.PENDING, Priority.EMERGENCY)
+            ).fetchall()
+        finally:
+            conn.close()
 
         results = []
         for _ in rows:
@@ -337,14 +344,16 @@ class OrderQueue:
         was_paused = self._paused
         self._paused = False
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            '''SELECT id FROM order_queue
-               WHERE status=? AND priority<=?
-               ORDER BY priority ASC, created_at ASC''',
-            (QueueStatus.PENDING, Priority.STOP_LOSS)
-        ).fetchall()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                '''SELECT id FROM order_queue
+                   WHERE status=? AND priority<=?
+                   ORDER BY priority ASC, created_at ASC''',
+                (QueueStatus.PENDING, Priority.STOP_LOSS)
+            ).fetchall()
+        finally:
+            conn.close()
         results = []
         for _ in rows:
             r = self.process_next()
@@ -374,33 +383,36 @@ class OrderQueue:
 
     def cancel_pending(self, parent_trade_id: int) -> int:
         conn = sqlite3.connect(self._db_path, timeout=10)
-        cur = conn.execute(
-            '''UPDATE order_queue SET status=?, completed_at=?
-               WHERE parent_trade_id=? AND status=?''',
-            (QueueStatus.CANCELLED, datetime.datetime.now().isoformat(),
-             parent_trade_id, QueueStatus.PENDING)
-        )
-        count = cur.rowcount
-        conn.commit()
-        conn.close()
+        try:
+            cur = conn.execute(
+                '''UPDATE order_queue SET status=?, completed_at=?
+                   WHERE parent_trade_id=? AND status=?''',
+                (QueueStatus.CANCELLED, _now_ist().isoformat(),
+                 parent_trade_id, QueueStatus.PENDING)
+            )
+            count = cur.rowcount
+            conn.commit()
+        finally:
+            conn.close()
         return count
 
     def stats(self) -> dict:
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.row_factory = sqlite3.Row
+        try:
+            conn.row_factory = sqlite3.Row
 
-        pending = conn.execute(
-            'SELECT priority, COUNT(*) as cnt FROM order_queue WHERE status=? GROUP BY priority',
-            (QueueStatus.PENDING,)
-        ).fetchall()
-        pending_by_priority = {Priority(r['priority']).name: r['cnt'] for r in pending}
+            pending = conn.execute(
+                'SELECT priority, COUNT(*) as cnt FROM order_queue WHERE status=? GROUP BY priority',
+                (QueueStatus.PENDING,)
+            ).fetchall()
+            pending_by_priority = {Priority(r['priority']).name: r['cnt'] for r in pending}
 
-        today = datetime.date.today().isoformat()
-        daily = conn.execute(
-            'SELECT * FROM daily_counters WHERE date=?', (today,)
-        ).fetchone()
-
-        conn.close()
+            today = datetime.date.today().isoformat()
+            daily = conn.execute(
+                'SELECT * FROM daily_counters WHERE date=?', (today,)
+            ).fetchone()
+        finally:
+            conn.close()
         return {
             'paused': self._paused,
             'pending': pending_by_priority,
@@ -413,9 +425,11 @@ class OrderQueue:
 
     def get_order(self, queue_id: str) -> Optional[dict]:
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.row_factory = sqlite3.Row
-        row = conn.execute('SELECT * FROM order_queue WHERE id=?', (queue_id,)).fetchone()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute('SELECT * FROM order_queue WHERE id=?', (queue_id,)).fetchone()
+        finally:
+            conn.close()
         if not row:
             return None
         d = dict(row)
@@ -425,11 +439,13 @@ class OrderQueue:
 
     def get_events(self, queue_id: str) -> list:
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            'SELECT * FROM order_events WHERE queue_id=? ORDER BY id', (queue_id,)
-        ).fetchall()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                'SELECT * FROM order_events WHERE queue_id=? ORDER BY id', (queue_id,)
+            ).fetchall()
+        finally:
+            conn.close()
         return [dict(r) for r in rows]
 
     def _check_guards(self, params: dict, conn) -> Optional[str]:
@@ -479,16 +495,19 @@ class OrderQueue:
                 if http_code == 401:
                     self.pause()
                     ev_conn = sqlite3.connect(self._db_path, timeout=10)
-                    _log_event(ev_conn, queue_id, 'TOKEN_EXPIRED')
-                    ev_conn.commit()
-                    ev_conn.close()
+                    try:
+                        _log_event(ev_conn, queue_id, 'TOKEN_EXPIRED')
+                        ev_conn.commit()
+                    finally:
+                        ev_conn.close()
                     log.error('Dhan 401: token expired — queue paused')
                     return OrderResult(queue_id=queue_id, success=False,
                                        error='TOKEN_EXPIRED')
                 if http_code == 429:
                     self._consecutive_429 = min(self._consecutive_429 + 1, 3)
                     backoff = 2.0 * (2 ** (self._consecutive_429 - 1))
-                    log.warning(f'Dhan 429: rate limited — retry after {backoff}s')
+                    log.warning(f'Dhan 429: rate limited — sleeping {backoff}s before retry')
+                    time.sleep(backoff)  # CRITICAL: must sleep here, not just report
                     return OrderResult(queue_id=queue_id, success=False,
                                        error='RATE_LIMITED_BY_DHAN',
                                        raw_response={'backoff_sec': backoff})
@@ -565,7 +584,7 @@ def _log_event(conn, queue_id, event_type, dhan_order_id=None,
            (queue_id, event_type, timestamp, dhan_order_id, dhan_status,
             filled_qty, price, raw_response)
            VALUES (?,?,?,?,?,?,?,?)''',
-        (queue_id, event_type, datetime.datetime.now().isoformat(),
+        (queue_id, event_type, _now_ist().isoformat(),
          dhan_order_id, dhan_status, filled_qty, price, raw)
     )
 

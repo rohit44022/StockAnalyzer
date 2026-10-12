@@ -22,6 +22,9 @@ import datetime
 import logging
 import argparse
 
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(name)s %(levelname)s %(message)s',
@@ -48,150 +51,152 @@ def _connect(db=None):
 def init_db(db=None):
     db = db or _db_path()
     conn = _connect(db)
-    c = conn.cursor()
+    try:
+        c = conn.cursor()
 
-    c.execute('''CREATE TABLE IF NOT EXISTS recommendations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        symbol TEXT NOT NULL,
-        strategy TEXT NOT NULL,
-        spot REAL NOT NULL,
-        legs TEXT NOT NULL,
-        lots INTEGER NOT NULL,
-        lot_size INTEGER NOT NULL,
-        max_profit_per_lot REAL,
-        max_loss_per_lot REAL,
-        cost_per_lot REAL,
-        margin_per_lot REAL,
-        entry_gate TEXT,
-        audit TEXT,
-        signals TEXT,
-        reasons TEXT,
-        score REAL,
-        vix REAL,
-        dte INTEGER,
-        status TEXT DEFAULT 'pending'
-    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS recommendations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            symbol TEXT NOT NULL,
+            strategy TEXT NOT NULL,
+            spot REAL NOT NULL,
+            legs TEXT NOT NULL,
+            lots INTEGER NOT NULL,
+            lot_size INTEGER NOT NULL,
+            max_profit_per_lot REAL,
+            max_loss_per_lot REAL,
+            cost_per_lot REAL,
+            margin_per_lot REAL,
+            entry_gate TEXT,
+            audit TEXT,
+            signals TEXT,
+            reasons TEXT,
+            score REAL,
+            vix REAL,
+            dte INTEGER,
+            status TEXT DEFAULT 'pending'
+        )''')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS trades (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        recommendation_id INTEGER,
-        opened_at TEXT NOT NULL,
-        symbol TEXT NOT NULL,
-        strategy TEXT NOT NULL,
-        entry_spot REAL NOT NULL,
-        legs TEXT NOT NULL,
-        lots INTEGER NOT NULL,
-        lot_size INTEGER NOT NULL,
-        capital_risked REAL,
-        entry_cost REAL,
-        entry_reason TEXT,
-        target_expiry TEXT,
-        status TEXT DEFAULT 'open',
-        closed_at TEXT,
-        exit_spot REAL,
-        exit_reason TEXT,
-        exit_cost REAL,
-        gross_pnl REAL,
-        net_pnl REAL,
-        FOREIGN KEY (recommendation_id) REFERENCES recommendations(id)
-    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS trades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recommendation_id INTEGER,
+            opened_at TEXT NOT NULL,
+            symbol TEXT NOT NULL,
+            strategy TEXT NOT NULL,
+            entry_spot REAL NOT NULL,
+            legs TEXT NOT NULL,
+            lots INTEGER NOT NULL,
+            lot_size INTEGER NOT NULL,
+            capital_risked REAL,
+            entry_cost REAL,
+            entry_reason TEXT,
+            target_expiry TEXT,
+            status TEXT DEFAULT 'open',
+            closed_at TEXT,
+            exit_spot REAL,
+            exit_reason TEXT,
+            exit_cost REAL,
+            gross_pnl REAL,
+            net_pnl REAL,
+            FOREIGN KEY (recommendation_id) REFERENCES recommendations(id)
+        )''')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS daily_checks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        trade_id INTEGER NOT NULL,
-        check_date TEXT NOT NULL,
-        spot REAL NOT NULL,
-        dte INTEGER,
-        current_pnl REAL,
-        adjustments TEXT,
-        max_urgency INTEGER,
-        FOREIGN KEY (trade_id) REFERENCES trades(id)
-    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS daily_checks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            trade_id INTEGER NOT NULL,
+            check_date TEXT NOT NULL,
+            spot REAL NOT NULL,
+            dte INTEGER,
+            current_pnl REAL,
+            adjustments TEXT,
+            max_urgency INTEGER,
+            FOREIGN KEY (trade_id) REFERENCES trades(id)
+        )''')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS strategy_lifecycle (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        strategy_key TEXT NOT NULL UNIQUE,
-        status TEXT NOT NULL DEFAULT 'INCUBATING',
-        start_date TEXT NOT NULL,
-        wfa_report_path TEXT,
-        wfa_oos_trades_json TEXT,
-        wfa_avg_pnl REAL,
-        wfa_std_pnl REAL,
-        wfa_max_dd_pct REAL,
-        wfa_expected_return REAL,
-        mc_abort_dd_pct REAL,
-        t_test_compare_p REAL,
-        trade_count INTEGER DEFAULT 0,
-        current_dd_pct REAL DEFAULT 0,
-        return_efficiency REAL,
-        dd_efficiency REAL,
-        last_checked TEXT,
-        graduation_date TEXT,
-        abort_date TEXT,
-        abort_reason TEXT
-    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS strategy_lifecycle (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            strategy_key TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL DEFAULT 'INCUBATING',
+            start_date TEXT NOT NULL,
+            wfa_report_path TEXT,
+            wfa_oos_trades_json TEXT,
+            wfa_avg_pnl REAL,
+            wfa_std_pnl REAL,
+            wfa_max_dd_pct REAL,
+            wfa_expected_return REAL,
+            mc_abort_dd_pct REAL,
+            t_test_compare_p REAL,
+            trade_count INTEGER DEFAULT 0,
+            current_dd_pct REAL DEFAULT 0,
+            return_efficiency REAL,
+            dd_efficiency REAL,
+            last_checked TEXT,
+            graduation_date TEXT,
+            abort_date TEXT,
+            abort_reason TEXT
+        )''')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS autopilot_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        cycle_id TEXT NOT NULL,
-        cycle_type TEXT NOT NULL,
-        action TEXT NOT NULL,
-        symbol TEXT,
-        trade_id INTEGER,
-        recommendation_id INTEGER,
-        strategy TEXT,
-        score REAL,
-        spot REAL,
-        vix REAL,
-        pnl REAL,
-        reason TEXT NOT NULL,
-        context_json TEXT
-    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS autopilot_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            cycle_id TEXT NOT NULL,
+            cycle_type TEXT NOT NULL,
+            action TEXT NOT NULL,
+            symbol TEXT,
+            trade_id INTEGER,
+            recommendation_id INTEGER,
+            strategy TEXT,
+            score REAL,
+            spot REAL,
+            vix REAL,
+            pnl REAL,
+            reason TEXT NOT NULL,
+            context_json TEXT
+        )''')
 
-    # Migrate existing DBs
-    cols = {r[1] for r in c.execute("PRAGMA table_info(trades)").fetchall()}
-    if 'target_expiry' not in cols:
-        c.execute("ALTER TABLE trades ADD COLUMN target_expiry TEXT")
-    if 'source' not in cols:
-        c.execute("ALTER TABLE trades ADD COLUMN source TEXT DEFAULT 'manual'")
-    if 'max_profit_per_lot' not in cols:
-        c.execute("ALTER TABLE trades ADD COLUMN max_profit_per_lot REAL")
-    if 'max_loss_per_lot' not in cols:
-        c.execute("ALTER TABLE trades ADD COLUMN max_loss_per_lot REAL")
-    if 'margin_per_lot' not in cols:
-        c.execute("ALTER TABLE trades ADD COLUMN margin_per_lot REAL")
-    if 'live_status' not in cols:
-        c.execute("ALTER TABLE trades ADD COLUMN live_status TEXT")
-    if 'standing_sl_ids' not in cols:
-        c.execute("ALTER TABLE trades ADD COLUMN standing_sl_ids TEXT")
-    if 'residual_retries' not in cols:
-        c.execute("ALTER TABLE trades ADD COLUMN residual_retries INTEGER DEFAULT 0")
-    if 'adj_signal_streak' not in cols:
-        c.execute("ALTER TABLE trades ADD COLUMN adj_signal_streak INTEGER DEFAULT 0")
-    if 'adjustment_count' not in cols:
-        c.execute("ALTER TABLE trades ADD COLUMN adjustment_count INTEGER DEFAULT 0")
+        # Migrate existing DBs
+        cols = {r[1] for r in c.execute("PRAGMA table_info(trades)").fetchall()}
+        if 'target_expiry' not in cols:
+            c.execute("ALTER TABLE trades ADD COLUMN target_expiry TEXT")
+        if 'source' not in cols:
+            c.execute("ALTER TABLE trades ADD COLUMN source TEXT DEFAULT 'manual'")
+        if 'max_profit_per_lot' not in cols:
+            c.execute("ALTER TABLE trades ADD COLUMN max_profit_per_lot REAL")
+        if 'max_loss_per_lot' not in cols:
+            c.execute("ALTER TABLE trades ADD COLUMN max_loss_per_lot REAL")
+        if 'margin_per_lot' not in cols:
+            c.execute("ALTER TABLE trades ADD COLUMN margin_per_lot REAL")
+        if 'live_status' not in cols:
+            c.execute("ALTER TABLE trades ADD COLUMN live_status TEXT")
+        if 'standing_sl_ids' not in cols:
+            c.execute("ALTER TABLE trades ADD COLUMN standing_sl_ids TEXT")
+        if 'residual_retries' not in cols:
+            c.execute("ALTER TABLE trades ADD COLUMN residual_retries INTEGER DEFAULT 0")
+        if 'adj_signal_streak' not in cols:
+            c.execute("ALTER TABLE trades ADD COLUMN adj_signal_streak INTEGER DEFAULT 0")
+        if 'adjustment_count' not in cols:
+            c.execute("ALTER TABLE trades ADD COLUMN adjustment_count INTEGER DEFAULT 0")
 
-    c.execute('''CREATE TABLE IF NOT EXISTS autopilot_alerts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        severity TEXT NOT NULL,
-        category TEXT NOT NULL,
-        title TEXT NOT NULL,
-        detail TEXT,
-        context_json TEXT,
-        acknowledged INTEGER DEFAULT 0
-    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS autopilot_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            category TEXT NOT NULL,
+            title TEXT NOT NULL,
+            detail TEXT,
+            context_json TEXT,
+            acknowledged INTEGER DEFAULT 0
+        )''')
 
-    c.execute('CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_trades_source_status ON trades(source, status)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_trades_source_status ON trades(source, status)')
 
-    c.execute('PRAGMA journal_mode=WAL')
-    c.execute('PRAGMA busy_timeout=10000')
+        c.execute('PRAGMA journal_mode=WAL')
+        c.execute('PRAGMA busy_timeout=10000')
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # ── Phase 7: Incubation lifecycle (Davey Ch.14) ─────────────────
@@ -232,12 +237,14 @@ def incubate(strategy_key, wfa_report_path, db=None):
 
     # Guard: don't silently overwrite a finalized strategy
     conn_check = _connect(db)
-    conn_check.row_factory = sqlite3.Row
-    existing = conn_check.execute(
-        'SELECT status FROM strategy_lifecycle WHERE strategy_key=?',
-        (strategy_key,)
-    ).fetchone()
-    conn_check.close()
+    try:
+        conn_check.row_factory = sqlite3.Row
+        existing = conn_check.execute(
+            'SELECT status FROM strategy_lifecycle WHERE strategy_key=?',
+            (strategy_key,)
+        ).fetchone()
+    finally:
+        conn_check.close()
     if existing and existing['status'] in ('GRADUATED', 'ABORTED'):
         return {'status': 'error',
                 'reason': f'{strategy_key} is {existing["status"]} — '
@@ -286,7 +293,7 @@ def incubate(strategy_key, wfa_report_path, db=None):
              round(avg_pnl, 2), round(std_pnl, 2),
              round(wfa_max_dd, 2), round(expected_return, 2),
              abort['abort_dd_pct'],
-             datetime.datetime.now().isoformat())
+             _now_ist().isoformat())
         )
         conn.commit()
     finally:
@@ -336,28 +343,28 @@ def check_lifecycle(strategy_key, db=None):
     init_db(db)
 
     conn = _connect(db)
-    conn.row_factory = sqlite3.Row
-    row = conn.execute(
-        'SELECT * FROM strategy_lifecycle WHERE strategy_key=?',
-        (strategy_key,)
-    ).fetchone()
+    try:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            'SELECT * FROM strategy_lifecycle WHERE strategy_key=?',
+            (strategy_key,)
+        ).fetchone()
 
-    if not row:
+        if not row:
+            return {'status': 'error', 'reason': f'No lifecycle for {strategy_key}'}
+
+        if row['status'] in ('GRADUATED', 'ABORTED'):
+            return {'status': row['status'].lower(), 'strategy_key': strategy_key,
+                    'reason': row['abort_reason'] or 'previously finalized'}
+
+        # Load closed paper trades for this strategy
+        paper_rows = conn.execute(
+            "SELECT net_pnl, gross_pnl, entry_cost, exit_cost FROM trades "
+            "WHERE strategy=? AND status='closed' ORDER BY closed_at",
+            (strategy_key,)
+        ).fetchall()
+    finally:
         conn.close()
-        return {'status': 'error', 'reason': f'No lifecycle for {strategy_key}'}
-
-    if row['status'] in ('GRADUATED', 'ABORTED'):
-        conn.close()
-        return {'status': row['status'].lower(), 'strategy_key': strategy_key,
-                'reason': row['abort_reason'] or 'previously finalized'}
-
-    # Load closed paper trades for this strategy
-    paper_rows = conn.execute(
-        "SELECT net_pnl, gross_pnl, entry_cost, exit_cost FROM trades "
-        "WHERE strategy=? AND status='closed' ORDER BY closed_at",
-        (strategy_key,)
-    ).fetchall()
-    conn.close()
 
     paper_trades = [{'net_pnl': r['net_pnl'],
                      'gross_pnl': r['gross_pnl'] or 0,
@@ -446,7 +453,7 @@ def check_lifecycle(strategy_key, db=None):
             'return_efficiency': round(ret_eff, 4),
             'dd_efficiency': round(dd_eff, 4),
             't_test_compare_p': round(t_compare['p_value'], 6),
-            'last_checked': datetime.datetime.now().isoformat(),
+            'last_checked': _now_ist().isoformat(),
             'status': new_status,
         }
         if new_status == 'GRADUATED':
@@ -490,14 +497,16 @@ def lifecycle_status(strategy_key=None, db=None):
     init_db(db)
 
     conn = _connect(db)
-    conn.row_factory = sqlite3.Row
-    if strategy_key:
-        rows = conn.execute(
-            'SELECT * FROM strategy_lifecycle WHERE strategy_key=?', (strategy_key,)
-        ).fetchall()
-    else:
-        rows = conn.execute('SELECT * FROM strategy_lifecycle ORDER BY status, strategy_key').fetchall()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        if strategy_key:
+            rows = conn.execute(
+                'SELECT * FROM strategy_lifecycle WHERE strategy_key=?', (strategy_key,)
+            ).fetchall()
+        else:
+            rows = conn.execute('SELECT * FROM strategy_lifecycle ORDER BY status, strategy_key').fetchall()
+    finally:
+        conn.close()
 
     if not rows:
         print('No strategies in lifecycle tracking.')
@@ -548,11 +557,11 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None, mwpl_limit=0):
     except Exception as e:
         return {'status': 'error', 'reason': f'Dhan fetch failed: {e}'}
     if spot and spot > 0:
-        _last_good_spot[symbol] = (spot, datetime.datetime.now())
+        _last_good_spot[symbol] = (spot, _now_ist())
     if chain_df.empty or not spot or spot <= 0:
         cached = _last_good_spot.get(symbol)
         if cached:
-            age_min = (datetime.datetime.now() - cached[1]).total_seconds() / 60
+            age_min = (_now_ist() - cached[1]).total_seconds() / 60
             if age_min < 30:
                 log.warning(f'[{symbol}] Spot=0 from API, using cached {cached[0]:.2f} ({age_min:.0f}m old)')
                 spot = cached[0]
@@ -647,12 +656,14 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None, mwpl_limit=0):
 
         _kelly_frac = 0.10
         conn_k = _connect(db)
-        conn_k.row_factory = sqlite3.Row
-        lc_row = conn_k.execute(
-            'SELECT wfa_oos_trades_json FROM strategy_lifecycle WHERE strategy_key=? AND status=?',
-            (_key, 'INCUBATING')
-        ).fetchone()
-        conn_k.close()
+        try:
+            conn_k.row_factory = sqlite3.Row
+            lc_row = conn_k.execute(
+                'SELECT wfa_oos_trades_json FROM strategy_lifecycle WHERE strategy_key=? AND status=?',
+                (_key, 'INCUBATING')
+            ).fetchone()
+        finally:
+            conn_k.close()
         if lc_row and lc_row['wfa_oos_trades_json']:
             wfa_trades = json.loads(lc_row['wfa_oos_trades_json'])
             pnls = [t.get('net_pnl', 0) for t in wfa_trades]
@@ -749,7 +760,7 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None, mwpl_limit=0):
     # 12. Assemble and store
     rec = {
         'status': 'recommended',
-        'timestamp': datetime.datetime.now().isoformat(),
+        'timestamp': _now_ist().isoformat(),
         'symbol': symbol,
         'strategy': top_key,
         'spot': spot,
@@ -775,24 +786,26 @@ def recommend(symbol='NIFTY', capital=DEFAULT_CAPITAL, db=None, mwpl_limit=0):
     }
 
     conn = _connect(db)
-    conn.execute(
-        '''INSERT INTO recommendations
-           (timestamp, symbol, strategy, spot, legs, lots, lot_size,
-            max_profit_per_lot, max_loss_per_lot, cost_per_lot, margin_per_lot,
-            entry_gate, audit, signals, reasons, score, vix, dte, status)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-        (rec['timestamp'], symbol, top_key, spot,
-         json.dumps(legs, default=_json_default), lots, lot_size,
-         rec['max_profit_per_lot'], rec['max_loss_per_lot'],
-         rec['cost_per_lot'], rec['margin_per_lot'],
-         json.dumps(gate, default=_json_default),
-         json.dumps(audit_result, default=_json_default),
-         json.dumps(sigs, default=_json_default),
-         json.dumps(reco['reasons']), rec['score'], vix_value, dte, 'pending')
-    )
-    conn.commit()
-    rec['recommendation_id'] = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-    conn.close()
+    try:
+        conn.execute(
+            '''INSERT INTO recommendations
+               (timestamp, symbol, strategy, spot, legs, lots, lot_size,
+                max_profit_per_lot, max_loss_per_lot, cost_per_lot, margin_per_lot,
+                entry_gate, audit, signals, reasons, score, vix, dte, status)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (rec['timestamp'], symbol, top_key, spot,
+             json.dumps(legs, default=_json_default), lots, lot_size,
+             rec['max_profit_per_lot'], rec['max_loss_per_lot'],
+             rec['cost_per_lot'], rec['margin_per_lot'],
+             json.dumps(gate, default=_json_default),
+             json.dumps(audit_result, default=_json_default),
+             json.dumps(sigs, default=_json_default),
+             json.dumps(reco['reasons']), rec['score'], vix_value, dte, 'pending')
+        )
+        conn.commit()
+        rec['recommendation_id'] = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+    finally:
+        conn.close()
     return rec
 
 
@@ -854,7 +867,7 @@ def enter(recommendation_id=None, db=None):
         from .data import event_calendar
         target_exp = event_calendar.next_expiry(row['symbol'])
 
-        now = datetime.datetime.now().isoformat()
+        now = _now_ist().isoformat()
         conn.execute(
             '''INSERT INTO trades
                (recommendation_id, opened_at, symbol, strategy, entry_spot, legs,
@@ -1050,7 +1063,7 @@ def exit_trade(trade_id, spot=None, reason='manual', db=None):
         entry_cost = trade['entry_cost'] or 0
         net_pnl = round(gross_pnl - entry_cost - exit_cost, 2)
 
-        now = datetime.datetime.now().isoformat()
+        now = _now_ist().isoformat()
         conn.execute(
             '''UPDATE trades SET status='closed', closed_at=?, exit_spot=?,
                exit_reason=?, exit_cost=?, gross_pnl=?, net_pnl=? WHERE id=?''',
@@ -1075,14 +1088,16 @@ def expire_old(db=None):
     """Expire pending recommendations older than 1 trading day."""
     db = db or _db_path()
     init_db(db)
-    cutoff = (datetime.datetime.now() - datetime.timedelta(hours=20)).isoformat()
+    cutoff = (_now_ist() - datetime.timedelta(hours=20)).isoformat()
     conn = _connect(db)
-    n = conn.execute(
-        "UPDATE recommendations SET status='expired' "
-        "WHERE status='pending' AND timestamp < ?", (cutoff,)
-    ).rowcount
-    conn.commit()
-    conn.close()
+    try:
+        n = conn.execute(
+            "UPDATE recommendations SET status='expired' "
+            "WHERE status='pending' AND timestamp < ?", (cutoff,)
+        ).rowcount
+        conn.commit()
+    finally:
+        conn.close()
     if n > 0:
         log.info(f'Expired {n} old recommendation(s)')
     return n
@@ -1095,17 +1110,19 @@ def journal(symbol=None, db=None):
     db = db or _db_path()
     init_db(db)
     conn = _connect(db)
+    try:
 
-    query = "SELECT id, opened_at, symbol, strategy, entry_spot, lots, " \
-            "status, exit_spot, entry_cost, exit_cost, gross_pnl, net_pnl, " \
-            "exit_reason FROM trades ORDER BY id"
-    params = []
-    if symbol:
-        query = query.replace("ORDER BY", "WHERE symbol=? ORDER BY")
-        params = [symbol]
+        query = "SELECT id, opened_at, symbol, strategy, entry_spot, lots, " \
+                "status, exit_spot, entry_cost, exit_cost, gross_pnl, net_pnl, " \
+                "exit_reason FROM trades ORDER BY id"
+        params = []
+        if symbol:
+            query = query.replace("ORDER BY", "WHERE symbol=? ORDER BY")
+            params = [symbol]
 
-    df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
+        df = pd.read_sql_query(query, conn, params=params)
+    finally:
+        conn.close()
 
     if df.empty:
         print('No trades yet.')
@@ -1458,23 +1475,25 @@ def _self_check():
 
     # Insert a synthetic recommendation
     conn = _connect(db)
-    conn.execute(
-        '''INSERT INTO recommendations
-           (timestamp, symbol, strategy, spot, legs, lots, lot_size,
-            max_profit_per_lot, max_loss_per_lot, cost_per_lot, margin_per_lot,
-            entry_gate, audit, signals, reasons, score, vix, dte, status)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-        (datetime.datetime.now().isoformat(), symbol, 'iron_condor', spot,
-         json.dumps(legs, default=_json_default), 2, lot_size,
-         round(net_prem * lot_size, 2), round(100 * lot_size, 2),
-         50.0, 45000.0,
-         json.dumps({'passes': True, 'ratio': 1.5}),
-         json.dumps({'decision': 'PASS', 'checks': []}),
-         json.dumps([]), json.dumps(['vol sell OK', 'VIX normal']),
-         8.5, 15.0, 14, 'pending')
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            '''INSERT INTO recommendations
+               (timestamp, symbol, strategy, spot, legs, lots, lot_size,
+                max_profit_per_lot, max_loss_per_lot, cost_per_lot, margin_per_lot,
+                entry_gate, audit, signals, reasons, score, vix, dte, status)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (_now_ist().isoformat(), symbol, 'iron_condor', spot,
+             json.dumps(legs, default=_json_default), 2, lot_size,
+             round(net_prem * lot_size, 2), round(100 * lot_size, 2),
+             50.0, 45000.0,
+             json.dumps({'passes': True, 'ratio': 1.5}),
+             json.dumps({'decision': 'PASS', 'checks': []}),
+             json.dumps([]), json.dumps(['vol sell OK', 'VIX normal']),
+             8.5, 15.0, 14, 'pending')
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     # enter
     result = enter(db=db)
@@ -1495,27 +1514,31 @@ def _self_check():
 
     # expire
     conn = _connect(db)
-    conn.execute(
-        "INSERT INTO recommendations "
-        "(timestamp, symbol, strategy, spot, legs, lots, lot_size, "
-        "max_profit_per_lot, max_loss_per_lot, cost_per_lot, margin_per_lot, "
-        "entry_gate, audit, signals, reasons, score, vix, dte, status) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        ('2020-01-01T00:00:00', 'NIFTY', 'test', 24000,
-         '[]', 1, 65, 0, 0, 0, 0, '{}', '{}', '[]', '[]', 0, 14, 7, 'pending')
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            "INSERT INTO recommendations "
+            "(timestamp, symbol, strategy, spot, legs, lots, lot_size, "
+            "max_profit_per_lot, max_loss_per_lot, cost_per_lot, margin_per_lot, "
+            "entry_gate, audit, signals, reasons, score, vix, dte, status) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            ('2020-01-01T00:00:00', 'NIFTY', 'test', 24000,
+             '[]', 1, 65, 0, 0, 0, 0, '{}', '{}', '[]', '[]', 0, 14, 7, 'pending')
+        )
+        conn.commit()
+    finally:
+        conn.close()
     n = expire_old(db=db)
     assert n == 1
 
     # verify trade is closed
     conn = _connect(db)
-    conn.row_factory = sqlite3.Row
-    t = conn.execute("SELECT * FROM trades WHERE id=1").fetchone()
-    assert t['status'] == 'closed'
-    assert t['net_pnl'] is not None
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        t = conn.execute("SELECT * FROM trades WHERE id=1").fetchone()
+        assert t['status'] == 'closed'
+        assert t['net_pnl'] is not None
+    finally:
+        conn.close()
 
     os.remove(db)
     print("paper_trade.py: all checks passed")
@@ -1592,24 +1615,26 @@ def _cli():
         db = _db_path()
         init_db(db)
         conn = _connect(db)
-        cur = conn.execute(
-            "UPDATE strategy_lifecycle SET status='ABORTED', abort_date=?, abort_reason=? "
-            "WHERE strategy_key=? AND status='INCUBATING'",
-            (datetime.date.today().isoformat(), args.reason, args.strategy_key)
-        )
-        conn.commit()
-        if cur.rowcount == 0:
-            row = conn.execute(
-                'SELECT status FROM strategy_lifecycle WHERE strategy_key=?',
-                (args.strategy_key,)
-            ).fetchone()
-            if row:
-                print(f'Cannot abort: {args.strategy_key} is already {row[0]}')
+        try:
+            cur = conn.execute(
+                "UPDATE strategy_lifecycle SET status='ABORTED', abort_date=?, abort_reason=? "
+                "WHERE strategy_key=? AND status='INCUBATING'",
+                (datetime.date.today().isoformat(), args.reason, args.strategy_key)
+            )
+            conn.commit()
+            if cur.rowcount == 0:
+                row = conn.execute(
+                    'SELECT status FROM strategy_lifecycle WHERE strategy_key=?',
+                    (args.strategy_key,)
+                ).fetchone()
+                if row:
+                    print(f'Cannot abort: {args.strategy_key} is already {row[0]}')
+                else:
+                    print(f'Not found: {args.strategy_key}')
             else:
-                print(f'Not found: {args.strategy_key}')
-        else:
-            print(f'Aborted: {args.strategy_key} — {args.reason}')
-        conn.close()
+                print(f'Aborted: {args.strategy_key} — {args.reason}')
+        finally:
+            conn.close()
     else:
         parser.print_help()
 

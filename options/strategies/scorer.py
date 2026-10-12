@@ -15,6 +15,9 @@ from . import selector, registry
 from . import regime as regime_mod
 from ..core import event_calendar
 
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_today_ist = lambda: datetime.datetime.now(_IST).date()
+
 
 GATE_PASS = {
     'short_straddle', 'short_strangle', 'iron_butterfly', 'jade_lizard',
@@ -87,7 +90,7 @@ def score(signals, backtest_dir=None,
       {strategy_key, final_score, signal_score, seasonal_mod,
        confidence, entry_timing, reasons}
     """
-    dt = dt or datetime.date.today()
+    dt = dt or _today_ist()
     # NSE weekly expiry = Tuesday (Sep 2025 onward). When DTE to this week's expiry is
     # too short for any strategy (all need min_dte >= 7), target next
     # week's expiry. The builder picks the right chain at trade time.
@@ -123,31 +126,33 @@ def score(signals, backtest_dir=None,
         if key not in ranked_keys and perf.get('boost', 0) >= 1.0 and key in gate_set:
             ranked.append((key, 0.5, [f'recent backtest winner (avg ₹{perf["avg_trade"]:,.0f})']))
 
+    vp_boost = _vp_boost(signals)
+    filtered = []
     scored = []
     for key, signal_score, reasons in ranked:
-        if key not in gate_set:
-            continue
-
-        # Regime hard gate: only strategies matching the 2x2 cell
-        if key not in allowed:
-            continue
-
         strat = registry.get(key)
+        cat = strat.category if strat else 'unknown'
 
-        # Engine Fix #7 mirror: suppress UNLIMITED-risk income when VIX low.
-        if vix_too_low and strat and strat.category == 'income':
-            if strat.max_loss != 'limited':
-                continue
+        if key not in gate_set:
+            filtered.append({'strategy': key, 'reason': 'backtest gate fail', 'category': cat})
+            continue
 
-        # Engine Fix #3 mirror: suppress income strategies near known events
-        if event_imminent and strat and strat.category == 'income':
+        if key not in allowed:
+            filtered.append({'strategy': key, 'reason': f'regime={regime} excludes {cat}', 'category': cat})
+            continue
+
+        if vix_too_low and strat and cat == 'income' and strat.max_loss != 'limited':
+            filtered.append({'strategy': key, 'reason': 'VIX too low for unlimited-risk income', 'category': cat})
+            continue
+
+        if event_imminent and strat and cat == 'income':
+            filtered.append({'strategy': key, 'reason': 'event imminent — no income', 'category': cat})
             continue
 
         seasonal = _SEASONAL.get(dt.month, 0.90)
-        if strat and strat.category != 'income':
+        if strat and cat != 'income':
             seasonal = max(seasonal, 0.95)
 
-        vp_boost = _vp_boost(signals)
         recent = _RECENT_PERF.get(key, {}).get('boost', 0)
         final = signal_score * seasonal + vp_boost + recent
         confidence = _confidence(final, seasonal, len(reasons))
@@ -158,6 +163,8 @@ def score(signals, backtest_dir=None,
             'final_score': round(final, 2),
             'signal_score': signal_score,
             'seasonal_mod': seasonal,
+            'vp_boost': round(vp_boost, 2),
+            'recent_boost': recent,
             'confidence': confidence,
             'entry_timing': timing,
             'reasons': reasons,
@@ -167,6 +174,9 @@ def score(signals, backtest_dir=None,
         })
 
     scored.sort(key=lambda x: -x['final_score'])
+    # Attach filtered list to first item for caller access (avoids API change)
+    if scored:
+        scored[0]['_filtered'] = filtered
     return scored
 
 
@@ -217,7 +227,7 @@ def _is_event_imminent(sig_map, dt=None):
     ev = sig_map.get('event', {})
     if ev.get('direction') == 'caution' and ev.get('strength', 0) > 0.7:
         return True
-    dt = dt or datetime.date.today()
+    dt = dt or _today_ist()
     return event_calendar.event_near(dt) is not None
 
 

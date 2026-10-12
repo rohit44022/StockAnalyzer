@@ -241,6 +241,15 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
 .scan-step .sym{color:var(--text);font-weight:500}
 .scan-step .scr{color:var(--y);font-size:.75rem}
 .scan-step .rsn{color:var(--muted);font-size:.75rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scan-audit-toggle{cursor:pointer;color:var(--b);font-size:.7rem;margin-left:6px;text-decoration:underline}
+.scan-audit{display:none;margin:4px 0 6px 106px;font-size:.75rem;background:var(--bg);border:1px solid var(--card-border);border-radius:4px;padding:6px 8px;max-width:600px}
+.scan-audit.open{display:block}
+.scan-audit table{width:100%;border-collapse:collapse}
+.scan-audit th{text-align:left;color:var(--muted);font-weight:500;padding:2px 6px;border-bottom:1px solid var(--card-border);font-size:.7rem}
+.scan-audit td{padding:2px 6px;font-size:.72rem}
+.scan-audit .filtered{color:var(--muted);font-style:italic}
+.scan-audit .bar{display:inline-block;height:8px;border-radius:2px;vertical-align:middle}
+.scan-audit .bar-signal{background:var(--b)}.scan-audit .bar-vp{background:var(--g)}.scan-audit .bar-recent{background:var(--y)}.scan-audit .bar-seasonal{background:var(--muted)}
 
 /* ── Error state ── */
 .err-state{background:rgba(240,101,72,.08);border:1px solid rgba(240,101,72,.2);border-radius:10px;padding:16px 20px;text-align:center;margin:1rem 0}
@@ -1007,8 +1016,28 @@ function rScan(cycles){
     for(const s of c.steps){
       const score=s.score!=null&&s.score>0?' <span class="scr">score:'+Number(s.score).toFixed(1)+'</span>':'';
       const sym=s.symbol?'<span class="sym">'+s.symbol+'</span>':'';
-      const reason=s.reason?'<span class="rsn" title="'+s.reason.replace(/"/g,'&quot;')+'">'+s.reason+'</span>':'';
-      h+='<div class="scan-step"><span class="act '+s.action+'">'+s.action+'</span>'+sym+score+reason+'</div>';
+      const reason=s.reason?'<span class="rsn" title="'+esc(s.reason)+'">'+esc(s.reason)+'</span>':'';
+      h+='<div class="scan-step"><span class="act '+s.action+'">'+s.action+'</span>'+sym+score+reason;
+      if(s.candidates_audit&&s.candidates_audit.length){
+        var aid='audit_'+c.cycle_id+'_'+j;
+        h+='<span class="scan-audit-toggle" onclick="document.getElementById(\''+aid+'\').classList.toggle(\'open\')">why?</span>';
+        h+='</div>';
+        h+='<div class="scan-audit" id="'+aid+'"><table><tr><th>Strategy</th><th>Score</th><th>Breakdown</th><th>Status</th></tr>';
+        s.candidates_audit.forEach(function(ca){
+          if(ca.status==='scored'){
+            var maxW=120,sig=Math.round((ca.signal_score||0)/10*maxW),vp=Math.round((ca.vp_boost||0)/3*maxW),rec=Math.round((ca.recent_boost||0)/3*maxW);
+            var bars='<span class="bar bar-signal" style="width:'+Math.max(sig,1)+'px" title="signal:'+((ca.signal_score||0).toFixed(1))+'"></span>'
+              +'<span class="bar bar-vp" style="width:'+Math.max(vp,1)+'px" title="vp:'+((ca.vp_boost||0).toFixed(1))+'"></span>'
+              +'<span class="bar bar-recent" style="width:'+Math.max(rec,1)+'px" title="recent:'+((ca.recent_boost||0).toFixed(1))+'"></span>';
+            h+='<tr><td>'+ca.strategy+'</td><td>'+ca.score+'</td><td>'+bars+' <span style="font-size:.65rem;color:var(--muted)">sig:'+(ca.signal_score||0).toFixed(1)+' vp:'+(ca.vp_boost||0).toFixed(1)+' rec:'+(ca.recent_boost||0).toFixed(1)+' sea:'+(ca.seasonal||0).toFixed(2)+'</span></td><td>scored</td></tr>';
+          }else{
+            h+='<tr class="filtered"><td>'+ca.strategy+'</td><td>—</td><td>'+(ca.reasons?ca.reasons[0]:'')+'</td><td>filtered</td></tr>';
+          }
+        });
+        h+='</table></div>';
+      }else{
+        h+='</div>';
+      }
     }
     h+='</div>';
   }

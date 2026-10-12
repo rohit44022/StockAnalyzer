@@ -36,7 +36,7 @@ class _RingHandler(logging.Handler):
 
     def emit(self, record):
         entry = {
-            'ts': datetime.datetime.fromtimestamp(record.created).isoformat(timespec='seconds'),
+            'ts': datetime.datetime.fromtimestamp(record.created, tz=_IST).strftime('%Y-%m-%dT%H:%M:%S'),
             'level': record.levelname,
             'name': record.name,
             'msg': self.format(record),
@@ -117,6 +117,9 @@ _CONFIG_BOUNDS = {
     'card_game_exit_threshold':(1.0, 10.0),
     'vix_halt_above':        (20, 50),
     'gap_stop_multiplier':   (1.0, 3.0),
+    'per_trade_limit':       (1_000, 500_000),
+    'scan_interval_minutes': (10, 60),
+    'max_loss_per_trade':    (100, 100_000),
 }
 
 
@@ -175,7 +178,7 @@ def save_config(cfg: dict) -> dict:
         os.fsync(f.fileno())
     os.replace(tmp, _CONFIG_FILE)
     if changes:
-        entry = {'ts': datetime.datetime.now().isoformat(timespec='seconds'), 'changes': changes}
+        entry = {'ts': _now_ist().isoformat(timespec='seconds'), 'changes': changes}
         try:
             with open(_CONFIG_AUDIT, 'a') as f:
                 f.write(json.dumps(entry) + '\n')
@@ -207,28 +210,32 @@ def _emit_alert(db, severity, category, title, detail='', context=None):
                       f'{title}: {detail}', context=context)
         return
     conn = _conn(db)
-    conn.execute(
-        '''INSERT INTO autopilot_alerts
-           (timestamp, severity, category, title, detail, context_json)
-           VALUES (?,?,?,?,?,?)''',
-        (datetime.datetime.now().isoformat(), severity, category,
-         title, detail, json.dumps(context) if context else None)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            '''INSERT INTO autopilot_alerts
+               (timestamp, severity, category, title, detail, context_json)
+               VALUES (?,?,?,?,?,?)''',
+            (_now_ist().isoformat(), severity, category,
+             title, detail, json.dumps(context) if context else None)
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_alerts(db=None, limit=50, unacked_only=False) -> list:
     from . import paper_trade
     db = db or paper_trade._db_path()
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    where = "WHERE acknowledged=0" if unacked_only else ""
-    rows = conn.execute(
-        f'SELECT * FROM autopilot_alerts {where} ORDER BY id DESC LIMIT ?',
-        (limit,)
-    ).fetchall()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        where = "WHERE acknowledged=0" if unacked_only else ""
+        rows = conn.execute(
+            f'SELECT * FROM autopilot_alerts {where} ORDER BY id DESC LIMIT ?',
+            (limit,)
+        ).fetchall()
+    finally:
+        conn.close()
     return [dict(r) for r in rows]
 
 
@@ -236,9 +243,11 @@ def ack_alert(alert_id, db=None):
     from . import paper_trade
     db = db or paper_trade._db_path()
     conn = _conn(db)
-    conn.execute("UPDATE autopilot_alerts SET acknowledged=1 WHERE id=?", (alert_id,))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("UPDATE autopilot_alerts SET acknowledged=1 WHERE id=?", (alert_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # ── File lock for cron anti-overlap (v5) ──────────────────────
@@ -322,10 +331,11 @@ def _fetch_chain_cached(symbol):
 # ── Live Execution Bridge (v5) ────────────────────────────────
 
 _IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
 
 def _is_market_open():
     """NSE market hours: Mon-Fri 9:15–15:30 IST, or Muhurat session."""
-    now = datetime.datetime.now(_IST)
+    now = _now_ist()
     try:
         from .data import event_calendar
         if event_calendar.is_muhurat_session(now):
@@ -470,10 +480,12 @@ def _place_standing_sls(trade_id, legs, symbol, db):
             log.error(f'Standing SL failed for trade {trade_id} sid={sid}: {e}')
     if sl_ids:
         conn = _conn(db)
-        conn.execute("UPDATE trades SET standing_sl_ids=? WHERE id=?",
-                     (json.dumps(sl_ids), trade_id))
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("UPDATE trades SET standing_sl_ids=? WHERE id=?",
+                         (json.dumps(sl_ids), trade_id))
+            conn.commit()
+        finally:
+            conn.close()
     return sl_ids
 
 
@@ -481,9 +493,11 @@ def _cancel_standing_sls(trade_id, db):
     """Cancel any standing SLs before exiting — we're handling the exit ourselves."""
     from .data import dhan_fetch
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    row = conn.execute("SELECT standing_sl_ids FROM trades WHERE id=?", (trade_id,)).fetchone()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT standing_sl_ids FROM trades WHERE id=?", (trade_id,)).fetchone()
+    finally:
+        conn.close()
     if not row or not row['standing_sl_ids']:
         return
     sl_ids = json.loads(row['standing_sl_ids'])
@@ -493,9 +507,11 @@ def _cancel_standing_sls(trade_id, db):
         except Exception as e:
             log.warning(f'Cancel standing SL {oid} for trade {trade_id}: {e}')
     conn = _conn(db)
-    conn.execute("UPDATE trades SET standing_sl_ids=NULL WHERE id=?", (trade_id,))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("UPDATE trades SET standing_sl_ids=NULL WHERE id=?", (trade_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _live_enter(executor, trade_id, trade, cfg, db):
@@ -563,7 +579,7 @@ def _live_enter(executor, trade_id, trade, cfg, db):
             conn.execute(
                 "UPDATE trades SET live_status='FAILED', status='cancelled', "
                 "closed_at=? WHERE id=?",
-                (datetime.datetime.now().isoformat(), trade_id))
+                (_now_ist().isoformat(), trade_id))
             _emit_alert(db, 'WARNING', 'ENTRY',
                         f'Live entry FAILED — Trade #{trade_id}',
                         f'All legs failed. Paper trade cancelled.')
@@ -596,7 +612,7 @@ def _live_exit(executor, trade_id, trade, cfg, db):
     try:
         target_exp = trade.get('target_expiry')
         if target_exp:
-            dte = max(0, (datetime.date.fromisoformat(target_exp) - datetime.date.today()).days)
+            dte = max(0, (datetime.date.fromisoformat(target_exp) - _now_ist().date()).days)
     except Exception:
         pass
 
@@ -683,7 +699,7 @@ def _log_decision(db, cycle_id, cycle_type, action, reason,
                (timestamp, cycle_id, cycle_type, action, symbol, trade_id,
                 recommendation_id, strategy, score, spot, vix, pnl, reason, context_json)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-            (datetime.datetime.now().isoformat(), cycle_id, cycle_type,
+            (_now_ist().isoformat(), cycle_id, cycle_type,
              action, symbol, trade_id, rec_id, strategy, score, spot, vix, pnl,
              reason, json.dumps(context) if context else None)
         )
@@ -697,11 +713,13 @@ def get_decision_log(db=None, limit=50) -> list:
     db = db or paper_trade._db_path()
     paper_trade.init_db(db)
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        'SELECT * FROM autopilot_log ORDER BY id DESC LIMIT ?', (limit,)
-    ).fetchall()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            'SELECT * FROM autopilot_log ORDER BY id DESC LIMIT ?', (limit,)
+        ).fetchall()
+    finally:
+        conn.close()
     return [dict(r) for r in rows]
 
 
@@ -712,26 +730,37 @@ def _get_scan_history(db=None, limit=20):
     paper_trade.init_db(db)
     conn = _conn(db)
     conn.row_factory = sqlite3.Row
-    rows = conn.execute("""
-        SELECT timestamp, cycle_id, cycle_type, action, symbol, reason, score
-        FROM autopilot_log
-        WHERE cycle_id IN (
-            SELECT DISTINCT cycle_id FROM autopilot_log
-            ORDER BY id DESC LIMIT ?
-        )
-        ORDER BY id ASC
-    """, (limit,)).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute("""
+            SELECT timestamp, cycle_id, cycle_type, action, symbol, reason, score, context_json
+            FROM autopilot_log
+            WHERE cycle_id IN (
+                SELECT DISTINCT cycle_id FROM autopilot_log
+                ORDER BY id DESC LIMIT ?
+            )
+            ORDER BY id ASC
+        """, (limit,)).fetchall()
+    finally:
+        conn.close()
     cycles = {}
     for r in rows:
         cid = r['cycle_id']
         if cid not in cycles:
             cycles[cid] = {'cycle_id': cid, 'timestamp': r['timestamp'],
                            'cycle_type': r['cycle_type'], 'steps': []}
-        cycles[cid]['steps'].append({
+        step = {
             'action': r['action'], 'symbol': r['symbol'],
             'reason': r['reason'], 'score': r['score'],
-        })
+        }
+        ctx = r['context_json']
+        if ctx:
+            try:
+                parsed = json.loads(ctx)
+                if parsed.get('candidates_audit'):
+                    step['candidates_audit'] = parsed['candidates_audit']
+            except (json.JSONDecodeError, TypeError):
+                pass
+        cycles[cid]['steps'].append(step)
     return list(cycles.values())[-10:]
 
 
@@ -748,7 +777,7 @@ def _preflight(cfg, db) -> tuple[bool, str]:
     # 1b. Circuit breaker: block entry if NIFTY moved >8% from previous close
     try:
         from .data import dhan_fetch
-        rows = dhan_fetch.fetch_daily_ohlc('NIFTY', to_date=datetime.date.today().isoformat())
+        rows = dhan_fetch.fetch_daily_ohlc('NIFTY', to_date=_now_ist().date().isoformat())
         if len(rows) >= 2:
             prev_close = rows[-2]['close']
             last_close = rows[-1]['close']
@@ -776,7 +805,7 @@ def _preflight(cfg, db) -> tuple[bool, str]:
 
     # 2. Market day (IST) — Muhurat sessions override weekend/holiday
     from .data import event_calendar
-    now_ist = datetime.datetime.now(_IST)
+    now_ist = _now_ist()
     today = now_ist.date()
     muhurat = event_calendar.is_muhurat_session(now_ist)
     if not muhurat:
@@ -787,11 +816,13 @@ def _preflight(cfg, db) -> tuple[bool, str]:
 
     # 3. Drawdown circuit breaker
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    closed = conn.execute(
-        "SELECT net_pnl FROM trades WHERE status='closed' AND source='autopilot'"
-    ).fetchall()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        closed = conn.execute(
+            "SELECT net_pnl FROM trades WHERE status='closed' AND source='autopilot'"
+        ).fetchall()
+    finally:
+        conn.close()
     total_pnl = sum(r['net_pnl'] or 0 for r in closed)
     current_capital = cfg['capital'] + total_pnl
     if cfg['capital'] > 0:
@@ -802,11 +833,13 @@ def _preflight(cfg, db) -> tuple[bool, str]:
     # 4. Incubating strategies exist
     if cfg['only_incubating']:
         conn = _conn(db)
-        conn.row_factory = sqlite3.Row
-        inc = conn.execute(
-            "SELECT COUNT(*) as n FROM strategy_lifecycle WHERE status='INCUBATING'"
-        ).fetchone()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            inc = conn.execute(
+                "SELECT COUNT(*) as n FROM strategy_lifecycle WHERE status='INCUBATING'"
+            ).fetchone()
+        finally:
+            conn.close()
         if inc['n'] == 0:
             return False, 'No strategies in INCUBATING status — nothing to trade'
 
@@ -817,15 +850,17 @@ def _preflight(cfg, db) -> tuple[bool, str]:
 
 def _capital_state(cfg, db) -> dict:
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    closed_pnl = conn.execute(
-        "SELECT COALESCE(SUM(net_pnl),0) as total FROM trades "
-        "WHERE status='closed' AND source='autopilot'"
-    ).fetchone()['total']
-    open_trades = [dict(r) for r in conn.execute(
-        "SELECT * FROM trades WHERE status='open' AND source='autopilot'"
-    ).fetchall()]
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        closed_pnl = conn.execute(
+            "SELECT COALESCE(SUM(net_pnl),0) as total FROM trades "
+            "WHERE status='closed' AND source='autopilot'"
+        ).fetchone()['total']
+        open_trades = [dict(r) for r in conn.execute(
+            "SELECT * FROM trades WHERE status='open' AND source='autopilot'"
+        ).fetchall()]
+    finally:
+        conn.close()
 
     current_capital = cfg['capital'] + closed_pnl
     deployed = sum((r.get('margin_per_lot') or 0) * (r.get('lots') or 1) for r in open_trades)
@@ -849,10 +884,12 @@ def _capital_state(cfg, db) -> dict:
 def _increment_adj_count(trade_id, db):
     """S8: bump adjustment_count when an adjustment-driven exit fires."""
     conn = _conn(db)
-    conn.execute("UPDATE trades SET adjustment_count = COALESCE(adjustment_count,0)+1 WHERE id=?",
-                 (trade_id,))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("UPDATE trades SET adjustment_count = COALESCE(adjustment_count,0)+1 WHERE id=?",
+                     (trade_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _update_adj_streak(trade_id, has_signal, current_streak, db):
@@ -860,10 +897,12 @@ def _update_adj_streak(trade_id, has_signal, current_streak, db):
     new_streak = (current_streak + 1) if has_signal else 0
     if new_streak != current_streak:
         conn = _conn(db)
-        conn.execute("UPDATE trades SET adj_signal_streak=? WHERE id=?",
-                     (new_streak, trade_id))
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("UPDATE trades SET adj_signal_streak=? WHERE id=?",
+                         (new_streak, trade_id))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 # ── Exit Logic ──────────────────────────────────────────────────
@@ -883,7 +922,7 @@ def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
     target_exp = trade.get('target_expiry')
     if target_exp:
         try:
-            dte_days = max(0, (datetime.date.fromisoformat(target_exp) - datetime.date.today()).days)
+            dte_days = max(0, (datetime.date.fromisoformat(target_exp) - _now_ist().date()).days)
         except Exception:
             dte_days = 14
     else:
@@ -971,15 +1010,15 @@ def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
     # 4. Expiry passed (ghost trade) — caught by Phase 1 too, but safety net
     if target_exp:
         try:
-            if datetime.date.fromisoformat(target_exp) < datetime.date.today():
+            if datetime.date.fromisoformat(target_exp) < _now_ist().date():
                 return True, f'Target expiry {target_exp} has passed — ghost trade cleanup'
         except Exception:
             pass
 
     # 5. Adjustment engine with S10/S6/S8/T6 wiring
     opened = trade.get('opened_at', '')
-    entry_date = opened[:10] if opened else datetime.date.today().isoformat()
-    days_held = max(0, (datetime.date.today() - datetime.date.fromisoformat(entry_date)).days)
+    entry_date = opened[:10] if opened else _now_ist().date().isoformat()
+    days_held = max(0, (_now_ist().date() - datetime.date.fromisoformat(entry_date)).days)
     entry_spot = trade.get('entry_spot') or spot
 
     position = {
@@ -1057,7 +1096,7 @@ def _should_exit(trade, spot, cfg, db) -> tuple[bool, str]:
 
     # 8. S9: Friday pre-close — calendar spreads lose front-month theta over weekend
     strategy = trade.get('strategy', '')
-    if 'calendar' in strategy and datetime.date.today().weekday() == 4:
+    if 'calendar' in strategy and _now_ist().date().weekday() == 4:
         if max_profit > 0 and total_pnl >= max_profit * 0.5:
             return True, f'Friday pre-close: calendar at {total_pnl/max_profit*100:.0f}% profit — avoid weekend theta imbalance'
 
@@ -1098,24 +1137,28 @@ def _should_enter(rec, cfg, cap_state, db) -> tuple[bool, str]:
 
     # Max trades per day
     conn = _conn(db)
-    today_str = datetime.date.today().isoformat()
-    day_count = conn.execute(
-        "SELECT COUNT(*) FROM trades WHERE source='autopilot' AND opened_at LIKE ?",
-        (today_str + '%',)
-    ).fetchone()[0]
-    conn.close()
+    try:
+        today_str = _now_ist().date().isoformat()
+        day_count = conn.execute(
+            "SELECT COUNT(*) FROM trades WHERE source='autopilot' AND opened_at LIKE ?",
+            (today_str + '%',)
+        ).fetchone()[0]
+    finally:
+        conn.close()
     if day_count >= cfg['max_trades_per_day']:
         return False, f'Max trades today ({cfg["max_trades_per_day"]}) reached'
 
     # Consecutive losses check
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    recent = conn.execute(
-        "SELECT net_pnl FROM trades WHERE source='autopilot' AND status='closed' "
-        "ORDER BY id DESC LIMIT ?",
-        (cfg['max_consecutive_losses'],)
-    ).fetchall()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        recent = conn.execute(
+            "SELECT net_pnl FROM trades WHERE source='autopilot' AND status='closed' "
+            "ORDER BY id DESC LIMIT ?",
+            (cfg['max_consecutive_losses'],)
+        ).fetchall()
+    finally:
+        conn.close()
     if len(recent) >= cfg['max_consecutive_losses']:
         if all((r['net_pnl'] or 0) < 0 for r in recent):
             return False, f'{cfg["max_consecutive_losses"]} consecutive losses — pausing entries'
@@ -1158,11 +1201,13 @@ def _should_enter(rec, cfg, cap_state, db) -> tuple[bool, str]:
     # Only incubating strategies
     if cfg['only_incubating']:
         conn = _conn(db)
-        inc = conn.execute(
-            "SELECT status FROM strategy_lifecycle WHERE strategy_key=?",
-            (strategy,)
-        ).fetchone()
-        conn.close()
+        try:
+            inc = conn.execute(
+                "SELECT status FROM strategy_lifecycle WHERE strategy_key=?",
+                (strategy,)
+            ).fetchone()
+        finally:
+            conn.close()
         if not inc or inc[0] != 'INCUBATING':
             return False, f'Strategy {strategy} not in INCUBATING status'
     else:
@@ -1252,7 +1297,7 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
     cfg = load_config()
     cycle_id = uuid.uuid4().hex[:12]
 
-    now_ist = datetime.datetime.now(_IST)
+    now_ist = _now_ist()
 
     # Clear per-cycle caches
     _atr_cache.clear()
@@ -1263,7 +1308,7 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
         return {'cycle_id': cycle_id, 'action': 'skip', 'reason': 'Autopilot disabled'}
 
     if cycle_type == 'auto':
-        now_auto = datetime.datetime.now(_IST)
+        now_auto = _now_ist()
         try:
             from .data import event_calendar
             if event_calendar.is_muhurat_session(now_auto):
@@ -1276,7 +1321,7 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
     summary = {
         'cycle_id': cycle_id,
         'cycle_type': cycle_type,
-        'timestamp': datetime.datetime.now().isoformat(),
+        'timestamp': _now_ist().isoformat(),
         'entries': 0,
         'exits': 0,
         'checks': 0,
@@ -1291,23 +1336,27 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
         summary['preflight'] = reason
         # v5: alert if open positions exist during preflight failure
         conn = _conn(db)
-        open_count = conn.execute(
-            "SELECT COUNT(*) FROM trades WHERE status='open' AND source='autopilot'"
-        ).fetchone()[0]
-        conn.close()
+        try:
+            open_count = conn.execute(
+                "SELECT COUNT(*) FROM trades WHERE status='open' AND source='autopilot'"
+            ).fetchone()[0]
+        finally:
+            conn.close()
         if open_count > 0:
             # Cooldown: don't spam same alert within 30 min
             conn = _conn(db)
-            conn.row_factory = sqlite3.Row
-            last_pf = conn.execute(
-                "SELECT timestamp FROM autopilot_alerts "
-                "WHERE category='SYSTEM' AND title LIKE 'Monitoring HALTED%' "
-                "ORDER BY id DESC LIMIT 1"
-            ).fetchone()
-            conn.close()
+            try:
+                conn.row_factory = sqlite3.Row
+                last_pf = conn.execute(
+                    "SELECT timestamp FROM autopilot_alerts "
+                    "WHERE category='SYSTEM' AND title LIKE 'Monitoring HALTED%' "
+                    "ORDER BY id DESC LIMIT 1"
+                ).fetchone()
+            finally:
+                conn.close()
             should_alert = True
             if last_pf:
-                elapsed = (datetime.datetime.now() -
+                elapsed = (_now_ist() -
                            datetime.datetime.fromisoformat(last_pf['timestamp'])
                            ).total_seconds()
                 should_alert = elapsed >= 1800
@@ -1344,13 +1393,15 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
 
     # ── Phase 1: Expire ghost trades ──
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    ghosts = conn.execute(
-        "SELECT * FROM trades "
-        "WHERE status='open' AND target_expiry IS NOT NULL AND target_expiry < ?",
-        (datetime.datetime.now(_IST).date().isoformat(),)
-    ).fetchall()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        ghosts = conn.execute(
+            "SELECT * FROM trades "
+            "WHERE status='open' AND target_expiry IS NOT NULL AND target_expiry < ?",
+            (_now_ist().date().isoformat(),)
+        ).fetchall()
+    finally:
+        conn.close()
     for g in ghosts:
         g = dict(g)
         try:
@@ -1371,11 +1422,13 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
 
     # ── Phase 1b: Retry RESIDUAL positions (partial fills stuck on Dhan) ──
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    residuals = conn.execute(
-        "SELECT * FROM trades WHERE status='open' AND live_status='RESIDUAL'"
-    ).fetchall()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        residuals = conn.execute(
+            "SELECT * FROM trades WHERE status='open' AND live_status='RESIDUAL'"
+        ).fetchall()
+    finally:
+        conn.close()
     if residuals and executor:
         bridge = executor['bridge']
         for r in residuals:
@@ -1396,10 +1449,12 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
                                                   order_type='MARKET')
                         if mkt.success:
                             conn2 = _conn(db)
-                            conn2.execute("UPDATE trades SET live_status='EXITED', residual_retries=? WHERE id=?",
-                                          (retries + 1, tid))
-                            conn2.commit()
-                            conn2.close()
+                            try:
+                                conn2.execute("UPDATE trades SET live_status='EXITED', residual_retries=? WHERE id=?",
+                                              (retries + 1, tid))
+                                conn2.commit()
+                            finally:
+                                conn2.close()
                             paper_trade.exit_trade(tid, reason='Autopilot: RESIDUAL MARKET unwind', db=db)
                             summary['exits'] += 1
                             log.info(f'RESIDUAL MARKET unwind succeeded trade #{tid} after {retries} retries')
@@ -1415,10 +1470,12 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
 
                 ls = _live_exit(executor, tid, r, cfg, db)
                 conn2 = _conn(db)
-                conn2.execute("UPDATE trades SET residual_retries=? WHERE id=?",
-                              (retries + 1, tid))
-                conn2.commit()
-                conn2.close()
+                try:
+                    conn2.execute("UPDATE trades SET residual_retries=? WHERE id=?",
+                                  (retries + 1, tid))
+                    conn2.commit()
+                finally:
+                    conn2.close()
                 if ls == 'EXITED':
                     paper_trade.exit_trade(tid, reason='Autopilot: RESIDUAL unwind succeeded', db=db)
                     summary['exits'] += 1
@@ -1440,23 +1497,25 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
     # ── Phase 2: Check & exit open trades ──
     # G6: detect stale gap (laptop sleep)
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    last_check = conn.execute(
-        "SELECT timestamp FROM autopilot_log "
-        "WHERE action='exit_check' ORDER BY id DESC LIMIT 1"
-    ).fetchone()
-    if last_check:
-        gap_min = (datetime.datetime.now() -
-                   datetime.datetime.fromisoformat(last_check['timestamp'])).total_seconds() / 60
-        gap_threshold = cfg.get('scan_interval_minutes', 30) * 2 + 5
-        if gap_min > gap_threshold:
-            _emit_alert(db, 'WARNING', 'SYSTEM',
-                        f'Monitoring gap: {gap_min:.0f}min',
-                        f'Exit check was stale for {gap_min:.0f} minutes. Laptop may have slept.')
-    _log_decision(db, cycle_id, cycle_type, 'exit_check', 'Exit check started')
+    try:
+        conn.row_factory = sqlite3.Row
+        last_check = conn.execute(
+            "SELECT timestamp FROM autopilot_log "
+            "WHERE action='exit_check' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if last_check:
+            gap_min = (_now_ist() -
+                       datetime.datetime.fromisoformat(last_check['timestamp'])).total_seconds() / 60
+            gap_threshold = max(cfg.get('scan_interval_minutes', 30), 10) * 2 + 5
+            if gap_min > gap_threshold:
+                _emit_alert(db, 'WARNING', 'SYSTEM',
+                            f'Monitoring gap: {gap_min:.0f}min',
+                            f'Exit check was stale for {gap_min:.0f} minutes. Laptop may have slept.')
+        _log_decision(db, cycle_id, cycle_type, 'exit_check', 'Exit check started')
 
-    open_trades = conn.execute("SELECT * FROM trades WHERE status='open'").fetchall()
-    conn.close()
+        open_trades = conn.execute("SELECT * FROM trades WHERE status='open'").fetchall()
+    finally:
+        conn.close()
 
     _spot_cache = {}
     def _get_spot(sym):
@@ -1485,7 +1544,7 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
             summary['errors'].append(f'Spot unavailable for {symbol}')
             continue
 
-        now_ist = datetime.datetime.now(_IST)
+        now_ist = _now_ist()
 
         # STT trap: force-close on expiry day by 14:30 IST
         # ITM options at expiry incur 0.125% STT (~₹2,119/lot on NIFTY)
@@ -1539,10 +1598,11 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
         if should_exit:
             log.info(f'EXIT DECISION: trade #{trade["id"]} {trade.get("symbol")} '
                      f'reason={exit_reason} live_status={trade.get("live_status")}')
-            # Only auto-exit autopilot trades; log manual trade status
-            if trade.get('source', 'manual') != 'autopilot':
+            # Live trades: only exit autopilot-entered trades (safety)
+            # Paper trades: exit regardless of source — no real money at risk
+            if trade.get('source', 'manual') != 'autopilot' and trade.get('live_status') is not None:
                 _log_decision(db, cycle_id, cycle_type, 'skip_exit',
-                              f'Manual trade — exit signal but not auto-managed: {exit_reason}',
+                              f'Live manual trade — exit signal but not auto-managed: {exit_reason}',
                               symbol=symbol, trade_id=trade['id'], strategy=trade.get('strategy'))
                 continue
 
@@ -1589,8 +1649,8 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
     # Update capital after exits
     cap_state = _capital_state(cfg, db)
 
-    # ── Phase 3: Scan for entries (morning only) ──
-    if cycle_type == 'morning':
+    # ── Phase 3: Scan for entries (all cycles until 15:25) ──
+    if now_ist.hour < 15 or (now_ist.hour == 15 and now_ist.minute < 25):
         # Expire stale recommendations first
         try:
             paper_trade.expire_old(db=db)
@@ -1599,22 +1659,20 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
 
         # Check daily loss
         conn = _conn(db)
-        today_str = datetime.date.today().isoformat()
-        daily_pnl = conn.execute(
-            "SELECT COALESCE(SUM(net_pnl),0) FROM trades "
-            "WHERE source='autopilot' AND status='closed' AND closed_at LIKE ?",
-            (today_str + '%',)
-        ).fetchone()[0]
-        conn.close()
+        try:
+            today_str = _now_ist().date().isoformat()
+            daily_pnl = conn.execute(
+                "SELECT COALESCE(SUM(net_pnl),0) FROM trades "
+                "WHERE source='autopilot' AND status='closed' AND closed_at LIKE ?",
+                (today_str + '%',)
+            ).fetchone()[0]
+        finally:
+            conn.close()
 
         log.info(f'Phase 3: daily_pnl=₹{daily_pnl:.0f} limit=-₹{cfg["max_daily_loss"]}')
         if daily_pnl < -cfg['max_daily_loss']:
             _log_decision(db, cycle_id, cycle_type, 'skip_entry',
                           f'Daily loss ₹{daily_pnl:.0f} exceeds -₹{cfg["max_daily_loss"]}')
-            summary['skips'] += 1
-        elif now_ist.hour == 15 and now_ist.minute >= 25:
-            _log_decision(db, cycle_id, cycle_type, 'skip_entry',
-                          'Exit-only window (15:25-15:30) — no new entries')
             summary['skips'] += 1
         else:
             for symbol in cfg['symbols']:
@@ -1632,7 +1690,8 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
                              f'(score={rec.get("score", "N/A")})')
                     _log_decision(db, cycle_id, cycle_type, 'no_opportunity',
                                   rec.get('reason', 'No recommendation'),
-                                  symbol=symbol, score=rec.get('score'))
+                                  symbol=symbol, score=rec.get('score'),
+                                  context={'candidates_audit': rec.get('candidates_audit', [])})
                     summary['skips'] += 1
                     continue
 
@@ -1740,18 +1799,21 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
                 else:
                     _log_decision(db, cycle_id, cycle_type, 'skip_entry', reason,
                                   symbol=symbol, strategy=rec.get('strategy'),
-                                  score=rec.get('score'), spot=rec.get('spot'))
+                                  score=rec.get('score'), spot=rec.get('spot'),
+                                  context={'candidates_audit': rec.get('candidates_audit', [])})
                     summary['skips'] += 1
 
     # ── Phase 4: Post-cycle ──
     # Update lifecycle for any strategies that had exits
     if summary['exits'] > 0:
         conn = _conn(db)
-        conn.row_factory = sqlite3.Row
-        incubating = conn.execute(
-            "SELECT strategy_key FROM strategy_lifecycle WHERE status='INCUBATING'"
-        ).fetchall()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            incubating = conn.execute(
+                "SELECT strategy_key FROM strategy_lifecycle WHERE status='INCUBATING'"
+            ).fetchall()
+        finally:
+            conn.close()
         for row in incubating:
             try:
                 paper_trade.check_lifecycle(row['strategy_key'], db=db)
@@ -1795,13 +1857,15 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
             import glob
             backup_dir = os.path.join(os.path.dirname(db), 'backups')
             os.makedirs(backup_dir, exist_ok=True)
-            today = datetime.date.today().isoformat()
+            today = _now_ist().date().isoformat()
             dest = os.path.join(backup_dir, f'paper_trades_{today}.db')
             src_conn = sqlite3.connect(db, timeout=10)
             dst_conn = sqlite3.connect(dest)
-            src_conn.backup(dst_conn)
-            dst_conn.close()
-            src_conn.close()
+            try:
+                src_conn.backup(dst_conn)
+            finally:
+                dst_conn.close()
+                src_conn.close()
             log.info(f'Phase 4: DB backed up to {dest}')
             # Prune old backups
             backups = sorted(glob.glob(os.path.join(backup_dir, 'paper_trades_*.db')))
@@ -1848,23 +1912,25 @@ def reconcile(db=None):
         return {'action': 'skip', 'reason': 'Paper mode — no reconciliation needed'}
 
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    conn.execute('''CREATE TABLE IF NOT EXISTS reconciliation_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        matched INTEGER NOT NULL,
-        mismatches INTEGER NOT NULL,
-        phantoms INTEGER NOT NULL,
-        qty_mismatches INTEGER NOT NULL DEFAULT 0,
-        trades_checked INTEGER NOT NULL,
-        details TEXT
-    )''')
-    conn.commit()
-    live_open = conn.execute(
-        "SELECT id, symbol, legs, live_status FROM trades "
-        "WHERE status='open' AND live_status='FILLED'"
-    ).fetchall()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.execute('''CREATE TABLE IF NOT EXISTS reconciliation_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            matched INTEGER NOT NULL,
+            mismatches INTEGER NOT NULL,
+            phantoms INTEGER NOT NULL,
+            qty_mismatches INTEGER NOT NULL DEFAULT 0,
+            trades_checked INTEGER NOT NULL,
+            details TEXT
+        )''')
+        conn.commit()
+        live_open = conn.execute(
+            "SELECT id, symbol, legs, live_status FROM trades "
+            "WHERE status='open' AND live_status='FILLED'"
+        ).fetchall()
+    finally:
+        conn.close()
 
     dhan_positions = dhan_fetch.get_positions()
     dhan_sids = {str(p.get('securityId', '')): p for p in dhan_positions}
@@ -1926,15 +1992,17 @@ def reconcile(db=None):
               'phantoms': len(phantoms), 'live_trades_checked': len(live_open)}
 
     conn = _conn(db)
-    conn.execute(
-        '''INSERT INTO reconciliation_log
-           (timestamp, matched, mismatches, phantoms, qty_mismatches, trades_checked, details)
-           VALUES (?,?,?,?,?,?,?)''',
-        (datetime.datetime.now().isoformat(), matched, len(mismatches),
-         len(phantoms), len(qty_mismatches), len(live_open),
-         json.dumps(details)))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            '''INSERT INTO reconciliation_log
+               (timestamp, matched, mismatches, phantoms, qty_mismatches, trades_checked, details)
+               VALUES (?,?,?,?,?,?,?)''',
+            (_now_ist().isoformat(), matched, len(mismatches),
+             len(phantoms), len(qty_mismatches), len(live_open),
+             json.dumps(details)))
+        conn.commit()
+    finally:
+        conn.close()
 
     log.info(f'Reconciliation: {result}')
     return result
@@ -1949,7 +2017,7 @@ def tax_report(fy=None, db=None):
     db = db or paper_trade._db_path()
 
     if fy is None:
-        today = datetime.date.today()
+        today = _now_ist().date()
         y = today.year if today.month >= 4 else today.year - 1
         fy = f'{y}-{(y+1) % 100:02d}'
     fy_start_year = int(fy.split('-')[0])
@@ -1957,14 +2025,16 @@ def tax_report(fy=None, db=None):
     fy_end = f'{fy_start_year + 1}-03-31'
 
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    trades = conn.execute(
-        "SELECT * FROM trades WHERE status='closed' "
-        "AND closed_at >= ? AND closed_at <= ? "
-        "ORDER BY closed_at",
-        (fy_start, fy_end + 'T23:59:59')
-    ).fetchall()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        trades = conn.execute(
+            "SELECT * FROM trades WHERE status='closed' "
+            "AND closed_at >= ? AND closed_at <= ? "
+            "ORDER BY closed_at",
+            (fy_start, fy_end + 'T23:59:59')
+        ).fetchall()
+    finally:
+        conn.close()
 
     rows = []
     totals = {'gross_pnl': 0, 'entry_cost': 0, 'exit_cost': 0,
@@ -2064,11 +2134,13 @@ def check_graduation(db=None):
     db = db or paper_trade._db_path()
 
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    closed = conn.execute(
-        "SELECT net_pnl FROM trades WHERE status='closed' AND source='autopilot'"
-    ).fetchall()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        closed = conn.execute(
+            "SELECT net_pnl FROM trades WHERE status='closed' AND source='autopilot'"
+        ).fetchall()
+    finally:
+        conn.close()
 
     total_trades = len(closed)
     wins = sum(1 for t in closed if (t['net_pnl'] or 0) > 0)
@@ -2195,11 +2267,13 @@ def emergency_stop(db=None):
                             f'Broker-level block failed: {e}. Manual action needed on Dhan.')
 
         conn = _conn(db)
-        conn.row_factory = sqlite3.Row
-        open_trades = conn.execute(
-            "SELECT * FROM trades WHERE status='open' AND source='autopilot'"
-        ).fetchall()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            open_trades = conn.execute(
+                "SELECT * FROM trades WHERE status='open' AND source='autopilot'"
+            ).fetchall()
+        finally:
+            conn.close()
 
         # Build executor for live exits — force=True bypasses market-hours check
         executor = None
@@ -2249,12 +2323,14 @@ def status(db=None):
     cap = _capital_state(cfg, db)
 
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
-    last = conn.execute(
-        "SELECT timestamp, reason FROM autopilot_log "
-        "WHERE action='cycle_complete' ORDER BY id DESC LIMIT 1"
-    ).fetchone()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        last = conn.execute(
+            "SELECT timestamp, reason FROM autopilot_log "
+            "WHERE action='cycle_complete' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        conn.close()
 
     return {
         'enabled': cfg.get('enabled', False),
@@ -2275,273 +2351,274 @@ def dashboard_data(db=None):
     cfg = load_config()
 
     conn = _conn(db)
-    conn.row_factory = sqlite3.Row
+    try:
+        conn.row_factory = sqlite3.Row
 
-    # ── Token status ──
-    token = dhan_fetch.get_token_status()
+        # ── Token status ──
+        token = dhan_fetch.get_token_status()
 
-    # ── Capital ──
-    cap = _capital_state(cfg, db)
+        # ── Capital ──
+        cap = _capital_state(cfg, db)
 
-    # ── All trades ──
-    all_trades = [dict(r) for r in conn.execute(
-        "SELECT * FROM trades ORDER BY id DESC"
-    ).fetchall()]
+        # ── All trades ──
+        all_trades = [dict(r) for r in conn.execute(
+            "SELECT * FROM trades ORDER BY id DESC"
+        ).fetchall()]
 
-    open_trades = [t for t in all_trades if t['status'] == 'open']
-    closed_trades = [t for t in all_trades if t['status'] == 'closed']
+        open_trades = [t for t in all_trades if t['status'] == 'open']
+        closed_trades = [t for t in all_trades if t['status'] == 'closed']
 
-    # Parse legs JSON
-    for t in all_trades:
-        if isinstance(t.get('legs'), str):
-            try:
-                t['legs_parsed'] = json.loads(t['legs'])
-            except Exception:
-                t['legs_parsed'] = []
-        else:
-            t['legs_parsed'] = t.get('legs') or []
+        # Parse legs JSON
+        for t in all_trades:
+            if isinstance(t.get('legs'), str):
+                try:
+                    t['legs_parsed'] = json.loads(t['legs'])
+                except Exception:
+                    t['legs_parsed'] = []
+            else:
+                t['legs_parsed'] = t.get('legs') or []
 
-    # ── Enrich open trades (unrealized P/L from latest daily_check) ──
-    today = datetime.datetime.now(_IST).date()
-    _live_spots = {}
-    for t in list(open_trades):
-        # Latest daily check
-        chk = conn.execute(
-            "SELECT spot, current_pnl, dte, max_urgency FROM daily_checks "
-            "WHERE trade_id=? ORDER BY id DESC LIMIT 1", (t['id'],)
-        ).fetchone()
-        if chk:
-            t['last_check_spot'] = chk['spot']
-            t['unrealized_pnl'] = chk['current_pnl']
-            t['current_dte'] = chk['dte']
-            t['max_urgency'] = chk['max_urgency']
-        else:
-            t['last_check_spot'] = t.get('entry_spot')
-            t['unrealized_pnl'] = 0
-            t['current_dte'] = None
-            t['max_urgency'] = 3
+        # ── Enrich open trades (unrealized P/L from latest daily_check) ──
+        today = _now_ist().date()
+        _live_spots = {}
+        for t in list(open_trades):
+            # Latest daily check
+            chk = conn.execute(
+                "SELECT spot, current_pnl, dte, max_urgency FROM daily_checks "
+                "WHERE trade_id=? ORDER BY id DESC LIMIT 1", (t['id'],)
+            ).fetchone()
+            if chk:
+                t['last_check_spot'] = chk['spot']
+                t['unrealized_pnl'] = chk['current_pnl']
+                t['current_dte'] = chk['dte']
+                t['max_urgency'] = chk['max_urgency']
+            else:
+                t['last_check_spot'] = t.get('entry_spot')
+                t['unrealized_pnl'] = 0
+                t['current_dte'] = None
+                t['max_urgency'] = 3
 
-        # Days held
-        opened = t.get('opened_at', '')
-        if opened:
-            try:
-                entry_date = datetime.date.fromisoformat(opened[:10])
-                t['days_held'] = (today - entry_date).days
-            except Exception:
+            # Days held
+            opened = t.get('opened_at', '')
+            if opened:
+                try:
+                    entry_date = datetime.date.fromisoformat(opened[:10])
+                    t['days_held'] = (today - entry_date).days
+                except Exception:
+                    t['days_held'] = 0
+            else:
                 t['days_held'] = 0
-        else:
-            t['days_held'] = 0
 
-        # DTE from target_expiry if not from daily_check
-        if t['current_dte'] is None and t.get('target_expiry'):
+            # DTE from target_expiry if not from daily_check
+            if t['current_dte'] is None and t.get('target_expiry'):
+                try:
+                    exp = datetime.date.fromisoformat(t['target_expiry'])
+                    t['current_dte'] = max(0, (exp - today).days)
+                except Exception:
+                    pass
+
+            t['legs_summary'] = _legs_summary(t['legs_parsed'])
+
+            # Fetch live spot for enrichment (replaces stale daily_check spot)
+            if t['id'] not in _live_spots:
+                try:
+                    _live_spots[t.get('symbol', 'NIFTY')] = dhan_fetch.fetch_spot(t.get('symbol', 'NIFTY'))
+                except Exception:
+                    pass
+            live = _live_spots.get(t.get('symbol', 'NIFTY'))
+            if live:
+                t['last_check_spot'] = live
+                t['spot_source'] = 'live'
+            else:
+                t['spot_source'] = 'cached'
+
+            # Full per-leg repricing, greeks, breakevens, scenarios
             try:
-                exp = datetime.date.fromisoformat(t['target_expiry'])
-                t['current_dte'] = max(0, (exp - today).days)
+                _enrich_open_trade(t, db)
+            except Exception as e:
+                log.warning(f'Enrichment failed for trade {t.get("id")}: {e}')
+                t['leg_details'] = []
+                t['greeks'] = {'delta': 0, 'gamma': 0, 'theta_daily': 0, 'vega': 0}
+                t['breakevens'] = []
+                t['scenarios'] = {}
+
+            # S6/S8/S10 adjustment tracking
+            t['adj_signal_streak'] = t.get('adj_signal_streak') or 0
+            t['adjustment_count'] = t.get('adjustment_count') or 0
+            t['atr_14'] = _compute_atr(t.get('symbol', 'NIFTY'))
+
+            # Physical settlement risk for stock F&O
+            try:
+                from .risk import physical_settlement as ps
+                sym = t.get('symbol', 'NIFTY')
+                if ps.applies(sym):
+                    _dte = t.get('current_dte') or 99
+                    _spot = t.get('last_check_spot') or t.get('entry_spot') or 0
+                    from .data.ref_data import lot_size as _ref_ls2
+                    _lot = t.get('lot_size') or _ref_ls2(sym)
+                    sc = ps.settlement_check(t['legs_parsed'], _spot, _lot, _dte, sym)
+                    t['settlement'] = sc
             except Exception:
                 pass
 
-        t['legs_summary'] = _legs_summary(t['legs_parsed'])
+        # ── Portfolio-level greeks ──
+        portfolio_greeks = {'delta': 0, 'gamma': 0, 'theta_daily': 0, 'vega': 0}
+        for t in open_trades:
+            g = t.get('greeks', {})
+            for k in portfolio_greeks:
+                portfolio_greeks[k] += g.get(k, 0)
+        portfolio_greeks = {k: round(v, 2) for k, v in portfolio_greeks.items()}
 
-        # Fetch live spot for enrichment (replaces stale daily_check spot)
-        if t['id'] not in _live_spots:
-            try:
-                _live_spots[t.get('symbol', 'NIFTY')] = dhan_fetch.fetch_spot(t.get('symbol', 'NIFTY'))
-            except Exception:
-                pass
-        live = _live_spots.get(t.get('symbol', 'NIFTY'))
-        if live:
-            t['last_check_spot'] = live
-            t['spot_source'] = 'live'
-        else:
-            t['spot_source'] = 'cached'
+        # ── Enrich closed trades ──
+        for t in closed_trades:
+            opened = t.get('opened_at', '')
+            closed_at = t.get('closed_at', '')
+            t['hold_days'] = 0
+            if opened and closed_at:
+                try:
+                    t['hold_days'] = (datetime.date.fromisoformat(closed_at[:10])
+                                      - datetime.date.fromisoformat(opened[:10])).days
+                except Exception:
+                    pass
+            t['total_cost'] = (t.get('entry_cost') or 0) + (t.get('exit_cost') or 0)
+            t['legs_summary'] = _legs_summary(t['legs_parsed'])
 
-        # Full per-leg repricing, greeks, breakevens, scenarios
-        try:
-            _enrich_open_trade(t, db)
-        except Exception as e:
-            log.warning(f'Enrichment failed for trade {t.get("id")}: {e}')
-            t['leg_details'] = []
-            t['greeks'] = {'delta': 0, 'gamma': 0, 'theta_daily': 0, 'vega': 0}
-            t['breakevens'] = []
-            t['scenarios'] = {}
+        # ── Strategy aggregation ──
+        strategies = {}
+        for t in closed_trades:
+            key = t.get('strategy', 'unknown')
+            if key not in strategies:
+                strategies[key] = {'key': key, 'trades': 0, 'wins': 0, 'losses': 0,
+                                   'gross_wins': 0, 'gross_losses': 0, 'total_pnl': 0,
+                                   'pnls': [], 'hold_days': []}
+            s = strategies[key]
+            pnl = t.get('net_pnl') or 0
+            s['trades'] += 1
+            s['pnls'].append(pnl)
+            s['hold_days'].append(t.get('hold_days', 0))
+            s['total_pnl'] += pnl
+            if pnl > 0:
+                s['wins'] += 1
+                s['gross_wins'] += pnl
+            elif pnl < 0:
+                s['losses'] += 1
+                s['gross_losses'] += abs(pnl)
 
-        # S6/S8/S10 adjustment tracking
-        t['adj_signal_streak'] = t.get('adj_signal_streak') or 0
-        t['adjustment_count'] = t.get('adjustment_count') or 0
-        t['atr_14'] = _compute_atr(t.get('symbol', 'NIFTY'))
+        # Lifecycle data
+        lc_rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM strategy_lifecycle"
+        ).fetchall()]
+        lc_map = {r['strategy_key']: r for r in lc_rows}
 
-        # Physical settlement risk for stock F&O
-        try:
-            from .risk import physical_settlement as ps
-            sym = t.get('symbol', 'NIFTY')
-            if ps.applies(sym):
-                _dte = t.get('current_dte') or 99
-                _spot = t.get('last_check_spot') or t.get('entry_spot') or 0
-                from .data.ref_data import lot_size as _ref_ls2
-                _lot = t.get('lot_size') or _ref_ls2(sym)
-                sc = ps.settlement_check(t['legs_parsed'], _spot, _lot, _dte, sym)
-                t['settlement'] = sc
-        except Exception:
-            pass
+        strategy_cards = []
+        for lc in lc_rows:
+            key = lc['strategy_key']
+            perf = strategies.get(key, {})
+            trades = perf.get('trades', 0)
+            wins = perf.get('wins', 0)
+            losses = perf.get('losses', 0)
+            total_pnl = perf.get('total_pnl', 0)
+            gross_wins = perf.get('gross_wins', 0)
+            gross_losses = perf.get('gross_losses', 0)
 
-    # ── Portfolio-level greeks ──
-    portfolio_greeks = {'delta': 0, 'gamma': 0, 'theta_daily': 0, 'vega': 0}
-    for t in open_trades:
-        g = t.get('greeks', {})
-        for k in portfolio_greeks:
-            portfolio_greeks[k] += g.get(k, 0)
-    portfolio_greeks = {k: round(v, 2) for k, v in portfolio_greeks.items()}
+            win_rate = (wins / trades * 100) if trades > 0 else 0
+            profit_factor = (gross_wins / gross_losses) if gross_losses > 0 else (
+                float('inf') if gross_wins > 0 else 0)
+            avg_win = gross_wins / wins if wins > 0 else 0
+            avg_loss = gross_losses / losses if losses > 0 else 0
+            expectancy = (total_pnl / trades) if trades > 0 else 0
 
-    # ── Enrich closed trades ──
-    for t in closed_trades:
-        opened = t.get('opened_at', '')
-        closed_at = t.get('closed_at', '')
-        t['hold_days'] = 0
-        if opened and closed_at:
-            try:
-                t['hold_days'] = (datetime.date.fromisoformat(closed_at[:10])
-                                  - datetime.date.fromisoformat(opened[:10])).days
-            except Exception:
-                pass
-        t['total_cost'] = (t.get('entry_cost') or 0) + (t.get('exit_cost') or 0)
-        t['legs_summary'] = _legs_summary(t['legs_parsed'])
+            # WFA comparison
+            wfa_avg = lc.get('wfa_avg_pnl') or 0
+            wfa_expected = lc.get('wfa_expected_return') or 0
+            actual_return = total_pnl
+            ret_eff = (actual_return / wfa_expected * 100) if wfa_expected > 0 else 0
 
-    # ── Strategy aggregation ──
-    strategies = {}
-    for t in closed_trades:
-        key = t.get('strategy', 'unknown')
-        if key not in strategies:
-            strategies[key] = {'key': key, 'trades': 0, 'wins': 0, 'losses': 0,
-                               'gross_wins': 0, 'gross_losses': 0, 'total_pnl': 0,
-                               'pnls': [], 'hold_days': []}
-        s = strategies[key]
-        pnl = t.get('net_pnl') or 0
-        s['trades'] += 1
-        s['pnls'].append(pnl)
-        s['hold_days'].append(t.get('hold_days', 0))
-        s['total_pnl'] += pnl
-        if pnl > 0:
-            s['wins'] += 1
-            s['gross_wins'] += pnl
-        elif pnl < 0:
-            s['losses'] += 1
-            s['gross_losses'] += abs(pnl)
+            # Graduation progress
+            start = lc.get('start_date', '')
+            months_incubating = 0
+            if start:
+                try:
+                    sd = datetime.date.fromisoformat(start)
+                    months_incubating = round((today - sd).days / 30.44, 1)
+                except Exception:
+                    pass
 
-    # Lifecycle data
-    lc_rows = [dict(r) for r in conn.execute(
-        "SELECT * FROM strategy_lifecycle"
-    ).fetchall()]
-    lc_map = {r['strategy_key']: r for r in lc_rows}
+            strategy_cards.append({
+                'key': key,
+                'status': lc.get('status', 'UNKNOWN'),
+                'start_date': start,
+                'months_incubating': months_incubating,
+                'trade_count': lc.get('trade_count') or trades,
+                'wins': wins,
+                'losses': losses,
+                'win_rate': round(win_rate, 1),
+                'profit_factor': round(profit_factor, 2) if profit_factor != float('inf') else None,
+                'avg_win': round(avg_win),
+                'avg_loss': round(avg_loss),
+                'expectancy': round(expectancy),
+                'total_pnl': round(total_pnl),
+                'return_efficiency': round(ret_eff, 1),
+                'wfa_avg_pnl': round(wfa_avg),
+                'wfa_expected_return': round(wfa_expected),
+                'wfa_max_dd_pct': lc.get('wfa_max_dd_pct'),
+                'mc_abort_dd_pct': lc.get('mc_abort_dd_pct'),
+                'current_dd_pct': lc.get('current_dd_pct') or 0,
+                'dd_efficiency': lc.get('dd_efficiency'),
+                # Graduation criteria progress
+                'grad_months': months_incubating >= 3,
+                'grad_trades': (lc.get('trade_count') or trades) >= 30,
+                'grad_return_eff': 70 <= ret_eff <= 130 if trades >= 5 else None,
+            })
 
-    strategy_cards = []
-    for lc in lc_rows:
-        key = lc['strategy_key']
-        perf = strategies.get(key, {})
-        trades = perf.get('trades', 0)
-        wins = perf.get('wins', 0)
-        losses = perf.get('losses', 0)
-        total_pnl = perf.get('total_pnl', 0)
-        gross_wins = perf.get('gross_wins', 0)
-        gross_losses = perf.get('gross_losses', 0)
+        # ── Equity curve from closed trades ──
+        equity_points = []
+        cumulative = 0
+        sorted_closed = sorted(closed_trades, key=lambda t: t.get('closed_at', ''))
+        for t in sorted_closed:
+            pnl = t.get('net_pnl') or 0
+            cumulative += pnl
+            equity_points.append({
+                'date': (t.get('closed_at') or '')[:10],
+                'pnl': round(pnl),
+                'cumulative': round(cumulative),
+                'strategy': t.get('strategy', ''),
+            })
 
-        win_rate = (wins / trades * 100) if trades > 0 else 0
-        profit_factor = (gross_wins / gross_losses) if gross_losses > 0 else (
-            float('inf') if gross_wins > 0 else 0)
-        avg_win = gross_wins / wins if wins > 0 else 0
-        avg_loss = gross_losses / losses if losses > 0 else 0
-        expectancy = (total_pnl / trades) if trades > 0 else 0
+        # ── Risk state ──
+        # Consecutive losses
+        recent_closed = conn.execute(
+            "SELECT net_pnl FROM trades WHERE status='closed' ORDER BY id DESC LIMIT 20"
+        ).fetchall()
+        consec_losses = 0
+        for r in recent_closed:
+            if (r['net_pnl'] or 0) < 0:
+                consec_losses += 1
+            else:
+                break
 
-        # WFA comparison
-        wfa_avg = lc.get('wfa_avg_pnl') or 0
-        wfa_expected = lc.get('wfa_expected_return') or 0
-        actual_return = total_pnl
-        ret_eff = (actual_return / wfa_expected * 100) if wfa_expected > 0 else 0
+        # Today's P/L
+        today_str = today.isoformat()
+        daily_pnl = conn.execute(
+            "SELECT COALESCE(SUM(net_pnl), 0) FROM trades "
+            "WHERE status='closed' AND closed_at LIKE ?",
+            (today_str + '%',)
+        ).fetchone()[0]
 
-        # Graduation progress
-        start = lc.get('start_date', '')
-        months_incubating = 0
-        if start:
-            try:
-                sd = datetime.date.fromisoformat(start)
-                months_incubating = round((today - sd).days / 30.44, 1)
-            except Exception:
-                pass
+        # Today's autopilot cycle count
+        today_cycles = conn.execute(
+            "SELECT COUNT(*) FROM autopilot_log "
+            "WHERE action='cycle_complete' AND timestamp LIKE ?",
+            (today_str + '%',)
+        ).fetchone()[0]
 
-        strategy_cards.append({
-            'key': key,
-            'status': lc.get('status', 'UNKNOWN'),
-            'start_date': start,
-            'months_incubating': months_incubating,
-            'trade_count': lc.get('trade_count') or trades,
-            'wins': wins,
-            'losses': losses,
-            'win_rate': round(win_rate, 1),
-            'profit_factor': round(profit_factor, 2) if profit_factor != float('inf') else None,
-            'avg_win': round(avg_win),
-            'avg_loss': round(avg_loss),
-            'expectancy': round(expectancy),
-            'total_pnl': round(total_pnl),
-            'return_efficiency': round(ret_eff, 1),
-            'wfa_avg_pnl': round(wfa_avg),
-            'wfa_expected_return': round(wfa_expected),
-            'wfa_max_dd_pct': lc.get('wfa_max_dd_pct'),
-            'mc_abort_dd_pct': lc.get('mc_abort_dd_pct'),
-            'current_dd_pct': lc.get('current_dd_pct') or 0,
-            'dd_efficiency': lc.get('dd_efficiency'),
-            # Graduation criteria progress
-            'grad_months': months_incubating >= 3,
-            'grad_trades': (lc.get('trade_count') or trades) >= 30,
-            'grad_return_eff': 70 <= ret_eff <= 130 if trades >= 5 else None,
-        })
-
-    # ── Equity curve from closed trades ──
-    equity_points = []
-    cumulative = 0
-    sorted_closed = sorted(closed_trades, key=lambda t: t.get('closed_at', ''))
-    for t in sorted_closed:
-        pnl = t.get('net_pnl') or 0
-        cumulative += pnl
-        equity_points.append({
-            'date': (t.get('closed_at') or '')[:10],
-            'pnl': round(pnl),
-            'cumulative': round(cumulative),
-            'strategy': t.get('strategy', ''),
-        })
-
-    # ── Risk state ──
-    # Consecutive losses
-    recent_closed = conn.execute(
-        "SELECT net_pnl FROM trades WHERE status='closed' ORDER BY id DESC LIMIT 20"
-    ).fetchall()
-    consec_losses = 0
-    for r in recent_closed:
-        if (r['net_pnl'] or 0) < 0:
-            consec_losses += 1
-        else:
-            break
-
-    # Today's P/L
-    today_str = today.isoformat()
-    daily_pnl = conn.execute(
-        "SELECT COALESCE(SUM(net_pnl), 0) FROM trades "
-        "WHERE status='closed' AND closed_at LIKE ?",
-        (today_str + '%',)
-    ).fetchone()[0]
-
-    # Today's autopilot cycle count
-    today_cycles = conn.execute(
-        "SELECT COUNT(*) FROM autopilot_log "
-        "WHERE action='cycle_complete' AND timestamp LIKE ?",
-        (today_str + '%',)
-    ).fetchone()[0]
-
-    # Last cycle
-    last_cycle = conn.execute(
-        "SELECT timestamp, reason FROM autopilot_log "
-        "WHERE action='cycle_complete' ORDER BY id DESC LIMIT 1"
-    ).fetchone()
-
-    conn.close()
+        # Last cycle
+        last_cycle = conn.execute(
+            "SELECT timestamp, reason FROM autopilot_log "
+            "WHERE action='cycle_complete' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        conn.close()
 
     # ── Aggregate stats ──
     total_closed = len(closed_trades)
@@ -2592,7 +2669,7 @@ def dashboard_data(db=None):
     if cfg.get('enabled') and last_cycle:
         try:
             lc_ts = datetime.datetime.fromisoformat(last_cycle['timestamp'])
-            hours_ago = (datetime.datetime.now() - lc_ts).total_seconds() / 3600
+            hours_ago = (_now_ist() - lc_ts).total_seconds() / 3600
             if hours_ago > 24:
                 attention.append({'level': 'error', 'icon': 'exclamation-octagon',
                                   'msg': f'Last successful cycle was {hours_ago:.0f}h ago — cron may have failed silently. Check: crontab -l'})
@@ -2708,11 +2785,13 @@ def _last_market_state(db):
     """Extract regime + VP confidence from the last recommendation's signals."""
     try:
         conn = _conn(db)
-        conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT signals, score FROM recommendations ORDER BY id DESC LIMIT 1"
-        ).fetchone()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT signals, score FROM recommendations ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+        finally:
+            conn.close()
         if not row:
             return {}
         sigs = json.loads(row['signals']) if isinstance(row['signals'], str) else row['signals']
@@ -2752,7 +2831,7 @@ def _enrich_open_trade(t, db):
     dte = t.get('current_dte')
     if dte is None and t.get('target_expiry'):
         try:
-            dte = max(0, (datetime.date.fromisoformat(t['target_expiry']) - datetime.date.today()).days)
+            dte = max(0, (datetime.date.fromisoformat(t['target_expiry']) - _now_ist().date()).days)
         except Exception:
             dte = 14
     dte = dte or 14
@@ -2886,10 +2965,12 @@ def _enrich_open_trade(t, db):
         # T8: path-dependent tracking (from daily_checks spot history)
         try:
             conn2 = _conn(db)
-            spot_rows = conn2.execute(
-                'SELECT spot FROM daily_checks WHERE trade_id=? ORDER BY id', (t['id'],)
-            ).fetchall()
-            conn2.close()
+            try:
+                spot_rows = conn2.execute(
+                    'SELECT spot FROM daily_checks WHERE trade_id=? ORDER BY id', (t['id'],)
+                ).fetchall()
+            finally:
+                conn2.close()
             if spot_rows:
                 spot_path = [t.get('entry_spot', spot)] + [r[0] for r in spot_rows]
                 taleb['path_metrics'] = scen_mod.path_metrics(spot_path)

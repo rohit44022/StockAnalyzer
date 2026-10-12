@@ -13,6 +13,9 @@ import json
 import sqlite3
 import logging
 import datetime
+
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
 from typing import Optional, Callable
 
 log = logging.getLogger(__name__)
@@ -49,6 +52,9 @@ class FillTracker:
             ).fetchone()
 
             queue_id = queue_row['id'] if queue_row else dhan_order_id
+            if not queue_row:
+                log.warning(f'WS event for unknown order {dhan_order_id} '
+                            f'(status={status}) — not in order_queue')
 
             event_type = _status_to_event(status)
             conn.execute(
@@ -56,7 +62,7 @@ class FillTracker:
                    (queue_id, event_type, timestamp, dhan_order_id,
                     dhan_status, filled_qty, price, raw_response)
                    VALUES (?,?,?,?,?,?,?,?)''',
-                (queue_id, event_type, datetime.datetime.now().isoformat(),
+                (queue_id, event_type, _now_ist().isoformat(),
                  dhan_order_id, status, filled_qty, price,
                  json.dumps(event, default=str))
             )
@@ -65,7 +71,7 @@ class FillTracker:
                 if status == 'TRADED':
                     conn.execute(
                         'UPDATE order_queue SET status=?, completed_at=? WHERE id=?',
-                        ('DONE', datetime.datetime.now().isoformat(), queue_id)
+                        ('DONE', _now_ist().isoformat(), queue_id)
                     )
                 elif status == 'REJECTED':
                     conn.execute(
@@ -99,59 +105,65 @@ class FillTracker:
     def process_position_snapshot(self, positions: list) -> dict:
         conn = sqlite3.connect(self._db_path, timeout=10)
         conn.row_factory = sqlite3.Row
-        pending = conn.execute(
-            "SELECT * FROM order_queue WHERE status IN ('SENT','PROCESSING')"
-        ).fetchall()
+        try:
+            pending = conn.execute(
+                "SELECT * FROM order_queue WHERE status IN ('SENT','PROCESSING')"
+            ).fetchall()
 
-        updates = []
-        for order in pending:
-            dhan_oid = order['dhan_order_id']
-            if not dhan_oid:
-                continue
-            for pos in positions:
-                if _matches_order_to_position(order, pos):
-                    conn.execute(
-                        'UPDATE order_queue SET status=?, completed_at=? WHERE id=?',
-                        ('DONE', datetime.datetime.now().isoformat(), order['id'])
-                    )
-                    conn.execute(
-                        '''INSERT INTO order_events
-                           (queue_id, event_type, timestamp, dhan_order_id,
-                            dhan_status, filled_qty, price, raw_response)
-                           VALUES (?,?,?,?,?,?,?,?)''',
-                        (order['id'], 'FILLED_VIA_POSITION',
-                         datetime.datetime.now().isoformat(), dhan_oid,
-                         'TRADED', pos.get('netQty', pos.get('quantity')),
-                         pos.get('averagePrice', pos.get('buyAvg', 0)),
-                         json.dumps(pos, default=str))
-                    )
-                    updates.append(order['id'])
-                    break
+            updates = []
+            for order in pending:
+                dhan_oid = order['dhan_order_id']
+                if not dhan_oid:
+                    continue
+                for pos in positions:
+                    if _matches_order_to_position(order, pos):
+                        conn.execute(
+                            'UPDATE order_queue SET status=?, completed_at=? WHERE id=?',
+                            ('DONE', _now_ist().isoformat(), order['id'])
+                        )
+                        conn.execute(
+                            '''INSERT INTO order_events
+                               (queue_id, event_type, timestamp, dhan_order_id,
+                                dhan_status, filled_qty, price, raw_response)
+                               VALUES (?,?,?,?,?,?,?,?)''',
+                            (order['id'], 'FILLED_VIA_POSITION',
+                             _now_ist().isoformat(), dhan_oid,
+                             'TRADED', pos.get('netQty', pos.get('quantity')),
+                             pos.get('averagePrice', pos.get('buyAvg', 0)),
+                             json.dumps(pos, default=str))
+                        )
+                        updates.append(order['id'])
+                        break
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
         return {'updated': updates, 'pending_remaining': len(pending) - len(updates)}
 
     def get_fills(self, trade_id: int) -> list:
         conn = sqlite3.connect(self._db_path, timeout=10)
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            '''SELECT oe.* FROM order_events oe
-               JOIN order_queue oq ON oe.queue_id = oq.id
-               WHERE oq.parent_trade_id=? AND oe.event_type IN ('FILLED','TRADED','FILLED_VIA_POSITION')
-               ORDER BY oe.id''',
-            (trade_id,)
-        ).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute(
+                '''SELECT oe.* FROM order_events oe
+                   JOIN order_queue oq ON oe.queue_id = oq.id
+                   WHERE oq.parent_trade_id=? AND oe.event_type IN ('FILLED','TRADED','FILLED_VIA_POSITION')
+                   ORDER BY oe.id''',
+                (trade_id,)
+            ).fetchall()
+        finally:
+            conn.close()
         return [dict(r) for r in rows]
 
     def get_pending_orders(self) -> list:
         conn = sqlite3.connect(self._db_path, timeout=10)
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT * FROM order_queue WHERE status IN ('PENDING','PROCESSING','SENT')"
-        ).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM order_queue WHERE status IN ('PENDING','PROCESSING','SENT')"
+            ).fetchall()
+        finally:
+            conn.close()
         return [dict(r) for r in rows]
 
 
@@ -187,19 +199,21 @@ def selfcheck():
         os.remove(db)
 
     conn = sqlite3.connect(db, timeout=10)
-    _init_queue_db(conn)
-    conn.commit()
+    try:
+        _init_queue_db(conn)
+        conn.commit()
 
-    conn.execute(
-        '''INSERT INTO order_queue
-           (id, priority, action, dhan_params, parent_trade_id, leg_index,
-            status, created_at, dhan_order_id)
-           VALUES (?,?,?,?,?,?,?,?,?)''',
-        ('Q1', 2, 'PLACE', json.dumps({'securityId': '13', 'quantity': 75}),
-         1, 0, 'SENT', datetime.datetime.now().isoformat(), 'DHAN_001')
-    )
-    conn.commit()
-    conn.close()
+        conn.execute(
+            '''INSERT INTO order_queue
+               (id, priority, action, dhan_params, parent_trade_id, leg_index,
+                status, created_at, dhan_order_id)
+               VALUES (?,?,?,?,?,?,?,?,?)''',
+            ('Q1', 2, 'PLACE', json.dumps({'securityId': '13', 'quantity': 75}),
+             1, 0, 'SENT', _now_ist().isoformat(), 'DHAN_001')
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     fills_received = []
     rejects_received = []
@@ -220,25 +234,29 @@ def selfcheck():
     # Verify DB updated
     conn = sqlite3.connect(db, timeout=10)
     conn.row_factory = sqlite3.Row
-    order = conn.execute('SELECT * FROM order_queue WHERE id=?', ('Q1',)).fetchone()
-    assert order['status'] == 'DONE'
-    events = conn.execute('SELECT * FROM order_events WHERE queue_id=?', ('Q1',)).fetchall()
-    assert len(events) == 1
-    assert events[0]['event_type'] == 'FILLED'
-    conn.close()
+    try:
+        order = conn.execute('SELECT * FROM order_queue WHERE id=?', ('Q1',)).fetchone()
+        assert order['status'] == 'DONE'
+        events = conn.execute('SELECT * FROM order_events WHERE queue_id=?', ('Q1',)).fetchall()
+        assert len(events) == 1
+        assert events[0]['event_type'] == 'FILLED'
+    finally:
+        conn.close()
 
     # Test 2: WS reject event
     conn = sqlite3.connect(db, timeout=10)
-    conn.execute(
-        '''INSERT INTO order_queue
-           (id, priority, action, dhan_params, parent_trade_id, leg_index,
-            status, created_at, dhan_order_id)
-           VALUES (?,?,?,?,?,?,?,?,?)''',
-        ('Q2', 2, 'PLACE', json.dumps({'securityId': '13', 'quantity': 75}),
-         2, 0, 'SENT', datetime.datetime.now().isoformat(), 'DHAN_002')
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            '''INSERT INTO order_queue
+               (id, priority, action, dhan_params, parent_trade_id, leg_index,
+                status, created_at, dhan_order_id)
+               VALUES (?,?,?,?,?,?,?,?,?)''',
+            ('Q2', 2, 'PLACE', json.dumps({'securityId': '13', 'quantity': 75}),
+             2, 0, 'SENT', _now_ist().isoformat(), 'DHAN_002')
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     tracker.process_ws_event({
         'orderId': 'DHAN_002', 'orderStatus': 'REJECTED',
@@ -249,16 +267,18 @@ def selfcheck():
 
     # Test 3: Position snapshot reconciliation
     conn = sqlite3.connect(db, timeout=10)
-    conn.execute(
-        '''INSERT INTO order_queue
-           (id, priority, action, dhan_params, parent_trade_id, leg_index,
-            status, created_at, dhan_order_id)
-           VALUES (?,?,?,?,?,?,?,?,?)''',
-        ('Q3', 2, 'PLACE', json.dumps({'securityId': '25', 'quantity': 30, 'transactionType': 'BUY'}),
-         3, 0, 'SENT', datetime.datetime.now().isoformat(), 'DHAN_003')
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            '''INSERT INTO order_queue
+               (id, priority, action, dhan_params, parent_trade_id, leg_index,
+                status, created_at, dhan_order_id)
+               VALUES (?,?,?,?,?,?,?,?,?)''',
+            ('Q3', 2, 'PLACE', json.dumps({'securityId': '25', 'quantity': 30, 'transactionType': 'BUY'}),
+             3, 0, 'SENT', _now_ist().isoformat(), 'DHAN_003')
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     result = tracker.process_position_snapshot([
         {'securityId': '25', 'netQty': 30, 'averagePrice': 200.0},

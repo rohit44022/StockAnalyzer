@@ -19,6 +19,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Callable
 
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
+
 log = logging.getLogger(__name__)
 
 
@@ -121,12 +124,14 @@ class SafetyMonitor:
         )''')
         conn.commit()
         # Restore DD breach count from persisted safety_log
-        conn.row_factory = sqlite3.Row
-        recent = conn.execute(
-            "SELECT event_type FROM safety_events ORDER BY id DESC LIMIT ?",
-            (self._DD_CONFIRM_COUNT,)
-        ).fetchall()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            recent = conn.execute(
+                "SELECT event_type FROM safety_events ORDER BY id DESC LIMIT ?",
+                (self._DD_CONFIRM_COUNT,)
+            ).fetchall()
+        finally:
+            conn.close()
         consecutive = 0
         for e in recent:
             if e['event_type'] == 'DD_WARNING':
@@ -232,14 +237,18 @@ class SafetyMonitor:
         loss_pct = self._config.get('daily_loss_limit_pct', 2.0)
         loss_limit = capital * (loss_pct / 100.0)
 
-        try:
-            resp = dhan_client.set_pnl_exit(loss_limit=loss_limit)
-            results['pnl_exit'] = {'status': 'set', 'loss_limit': loss_limit,
-                                   'response': resp}
-            log.info(f'Dhan pnlExit set: ₹{loss_limit:.0f}')
-        except Exception as e:
-            results['pnl_exit'] = {'status': 'failed', 'error': str(e)}
-            log.error(f'Failed to set Dhan pnlExit: {e}')
+        if hasattr(dhan_client, 'set_pnl_exit'):
+            try:
+                resp = dhan_client.set_pnl_exit(loss_limit=loss_limit)
+                results['pnl_exit'] = {'status': 'set', 'loss_limit': loss_limit,
+                                       'response': resp}
+                log.info(f'Dhan pnlExit set: ₹{loss_limit:.0f}')
+            except Exception as e:
+                results['pnl_exit'] = {'status': 'failed', 'error': str(e)}
+                log.error(f'Failed to set Dhan pnlExit: {e}')
+        else:
+            results['pnl_exit'] = {'status': 'unsupported'}
+            log.debug('dhanhq SDK lacks set_pnl_exit — skipped')
 
         self._log_event('DHAN_SAFETY_SETUP', SafetyAction.CONTINUE,
                         json.dumps(results, default=str))
@@ -281,6 +290,10 @@ class SafetyMonitor:
 
         state = self._portfolio_fetcher() if self._portfolio_fetcher else None
 
+        if not state:
+            log.error('Portfolio state unavailable — fail-closed, blocking entry')
+            return False, 'Portfolio state unavailable — cannot verify safety'
+
         if state:
             dd_action = self.check_portfolio_dd(state)
             if dd_action in (SafetyAction.EXIT_ALL, SafetyAction.KILL_SWITCH):
@@ -304,12 +317,14 @@ class SafetyMonitor:
     def _log_event(self, event_type: str, action: SafetyAction, detail: str = ''):
         log.warning(f'SAFETY [{event_type}] → {action.value}: {detail}')
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.execute(
-            'INSERT INTO safety_events (timestamp, event_type, action, detail) VALUES (?,?,?,?)',
-            (datetime.datetime.now().isoformat(), event_type, action.value, detail)
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute(
+                'INSERT INTO safety_events (timestamp, event_type, action, detail) VALUES (?,?,?,?)',
+                (_now_ist().isoformat(), event_type, action.value, detail)
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
     def _alert(self, message: str):
         if self._alert_fn:
@@ -320,11 +335,13 @@ class SafetyMonitor:
 
     def get_safety_log(self, limit: int = 50) -> list:
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            'SELECT * FROM safety_events ORDER BY id DESC LIMIT ?', (limit,)
-        ).fetchall()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                'SELECT * FROM safety_events ORDER BY id DESC LIMIT ?', (limit,)
+            ).fetchall()
+        finally:
+            conn.close()
         return [dict(r) for r in rows]
 
 

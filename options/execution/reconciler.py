@@ -11,6 +11,9 @@ import datetime
 from dataclasses import dataclass, field
 from typing import Optional, Callable
 
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
+
 log = logging.getLogger(__name__)
 
 
@@ -59,7 +62,7 @@ class Reconciler:
         self._last_result = None
 
     def reconcile(self) -> ReconcileResult:
-        result = ReconcileResult(timestamp=datetime.datetime.now().isoformat())
+        result = ReconcileResult(timestamp=_now_ist().isoformat())
 
         dhan_positions = self._position_fetcher() if self._position_fetcher else []
         dhan_orders = self._order_fetcher() if self._order_fetcher else []
@@ -189,18 +192,69 @@ class Reconciler:
                         if filled_count == total_legs:
                             conn.execute(
                                 "UPDATE trade_intents SET status='COMPLETED', completed_at=? WHERE id=?",
-                                (datetime.datetime.now().isoformat(), intent['id'])
+                                (_now_ist().isoformat(), intent['id'])
                             )
                             result.completed += 1
                             log.info(f"Crash recovery: intent {intent['id']} fully filled")
                         elif filled_count > 0:
+                            log.critical(f"Crash recovery: intent {intent['id']} partial "
+                                         f"({filled_count}/{total_legs}) — unwinding naked legs")
+                            intent_sids = {str(lg.get('security_id', '')) for lg in legs} - {''}
+                            for o in dhan_orders:
+                                if o.get('orderStatus') not in ('PENDING', 'TRANSIT'):
+                                    continue
+                                o_sid = str(o.get('securityId', o.get('security_id', '')))
+                                if intent_sids and o_sid not in intent_sids:
+                                    continue
+                                oid = o.get('orderId', o.get('order_id'))
+                                if self._queue and self._queue._executor:
+                                    try:
+                                        if hasattr(self._queue, '_bucket'):
+                                            self._queue._bucket.acquire(timeout=5.0)
+                                        self._queue._executor('CANCEL', {'orderId': str(oid)})
+                                    except Exception as ce:
+                                        log.error(f"Cancel failed for {oid}: {ce}")
+
+                            unwind_ok = True
+                            for leg in legs:
+                                sid = str(leg.get('security_id', ''))
+                                if sid not in dhan_pos_sids:
+                                    continue
+                                pos = dhan_pos_sids[sid]
+                                pos_qty = abs(pos.get('netQty', pos.get('quantity', 0)))
+                                if pos_qty == 0:
+                                    continue
+                                exit_txn = 'SELL' if leg.get('action') == 'BUY' else 'BUY'
+                                log.critical(f"Crash recovery: emergency {exit_txn} "
+                                             f"{pos_qty}x sid={sid}")
+                                if self._queue and self._queue._executor:
+                                    try:
+                                        if hasattr(self._queue, '_bucket'):
+                                            self._queue._bucket.acquire(timeout=5.0)
+                                        self._queue._executor('PLACE', {
+                                            'transactionType': exit_txn,
+                                            'exchangeSegment': leg.get('exchange_segment', 'NSE_FNO'),
+                                            'productType': 'NORMAL',
+                                            'orderType': 'MARKET',
+                                            'quantity': pos_qty,
+                                            'securityId': sid,
+                                            'validity': 'IOC',
+                                        })
+                                    except Exception as ue:
+                                        log.critical(f"UNWIND FAILED sid={sid}: {ue}")
+                                        result.errors.append(f"Unwind {sid}: {ue}")
+                                        unwind_ok = False
+                                else:
+                                    log.critical(f"No executor — cannot unwind sid={sid}")
+                                    result.errors.append(f"No executor for {sid}")
+                                    unwind_ok = False
+
+                            status = 'PARTIAL_UNWOUND' if unwind_ok else 'PARTIAL_UNWIND_FAILED'
                             conn.execute(
-                                "UPDATE trade_intents SET status='PARTIAL_RECOVERED', completed_at=? WHERE id=?",
-                                (datetime.datetime.now().isoformat(), intent['id'])
+                                "UPDATE trade_intents SET status=?, completed_at=? WHERE id=?",
+                                (status, _now_ist().isoformat(), intent['id'])
                             )
                             result.partial_recovered += 1
-                            log.warning(f"Crash recovery: intent {intent['id']} partial "
-                                        f"({filled_count}/{total_legs})")
                         else:
                             intent_sids = {str(leg.get('security_id', '')) for leg in legs} - {''}
                             for o in dhan_orders:
@@ -213,12 +267,14 @@ class Reconciler:
                                 log.info(f"Crash recovery: cancelling stale order {oid}")
                                 if self._queue and self._queue._executor:
                                     try:
+                                        if hasattr(self._queue, '_bucket'):
+                                            self._queue._bucket.acquire(timeout=5.0)
                                         self._queue._executor('CANCEL', {'orderId': str(oid)})
                                     except Exception as cancel_err:
                                         log.error(f"Failed to cancel stale order {oid}: {cancel_err}")
                             conn.execute(
                                 "UPDATE trade_intents SET status='CANCELLED', completed_at=? WHERE id=?",
-                                (datetime.datetime.now().isoformat(), intent['id'])
+                                (_now_ist().isoformat(), intent['id'])
                             )
                             result.cancelled += 1
                     except Exception as e:
@@ -242,28 +298,30 @@ class Reconciler:
 
     def _log_reconciliation(self, result: ReconcileResult):
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.execute('''CREATE TABLE IF NOT EXISTS reconciliation_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            matched INTEGER,
-            phantoms INTEGER,
-            orphans INTEGER,
-            mismatches INTEGER,
-            clean INTEGER,
-            detail TEXT
-        )''')
-        conn.execute(
-            '''INSERT INTO reconciliation_log
-               (timestamp, matched, phantoms, orphans, mismatches, clean, detail)
-               VALUES (?,?,?,?,?,?,?)''',
-            (result.timestamp, result.matched, len(result.phantoms),
-             len(result.orphans), len(result.quantity_mismatches),
-             1 if result.clean else 0,
-             json.dumps({'phantoms': result.phantoms, 'orphans': result.orphans},
-                        default=str))
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute('''CREATE TABLE IF NOT EXISTS reconciliation_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                matched INTEGER,
+                phantoms INTEGER,
+                orphans INTEGER,
+                mismatches INTEGER,
+                clean INTEGER,
+                detail TEXT
+            )''')
+            conn.execute(
+                '''INSERT INTO reconciliation_log
+                   (timestamp, matched, phantoms, orphans, mismatches, clean, detail)
+                   VALUES (?,?,?,?,?,?,?)''',
+                (result.timestamp, result.matched, len(result.phantoms),
+                 len(result.orphans), len(result.quantity_mismatches),
+                 1 if result.clean else 0,
+                 json.dumps({'phantoms': result.phantoms, 'orphans': result.orphans},
+                            default=str))
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def selfcheck():
@@ -275,51 +333,53 @@ def selfcheck():
         os.remove(db)
 
     conn = sqlite3.connect(db, timeout=10)
-    _init_queue_db(conn)
-    conn.execute('''CREATE TABLE IF NOT EXISTS trade_intents (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        trade_id INTEGER NOT NULL,
-        intent_type TEXT NOT NULL,
-        strategy TEXT,
-        symbol TEXT,
-        legs_json TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'PENDING',
-        created_at TEXT NOT NULL,
-        completed_at TEXT,
-        result_json TEXT
-    )''')
+    try:
+        _init_queue_db(conn)
+        conn.execute('''CREATE TABLE IF NOT EXISTS trade_intents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            trade_id INTEGER NOT NULL,
+            intent_type TEXT NOT NULL,
+            strategy TEXT,
+            symbol TEXT,
+            legs_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'PENDING',
+            created_at TEXT NOT NULL,
+            completed_at TEXT,
+            result_json TEXT
+        )''')
 
-    # Known order in our DB
-    conn.execute(
-        '''INSERT INTO order_queue
-           (id, priority, action, dhan_params, parent_trade_id, leg_index,
-            status, created_at, dhan_order_id)
-           VALUES (?,?,?,?,?,?,?,?,?)''',
-        ('Q1', 2, 'PLACE', json.dumps({'securityId': '13', 'quantity': 75}),
-         1, 0, 'DONE', datetime.datetime.now().isoformat(), 'DHAN_001')
-    )
+        # Known order in our DB
+        conn.execute(
+            '''INSERT INTO order_queue
+               (id, priority, action, dhan_params, parent_trade_id, leg_index,
+                status, created_at, dhan_order_id)
+               VALUES (?,?,?,?,?,?,?,?,?)''',
+            ('Q1', 2, 'PLACE', json.dumps({'securityId': '13', 'quantity': 75}),
+             1, 0, 'DONE', _now_ist().isoformat(), 'DHAN_001')
+        )
 
-    # Pending order (orphan test)
-    conn.execute(
-        '''INSERT INTO order_queue
-           (id, priority, action, dhan_params, parent_trade_id, leg_index,
-            status, created_at, dhan_order_id)
-           VALUES (?,?,?,?,?,?,?,?,?)''',
-        ('Q2', 2, 'PLACE', json.dumps({'securityId': '25', 'quantity': 30}),
-         2, 0, 'SENT', datetime.datetime.now().isoformat(), 'DHAN_GONE')
-    )
+        # Pending order (orphan test)
+        conn.execute(
+            '''INSERT INTO order_queue
+               (id, priority, action, dhan_params, parent_trade_id, leg_index,
+                status, created_at, dhan_order_id)
+               VALUES (?,?,?,?,?,?,?,?,?)''',
+            ('Q2', 2, 'PLACE', json.dumps({'securityId': '25', 'quantity': 30}),
+             2, 0, 'SENT', _now_ist().isoformat(), 'DHAN_GONE')
+        )
 
-    # Pending intent (crash recovery test)
-    conn.execute(
-        '''INSERT INTO trade_intents
-           (trade_id, intent_type, strategy, symbol, legs_json, status, created_at)
-           VALUES (?,?,?,?,?,?,?)''',
-        (3, 'ENTRY', 'iron_condor', 'NIFTY',
-         json.dumps([{'security_id': '13'}, {'security_id': '14'}]),
-         'PENDING', datetime.datetime.now().isoformat())
-    )
-    conn.commit()
-    conn.close()
+        # Pending intent (crash recovery test)
+        conn.execute(
+            '''INSERT INTO trade_intents
+               (trade_id, intent_type, strategy, symbol, legs_json, status, created_at)
+               VALUES (?,?,?,?,?,?,?)''',
+            (3, 'ENTRY', 'iron_condor', 'NIFTY',
+             json.dumps([{'security_id': '13'}, {'security_id': '14'}]),
+             'PENDING', _now_ist().isoformat())
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     phantom_log = []
     mismatch_log = []
@@ -368,9 +428,11 @@ def selfcheck():
     # Test 3: Reconciliation log persisted
     conn = sqlite3.connect(db, timeout=10)
     conn.row_factory = sqlite3.Row
-    logs = conn.execute('SELECT * FROM reconciliation_log').fetchall()
-    assert len(logs) >= 1
-    conn.close()
+    try:
+        logs = conn.execute('SELECT * FROM reconciliation_log').fetchall()
+        assert len(logs) >= 1
+    finally:
+        conn.close()
 
     os.remove(db)
     print('reconciler.py: self-check PASSED')

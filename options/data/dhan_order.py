@@ -13,6 +13,9 @@ from . import dhan_fetch
 
 log = logging.getLogger(__name__)
 
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
+
 # Dhan exchange segment for index options
 from .ref_data import LOT_SIZES, DHAN_SEGMENTS as SEGMENT_MAP
 
@@ -52,7 +55,9 @@ def place_strategy(legs, symbol='NIFTY', lots=1, product='NORMAL',
     -------
     dict: status, orders (list of order dicts with Dhan response)
     """
-    orders = [_build_order(leg, symbol, lots, product) for leg in legs]
+    # CRITICAL: BUY legs first to avoid naked short exposure (Natenberg Ch.12)
+    sorted_legs = sorted(legs, key=lambda l: 0 if l.get('action') == 'BUY' else 1)
+    orders = [_build_order(leg, symbol, lots, product) for leg in sorted_legs]
 
     if dry_run:
         log.info(f'DRY RUN: {len(orders)} orders for {symbol}')
@@ -101,7 +106,7 @@ def place_strategy(legs, symbol='NIFTY', lots=1, product='NORMAL',
     return {
         'status': 'executed',
         'orders': results,
-        'timestamp': datetime.datetime.now().isoformat(),
+        'timestamp': _now_ist().isoformat(),
     }
 
 

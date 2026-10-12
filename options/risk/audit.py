@@ -13,6 +13,9 @@ exit rationale, and deviation from plan.
 """
 
 import datetime
+
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
 import json
 import os
 
@@ -97,7 +100,7 @@ def audit_trade(trade, capital, margin_available, mwpl_status='ok'):
         'approved': len(rejections) == 0,
         'checks': checks,
         'rejection_reasons': rejections,
-        'timestamp': datetime.datetime.now().isoformat(),
+        'timestamp': _now_ist().isoformat(),
     }
 
 
@@ -120,7 +123,7 @@ def log_trade(trade, result, log_dir='trade_logs'):
     path = os.path.join(log_dir, f'trades_{today}.jsonl')
 
     entry = {
-        'timestamp': datetime.datetime.now().isoformat(),
+        'timestamp': _now_ist().isoformat(),
         'trade': trade,
         'audit_result': result,
     }

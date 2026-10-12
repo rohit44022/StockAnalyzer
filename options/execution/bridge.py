@@ -19,6 +19,8 @@ from .queue import OrderQueue, OrderRequest, OrderResult, Priority, OrderAction,
 
 log = logging.getLogger(__name__)
 
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
 TICK_SIZE = 0.05  # NSE options tick
 
 
@@ -131,8 +133,10 @@ class ExecutionBridge:
         self._poll_interval = poll_interval
 
         conn = sqlite3.connect(db_path, timeout=10)
-        _init_bridge_db(conn)
-        conn.close()
+        try:
+            _init_bridge_db(conn)
+        finally:
+            conn.close()
 
     def execute_entry(self, trade_id: int, legs: list, symbol: str,
                       strategy: str = '') -> EntryResult:
@@ -222,11 +226,18 @@ class ExecutionBridge:
             else:
                 failed.append(lr)
 
+        # Net exit proceeds: SELL legs = credit, BUY legs = debit
+        exit_net = sum(
+            lr.fill_price * lr.fill_qty * (1 if lr.action == 'SELL' else -1)
+            for lr in filled
+            if lr.fill_price and lr.fill_qty
+        )
         result = ExitResult(
             success=len(filled) > 0 and len(failed) == 0,
             trade_id=trade_id,
             legs_closed=[_leg_result_dict(lr) for lr in filled],
             legs_failed=[_leg_result_dict(lr) for lr in failed],
+            realized_pnl=round(exit_net, 2),
             execution_time_sec=round(time.monotonic() - start, 2),
         )
 
@@ -247,10 +258,13 @@ class ExecutionBridge:
         has_sell = any(l.get('action') == 'SELL' for l in legs)
 
         # Sinclair Ch.4: VIX > 30 = don't sell vol
-        if has_sell and self._vix_fetcher:
-            vix = self._vix_fetcher()
-            if vix and vix > vix_halt:
-                return f'VIX {vix:.1f} > halt threshold {vix_halt} (Sinclair Ch.4)'
+        if has_sell:
+            if not self._vix_fetcher:
+                log.warning('SELL legs present but no VIX fetcher configured — VIX guard disabled')
+            else:
+                vix = self._vix_fetcher()
+                if vix and vix > vix_halt:
+                    return f'VIX {vix:.1f} > halt threshold {vix_halt} (Sinclair Ch.4)'
 
         for leg in legs:
             if self._price_fetcher and leg.get('security_id'):
@@ -272,8 +286,7 @@ class ExecutionBridge:
                 if dte > max_dte:
                     return f'DTE {dte} > maximum {max_dte}'
 
-        _IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
-        now = datetime.datetime.now(_IST)
+        now = _now_ist()
         if now.hour == 15 and now.minute >= 15:
             return 'No entries in last 15 min of session (after 3:15 PM)'
         if now.hour > 15 or (now.hour < 9) or (now.hour == 9 and now.minute < 15):
@@ -349,19 +362,21 @@ class ExecutionBridge:
             # Verify cancel took effect
             time.sleep(1)
             conn = sqlite3.connect(self._db_path, timeout=10)
-            conn.row_factory = sqlite3.Row
-            ev = conn.execute(
-                "SELECT event_type FROM order_events "
-                "WHERE dhan_order_id=? ORDER BY id DESC LIMIT 1",
-                (prev_order_id,)
-            ).fetchone()
-            conn.close()
+            try:
+                conn.row_factory = sqlite3.Row
+                ev = conn.execute(
+                    "SELECT event_type FROM order_events "
+                    "WHERE dhan_order_id=? ORDER BY id DESC LIMIT 1",
+                    (prev_order_id,)
+                ).fetchone()
+            finally:
+                conn.close()
             if ev and ev['event_type'] not in ('CANCELLED', 'REJECTED', 'CANCEL_SENT'):
-                log.warning(f'Cancel unconfirmed for {prev_order_id}, '
-                            f'last event: {ev["event_type"]}')
+                log.critical(f'CANCEL UNCONFIRMED for {prev_order_id}, '
+                             f'last event: {ev["event_type"]} — ORDER MAY STILL BE LIVE')
                 return LegResult(leg_index=leg_index, action=leg.get('action', ''),
                                  success=False,
-                                 error=f'Cancel unconfirmed — order {prev_order_id} may still fill',
+                                 error=f'Cancel unconfirmed — order {prev_order_id} may still fill — MANUAL CHECK REQUIRED',
                                  dhan_order_id=prev_order_id)
 
         return LegResult(leg_index=leg_index, action=leg.get('action', ''),
@@ -397,24 +412,28 @@ class ExecutionBridge:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             conn = sqlite3.connect(self._db_path, timeout=10)
-            conn.row_factory = sqlite3.Row
-            ev = conn.execute(
-                '''SELECT * FROM order_events
-                   WHERE dhan_order_id=? AND event_type IN ('FILLED','TRADED')
-                   ORDER BY id DESC LIMIT 1''',
-                (dhan_order_id,)
-            ).fetchone()
-            conn.close()
+            try:
+                conn.row_factory = sqlite3.Row
+                ev = conn.execute(
+                    '''SELECT * FROM order_events
+                       WHERE dhan_order_id=? AND event_type IN ('FILLED','TRADED')
+                       ORDER BY id DESC LIMIT 1''',
+                    (dhan_order_id,)
+                ).fetchone()
+            finally:
+                conn.close()
             if ev:
                 return dict(ev)
 
             conn2 = sqlite3.connect(self._db_path, timeout=10)
-            conn2.row_factory = sqlite3.Row
-            orow = conn2.execute(
-                'SELECT status, dhan_response FROM order_queue WHERE dhan_order_id=?',
-                (dhan_order_id,)
-            ).fetchone()
-            conn2.close()
+            try:
+                conn2.row_factory = sqlite3.Row
+                orow = conn2.execute(
+                    'SELECT status, dhan_response FROM order_queue WHERE dhan_order_id=?',
+                    (dhan_order_id,)
+                ).fetchone()
+            finally:
+                conn2.close()
             if orow and orow['status'] in (QueueStatus.DONE, QueueStatus.FAILED):
                 if orow['status'] == QueueStatus.DONE:
                     resp = json.loads(orow['dhan_response'] or '{}')
@@ -422,6 +441,8 @@ class ExecutionBridge:
                 return None
 
             time.sleep(self._poll_interval)
+        log.critical(f'FILL TIMEOUT: order {dhan_order_id} not filled after {timeout:.1f}s '
+                     f'— order may still be LIVE on exchange. MANUAL CHECK REQUIRED.')
         return None
 
     def _calc_slippage(self, filled_legs: list, original_legs: list) -> tuple:
@@ -449,17 +470,46 @@ class ExecutionBridge:
         results = []
         for lr in filled_legs:
             inverse_action = 'SELL' if lr.action == 'BUY' else 'BUY'
-            unwind_price = lr.fill_price or 0
-            if unwind_price:
+            unwind_price = lr.fill_price
+            if unwind_price is not None and unwind_price > 0:
+                # Aggressive pricing: willing to lose 5% to guarantee the unwind fills
                 unwind_price = _round_tick(unwind_price * (0.95 if inverse_action == 'SELL' else 1.05))
+            else:
+                # fill_price unknown — try live quote, fall back to original premium
+                log.critical(f'UNWIND leg {lr.leg_index}: no fill price — using fallback pricing')
+                orig_leg = original_legs[lr.leg_index] if original_legs and lr.leg_index < len(original_legs) else {}
+                fallback = orig_leg.get('premium', orig_leg.get('ltp', 0))
+                if self._price_fetcher and orig_leg.get('security_id'):
+                    try:
+                        q = self._price_fetcher(orig_leg['security_id'])
+                        if q:
+                            fallback = q.get('ltp', q.get('bid', fallback)) or fallback
+                    except Exception:
+                        pass
+                if fallback and fallback > 0:
+                    unwind_price = _round_tick(fallback * (0.90 if inverse_action == 'SELL' else 1.10))
+                else:
+                    log.critical(f'UNWIND leg {lr.leg_index}: no price available — cannot unwind')
+                    results.append(LegResult(
+                        leg_index=lr.leg_index, action='UNWIND', success=False,
+                        error='No price available for unwind — MANUAL INTERVENTION REQUIRED'))
+                    continue
+            if not lr.fill_qty or lr.fill_qty <= 0:
+                log.critical(f'UNWIND leg {lr.leg_index}: fill_qty is {lr.fill_qty} — cannot unwind')
+                results.append(LegResult(
+                    leg_index=lr.leg_index, action='UNWIND', success=False,
+                    error=f'fill_qty={lr.fill_qty} — MANUAL INTERVENTION REQUIRED'))
+                continue
             sid = sid_by_index.get(lr.leg_index, '')
             if not sid:
                 conn = sqlite3.connect(self._db_path, timeout=10)
-                conn.row_factory = sqlite3.Row
-                row = conn.execute(
-                    'SELECT dhan_params FROM order_queue WHERE id=?', (lr.queue_id,)
-                ).fetchone()
-                conn.close()
+                try:
+                    conn.row_factory = sqlite3.Row
+                    row = conn.execute(
+                        'SELECT dhan_params FROM order_queue WHERE id=?', (lr.queue_id,)
+                    ).fetchone()
+                finally:
+                    conn.close()
                 if row:
                     p = json.loads(row['dhan_params']) if row['dhan_params'] else {}
                     sid = str(p.get('securityId', p.get('security_id', '')))
@@ -520,7 +570,7 @@ class ExecutionBridge:
             'exchangeSegment': 'NSE_FNO',
             'productType': 'NORMAL',
             'orderType': 'LIMIT',
-            'quantity': leg.get('qty', leg.get('quantity', 65)),
+            'quantity': leg.get('qty', leg.get('quantity', 0)),  # 0 = guard will reject; never default to a lot size
             'price': price,
             'validity': 'DAY',
             'securityId': str(leg.get('security_id', '')),
@@ -529,17 +579,19 @@ class ExecutionBridge:
     def _write_intent(self, trade_id: int, intent_type: str,
                       strategy: str, symbol: str, legs: list) -> int:
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.execute(
-            '''INSERT INTO trade_intents
-               (trade_id, intent_type, strategy, symbol, legs_json, status, created_at)
-               VALUES (?,?,?,?,?,?,?)''',
-            (trade_id, intent_type, strategy, symbol,
-             json.dumps(legs, default=str),
-             'PENDING', datetime.datetime.now().isoformat())
-        )
-        intent_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute(
+                '''INSERT INTO trade_intents
+                   (trade_id, intent_type, strategy, symbol, legs_json, status, created_at)
+                   VALUES (?,?,?,?,?,?,?)''',
+                (trade_id, intent_type, strategy, symbol,
+                 json.dumps(legs, default=str),
+                 'PENDING', _now_ist().isoformat())
+            )
+            intent_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            conn.commit()
+        finally:
+            conn.close()
         return intent_id
 
     def _complete_intent(self, intent_id: int, status: str, result):
@@ -556,22 +608,26 @@ class ExecutionBridge:
         if hasattr(result, 'execution_time_sec'):
             data['execution_time_sec'] = result.execution_time_sec
         result_json = json.dumps(data, default=str)
-        conn.execute(
-            '''UPDATE trade_intents
-               SET status=?, completed_at=?, result_json=?
-               WHERE id=?''',
-            (status, datetime.datetime.now().isoformat(), result_json, intent_id)
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute(
+                '''UPDATE trade_intents
+                   SET status=?, completed_at=?, result_json=?
+                   WHERE id=?''',
+                (status, _now_ist().isoformat(), result_json, intent_id)
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
     def get_pending_intents(self) -> list:
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT * FROM trade_intents WHERE status='PENDING' ORDER BY id"
-        ).fetchall()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM trade_intents WHERE status='PENDING' ORDER BY id"
+            ).fetchall()
+        finally:
+            conn.close()
         return [dict(r) for r in rows]
 
 
@@ -655,11 +711,13 @@ def selfcheck():
 
     # Test 2: Intent logging
     conn = sqlite3.connect(db, timeout=10)
-    conn.row_factory = sqlite3.Row
-    intents = conn.execute('SELECT * FROM trade_intents').fetchall()
-    assert len(intents) >= 1, 'Should have at least 1 intent'
-    assert intents[0]['status'] == 'COMPLETED'
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        intents = conn.execute('SELECT * FROM trade_intents').fetchall()
+        assert len(intents) >= 1, 'Should have at least 1 intent'
+        assert intents[0]['status'] == 'COMPLETED'
+    finally:
+        conn.close()
 
     # Test 3: Paired spread grouping
     pairs = _pair_spreads(legs)

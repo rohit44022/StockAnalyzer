@@ -13,6 +13,8 @@ from ..data import event_calendar as data_calendar
 from ..risk import margin as margin_mod
 
 
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+_now_ist = lambda: datetime.datetime.now(_IST).replace(tzinfo=None)
 RECO_TTL_MINUTES = 30
 
 
@@ -30,17 +32,17 @@ def generate(chain_df, spot, vix_value=None, prices=None,
     if spot is None or spot <= 0:
         return {'symbol': symbol, 'recommendations': [],
                 'market_state': {}, 'signals': [],
-                'timestamp': datetime.datetime.now().isoformat(),
-                'expires_at': datetime.datetime.now().isoformat(),
+                'timestamp': _now_ist().isoformat(),
+                'expires_at': _now_ist().isoformat(),
                 'ttl_minutes': 0, 'capital': capital,
                 'risk_budget': risk_budget,
                 'error': 'Invalid spot price'}
 
     if lot_size is None:
         from ..backtest.run_batch import nifty_lot_size
-        lot_size = nifty_lot_size(datetime.date.today())
+        lot_size = nifty_lot_size(_now_ist().date())
 
-    now = datetime.datetime.now()
+    now = _now_ist()
     today = now.date()
 
     if pipe_result is None:
@@ -58,6 +60,22 @@ def generate(chain_df, spot, vix_value=None, prices=None,
         sigs, backtest_dir=backtest_dir,
         risk_budget=risk_budget, dte=dte, dt=today)
 
+    # Build candidates audit: all scored + filtered strategies
+    filtered = scored[0].pop('_filtered', []) if scored else []
+    candidates_audit = [
+        {'strategy': s['strategy_key'], 'score': s['final_score'],
+         'signal_score': s['signal_score'], 'vp_boost': s.get('vp_boost', 0),
+         'recent_boost': s.get('recent_boost', 0), 'seasonal': s['seasonal_mod'],
+         'status': 'scored', 'reasons': s['reasons']}
+        for s in scored
+    ] + [
+        {'strategy': f['strategy'], 'score': None,
+         'signal_score': None, 'vp_boost': None,
+         'recent_boost': None, 'seasonal': None,
+         'status': 'filtered', 'reasons': [f['reason']]}
+        for f in filtered
+    ]
+
     recommendations = []
     for s in scored[:5]:
         br = builder.build(s['strategy_key'], chain_df, spot,
@@ -71,6 +89,7 @@ def generate(chain_df, spot, vix_value=None, prices=None,
     return {
         'symbol': symbol,
         'recommendations': recommendations,
+        'candidates_audit': candidates_audit,
         'market_state': _market_state(sigs, pipe_result, spot, vix_value, dte),
         'signals': sigs,
         'timestamp': now.isoformat(),
@@ -183,7 +202,7 @@ def _market_state(sigs, pipe_result, spot, vix_value, dte):
         'regime': regime,
         'roc': round(roc, 4),
         'dte': dte,
-        'event_near': core_calendar.event_near(datetime.date.today()),
+        'event_near': core_calendar.event_near(_now_ist().date()),
     }
 
 
@@ -194,7 +213,7 @@ def is_stale(recommendation):
         return True
     try:
         expires = datetime.datetime.fromisoformat(exp)
-        return datetime.datetime.now() > expires
+        return _now_ist() > expires
     except (ValueError, TypeError):
         return True
 

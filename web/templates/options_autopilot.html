@@ -226,6 +226,21 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
 .la.enter{color:var(--g)}.la.exit{color:var(--y)}.la.skip_entry,.la.skip_exit{color:var(--muted)}
 .la.error{color:var(--r)}.la.preflight_ok,.la.cycle_complete{color:var(--b)}
 .la.preflight_fail{color:var(--r)}.la.no_opportunity{color:var(--text-dim)}
+/* ── Scan Activity ── */
+.scan-cycle{border-left:3px solid var(--card-border);padding:8px 12px;margin-bottom:10px;background:var(--surface);border-radius:0 6px 6px 0}
+.scan-cycle:last-child{margin-bottom:0}
+.scan-hdr{display:flex;align-items:center;gap:8px;font-size:.85rem;margin-bottom:6px}
+.scan-hdr .ts{color:var(--muted);font-size:.75rem}
+.scan-hdr .ctype{font-size:.7rem;padding:2px 6px;border-radius:4px;background:var(--card-border);color:var(--text-dim)}
+.scan-step{display:flex;align-items:center;gap:6px;font-size:.8rem;padding:2px 0;color:var(--text-dim)}
+.scan-step .act{font-weight:600;min-width:100px}
+.scan-step .act.enter{color:var(--g)}.scan-step .act.exit{color:var(--y)}
+.scan-step .act.skip_entry,.scan-step .act.skip_exit{color:var(--muted)}
+.scan-step .act.no_opportunity{color:var(--text-dim)}
+.scan-step .act.preflight_ok{color:var(--b)}.scan-step .act.preflight_fail,.scan-step .act.error{color:var(--r)}
+.scan-step .sym{color:var(--text);font-weight:500}
+.scan-step .scr{color:var(--y);font-size:.75rem}
+.scan-step .rsn{color:var(--muted);font-size:.75rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── Error state ── */
 .err-state{background:rgba(240,101,72,.08);border:1px solid rgba(240,101,72,.2);border-radius:10px;padding:16px 20px;text-align:center;margin:1rem 0}
@@ -634,6 +649,17 @@ body{font-family:'Inter',var(--bs-body-font-family);background:var(--bs-body-bg)
   </div>
 </div>
 
+<!-- ═══ Scan Activity ═══ -->
+<div class="sec">
+  <div class="sec-t"><i class="bi bi-search"></i> Scan Activity
+    <button class="cbtn ms-auto" onclick="togS('scanC')"><i class="bi bi-chevron-down"></i></button>
+  </div>
+  <div class="sec-desc">Recent autopilot scan cycles. Shows when each cycle ran, what symbols were scanned, scores, and outcomes.</div>
+  <div id="scanC" class="card"><div style="max-height:400px;overflow-y:auto">
+    <div id="scanBody" class="empty" style="padding:12px">Loading...</div>
+  </div></div>
+</div>
+
 <!-- ═══ Decision Log ═══ -->
 <div class="sec">
   <div class="sec-t"><i class="bi bi-journal-code"></i> Decision Log
@@ -834,14 +860,14 @@ function renderDash(d,stale){
   $('sp').className='spill '+(en?'on':'off');$('st').textContent=en?'ENABLED':'DISABLED';
   const stg=d.config?.staging||'';if(stg){const sb=$('stageBadge');sb.textContent=stg.replace('_',' ');sb.className='stage-badge '+stg;sb.style.display=''}else{$('stageBadge').style.display='none'}
   $('bE').style.display=en?'none':'';$('bD').style.display=en?'':'none';
-  if(en){$('cron').style.display='';const st=(d.config?.scan_times||[]).join(' & ');$('cronMsg').textContent='Autopilot active — cron auto-runs at '+st+' IST on weekdays. Entry scans, exit checks, and risk limits all automated.'}else{$('cron').style.display='none'}
+  if(en){$('cron').style.display='';const intv=d.config?.scan_interval_minutes;const st=intv?'every '+intv+'min (9:15–15:30)':(d.config?.scan_times||[]).join(' & ');$('cronMsg').textContent='Autopilot active — cron auto-runs '+st+' IST on weekdays. Entry scans, exit checks, and risk limits all automated.'}else{$('cron').style.display='none'}
 
   const tk=d.token||{};const te=$('tok');
   if(tk.active){te.textContent=tk.remaining_hours?.toFixed(1)+'h';te.style.color=tk.remaining_hours<2?'var(--y)':'var(--g)'}
   else{te.textContent='EXPIRED';te.style.color='var(--r)'}
 
   if(d.last_cycle){const ts=d.last_cycle.timestamp||'';$('lc').textContent=ts?new Date(ts).toLocaleString('en-IN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Never'}else{$('lc').textContent='Never'}
-  $('scT').textContent=(d.config?.scan_times||[]).join(', ');
+  {const iv=d.config?.scan_interval_minutes;$('scT').textContent=iv?'Every '+iv+'min':(d.config?.scan_times||[]).join(', ');}
   $('tcyc').textContent=d.today_cycles||0;
 
   // Market regime from last recommendation
@@ -896,6 +922,7 @@ function renderDash(d,stale){
 
   rStrat(d.strategies||[]);
   rOpen(d.open_trades||[]);
+  rScan(d.scan_history||[]);
   rEquity(d.equity_curve||[]);
   _allClosed=d.closed_trades||[];_closedShown=0;rClosedPage();
   // popCfg moved to wrapper — skipped when user is editing config
@@ -969,6 +996,24 @@ function rStrat(ss){
       ${gs.map(g=>{const c=g.p===true?'pass':g.p===false?'fail':'na';const i=g.p===true?'check-lg':g.p===false?'x-lg':'dash';return `<span class="gi ${c}"><i class="bi bi-${i}"></i> ${g.l}: ${g.v}</span>`}).join('')}
     </div></div></div>`}).join('')}
 
+function rScan(cycles){
+  const el=$('scanBody');
+  if(!cycles.length){el.innerHTML='<div class="empty">No scan cycles recorded yet. Cycles appear here when autopilot runs (cron or manual).</div>';return}
+  let h='';
+  for(const c of cycles.slice().reverse()){
+    const dt=c.timestamp?new Date(c.timestamp).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'--';
+    h+='<div class="scan-cycle">';
+    h+='<div class="scan-hdr"><i class="bi bi-play-circle"></i> <strong>Cycle '+c.cycle_id.slice(0,8)+'</strong><span class="ts">'+dt+'</span><span class="ctype">'+c.cycle_type+'</span></div>';
+    for(const s of c.steps){
+      const score=s.score!=null&&s.score>0?' <span class="scr">score:'+Number(s.score).toFixed(1)+'</span>':'';
+      const sym=s.symbol?'<span class="sym">'+s.symbol+'</span>':'';
+      const reason=s.reason?'<span class="rsn" title="'+s.reason.replace(/"/g,'&quot;')+'">'+s.reason+'</span>':'';
+      h+='<div class="scan-step"><span class="act '+s.action+'">'+s.action+'</span>'+sym+score+reason+'</div>';
+    }
+    h+='</div>';
+  }
+  el.innerHTML=h;
+}
 function rOpen(ts){
   $('oCnt').textContent=ts.length?`(${ts.length} open)`:'';
   const tb=$('oBody');

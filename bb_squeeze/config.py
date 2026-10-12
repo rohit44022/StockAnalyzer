@@ -97,6 +97,47 @@ VWMACD_SIGNAL = 9
 EXPANSION_LOOKBACK = 5    # Bars to check band direction
 
 # ─────────────────────────────────────────────────────────────────
+#  WIDTH-LENGTH RELATIONSHIP — Rule 11, p.184
+#  "10-period→1.9σ, 20-period→2.0σ, 50-period→2.1σ"
+#  Piecewise linear through the book's three anchor points.
+# ─────────────────────────────────────────────────────────────────
+WIDTH_LENGTH_ANCHORS = [(10, 1.9), (20, 2.0), (50, 2.1)]
+WIDTH_LENGTH_MIN = 1.5
+WIDTH_LENGTH_MAX = 2.5
+
+# ─────────────────────────────────────────────────────────────────
+#  TYPICAL PRICE OPTION — Book Ch.7
+#  Close is standard; (H+L+C)/3 is an alternative.
+# ─────────────────────────────────────────────────────────────────
+BB_USE_TYPICAL_PRICE = False
+
+# ─────────────────────────────────────────────────────────────────
+#  VOLUME-PRICE TREND — Book Ch.18 (7th of 8 indicators)
+# ─────────────────────────────────────────────────────────────────
+VPT_SIGNAL_PERIOD = 9
+
+# ─────────────────────────────────────────────────────────────────
+#  BOLLINGER BOXES — Book Ch.11
+# ─────────────────────────────────────────────────────────────────
+BBOX_MIN_SWINGS = 4
+BBOX_LOOKBACK = 50
+
+# ─────────────────────────────────────────────────────────────────
+#  METHOD II PULLBACK TRADING — Book Ch.19
+#  "Use signals as alerts, trade the first pullback"
+# ─────────────────────────────────────────────────────────────────
+M2_PULLBACK_ENABLED = True
+M2_PULLBACK_PCT_B_MIN = 0.4
+M2_PULLBACK_PCT_B_MAX = 0.65
+M2_PULLBACK_LOOKBACK = 5
+
+# ─────────────────────────────────────────────────────────────────
+#  METHOD IV 3-LEG WALK — Elliott convention from book
+# ─────────────────────────────────────────────────────────────────
+M4_WALK_LEG_MIN_BARS = 3
+M4_WALK_EXPECTED_LEGS = 3
+
+# ─────────────────────────────────────────────────────────────────
 #  INDICATOR NORMALISATION — Book Ch.21 Table 21.1
 #  Apply Bollinger Bands to indicators for adaptive OB/OS levels.
 # ─────────────────────────────────────────────────────────────────
@@ -129,19 +170,23 @@ MIN_DATA_DAYS  = 150    # Minimum required data points for reliable calculations
 #  SIGNAL SCORING WEIGHTS
 # ─────────────────────────────────────────────────────────────────
 # Each condition contributes to confidence score (total = 100)
+# Rule 5 collinearity fix: base weights diversified across indicator categories
 SCORE_BBW_SQUEEZE    = 25   # Core squeeze condition — highest weight
 SCORE_PRICE_BREAKOUT = 25   # Price closes above upper BB
-SCORE_VOLUME_CONFIRM = 20   # Volume above 50 SMA
-SCORE_CMF_POSITIVE   = 15   # CMF above zero
-SCORE_MFI_ABOVE_50   = 15   # MFI above 50
+SCORE_VOLUME_CONFIRM = 20   # Volume above 50 SMA (pure volume category)
+SCORE_CMF_POSITIVE   = 5    # CMF demoted to supplementary (same category as MFI)
+SCORE_MFI_ABOVE_50   = 15   # MFI primary volume×price indicator
+SCORE_II_CONFIRM     = 5    # II% > 0 — independent V×P formula (Book Ch.18)
+SCORE_VWMACD_CONFIRM = 5    # VWMACD trend category (Book Ch.18)
+# Base total: 25+25+20+5+15+5+5 = 100
 
-# Bonus scores
-SCORE_CMF_ABOVE_10   = 5    # CMF > +0.10 (strong accumulation)
+# Bonus scores (can exceed 100, clamped later)
+SCORE_CMF_ABOVE_10   = 3    # CMF > +0.10 (supplementary)
 SCORE_MFI_ABOVE_80   = 5    # MFI > 80 (maximum fuel)
 SCORE_KC_T7_BONUS    = 10   # T7 Keltner Channel deep squeeze bonus
-SCORE_II_CONFIRM     = 3    # II% > 0 — accumulation confirmation (Book Ch.18)
 SCORE_RALLY_DAY      = 5    # Above-avg range + volume on breakout (Book Ch.20 p.163)
 SCORE_EXPANSION_CONFIRM = 3 # Band expansion confirms trend direction (Book Ch.15)
+SCORE_VPT_CONFIRM    = 3    # VPT above signal line (Book Ch.18)
 
 # ─────────────────────────────────────────────────────────────────
 #  FUNDAMENTAL DATA SOURCES

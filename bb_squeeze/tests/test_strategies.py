@@ -142,41 +142,40 @@ class TestM1SqueezeBuyStrict(unittest.TestCase):
         self.assertFalse(sig.cond2_price_above)
         self.assertFalse(sig.buy_signal, "BUY must NOT fire without a close above upper")
 
-    def test_missing_volume_confirmation_kills_buy(self):
-        """Volume must be above 50-SMA AND it must be a green candle."""
+    def test_missing_volume_confirmation_weakens_buy(self):
+        """Volume below SMA invalidates cond3.  With 2-of-3 rule, buy still
+        fires if MFI + CMF/II% both pass (2 of 3 met)."""
         df = self._build_buy_ready_df()
-        df = _force_row(df, -1, Volume=float(df["Vol_SMA50"].iloc[-1]) * 0.5)   # below SMA
+        df = _force_row(df, -1, Volume=float(df["Vol_SMA50"].iloc[-1]) * 0.5)
         sig = analyze_signals("TEST", df)
         self.assertFalse(sig.cond3_volume_ok)
-        self.assertFalse(sig.buy_signal, "BUY must NOT fire without volume confirmation")
 
-    def test_missing_cmf_positive_kills_buy(self):
-        """CMF must be > 0 (institutional accumulation). This is the condition
-        the holiday-bar bug had silently suppressed."""
+    def test_two_vol_confirms_failing_kills_buy(self):
+        """2-of-3 rule: failing both CMF and MFI (only volume OK) → no buy."""
         df = self._build_buy_ready_df()
-        df = _force_row(df, -1, CMF=-0.05)
+        df = _force_row(df, -1, CMF=-0.05, MFI=45.0)
         sig = analyze_signals("TEST", df)
         self.assertFalse(sig.cond4_cmf_positive)
-        self.assertFalse(sig.buy_signal, "BUY must NOT fire when CMF is not positive")
+        self.assertFalse(sig.cond5_mfi_above_50)
+        self.assertFalse(sig.buy_signal, "Only 1-of-3 vol confirms → no buy")
 
-    def test_missing_mfi_above_50_kills_buy(self):
-        """MFI must be > 50 AND rising vs previous bar."""
+    def test_missing_mfi_alone_does_not_kill_buy(self):
+        """MFI < 50 invalidates cond5 but buy survives if vol + CMF/II% pass."""
         df = self._build_buy_ready_df()
         df = _force_row(df, -1, MFI=45.0)
         sig = analyze_signals("TEST", df)
         self.assertFalse(sig.cond5_mfi_above_50)
-        self.assertFalse(sig.buy_signal, "BUY must NOT fire when MFI ≤ 50")
+        self.assertTrue(sig.buy_signal, "2-of-3 rule: vol + CMF still pass")
 
     def test_mfi_above_50_but_not_rising_kills_buy(self):
-        """MFI 'above 50' alone is not enough — the book also requires rising MFI
-        (breakout fuel is INCREASING)."""
+        """Falling MFI invalidates cond5.  With the 2-of-3 rule, buy is
+        killed only when another vol condition also fails."""
         df = self._build_buy_ready_df()
-        # prev MFI > current MFI (still > 50, but falling)
         df = _force_row(df, -2, MFI=90.0)
-        df = _force_row(df, -1, MFI=85.0)
+        df = _force_row(df, -1, MFI=85.0, CMF=-0.05)
         sig = analyze_signals("TEST", df)
         self.assertFalse(sig.cond5_mfi_above_50, "Falling MFI must invalidate cond5")
-        self.assertFalse(sig.buy_signal)
+        self.assertFalse(sig.buy_signal, "Only 1-of-3 vol confirms → no buy")
 
 
 class TestM1SqueezeSellStrict(unittest.TestCase):

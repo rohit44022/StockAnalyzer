@@ -21,6 +21,11 @@ from bb_squeeze.config import (
     NORM_MFI_BB_LEN, NORM_MFI_BB_STD,
     KC_EMA_PERIOD, KC_ATR_PERIOD, KC_ATR_MULT,
     KC_SQUEEZE_LOOKBACK, KC_SQUEEZE_MIN_BARS,
+    WIDTH_LENGTH_ANCHORS, WIDTH_LENGTH_MIN, WIDTH_LENGTH_MAX,
+    BB_USE_TYPICAL_PRICE,
+    VPT_SIGNAL_PERIOD,
+    BBOX_MIN_SWINGS, BBOX_LOOKBACK,
+    M4_WALK_LEG_MIN_BARS, M4_WALK_EXPECTED_LEGS,
 )
 
 
@@ -28,18 +33,48 @@ from bb_squeeze.config import (
 # GROUP A — BOLLINGER BANDS
 # ═══════════════════════════════════════════════════════════════
 
-def bollinger_bands(close: pd.Series, period: int = BB_PERIOD, std_dev: float = BB_STD_DEV):
-    """
-    Calculate Bollinger Bands (SMA-based, as per the book).
-    Uses POPULATION standard deviation (ddof=0) — the industry standard
-    used by TradingView, Zerodha Kite, Screener.in, and most charting
-    platforms. This ensures our breakout/squeeze signals match what
-    traders see on their charts.
+def width_length_std_dev(period: int) -> float:
+    """Rule 11, p.184: piecewise-linear through book anchors (10→1.9, 20→2.0, 50→2.1)."""
+    anchors = WIDTH_LENGTH_ANCHORS
+    if len(anchors) < 2:
+        return BB_STD_DEV
+    raw = anchors[0][1]  # safe default
+    if period <= anchors[0][0]:
+        denom = anchors[1][0] - anchors[0][0]
+        slope = (anchors[1][1] - anchors[0][1]) / denom if denom else 0
+        raw = anchors[0][1] + slope * (period - anchors[0][0])
+    elif period >= anchors[-1][0]:
+        denom = anchors[-1][0] - anchors[-2][0]
+        slope = (anchors[-1][1] - anchors[-2][1]) / denom if denom else 0
+        raw = anchors[-1][1] + slope * (period - anchors[-1][0])
+    else:
+        for i in range(len(anchors) - 1):
+            if anchors[i][0] <= period <= anchors[i + 1][0]:
+                denom = anchors[i + 1][0] - anchors[i][0]
+                t = (period - anchors[i][0]) / denom if denom else 0
+                raw = anchors[i][1] + t * (anchors[i + 1][1] - anchors[i][1])
+                break
+    return max(WIDTH_LENGTH_MIN, min(WIDTH_LENGTH_MAX, raw))
 
-    Returns: middle, upper, lower bands as pd.Series
+
+def bollinger_bands(close: pd.Series, period: int = BB_PERIOD,
+                    std_dev: float = BB_STD_DEV,
+                    high: pd.Series = None, low: pd.Series = None,
+                    use_typical_price: bool = BB_USE_TYPICAL_PRICE,
+                    auto_std: bool = False):
     """
-    mid   = close.rolling(window=period).mean()
-    sigma = close.rolling(window=period).std(ddof=0)   # population std — matches TradingView
+    Bollinger Bands (SMA-based). Population std dev (ddof=0).
+    use_typical_price=True → (H+L+C)/3 instead of close (Ch.7).
+    auto_std=True → Rule 11 width-length auto-adjustment.
+    """
+    if use_typical_price and high is not None and low is not None:
+        source = (high + low + close) / 3.0
+    else:
+        source = close
+    if auto_std:
+        std_dev = width_length_std_dev(period)
+    mid   = source.rolling(window=period).mean()
+    sigma = source.rolling(window=period).std(ddof=0)
     upper = mid + std_dev * sigma
     lower = mid - std_dev * sigma
     return mid, upper, lower
@@ -65,17 +100,13 @@ def percent_b(close: pd.Series, upper: pd.Series, lower: pd.Series) -> pd.Series
     return ((close - lower) / band_range).fillna(0.5)
 
 
-def is_squeeze(bbw: pd.Series, lookback: int = BBW_LOOKBACK, trigger: float = BBW_TRIGGER) -> pd.Series:
+def is_squeeze(bbw: pd.Series, lookback: int = BBW_LOOKBACK) -> pd.Series:
     """
     Squeeze is ON when BBW is at or near its 6-month lowest value.
-    Uses dynamic rolling minimum AND the absolute 0.08 trigger line.
+    Book-faithful: dynamic rolling minimum only (absolute trigger removed).
     """
-    rolling_min  = bbw.rolling(window=lookback, min_periods=60).min()
-    # Squeeze condition: current BBW ≤ rolling 6-month min * 1.05 (5% tolerance)
-    # OR current BBW ≤ absolute trigger value
-    dynamic_squeeze  = bbw <= (rolling_min * 1.05)
-    absolute_squeeze = bbw <= trigger
-    return dynamic_squeeze | absolute_squeeze
+    rolling_min = bbw.rolling(window=lookback, min_periods=60).min()
+    return bbw <= (rolling_min * 1.05)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -399,6 +430,216 @@ def normalize_indicator(indicator: pd.Series, bb_len: int,
 
 
 # ═══════════════════════════════════════════════════════════════
+# VOLUME-PRICE TREND (Book Ch.18 — 7th of 8 indicators)
+# ═══════════════════════════════════════════════════════════════
+
+def volume_price_trend(close: pd.Series, volume: pd.Series,
+                       signal_period: int = VPT_SIGNAL_PERIOD):
+    """VPT = cumsum(volume × pct_change). Signal = EMA(VPT)."""
+    pct = close.pct_change().fillna(0)
+    vpt = (volume * pct).cumsum()
+    signal = vpt.ewm(span=signal_period, adjust=False).mean()
+    return vpt, signal
+
+
+# ═══════════════════════════════════════════════════════════════
+# FIVE-POINT MERRILL PATTERNS (Book Ch.11, pp.84-95)
+# 16 W types (M1-M16) + 16 M types (W1-W16)
+# Each pattern: 5 consecutive swing points classified by shape.
+# ═══════════════════════════════════════════════════════════════
+
+MERRILL_W_PATTERNS = {
+    "W1":  (1, -1, 1, -1, 1),   "W2":  (1, -1, 1, 1, -1),
+    "W3":  (1, -1, -1, 1, 1),   "W4":  (1, -1, -1, 1, -1),
+    "W5":  (1, -1, -1, -1, 1),  "W6":  (1, 1, -1, -1, 1),
+    "W7":  (1, 1, -1, 1, -1),   "W8":  (1, 1, -1, -1, -1),
+    "W9":  (1, 1, 1, -1, -1),   "W10": (1, 1, -1, 1, 1),
+    "W11": (-1, 1, -1, 1, 1),   "W12": (-1, 1, -1, -1, 1),
+    "W13": (-1, 1, 1, -1, 1),   "W14": (-1, -1, 1, -1, 1),
+    "W15": (-1, -1, 1, 1, -1),  "W16": (-1, -1, -1, 1, 1),
+}
+
+MERRILL_M_PATTERNS = {
+    "M1":  (-1, 1, -1, 1, -1),  "M2":  (-1, 1, -1, -1, 1),
+    "M3":  (-1, 1, 1, -1, -1),  "M4":  (-1, 1, 1, -1, 1),
+    "M5":  (-1, 1, 1, 1, -1),   "M6":  (-1, -1, 1, 1, -1),
+    "M7":  (-1, -1, 1, -1, 1),  "M8":  (-1, -1, 1, 1, 1),
+    "M9":  (-1, -1, -1, 1, 1),  "M10": (-1, -1, 1, -1, -1),
+    "M11": (1, -1, 1, -1, -1),  "M12": (1, -1, 1, 1, -1),
+    "M13": (1, -1, -1, 1, -1),  "M14": (1, 1, -1, 1, -1),
+    "M15": (1, 1, -1, -1, 1),   "M16": (1, 1, 1, -1, -1),
+}
+
+
+def _extract_swings(values: np.ndarray, order: int = 2):
+    """Extract swing highs and lows as (index, value, type) tuples."""
+    swings = []
+    for i in range(order, len(values) - order):
+        window = values[i - order:i + order + 1]
+        if values[i] == window.max() and np.sum(window == window.max()) == 1:
+            swings.append((i, values[i], 1))   # swing high
+        elif values[i] == window.min() and np.sum(window == window.min()) == 1:
+            swings.append((i, values[i], -1))  # swing low
+    return swings
+
+
+def detect_merrill_five_point(pct_b: np.ndarray, lookback: int = 40) -> list:
+    """
+    Classify last 5 swing points into one of Merrill's 32 patterns.
+    Returns list of (pattern_name, pattern_type, swing_indices).
+    """
+    if len(pct_b) < lookback:
+        return []
+    window = pct_b[-lookback:]
+    swings = _extract_swings(window)
+    if len(swings) < 5:
+        return []
+
+    results = []
+    for start in range(len(swings) - 4):
+        five = swings[start:start + 5]
+        signature = tuple(s[2] for s in five)
+        indices = [s[0] for s in five]
+
+        for name, pat in MERRILL_W_PATTERNS.items():
+            if signature == pat:
+                results.append((name, "W", indices))
+                break
+        else:
+            for name, pat in MERRILL_M_PATTERNS.items():
+                if signature == pat:
+                    results.append((name, "M", indices))
+                    break
+    return results
+
+
+# ═══════════════════════════════════════════════════════════════
+# HEAD-AND-SHOULDERS DECOMPOSITION (Book Ch.13, pp.105-110)
+# Decompose into M-building-blocks: LS-H-RS with %b declining.
+# ═══════════════════════════════════════════════════════════════
+
+def detect_head_shoulders(pct_b: np.ndarray, prices: np.ndarray,
+                          lookback: int = 50) -> list:
+    """
+    Detect head-and-shoulders as three highs where the middle is highest
+    and %b declines from left shoulder to right shoulder.
+    Returns list of dicts with pattern info.
+    """
+    if len(pct_b) < lookback or len(prices) < lookback:
+        return []
+    w_pctb = pct_b[-lookback:]
+    w_price = prices[-lookback:]
+    swings = _extract_swings(w_price, order=3)
+    highs = [(i, v) for i, v, t in swings if t == 1]
+    if len(highs) < 3:
+        return []
+
+    results = []
+    for a in range(len(highs) - 2):
+        ls_i, ls_v = highs[a]
+        for b in range(a + 1, len(highs) - 1):
+            h_i, h_v = highs[b]
+            for c in range(b + 1, len(highs)):
+                rs_i, rs_v = highs[c]
+                if h_v <= ls_v or h_v <= rs_v:
+                    continue
+                if abs(ls_v - rs_v) / max(h_v, 1e-9) > 0.05:
+                    continue
+                ls_pctb = w_pctb[ls_i] if ls_i < len(w_pctb) else 0.5
+                rs_pctb = w_pctb[rs_i] if rs_i < len(w_pctb) else 0.5
+                if rs_pctb < ls_pctb:
+                    results.append({
+                        "type": "HEAD_AND_SHOULDERS",
+                        "ls_idx": ls_i, "head_idx": h_i, "rs_idx": rs_i,
+                        "ls_pctb": float(ls_pctb), "rs_pctb": float(rs_pctb),
+                        "pctb_decline": float(ls_pctb - rs_pctb),
+                    })
+    return results[-1:] if results else []
+
+
+# ═══════════════════════════════════════════════════════════════
+# BOLLINGER BOXES (Book Ch.11)
+# A consolidation range defined by BB extremes during a squeeze.
+# ═══════════════════════════════════════════════════════════════
+
+def detect_bollinger_boxes(df: pd.DataFrame, lookback: int = BBOX_LOOKBACK,
+                           min_swings: int = BBOX_MIN_SWINGS) -> list:
+    """
+    Detect price consolidation boxes bounded by BB upper/lower during squeeze.
+    Returns list of dicts with box bounds and breakout status.
+    """
+    if len(df) < lookback:
+        return []
+    window = df.iloc[-lookback:]
+    squeeze_mask = window.get("Squeeze_ON", pd.Series([False] * len(window)))
+    if not squeeze_mask.any():
+        return []
+
+    squeeze_runs = []
+    start = None
+    for i, sq in enumerate(squeeze_mask.values):
+        if sq and start is None:
+            start = i
+        elif not sq and start is not None:
+            if i - start >= min_swings:
+                squeeze_runs.append((start, i))
+            start = None
+    if start is not None and len(window) - start >= min_swings:
+        squeeze_runs.append((start, len(window)))
+
+    results = []
+    for s, e in squeeze_runs:
+        seg = window.iloc[s:e]
+        box_top = float(seg["BB_Upper"].max())
+        box_bot = float(seg["BB_Lower"].min())
+        last_close = float(window.iloc[-1]["Close"])
+        breakout = "UPPER" if last_close > box_top else (
+            "LOWER" if last_close < box_bot else "INSIDE")
+        results.append({
+            "type": "BOLLINGER_BOX",
+            "start": s, "end": e, "bars": e - s,
+            "top": box_top, "bottom": box_bot,
+            "breakout": breakout,
+        })
+    return results
+
+
+# ═══════════════════════════════════════════════════════════════
+# 3-LEG WALK DETECTION (Elliott convention, Book Ch.14)
+# ═══════════════════════════════════════════════════════════════
+
+def detect_walk_legs(pct_b: np.ndarray, direction: str = "upper",
+                     min_leg_bars: int = M4_WALK_LEG_MIN_BARS) -> int:
+    """
+    Count legs in a walk along the band. A leg = consecutive bars where
+    %b stays in the extreme zone, separated by brief pullbacks.
+    """
+    if direction == "upper":
+        in_zone = pct_b > 0.75
+    else:
+        in_zone = pct_b < 0.25
+
+    legs = 0
+    in_leg = False
+    leg_bars = 0
+    for val in in_zone:
+        if val:
+            if not in_leg:
+                in_leg = True
+                leg_bars = 1
+            else:
+                leg_bars += 1
+        else:
+            if in_leg and leg_bars >= min_leg_bars:
+                legs += 1
+            in_leg = False
+            leg_bars = 0
+    if in_leg and leg_bars >= min_leg_bars:
+        legs += 1
+    return legs
+
+
+# ═══════════════════════════════════════════════════════════════
 # COMPOSITE INDICATOR CALCULATION
 # ═══════════════════════════════════════════════════════════════
 
@@ -412,8 +653,8 @@ def compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
       A — Bollinger Bands, %b, BandWidth, Squeeze, Parabolic SAR
       B — Volume SMA
       C — CMF, MFI  (existing)
-      D — II, II%, AD, AD%, VWMACD  (Book Ch.18 — NEW)
-      E — Expansion, RSI, Normalised RSI/MFI  (Book Ch.15, Ch.21 — NEW)
+      D — II, II%, AD, AD%, VWMACD, VPT  (Book Ch.18)
+      E — Expansion, RSI, Normalised RSI/MFI  (Book Ch.15, Ch.21)
     """
     close  = df["Close"].astype(float)
     high   = df["High"].astype(float)
@@ -467,6 +708,11 @@ def compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["VWMACD"]        = vwmacd_line
     df["VWMACD_Signal"] = vwmacd_sig
     df["VWMACD_Hist"]   = vwmacd_hist
+
+    # ── Volume-Price Trend (Book Ch.18 — 7th of 8 indicators) ──
+    vpt_line, vpt_sig = volume_price_trend(close, volume)
+    df["VPT"] = vpt_line
+    df["VPT_Signal"] = vpt_sig
 
     # ── Expansion Detection (Book Ch.15 p.123) ──
     exp_up, exp_down, exp_end = detect_expansion(upper, lower, close, mid)

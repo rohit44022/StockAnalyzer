@@ -8,6 +8,7 @@ import numpy as np
 import math
 from dataclasses import dataclass, field
 from typing import Optional
+from bb_squeeze.indicators import detect_bollinger_boxes
 from bb_squeeze.config import (
     CMF_UPPER_LINE, CMF_LOWER_LINE,
     MFI_OVERBOUGHT, MFI_OVERSOLD, MFI_MID,
@@ -16,7 +17,9 @@ from bb_squeeze.config import (
     SCORE_VOLUME_CONFIRM, SCORE_CMF_POSITIVE,
     SCORE_MFI_ABOVE_50, SCORE_CMF_ABOVE_10, SCORE_MFI_ABOVE_80,
     SCORE_KC_T7_BONUS, KC_SQUEEZE_INTENSITY_MIN,
-    SCORE_II_CONFIRM, SCORE_RALLY_DAY, SCORE_EXPANSION_CONFIRM,
+    SCORE_II_CONFIRM, SCORE_VWMACD_CONFIRM,
+    SCORE_RALLY_DAY, SCORE_EXPANSION_CONFIRM,
+    SCORE_VPT_CONFIRM,
 )
 
 
@@ -102,6 +105,7 @@ class SignalResult:
 
     # ── Direction Lean ──
     direction_lean: str = "NEUTRAL"    # "BULLISH" | "BEARISH" | "NEUTRAL"
+    box_breakout:   str = "NONE"      # "UPPER" | "LOWER" | "INSIDE" | "NONE"
 
     # ── T7 Keltner Channel Squeeze ──
     kc_squeeze:           bool  = False
@@ -206,7 +210,7 @@ def _direction_lean(row: pd.Series) -> str:
         bear_score += 2
 
     # VWMACD histogram — Book Ch.18: closed-form directional clue
-    vwmacd_hist = float(row.get("VWMACD_Hist", 0))
+    vwmacd_hist = _nan_safe(row.get("VWMACD_Hist", 0), 0)
     if vwmacd_hist > 0:
         bull_score += 1
     elif vwmacd_hist < 0:
@@ -224,6 +228,14 @@ def _direction_lean(row: pd.Series) -> str:
     if mfi_norm > 0.8:
         bull_score += 1
     elif mfi_norm < 0.2:
+        bear_score += 1
+
+    # VPT trend (Ch.18) — volume-price trend
+    vpt = _nan_safe(row.get("VPT", 0), 0)
+    vpt_sig = _nan_safe(row.get("VPT_Signal", 0), 0)
+    if vpt > vpt_sig:
+        bull_score += 1
+    elif vpt < vpt_sig:
         bear_score += 1
 
     # Expansion (Ch.15) — band expansion confirms trend direction
@@ -385,6 +397,13 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     # ── Phase Detection ──
     result.phase         = _phase_detection(row, prev_df)
     result.direction_lean = _direction_lean(row)
+    boxes = detect_bollinger_boxes(df)
+    if boxes:
+        result.box_breakout = boxes[-1].get("breakout", "NONE")
+        if result.box_breakout == "UPPER":
+            result.direction_lean = "BULLISH"
+        elif result.box_breakout == "LOWER":
+            result.direction_lean = "BEARISH"
     result.squeeze_days  = _count_squeeze_days(df)
 
     # ──────────────────────────────────────────────────────────
@@ -433,6 +452,13 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     if result.kc_t7_pass:  score += SCORE_KC_T7_BONUS
     # II% accumulation bonus (Book Ch.18)
     if result.ii_pct > 0:  score += SCORE_II_CONFIRM
+    # VWMACD trend confirmation (Book Ch.18 — different indicator category)
+    vwmacd_hist = _nan_safe(row.get("VWMACD_Hist", 0), 0)
+    if vwmacd_hist > 0:  score += SCORE_VWMACD_CONFIRM
+    # VPT trend confirmation (Book Ch.18)
+    vpt = _nan_safe(row.get("VPT", 0), 0)
+    vpt_sig = _nan_safe(row.get("VPT_Signal", 0), 0)
+    if vpt > vpt_sig and result.cond2_price_above:  score += SCORE_VPT_CONFIRM
     # Adaptive MFI overbought (Ch.21) — replaces fixed MFI>80 for bonus
     if result.mfi_norm > 1.0:  score += SCORE_MFI_ABOVE_80
     elif result.mfi > MFI_OVERBOUGHT:  score += SCORE_MFI_ABOVE_80
@@ -459,17 +485,20 @@ def analyze_signals(ticker: str, df: pd.DataFrame) -> SignalResult:
     result.three_pushes_low = _three_pushes_low_check(df)
 
     # ──────────────────────────────────────────────────────────
-    # BUY SIGNAL — ALL 5 CONDITIONS + NO HEAD FAKE
+    # BUY SIGNAL — Book-faithful: squeeze + breakout required,
+    # 2-of-3 volume confirmations (Rule 5 collinearity-safe)
     # ──────────────────────────────────────────────────────────
-    all_five_green = (
-        result.cond1_squeeze_on and
-        result.cond2_price_above and
-        result.cond3_volume_ok and
-        result.cond4_volume_ok and      # Book Rule 5: CMF > 0 OR II% > 0
-        result.cond5_mfi_above_50
-    )
+    core_ok = result.cond1_squeeze_on and result.cond2_price_above
+    vol_confirms = sum([
+        result.cond3_volume_ok,                          # pure volume
+        result.cond5_mfi_above_50,                       # volume×price
+        result.cond4_volume_ok,                          # CMF>0 OR II%>0
+    ])
     bw_contracting = bool(row.get("BBW_Contracting", True))
-    result.buy_signal = all_five_green and not result.head_fake and bw_contracting
+    result.buy_signal = (
+        core_ok and vol_confirms >= 2
+        and not result.head_fake and bw_contracting
+    )
 
     # ──────────────────────────────────────────────────────────
     # METHOD I SHORT-SIDE — Bearish Squeeze Breakout (Book Ch.16)

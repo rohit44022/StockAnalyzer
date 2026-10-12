@@ -422,9 +422,32 @@ function renderScan(){
       }
     }
     if(action==='NONE') continue;
+    let badges = [];
+    if(activeMethod==='M1'){
+      const m1 = s.m1||{};
+      if(m1.box_breakout && m1.box_breakout!=='NONE' && m1.box_breakout!=='INSIDE')
+        badges.push('BOX-'+m1.box_breakout);
+      if(m1.direction_lean && m1.direction_lean!=='NEUTRAL')
+        badges.push(m1.direction_lean);
+    }else if(activeMethod!=='M1'){
+      const idx = {M2:0,M3:1,M4:2}[activeMethod];
+      const st = (s.strategies||[])[idx];
+      const ind = (st||{}).indicators||{};
+      if(ind.opposite_band_exit) badges.push('OPP-EXIT');
+      if(ind.pullback_entry) badges.push('PULLBACK');
+      if(ind.walk_legs>=3) badges.push(ind.walk_legs+'LEG');
+      if(ind.vpt_bullish===true) badges.push('VPT↑');
+      else if(ind.vpt_bullish===false && ind.vpt!==undefined) badges.push('VPT↓');
+      if((ind.merrill_patterns||[]).length) badges.push('MERRILL');
+      if((ind.head_and_shoulders||[]).length) badges.push('H&S');
+      if((ind.bollinger_boxes||[]).length){
+        const bx=(ind.bollinger_boxes||[])[0]||{};
+        if(bx.breakout&&bx.breakout!=='INSIDE') badges.push('BOX-'+bx.breakout);
+      }
+    }
     filtered.push({
       ticker: s.ticker, price: s.price,
-      action, conf, details,
+      action, conf, details, badges,
     });
   }
 
@@ -454,7 +477,10 @@ function renderScan(){
           <span class="font-mono" style="font-size:.75rem">${s.conf}%</span>
         </div>
       </td>
-      <td style="max-width:250px;font-size:.75rem;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.details)}</td>
+      <td style="max-width:350px;font-size:.75rem;color:#8b949e">
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:200px;vertical-align:middle">${escHtml(s.details)}</span>
+        ${(s.badges||[]).map(b=>`<span class="badge bg-${b.startsWith('H&S')||b.startsWith('OPP')?'danger':b.startsWith('PULL')||b.startsWith('MERRILL')?'info':'warning'} ms-1" style="font-size:.65rem">${b}</span>`).join('')}
+      </td>
       <td>${ac==='BUY'||ac==='WATCH'?`<button class="btn-buy" onclick="openBuy('${s.ticker}','${activeMethod}',${s.price})"><i class="bi bi-plus"></i> Buy</button>`:''}</td>
     </tr>`;
   }

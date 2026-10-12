@@ -87,6 +87,12 @@ M3_ENTRY_RANGE_LOOKBACK  = 20   # Bars to compute average range
 M3_ENTRY_VOLUME_LOOKBACK = 50   # Bars to compute average volume
 
 # ─────────────────────────────────────────────────────────────────
+#  METHOD II — OPPOSITE BAND EXIT (Book Ch.19)
+#  "Exit when price touches the opposite band"
+# ─────────────────────────────────────────────────────────────────
+M2_EXIT_OPPOSITE_BAND = True  # Wire opposite-band as exit signal
+
+# ─────────────────────────────────────────────────────────────────
 #  DISPLAY
 # ─────────────────────────────────────────────────────────────────
 

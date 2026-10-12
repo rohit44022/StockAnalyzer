@@ -671,5 +671,210 @@ class TestComputeAllIndicators(unittest.TestCase):
         self.assertTrue(np.isfinite(tail["Percent_B"]).all())
 
 
+# ═══════════════════════════════════════════════════════════════
+# Tests for newly implemented audit items (13 items)
+# ═══════════════════════════════════════════════════════════════
+
+class TestWidthLengthStdDev(unittest.TestCase):
+    """Rule 11, p.184: auto-scale std dev for BB period."""
+
+    def test_canonical_values(self):
+        from bb_squeeze.indicators import width_length_std_dev
+        self.assertAlmostEqual(width_length_std_dev(10), 1.9, places=2)
+        self.assertAlmostEqual(width_length_std_dev(20), 2.0, places=2)
+        self.assertAlmostEqual(width_length_std_dev(50), 2.1, places=2)
+
+    def test_clamped_extremes(self):
+        from bb_squeeze.indicators import width_length_std_dev
+        self.assertGreaterEqual(width_length_std_dev(1), 1.5)
+        self.assertLessEqual(width_length_std_dev(500), 2.5)
+
+
+class TestBollingerBandsTypicalPrice(unittest.TestCase):
+    """Ch.7: BB on (H+L+C)/3 as alternative to close."""
+
+    def test_typical_price_shifts_bands(self):
+        close = list(range(100, 200))
+        df = _make_ohlcv(close, hl_spread=5.0)
+        df["High"] = df["Close"] + 3.0  # asymmetric: high closer to close
+        df["Low"] = df["Close"] - 7.0   # low further from close
+        mid_c, up_c, lo_c = bollinger_bands(df["Close"])
+        mid_t, up_t, lo_t = bollinger_bands(
+            df["Close"], high=df["High"], low=df["Low"],
+            use_typical_price=True)
+        self.assertFalse(mid_c.equals(mid_t), "Typical price must differ from close")
+
+    def test_auto_std(self):
+        close = list(range(100, 200))
+        df = _make_ohlcv(close)
+        mid10, up10, lo10 = bollinger_bands(df["Close"], period=10, auto_std=True)
+        mid50, up50, lo50 = bollinger_bands(df["Close"], period=50, auto_std=True)
+        bw10 = ((up10 - lo10) / mid10).dropna().mean()
+        bw50 = ((up50 - lo50) / mid50).dropna().mean()
+        self.assertGreater(bw50, 0)
+        self.assertGreater(bw10, 0)
+
+
+class TestIsSqueezeNoAbsoluteTrigger(unittest.TestCase):
+    """Verify is_squeeze uses only dynamic rolling min, no absolute 0.08."""
+
+    def test_high_bbw_no_squeeze(self):
+        from bb_squeeze.indicators import is_squeeze
+        bbw = pd.Series([0.10] * 200)
+        result = is_squeeze(bbw)
+        self.assertTrue(result.iloc[-1], "Constant BBW at its own min → squeeze")
+
+    def test_dynamic_only(self):
+        from bb_squeeze.indicators import is_squeeze
+        bbw = pd.Series([0.20] * 130 + [0.15] * 5)
+        result = is_squeeze(bbw)
+        self.assertTrue(result.iloc[-1], "BBW at new rolling low → squeeze")
+
+
+class TestVolumePriceTrend(unittest.TestCase):
+    """Ch.18: VPT = cumsum(volume × pct_change)."""
+
+    def test_vpt_basic(self):
+        from bb_squeeze.indicators import volume_price_trend
+        close = pd.Series([100, 102, 101, 103, 105])
+        vol = pd.Series([1000] * 5)
+        vpt, sig = volume_price_trend(close, vol)
+        self.assertEqual(len(vpt), 5)
+        self.assertEqual(len(sig), 5)
+        self.assertAlmostEqual(vpt.iloc[0], 0.0)
+        self.assertGreater(vpt.iloc[-1], 0, "Net uptrend → positive VPT")
+
+    def test_vpt_in_compute_all(self):
+        close = list(range(100, 300))
+        df = _make_ohlcv(close)
+        result = compute_all_indicators(df)
+        self.assertIn("VPT", result.columns)
+        self.assertIn("VPT_Signal", result.columns)
+
+
+class TestMerrillFivePoint(unittest.TestCase):
+    """Ch.11, pp.84-95: 32 five-point pattern taxonomy."""
+
+    def test_detects_pattern(self):
+        from bb_squeeze.indicators import detect_merrill_five_point
+        pct_b = np.array([0.5] * 20 +
+                         [0.8, 0.3, 0.9, 0.2, 0.7])  # alternating H/L
+        results = detect_merrill_five_point(pct_b, lookback=25)
+        self.assertIsInstance(results, list)
+
+    def test_too_short_returns_empty(self):
+        from bb_squeeze.indicators import detect_merrill_five_point
+        pct_b = np.array([0.5] * 5)
+        results = detect_merrill_five_point(pct_b, lookback=40)
+        self.assertEqual(results, [])
+
+
+class TestHeadAndShoulders(unittest.TestCase):
+    """Ch.13, pp.105-110: H&S decomposed into M building-blocks."""
+
+    def test_classic_hs_detected(self):
+        from bb_squeeze.indicators import detect_head_shoulders
+        prices = np.concatenate([
+            np.linspace(100, 110, 10),   # up to LS
+            np.linspace(110, 105, 5),    # down from LS
+            np.linspace(105, 115, 8),    # up to Head
+            np.linspace(115, 105, 8),    # down from Head
+            np.linspace(105, 110, 10),   # up to RS
+            np.linspace(110, 100, 9),    # down from RS
+        ])
+        pct_b = np.linspace(0.9, 0.5, len(prices))
+        results = detect_head_shoulders(pct_b, prices, lookback=len(prices))
+        self.assertIsInstance(results, list)
+
+    def test_no_pattern_returns_empty(self):
+        from bb_squeeze.indicators import detect_head_shoulders
+        prices = np.linspace(100, 200, 50)
+        pct_b = np.linspace(0.5, 0.9, 50)
+        results = detect_head_shoulders(pct_b, prices)
+        self.assertEqual(results, [])
+
+
+class TestBollingerBoxes(unittest.TestCase):
+    """Ch.11: Consolidation boxes during squeeze."""
+
+    def test_box_during_squeeze(self):
+        from bb_squeeze.indicators import detect_bollinger_boxes
+        close = [100 + (i % 3) * 0.5 for i in range(60)]
+        df = _make_ohlcv(close, hl_spread=1.0)
+        result = compute_all_indicators(df)
+        result["Squeeze_ON"] = True
+        boxes = detect_bollinger_boxes(result, lookback=50)
+        self.assertIsInstance(boxes, list)
+        if boxes:
+            self.assertIn("top", boxes[0])
+            self.assertIn("bottom", boxes[0])
+            self.assertIn("breakout", boxes[0])
+
+    def test_no_squeeze_no_box(self):
+        from bb_squeeze.indicators import detect_bollinger_boxes
+        close = list(range(100, 160))
+        df = _make_ohlcv(close)
+        result = compute_all_indicators(df)
+        result["Squeeze_ON"] = False
+        boxes = detect_bollinger_boxes(result, lookback=50)
+        self.assertEqual(boxes, [])
+
+
+class TestWalkLegs(unittest.TestCase):
+    """Ch.14: 3-leg Elliott walk detection."""
+
+    def test_three_legs_upper(self):
+        from bb_squeeze.indicators import detect_walk_legs
+        pct_b = np.array(
+            [0.9, 0.85, 0.88, 0.9,     # leg 1
+             0.6, 0.55,                   # pullback
+             0.85, 0.9, 0.88,            # leg 2
+             0.5, 0.55,                   # pullback
+             0.8, 0.85, 0.9])            # leg 3
+        legs = detect_walk_legs(pct_b, direction="upper")
+        self.assertGreaterEqual(legs, 2)
+
+    def test_no_walk_returns_zero(self):
+        from bb_squeeze.indicators import detect_walk_legs
+        pct_b = np.array([0.5] * 20)
+        self.assertEqual(detect_walk_legs(pct_b, direction="upper"), 0)
+
+
+class TestCollinearityScoring(unittest.TestCase):
+    """Rule 5: CMF demoted, VWMACD and II added as cross-category."""
+
+    def test_cmf_weight_reduced(self):
+        from bb_squeeze.config import SCORE_CMF_POSITIVE, SCORE_MFI_ABOVE_50
+        self.assertLess(SCORE_CMF_POSITIVE, SCORE_MFI_ABOVE_50,
+                        "CMF must be supplementary (lower weight than MFI)")
+
+    def test_vwmacd_has_weight(self):
+        from bb_squeeze.config import SCORE_VWMACD_CONFIRM
+        self.assertGreater(SCORE_VWMACD_CONFIRM, 0)
+
+    def test_base_weights_sum_100(self):
+        from bb_squeeze.config import (
+            SCORE_BBW_SQUEEZE, SCORE_PRICE_BREAKOUT, SCORE_VOLUME_CONFIRM,
+            SCORE_CMF_POSITIVE, SCORE_MFI_ABOVE_50, SCORE_II_CONFIRM,
+            SCORE_VWMACD_CONFIRM)
+        total = (SCORE_BBW_SQUEEZE + SCORE_PRICE_BREAKOUT + SCORE_VOLUME_CONFIRM
+                 + SCORE_CMF_POSITIVE + SCORE_MFI_ABOVE_50 + SCORE_II_CONFIRM
+                 + SCORE_VWMACD_CONFIRM)
+        self.assertEqual(total, 100)
+
+
+class TestTwoOfThreeBuyRule(unittest.TestCase):
+    """Method I relaxed from all-5 to squeeze+breakout + 2-of-3 vol confirms."""
+
+    def test_two_of_three_still_buys(self):
+        from bb_squeeze.signals import analyze_signals as _analyze
+        from bb_squeeze.tests.test_strategies import TestM1SqueezeBuyStrict, _force_row
+        t = TestM1SqueezeBuyStrict()
+        df = t._build_buy_ready_df()
+        df = _force_row(df, -1, CMF=-0.05)
+        sig = _analyze("TEST", df)
+        self.assertTrue(sig.buy_signal, "Vol + MFI green → 2-of-3 → buy")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

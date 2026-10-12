@@ -40,3 +40,5 @@
 {"ts": "2026-10-12T02:09:19", "changes": {"enabled": {"from": false, "to": true}, "capital": {"from": 10000, "to": 500000}, "min_score": {"from": 10.0, "to": 7.0}, "max_concurrent_trades": {"from": 5, "to": 3}}}
 {"ts": "2026-10-12T02:09:19", "changes": {"max_concurrent_trades": {"from": 3, "to": 1}}}
 {"ts": "2026-10-12T02:09:19", "changes": {"enabled": {"from": true, "to": false}, "max_concurrent_trades": {"from": 1, "to": 3}}}
+{"ts": "2026-10-12T09:01:54", "changes": {"enabled": {"from": false, "to": true}}}
+{"ts": "2026-10-12T09:32:03", "changes": {"staging": {"from": "BURN_IN", "to": "FULL_DEPLOY"}}}

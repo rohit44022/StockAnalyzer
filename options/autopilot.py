@@ -272,6 +272,7 @@ def _release_lock(fd):
 
 _atr_cache = {}    # symbol → float (14-day ATR)
 _chain_cache = {}  # symbol → DataFrame
+_pipe_cache = {}   # symbol → pipeline result (regime-change check)
 
 
 def _compute_atr(symbol):
@@ -676,17 +677,19 @@ def _log_decision(db, cycle_id, cycle_type, action, reason,
                   strategy=None, score=None, spot=None, vix=None,
                   pnl=None, context=None):
     conn = _conn(db)
-    conn.execute(
-        '''INSERT INTO autopilot_log
-           (timestamp, cycle_id, cycle_type, action, symbol, trade_id,
-            recommendation_id, strategy, score, spot, vix, pnl, reason, context_json)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-        (datetime.datetime.now().isoformat(), cycle_id, cycle_type,
-         action, symbol, trade_id, rec_id, strategy, score, spot, vix, pnl,
-         reason, json.dumps(context) if context else None)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            '''INSERT INTO autopilot_log
+               (timestamp, cycle_id, cycle_type, action, symbol, trade_id,
+                recommendation_id, strategy, score, spot, vix, pnl, reason, context_json)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (datetime.datetime.now().isoformat(), cycle_id, cycle_type,
+             action, symbol, trade_id, rec_id, strategy, score, spot, vix, pnl,
+             reason, json.dumps(context) if context else None)
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_decision_log(db=None, limit=50) -> list:
@@ -700,6 +703,36 @@ def get_decision_log(db=None, limit=50) -> list:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def _get_scan_history(db=None, limit=20):
+    """Return recent autopilot cycles grouped by cycle_id for scan activity display."""
+    from . import paper_trade
+    db = db or paper_trade._db_path()
+    paper_trade.init_db(db)
+    conn = _conn(db)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("""
+        SELECT timestamp, cycle_id, cycle_type, action, symbol, reason, score
+        FROM autopilot_log
+        WHERE cycle_id IN (
+            SELECT DISTINCT cycle_id FROM autopilot_log
+            ORDER BY id DESC LIMIT ?
+        )
+        ORDER BY id ASC
+    """, (limit,)).fetchall()
+    conn.close()
+    cycles = {}
+    for r in rows:
+        cid = r['cycle_id']
+        if cid not in cycles:
+            cycles[cid] = {'cycle_id': cid, 'timestamp': r['timestamp'],
+                           'cycle_type': r['cycle_type'], 'steps': []}
+        cycles[cid]['steps'].append({
+            'action': r['action'], 'symbol': r['symbol'],
+            'reason': r['reason'], 'score': r['score'],
+        })
+    return list(cycles.values())[-10:]
 
 
 # ── Preflight ───────────────────────────────────────────────────
@@ -1219,9 +1252,12 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
     cfg = load_config()
     cycle_id = uuid.uuid4().hex[:12]
 
+    now_ist = datetime.datetime.now(_IST)
+
     # Clear per-cycle caches
     _atr_cache.clear()
     _chain_cache.clear()
+    _pipe_cache.clear()
 
     if not cfg.get('enabled'):
         return {'cycle_id': cycle_id, 'action': 'skip', 'reason': 'Autopilot disabled'}
@@ -1301,7 +1337,8 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
         _emit_alert(db, 'CRITICAL', 'SYSTEM',
                     'Live executor failed — cycle aborted, NOT falling back to paper',
                     f'cycle={cycle_id}')
-        return
+        summary['errors'].append('executor_init_failed')
+        return summary
     else:
         log.info(f'Cycle {cycle_id}: paper mode — no real orders')
 
@@ -1411,7 +1448,8 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
     if last_check:
         gap_min = (datetime.datetime.now() -
                    datetime.datetime.fromisoformat(last_check['timestamp'])).total_seconds() / 60
-        if gap_min > 10:
+        gap_threshold = cfg.get('scan_interval_minutes', 30) * 2 + 5
+        if gap_min > gap_threshold:
             _emit_alert(db, 'WARNING', 'SYSTEM',
                         f'Monitoring gap: {gap_min:.0f}min',
                         f'Exit check was stale for {gap_min:.0f} minutes. Laptop may have slept.')
@@ -1421,7 +1459,6 @@ def run_cycle(cycle_type='auto', db=None) -> dict:
     conn.close()
 
     _spot_cache = {}
-    _pipe_cache = {}  # per-cycle cache for run_eod_pipeline (avoids 36 API calls/day)
     def _get_spot(sym):
         if sym not in _spot_cache:
             try:
@@ -2663,6 +2700,7 @@ def dashboard_data(db=None):
         'equity_curve': equity_points,
         'monthly_summary': monthly_summary,
         'market_state': _last_market_state(db),
+        'scan_history': _get_scan_history(db),
     }
 
 
@@ -2982,15 +3020,22 @@ CRON_TAG = '# autopilot-managed'
 
 def _cron_lines():
     """Build crontab lines for autopilot scan times."""
-    import sys
-    venv_python = sys.executable
     module_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    venv_python = os.path.join(module_dir, '.venv', 'bin', 'python')
+    if not os.path.exists(venv_python):
+        import sys
+        venv_python = sys.executable
+    log_file = os.path.join(module_dir, 'options', 'autopilot_cron.log')
+    cmd = f'cd "{module_dir}" && "{venv_python}" -m options.autopilot run >> "{log_file}" 2>&1  {CRON_TAG}'
     cfg = load_config()
+    interval = cfg.get('scan_interval_minutes')
+    if interval:
+        return [f'*/{interval} 9-15 * * 1-5  {cmd}']
     times = cfg.get('scan_times', ['09:45', '15:20'])
     lines = []
     for t in sorted(times):
         h, m = t.split(':')
-        lines.append(f'{m} {h} * * 1-5  cd "{module_dir}" && "{venv_python}" -m options.autopilot run  {CRON_TAG}')
+        lines.append(f'{m} {h} * * 1-5  {cmd}')
     return lines
 
 

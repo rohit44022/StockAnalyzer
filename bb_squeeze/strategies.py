@@ -43,8 +43,18 @@ from bb_squeeze.strategy_config import (
     M4_WALK_PCT_B_UPPER, M4_WALK_PCT_B_LOWER, M4_WALK_BB_MID_PULLBACK,
     M4_WALK_ZONE_CONSISTENCY,
     M4_WALK_DIP_BUY_PCT_B_MIN, M4_WALK_DIP_BUY_PCT_B_MAX,
+    # Method II exit
+    M2_EXIT_OPPOSITE_BAND,
     # Display
     STRATEGY_NAMES, STRATEGY_DESCRIPTIONS,
+)
+from bb_squeeze.config import (
+    M2_PULLBACK_ENABLED, M2_PULLBACK_PCT_B_MIN, M2_PULLBACK_PCT_B_MAX,
+    M2_PULLBACK_LOOKBACK, M4_WALK_EXPECTED_LEGS,
+)
+from bb_squeeze.indicators import (
+    detect_walk_legs, detect_merrill_five_point,
+    detect_head_shoulders, detect_bollinger_boxes,
 )
 
 
@@ -140,6 +150,10 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
     # VWMACD (Book Ch.18) — supplementary confirmation
     vwmacd_hist = _nan_safe(row.get("VWMACD_Hist", 0), 0.0)
     ii_pct      = _nan_safe(row.get("II_Pct", 0), 0.0)
+    vpt         = _nan_safe(row.get("VPT", 0), 0.0)
+    vpt_sig     = _nan_safe(row.get("VPT_Signal", 0), 0.0)
+    rsi_norm    = _nan_safe(row.get("RSI_Norm", 0.5), 0.5)
+    mfi_norm    = _nan_safe(row.get("MFI_Norm", 0.5), 0.5)
 
     prev_pct_b = _nan_safe(prev["Percent_B"], 0.5)
     prev_mfi   = _nan_safe(prev["MFI"], 50.0)
@@ -182,6 +196,12 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
                 details_lines.append(
                     f"CMF at {cmf:+.3f} shows strong institutional accumulation."
                 )
+            if vpt > vpt_sig:
+                details_lines.append(f"VPT above signal — volume-price trend confirms uptrend (Ch.18).")
+                confidence = min(confidence + 3, 100)
+            if mfi_norm > 0.8:
+                details_lines.append("BB-normalized MFI confirms overbought regime (Ch.21 adaptive).")
+                confidence = min(confidence + 2, 100)
         elif bearish_divergence:
             signal_type = "WATCH"
             strength = "WEAK"
@@ -218,6 +238,12 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
             f"Price is in the lower {pct_b * 100:.0f}% of the Bollinger Band range. "
             f"Money Flow Index at {mfi:.0f} confirms selling pressure."
         )
+        if vpt < vpt_sig:
+            details_lines.append(f"VPT below signal — volume-price trend confirms downtrend (Ch.18).")
+            confidence = min(confidence + 3, 100)
+        if mfi_norm < 0.2:
+            details_lines.append("BB-normalized MFI confirms oversold regime (Ch.21 adaptive).")
+            confidence = min(confidence + 2, 100)
 
     # Bullish divergence at bottom — potential reversal
     elif pct_b < 0.3 and bullish_divergence:
@@ -325,6 +351,39 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
         },
     ]
 
+    # ── Opposite-band exit (Book Ch.19) ──
+    opposite_band_exit = False
+    if M2_EXIT_OPPOSITE_BAND:
+        if signal_type == "BUY" and pct_b <= 0.0:
+            opposite_band_exit = True
+            details_lines.append("⚠ Price touched lower band — opposite-band exit (Ch.19).")
+        elif signal_type == "SELL" and pct_b >= 1.0:
+            opposite_band_exit = True
+            details_lines.append("⚠ Price touched upper band — opposite-band exit (Ch.19).")
+
+    # ── Pullback trading variation (Book Ch.19: "trade first pullback") ──
+    pullback_entry = False
+    if M2_PULLBACK_ENABLED and len(df) >= M2_PULLBACK_LOOKBACK + 1:
+        lookback_slice = df.iloc[-(M2_PULLBACK_LOOKBACK + 1):-1]
+        prior_pctb = lookback_slice["Percent_B"].apply(
+            lambda x: _nan_safe(x, 0.5))
+        prior_mfi = lookback_slice["MFI"].apply(
+            lambda x: _nan_safe(x, 50))
+        had_buy_signal = any(
+            (pb > M2_PCT_B_BUY_THRESHOLD) and (m > M2_MFI_CONFIRM_BUY)
+            for pb, m in zip(prior_pctb, prior_mfi))
+        if (had_buy_signal
+                and M2_PULLBACK_PCT_B_MIN <= pct_b <= M2_PULLBACK_PCT_B_MAX):
+            pullback_entry = True
+            if signal_type == "NONE":
+                signal_type = "BUY"
+                strength = "MODERATE"
+                confidence = 55
+                reason = "M2 pullback entry — prior signal + %b dip (Ch.19)."
+            details_lines.append(
+                f"Pullback entry: %b={pct_b:.2f} in [{M2_PULLBACK_PCT_B_MIN},"
+                f" {M2_PULLBACK_PCT_B_MAX}] after prior BUY signal.")
+
     # ── Indicators for display ──
     indicators = {
         "pct_b": round(pct_b, 4),
@@ -336,8 +395,15 @@ def _method_ii_trend_following(df: pd.DataFrame) -> StrategyResult:
         "mfi_trend": mfi_trend,
         "bullish_divergence": bullish_divergence,
         "bearish_divergence": bearish_divergence,
+        "vpt": round(vpt, 2),
+        "vpt_signal": round(vpt_sig, 2),
+        "vpt_bullish": vpt > vpt_sig,
+        "rsi_norm": round(rsi_norm, 4),
+        "mfi_norm": round(mfi_norm, 4),
         "price_vs_mid": "ABOVE" if close > bb_mid else "BELOW",
         "volume_confirmed": vol > vol_sma,
+        "opposite_band_exit": opposite_band_exit,
+        "pullback_entry": pullback_entry,
         "buy_checklist": buy_checklist,
         "sell_checklist": sell_checklist,
     }
@@ -1257,6 +1323,9 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
     pct_b = _nan_safe(row["Percent_B"], 0.5)
     mfi   = _nan_safe(row["MFI"], 50.0)
     cmf   = _nan_safe(row["CMF"], 0.0)
+    rsi   = _nan_safe(row.get("RSI", 50), 50.0)
+    vpt   = _nan_safe(row.get("VPT", 0), 0.0)
+    vpt_sig = _nan_safe(row.get("VPT_Signal", 0), 0.0)
     close = float(row["Close"])
     bb_upper = float(row["BB_Upper"])
     bb_lower = float(row["BB_Lower"])
@@ -1512,6 +1581,39 @@ def _method_iv_walking_the_bands(df: pd.DataFrame) -> StrategyResult:
         },
     }
 
+    # ── RSI exhaustion check ──
+    indicators["rsi"] = round(rsi, 2)
+    indicators["vpt_bullish"] = vpt > vpt_sig
+    if upper_walk and rsi > 70:
+        details_lines.append(f"RSI at {rsi:.0f} — overbought exhaustion risk during upper walk.")
+        if strength == "STRONG":
+            strength = "MODERATE"
+    elif lower_walk and rsi < 30:
+        details_lines.append(f"RSI at {rsi:.0f} — oversold exhaustion risk during lower walk.")
+        if strength == "STRONG":
+            strength = "MODERATE"
+
+    # ── VPT divergence check (Ch.18) ──
+    if upper_walk and vpt < vpt_sig:
+        details_lines.append("VPT below signal — volume-price trend weakening upper walk.")
+    elif lower_walk and vpt > vpt_sig:
+        details_lines.append("VPT above signal — volume-price divergence from lower walk.")
+
+    # ── 3-leg Elliott tracking (Book Ch.14) ──
+    pctb_arr = df["Percent_B"].dropna().values if "Percent_B" in df.columns else np.array([])
+    if len(pctb_arr) >= 10:
+        walk_dir = "upper" if signal_type == "BUY" or any(
+            p.name == "WALK-UPPER" for p in patterns) else "lower"
+        leg_count = detect_walk_legs(pctb_arr[-30:], direction=walk_dir)
+        indicators["walk_legs"] = leg_count
+        indicators["expected_legs"] = M4_WALK_EXPECTED_LEGS
+        if leg_count >= M4_WALK_EXPECTED_LEGS:
+            details_lines.append(
+                f"Elliott 3-leg walk: {leg_count} legs detected "
+                f"(expected {M4_WALK_EXPECTED_LEGS}). Trend exhaustion likely.")
+            if strength == "STRONG":
+                strength = "MODERATE"
+
     return StrategyResult(
         code="M4",
         name=STRATEGY_NAMES["M4"],
@@ -1548,10 +1650,44 @@ def run_all_strategies(df: pd.DataFrame) -> List[StrategyResult]:
     results.append(_method_ii_trend_following(df))
 
     # Method III — Reversals
-    results.append(_method_iii_reversals(df))
+    m3 = _method_iii_reversals(df)
+    # Attach Merrill five-point + H&S pattern analysis
+    if "Percent_B" in df.columns:
+        pctb_arr = df["Percent_B"].dropna().values
+        m3.indicators["merrill_patterns"] = detect_merrill_five_point(pctb_arr)
+        m3.indicators["head_and_shoulders"] = detect_head_shoulders(
+            pctb_arr, df["Close"].values)
+
+        # Wire Merrill patterns into M3 confidence
+        merrill = m3.indicators.get("merrill_patterns", [])
+        if merrill:
+            pattern_type = merrill[0][0] if merrill else ""
+            if m3.signal.signal_type == "BUY" and "W" in pattern_type:
+                m3.signal.confidence = min(m3.signal.confidence + 10, 100)
+                m3.signal.details += "\nMerrill W-pattern in %b confirms W-bottom."
+            elif m3.signal.signal_type == "SELL" and "M" in pattern_type:
+                m3.signal.confidence = min(m3.signal.confidence + 10, 100)
+                m3.signal.details += "\nMerrill M-pattern in %b confirms M-top."
+
+        # Wire H&S into M3 confidence
+        hs = m3.indicators.get("head_and_shoulders", [])
+        if hs:
+            if m3.signal.signal_type in ("SELL", "WATCH"):
+                m3.signal.confidence = min(m3.signal.confidence + 10, 100)
+                m3.signal.details += "\nHead-and-Shoulders detected — confirms reversal."
+            elif m3.signal.signal_type == "BUY":
+                m3.signal.confidence = max(m3.signal.confidence - 10, 0)
+                m3.signal.details += "\nHead-and-Shoulders detected — contradicts buy signal."
+
+    results.append(m3)
 
     # Method IV — Walking the Bands
     results.append(_method_iv_walking_the_bands(df))
+
+    # Bollinger Boxes (squeeze-related, attach to M3 for pattern context)
+    boxes = detect_bollinger_boxes(df)
+    if boxes:
+        m3.indicators["bollinger_boxes"] = boxes
 
     return results
 
